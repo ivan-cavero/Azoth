@@ -281,7 +281,7 @@ NewWorldPrivateServer/                 # git paraguas (producto: Azoth)
   private-client/                      # gitignored
 ```
 
-URLs relativas (`./research`, `./emulator`, `./launcher`). Clone: `git clone --recurse-submodules`.
+Submódulos en GitHub: `Azoth-Research`, `Azoth-Emulator`, `Azoth-Launcher`. Clone: `git clone --recurse-submodules https://github.com/ivan-cavero/Azoth.git`.
 
 `.gitignore` **ya existe** (default-deny `captures/*`, `*.pcapng`, `*.etl`, `__pycache__/`, `.venv/`). PR-01 lo **reemplaza**, no lo inventa. Política:
 
