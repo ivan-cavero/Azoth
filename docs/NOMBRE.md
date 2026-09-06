@@ -6,9 +6,9 @@
 |---|---|
 | Proyecto / marca | Azoth |
 | Mundo v1 | `azoth-1` |
-| Repo paraguas | esta carpeta (`NewWorldPrivateServer` en disco; el producto se llama Azoth) |
-| Submódulo RE | `research` |
-| Submódulo server | `emulator` |
-| Submódulo cliente | `launcher` |
+| Repo paraguas | [ivan-cavero/Azoth](https://github.com/ivan-cavero/Azoth) |
+| Submódulo RE | [Azoth-Research](https://github.com/ivan-cavero/Azoth-Research) |
+| Submódulo server | [Azoth-Emulator](https://github.com/ivan-cavero/Azoth-Emulator) |
+| Submódulo cliente | [Azoth-Launcher](https://github.com/ivan-cavero/Azoth-Launcher) |
 
 No se usa `capture/` + `captures/` a la vez: el laboratorio es `research/`, los dumps son `research/sessions/`.

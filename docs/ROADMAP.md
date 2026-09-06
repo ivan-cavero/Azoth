@@ -27,12 +27,12 @@ Use `research\tools\capture\Start-NwCapture.bat` (admin), play **5–12 minutes*
 
 | # | Session | What to do in-game | Why we need it |
 |---|---|---|---|
-| 1 | **Move** | Walk/run 2–3 min, camera, stop, jump if you can | Movement replica + input rate |
-| 2 | **Combat** | Hit a dummy or a weak mob, use 2–3 abilities, block/dodge | Ability RMI, damage, animation cues |
-| 3 | **Inventory** | Open bag, move an item, equip/unequip, open storage if any | `GlobalStorage*` payloads, not just the name |
-| 4 | **Gather** | Harvest a plant/ore/tree until the node depletes | `Gatherable*` start/interrupt/complete |
-| 5 | **Death** | Die on purpose, respawn at shrine | Respawn, `WaitingForPlayerSpawn` vs death |
-| 6 | **Expedition** | Queue and **enter a dungeon** (any expedition) | Instance: other `level.pak`, maybe other REP, load/unload |
+| 1 | **Move** | Walk/run 2–3 min, camera, stop, jump if you can | Done `live_20260906_173554` (Vivox grids + DTLS). Payloads still ciphertext. |
+| 2 | **Combat** | Hit a dummy or a weak mob, use 2–3 abilities, block/dodge | Done same session: `CameraLock` + `SlayerScript` CRCs. Ability wire is DTLS. |
+| 3 | **Inventory** | Open bag, move an item, equip/unequip, open storage if any | Done in-game; **no Game.log**. DTLS only. |
+| 4 | **Gather** | Harvest a plant/ore/tree until the node depletes | Done: 7 nodes, `GatheringInterrupted` only. |
+| 5 | **Death** | Die on purpose, respawn at shrine | Done: **stays InGame**. No Death/Respawn string. |
+| 6 | **Expedition** | Queue and **enter a dungeon** (any expedition) | **Still open** — no group on live. Need instance or solo queue. |
 
 #6 is the highest-value “new endpoint” session. Official used a pool of instance boxes; we need to see whether `RepAddress` changes, `LevelInfoChanged` name, and queue RMI (`GameModeParticipant*`).
 

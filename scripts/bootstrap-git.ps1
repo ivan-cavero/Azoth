@@ -1,6 +1,5 @@
 #requires -Version 5.1
-# Recreate local submodule gitlinks if someone cloned without --recurse.
-# First-time init already happened; this only repairs relative URLs.
+# Init/sync submodules from GitHub (Azoth-Research, Azoth-Emulator, Azoth-Launcher).
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'

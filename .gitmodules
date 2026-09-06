@@ -1,12 +1,12 @@
 [submodule "research"]
 	path = research
-	url = ./research
+	url = https://github.com/ivan-cavero/Azoth-Research.git
 	branch = main
 [submodule "emulator"]
 	path = emulator
-	url = ./emulator
+	url = https://github.com/ivan-cavero/Azoth-Emulator.git
 	branch = main
 [submodule "launcher"]
 	path = launcher
-	url = ./launcher
+	url = https://github.com/ivan-cavero/Azoth-Launcher.git
 	branch = main

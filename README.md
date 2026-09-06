@@ -6,11 +6,11 @@ El cliente que ya posees no se crackea: se le habla en su idioma (modelo Trinity
 
 Este directorio es el **repo paraguas**. Tres git independientes (submódulos):
 
-| Submódulo | Qué es |
-|---|---|
-| [`research/`](research/) | Captura del cliente live, RE, decompilación, schemas JSON |
-| [`emulator/`](emulator/) | Gateway HTTPS + world/REP + Postgres |
-| [`launcher/`](launcher/) | Launcher Azoth: updater, cliente parcheado, Play |
+| Submódulo | Repo | Qué es |
+|---|---|---|
+| [`research/`](research/) | [Azoth-Research](https://github.com/ivan-cavero/Azoth-Research) | Captura live, RE, decompilación, schemas JSON |
+| [`emulator/`](emulator/) | [Azoth-Emulator](https://github.com/ivan-cavero/Azoth-Emulator) | Gateway HTTPS + world/REP + Postgres |
+| [`launcher/`](launcher/) | [Azoth-Launcher](https://github.com/ivan-cavero/Azoth-Launcher) | Updater, cliente parcheado, Play |
 
 Docs de sistema: [`docs/INDEX.md`](docs/INDEX.md) · Arquitectura: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) · Nombre: [`docs/NOMBRE.md`](docs/NOMBRE.md)
 
@@ -23,8 +23,7 @@ Docs de sistema: [`docs/INDEX.md`](docs/INDEX.md) · Arquitectura: [`docs/ARQUIT
 ## Clone
 
 ```powershell
-git clone --recurse-submodules <url-paraguas>
+git clone --recurse-submodules https://github.com/ivan-cavero/Azoth.git
+# o, si ya clonaste el paraguas:
 git submodule update --init --recursive
 ```
-
-Submódulos con URL relativa (`./research`, `./emulator`, `./launcher`) hasta que haya remotes.
