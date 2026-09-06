@@ -17,7 +17,9 @@ private-client/
 **/certs/*.key
 **/certs/*.crt
 
-# Accidental dumps at umbrella root
+# Accidental dumps at umbrella root (sessions live in research/sessions/)
+/captures/
+/capture/
 *.pcap
 *.pcapng
 *.etl

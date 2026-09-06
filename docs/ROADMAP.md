@@ -7,7 +7,7 @@ Detalle: [ARQUITECTURA.md](ARQUITECTURA.md). Captura official **en paralelo** mi
 - [x] Nombre **Azoth**, mundo `azoth-1`
 - [x] Árbol `research` / `emulator` / `launcher` (sin `capture`+`captures`)
 - [x] Docs de análisis, captura, contrato, sesiones, protocolo, launcher
-- [ ] Git paraguas + submódulos commiteados
+- [x] Git paraguas + submódulos commiteados
 - [ ] Spike skip-EAC: `launcher/src/Start-NwPrivate.ps1`
 
 ## Fase 0 — Research official (hasta 2027-01-31)
