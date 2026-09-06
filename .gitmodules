@@ -1,0 +1,12 @@
+[submodule "research"]
+	path = research
+	url = ./research
+	branch = main
+[submodule "emulator"]
+	path = emulator
+	url = ./emulator
+	branch = main
+[submodule "launcher"]
+	path = launcher
+	url = ./launcher
+	branch = main

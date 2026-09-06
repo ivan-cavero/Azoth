@@ -1,0 +1,24 @@
+# Umbrella — submodules have their own ignores.
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+.venv/
+*.log
+
+# Local private client copy (patched exe). Never the Steam tree.
+private-client/
+
+# Operator certs
+**/certs/*.pem
+**/certs/*.key
+**/certs/*.crt
+
+# Accidental dumps at umbrella root
+*.pcap
+*.pcapng
+*.etl
+Game.log.raw
