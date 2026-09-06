@@ -254,7 +254,7 @@ flowchart LR
 |---|---|---|
 | Terminator TLS | **Caddy** (compose, `:443`) | SNI, ALPN h1/h2, Python sin admin en 443. rustls del gateway no entra. |
 | Gateway | **Python** (FastAPI o Starlette + uvicorn en `127.0.0.1:8080`, HTTP claro detrás de Caddy) | El 90 % del trabajo próximo es JSON que **aún no tenemos**. `docs/ANALISIS.md` §5.3 lo permite. Reescritura a Rust (`axum`) cuando el schema cierre. |
-| World / REP / sim | **Rust** + **openssl** (crate `openssl` / `tokio-native-tls` sobre OpenSSL, o `s2n-tls` si openssl se atasca) | Tick 20–30 Hz, zero-copy, **sin GC**. **rustls no habla DTLS 1.2** — no se usa para REP. C++ queda como escape si el crate DTLS no da el cipher, no como decisión abierta. |
+| World / REP / sim | **Rust** + **openssl** (crate `openssl` / `tokio-native-tls` sobre OpenSSL, o `s2n-tls` si openssl se atasca) | Tick **30 Hz**, un hilo de sim, **sin GC**. Densidad > CCU: ver `emulator/docs/PERFORMANCE.md`. **rustls no habla DTLS 1.2**. C++ solo si el crate DTLS no da el cipher. |
 | Cipher DTLS | `ECDHE-RSA-AES256-GCM-SHA384` | Hay que **habilitarlo explícito** en OpenSSL moderno (suite RSA-key-exchange, default menguante). |
 | Persistencia | PostgreSQL | Cuentas, personajes; inventario y world_state después. |
 | Hot state | Memoria del world process + write-behind | Redis opcional cuando haya más de un worker. |
@@ -877,7 +877,7 @@ Solo las que bloquean arquitectura. **No** se pregunta submodules vs folders (de
 2. **Skip-EAC es el camino private; no está medido en 1.400.** Spike PR-03b. Si verde: parche de URL de channel y pin DTLS en **copia** private (Fase A-private). Si rojo: nop EAC solo en esa copia, o fallback hosts+CA+EAC con **segunda cuenta**. Nunca skip/parche contra Amazon. No se documenta “undetected”.
 3. **Hosts+CA+Caddy no se borra.** Cero parche si el exe honra el Root de Windows. Complemento del parche de URL. Allowlist en `deploy/hosts-allowlist.json` (S3 sí; Epic/Vivox/STS/Steam no).
 4. **No se parchea `NewWorldLauncher.exe`.** En private no se usa. En official no se toca.
-5. **Dos procesos de aplicación, no docenas de servicios.** Gateway Python `:8080` + world Rust+openssl DTLS + Postgres. Caddy termina TLS.
+5. **Dos procesos de aplicación, no docenas de servicios.** Gateway Python `:8080` + world Rust+openssl DTLS + Postgres. Caddy termina TLS. El world se diseña para **muchos jugadores juntos** (AOI, tick p99, instancias aparte), no para copiar 7 hubs de Amazon.
 6. **Marca Azoth.** Tres submódulos: `research`, `emulator`, `launcher`. Mundo `azoth-1`. Private **sin Steam**. `research/sessions/` (nunca `capture`+`captures`).
 7. **Gateway Python para JSON; world = Rust + openssl DTLS.** rustls no habla DTLS. `schemas/` HTTP; `libs/protocol` solo world.
 8. **Ghidra/Frida/parche de pin en A-private** en cuanto skip-EAC esté verde. Workstream B = loop IA “entera” / PAK profundos / pin solo si skip-EAC rojo. No es la Fase 5 de sistemas.

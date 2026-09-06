@@ -8,7 +8,8 @@
 |---|---|
 | [NOMBRE.md](NOMBRE.md) | Por qué Azoth |
 | [ARQUITECTURA.md](ARQUITECTURA.md) | Contrato: 2 procesos, skip-EAC, submódulos, PRs |
-| [ROADMAP.md](ROADMAP.md) | Fases |
+| [ROADMAP.md](ROADMAP.md) | Fases + **qué capturar ahora** |
+| [../emulator/docs/PERFORMANCE.md](../emulator/docs/PERFORMANCE.md) | Densidad / tick / AOI |
 | [../README.md](../README.md) | Clone y perfiles |
 
 ## Research (`research/docs/`)
