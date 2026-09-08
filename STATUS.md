@@ -1,11 +1,80 @@
-# Azoth — estado (2026-09-07 noche)
+# Azoth — estado (2026-09-08 noche)
 
 ## Dónde estamos
 
 El juego **arranca sin Steam, sin EAC y sin crashear**, llega al frontend y
-avanza el login de Omni hasta `CreateSession`. La frontera actual es la
-respuesta del mock de tokens: `result: 203, id: (vacío)` con retry limpio.
-Progresión de hoy del `result`: `303` → `201` → `202` → **`203`**.
+pasa `CreateSession` con **`result: 0`** (la barrera 203 cayó hoy). La frontera
+actual es `GET /prod/credentials/omni`: el juego la construye ("Calling Http
+API") pero casi nunca la envía (2 envíos observados en ~12 intentos).
+
+```
+Stub Steam v2+ → frontend NightHaven → AuthManager → OmniSDK 1.6
+  → ticket 0xA5 → POST /games/new-world/tokens (nuestro)
+  → 200 mock → CreateSession result 0 → GET /prod/credentials/omni
+  → (a veces no se envía) → STS mock → sin reacción visible aún.
+```
+
+## Avances del 2026-09-08
+
+- **Schema de tokens sacado del binario** (pefile+capstone sobre NewWorld.exe,
+  sin debugger): el SDK exige `accessToken`, `fallbackToken`,
+  `platformAccount{identityType,identityId,personaId,ageGroup}`,
+  `account{identityId,personaId,type,ageGroup[,isNewAccount]}`;
+  cualquier clave requerida ausente → `result 203` (`mov [rbp+0x310],0xcb`).
+  Opcionales: `errorCode`, `penalties`, `region{region}`, `limitedUseToken`.
+  Override rápido sin reiniciar: `emulator/apps/gateway/mock_discovery/tokens.json`.
+- **Mock de credenciales** (`routes/credentials.py`, GET+POST): STS con
+  `AccessKeyId`/`SecretKey`/`SessionToken`/`Expiration` (+`type/accountType`
+  `Full`, `ownership` `permanent`). OJO: la clave es `SecretKey`, NO
+  `SecretAccessKey` (cadena literal en el binario). Tests 9/9 en verde.
+- **Mock S3 remoteCfg** (`routes/s3.py`): JSON válido acolchado al tamaño
+  capturado por key (190…5887 B). Listo para cuando caigan credenciales.
+- **Stub: reintentos arreglados**: el juego pide ticket en CADA intento pero
+  solo registraba el callback 168 una vez → 2º intento atascado en "Getting
+  steam auth session ticket". Fix: flag pending por cada
+  `GetAuthTicketForWebApi` + re-arme en `RegisterCallback`
+  (`launcher/steam_stub/src/stub.c`). Recompilado con **clang**
+  (MSVC no tiene Windows SDK: `windows.h` ausente) → `steam_api64.dll`
+  77824 B, 22 exports verificados. Los reintentos ya fluyen (2 intentos/10s).
+- **Infra rehecha**: Caddy 2.11.4 instalado (winget) en `deploy/bin/`
+  (antes vivía en `F:\Azoth`, que ya no existe); CA propia en
+  `CurrentUser\Root` + leaf con 13 SANs; `Caddyfile.json` con rutas locales
+  + `logs:{}` (todo el TLS queda en `%TEMP%\azoth-caddy.err.log`);
+  `hosts` en private (marcadores nuevos); gateway + Caddy verificados E2E.
+- **Log real del stub**: `%TEMP%\azoth_stub.log` (el de `Bin64\` es viejo,
+  del 06/09). Game.log: `%LOCALAPPDATA%\AGS\New World\Game.log`.
+- Rarezas: el editor Zed del operador hace `GET /v1/models` a `127.0.0.1:8080`
+  (ensucia discovery/metrics; se filtra por User-Agent).
+
+## Qué falta (siguiente sesión)
+
+1. **Envío de credentials**: sale 2 de ~12 veces. Sin handshake TLS en Caddy
+   cuando falla = el juego no lo emite (probado con netstat en caliente).
+   NO depende de: contenido de tokens.json (V14 idéntico envía o no),
+   tecla temprana/tardía, stub MSVC/MinGW, gateway/Caddy reiniciados.
+   Candidatos: race en el worker HTTP de SteamAuth, estado del AuthStack.
+2. **Persona vacía**: `Get persona id result: Not OK`, `id:` vacío,
+   `account type: Shadow, error 301` (nuestro `type: Full` no lo lee de
+   donde espera). Sin persona, el flujo no avanza tras credenciales.
+3. Cuando entren credenciales: S3 remoteCfg (mock listo) → characters →
+   `login/queue/v2` → world REP/DTLS.
+4. `switch-mode official` para volver a Amazon (ver PC abajo).
+
+## Estado del PC (IMPORTANTE al volver)
+
+- `hosts` en modo **private**. Para official:
+  `powershell -File emulator\deploy\switch-mode.ps1 official` (admin).
+  OJO: el script actual NO limpia bloques viejos (`# >>> AZOTH >>>` sin
+  `PRIVATE`) y su guardián <3 líneas se niega si el hosts quedó solo con el
+  bloque (pasó hoy: restaurado desde `hosts.azoth.bak` del 28/08).
+- Gateway corriendo (`python -m azoth_gateway`, :8080, código nuevo con
+  override). Caddy corriendo (`caddy run`, :443, con log). Juego cerrado.
+- Cambios sin commitear (a propósito): `emulator` (omni.py override,
+  app.py, credentials.py, s3.py, Caddyfile.json, tests), `launcher`
+  (stub.c + dll MinGW). `mock_discovery/` tiene los dumps del día
+  (gitignored).
+- `python -m pytest` no instalado: tests con `unittest` de stdlib:
+  `python emulator/apps/gateway/tests/test_gateway.py`.
 
 ```
 Stub Steam v2 → frontend NightHaven → AuthManager → OmniSDK 1.6
