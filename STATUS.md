@@ -46,6 +46,69 @@ Stub Steam v2+ → frontend NightHaven → AuthManager → OmniSDK 1.6
 - Rarezas: el editor Zed del operador hace `GET /v1/models` a `127.0.0.1:8080`
   (ensucia discovery/metrics; se filtra por User-Agent).
 
+## Cierre de sesión (RE del persona id + cvars, 08/09 ~21:00)
+
+- **Orca computer-use SÍ funciona** (corrige la nota de abajo):
+  `orca computer press-key --app NewWorld --key Return --json` y
+  `orca computer get-app-state --app NewWorld --json` (el PNG sale en
+  `result.screenshot.path`). PrintWindow sigue saliendo negro (D3D12).
+- **RE del getter de persona id** (callback de CreateSession en `0x5a94340`):
+  - `0x79b5160(buf,0x40)` = SDK GetPersonaId → `r14d`; `0x79b4f70` = ageGroup
+    enum; `0x79b58b0` = lector del override por cvar.
+  - Si `result == 0x133 (307)`: log "Get ags account persona id failed…" y se
+    aplica la cvar `javelin.omni-get-persona-id-result-override` (default -1,
+    registrada en `0x617fb87`). Nuestro resultado NO es 0x133 → el override no
+    aplica; "Not OK" = cualquier != 0.
+  - **Cvar `javelin.omni-login-result`** (default -1): si != -1 SOBREESCRIBE el
+    resultado de CreateSession (`cmovne r13d` en `0x5a943dd`) → fuerza el camino
+    de éxito en `0x5a943ef`. Candidato a forzar vía channel config/línea de
+    comandos (cvars `javelin.*`).
+  - Result OK → el string del buffer se copia a `session+0x178` y se loguea
+    desde `session+0x128`; error → `0x5a8fd20(rsi, r14d)`. Offsets de sesión:
+    `+0x128` id (log), `+0x150` ageGroup string, `+0x178` id copia, `+0xe8`
+    lock, `+0xf0` mutex, `+0x1a0/0x1b0` extra, `+0x230` flag.
+  - Switch ageGroup enum→string: 2→"Teen" (`0x6e656554`), 1→5 chars ("Adult"),
+    0→7 chars, 3→5 chars.
+- **Estado al cerrar**: juego atascado en pantalla de título (spinner) tras
+  2 intentos (20:47): 2× POST tokens OK, credentials "Calling Http API"
+  construida pero NO emitida (el misterio de siempre). Teclas/click no
+  avanzan la pantalla. Sin crash.
+- **Siguiente palo**: probar las cvars `javelin.omni-login-result=0` /
+  `javelin.omni-get-persona-id-result-override` (channel config JSON o
+  command line del juego) y el formato del personaId
+  (`amzn1.account.<22 base62>` en vez de `developerPersonaId`).
+
+## Avances sesión tardía (08→09, commiteado)
+
+Commits locales (sin push): `emulator@a6ac2ed`, `launcher@f231f78`,
+paraguas `@e6f1df8` (STATUS + bumps).
+
+- **Credenciales con `SecretKey`**: el parser espera `AccessKeyId`,
+  `SecretKey` (NO `SecretAccessKey`), `SessionToken`, `Expiration`
+  (literales en el binario). Mock corregido + testes. El juego la llama con
+  `GET` + `Authorization: Bearer` (vacío: la sesión no guarda accessToken)
+  y UA `aws-sdk-cpp/1.7.193`.
+- **Stub v3 (pending-ticket)**: cada `GetAuthTicketForWebApi` arma un flag y
+  el próximo `RunCallbacks` lo dispara (antes: solo el primero; los
+  reintentos morían en "Getting steam auth session ticket"). Verificado en
+  `%TEMP%\azoth_stub.log` (el de `Bin64\` es viejo del 06/09): fire por cada
+  request. Recompilado con clang (MSVC sin Windows SDK).
+- **Refresh flow descubierto**: el SDK persiste `platform_fallback_auth`
+  (DPAPI) en `HKCU\Software\Amazon Game Studios\new-world` y reintenta con
+  `POST tokens {…, "refresh": true, fallbackToken}` (backup del valor en
+  `Temp\opencode\azoth-reg-backup.reg` antes de purgar). Nuestro mock lo
+  acepta (`refresh complete result 0`).
+- **Computer-use**: PrintWindow sale negro (D3D12). `azoth-press-enter.ps1`
+  funciona como fallback, pero **Orca computer-use es la vía principal**
+  (ver sección de cierre).
+- **Misterio abierto (el envío de credenciales)**: el juego construye
+  `GET /prod/credentials/omni` en cada intento pero solo lo emite a veces
+  (2 envíos en ~14 intentos; probado con netstat en caliente + log TLS de
+  Caddy: sin handshake = no se emite). Descartado que dependa de:
+  contenido de tokens.json, tecla temprana/tardía, stub MSVC/MinGW, gateway
+  o Caddy reiniciados, foreground. Siguiente candidato: estado del worker
+  HTTP de SteamAuth / persistencia de sesión.
+
 ## Qué falta (siguiente sesión)
 
 1. **Envío de credentials**: sale 2 de ~12 veces. Sin handshake TLS en Caddy
