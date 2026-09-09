@@ -9,6 +9,7 @@
 | [NOMBRE.md](NOMBRE.md) | Por qué Azoth |
 | [ARQUITECTURA.md](ARQUITECTURA.md) | Contrato: 2 procesos, skip-EAC, submódulos, PRs |
 | [ROADMAP.md](ROADMAP.md) | Fases + **qué capturar ahora** |
+| [ADMIN.md](ADMIN.md) | **Permisos admin con gsudo: pedir el UAC al operador ANTES de empezar** |
 | [../emulator/docs/PERFORMANCE.md](../emulator/docs/PERFORMANCE.md) | Densidad / tick / AOI |
 | [../README.md](../README.md) | Clone y perfiles |
 

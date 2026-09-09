@@ -1,191 +1,118 @@
-# Azoth — estado (2026-09-08 noche)
+# Azoth — estado (2026-09-09 noche)
 
-## Dónde estamos
+## 🏆 HITO: LOGIN OMNI ACEPTADO (result 0) → pantalla ELEGIR PERSONAJE
 
-El juego **arranca sin Steam, sin EAC y sin crashear**, llega al frontend y
-pasa `CreateSession` con **`result: 0`** (la barrera 203 cayó hoy). La frontera
-actual es `GET /prod/credentials/omni`: el juego la construye ("Calling Http
-API") pero casi nunca la envía (2 envíos observados en ~12 intentos).
+Después de semanas atascados en `CreateSession result: 203`, hoy se rompió el
+bloqueo. Cadena completa verificada en vivo:
 
 ```
-Stub Steam v2+ → frontend NightHaven → AuthManager → OmniSDK 1.6
-  → ticket 0xA5 → POST /games/new-world/tokens (nuestro)
-  → 200 mock → CreateSession result 0 → GET /prod/credentials/omni
-  → (a veces no se envía) → STS mock → sin reacción visible aún.
+Stub Steam v3 → AuthManager → OmniSDK 1.6.7
+  → POST /games/new-world/tokens        → 200 mock → CreateSession result 0
+  → "Get persona id result: OK" / "account type: Shadow"
+  → GET  /prod/credentials/omni         → 200 mock → credenciales AWS OK
+  → "CGame::OnCampfireLoginComplete, login successful. ownership=permanent"
+  → título "PULSA CUALQUIER BOTÓN" → Enter → PANEL "ELEGIR PERSONAJE"
+  → (nuevo frontera) reintenta GET /prod/game/getlogininfo/jwt/omni cada 10s
 ```
 
-## Avances del 2026-09-08
+## La clave del 203 (leer antes de tocar nada)
 
-- **Schema de tokens sacado del binario** (pefile+capstone sobre NewWorld.exe,
-  sin debugger): el SDK exige `accessToken`, `fallbackToken`,
-  `platformAccount{identityType,identityId,personaId,ageGroup}`,
-  `account{identityId,personaId,type,ageGroup[,isNewAccount]}`;
-  cualquier clave requerida ausente → `result 203` (`mov [rbp+0x310],0xcb`).
-  Opcionales: `errorCode`, `penalties`, `region{region}`, `limitedUseToken`.
-  Override rápido sin reiniciar: `emulator/apps/gateway/mock_discovery/tokens.json`.
-- **Mock de credenciales** (`routes/credentials.py`, GET+POST): STS con
-  `AccessKeyId`/`SecretKey`/`SessionToken`/`Expiration` (+`type/accountType`
-  `Full`, `ownership` `permanent`). OJO: la clave es `SecretKey`, NO
-  `SecretAccessKey` (cadena literal en el binario). Tests 9/9 en verde.
-- **Mock S3 remoteCfg** (`routes/s3.py`): JSON válido acolchado al tamaño
-  capturado por key (190…5887 B). Listo para cuando caigan credenciales.
-- **Stub: reintentos arreglados**: el juego pide ticket en CADA intento pero
-  solo registraba el callback 168 una vez → 2º intento atascado en "Getting
-  steam auth session ticket". Fix: flag pending por cada
-  `GetAuthTicketForWebApi` + re-arme en `RegisterCallback`
-  (`launcher/steam_stub/src/stub.c`). Recompilado con **clang**
-  (MSVC no tiene Windows SDK: `windows.h` ausente) → `steam_api64.dll`
-  77824 B, 22 exports verificados. Los reintentos ya fluyen (2 intentos/10s).
-- **Infra rehecha**: Caddy 2.11.4 instalado (winget) en `deploy/bin/`
-  (antes vivía en `F:\Azoth`, que ya no existe); CA propia en
-  `CurrentUser\Root` + leaf con 13 SANs; `Caddyfile.json` con rutas locales
-  + `logs:{}` (todo el TLS queda en `%TEMP%\azoth-caddy.err.log`);
-  `hosts` en private (marcadores nuevos); gateway + Caddy verificados E2E.
-- **Log real del stub**: `%TEMP%\azoth_stub.log` (el de `Bin64\` es viejo,
-  del 06/09). Game.log: `%LOCALAPPDATA%\AGS\New World\Game.log`.
-- Rarezas: el editor Zed del operador hace `GET /v1/models` a `127.0.0.1:8080`
-  (ensucia discovery/metrics; se filtra por User-Agent).
+**203 NO es un código semántico: es `0xcb` = "JSON parse error" del SDK.**
+Todos los shapes "razonables" (result/id, JWTs sueltos, STS-shaped…) daban 203
+porque al SDK le faltaba una clave o tenía otro tipo. Cómo se sacó (método
+para futuras sesiones):
 
-## Cierre de sesión (RE del persona id + cvars, 08/09 ~21:00)
+1. **Oráculo**: el gateway sirve lo que haya en
+   `apps/gateway/mock_discovery/tokens.json` (override sin reiniciar). El juego
+   reintenta y loguea el result en Game.log → bucle de feedback de segundos.
+2. **Errores con nombre**: `{"errorCode":"INVALID_PLATFORM_AUTH"}` → result 303,
+   `INVALID_AGS_AUTH_TOKEN` → 302, `INVALID_GAME` → 102, `AGS_IDENTITY_REQUIRED`
+   → 203, `INVALID_AGS_IDENTITY` → 331. Con la tabla se identificó el 203.
+3. **RE del parser** (capstone sobre NewWorld.exe, offsets de fichero):
+   - `ags_fed_acc_token.cpp` (parser de la respuesta de tokens), claves en
+     orden: `region`, `limitedUseToken`, `platformAccount`, `account`,
+     `isNewAccount`, `conflictingAccount`, `accessToken`, `expiresIn`,
+     `fallbackToken`. Falta clave/typo mal → `0xcb` (203).
+   - `platform_persona_account.cpp`: `{ageGroup:int, identityType:str,
+     platform:str?, identityId:str, personaId:str}`.
+   - `ags_persona_account.cpp`: `{type:"shadow"|"full", ageGroup:int,
+     identityId:str, personaId:str}`; sin `account` → 307.
+   - `identityType` string→enum con tabla hash (FNV) interna: "ags",
+     "intermediate", "shadow", plataformas consola. En la respuesta a Steam el
+     `account.type` válido que se aceptó fue **"shadow"**.
+   - JWTs: `jwt_reader` exige 2 puntos; `alg:"none"` con firma vacía vale
+     (validación local). `iat`/`exp` en **milisegundos** ("AGS Auth token iat
+     %lldms").
+4. Respuesta final servida (ahora es el default en `routes/omni.py`):
+   `accessToken/expiresIn/fallbackToken/limitedUseToken/isNewAccount/region/
+   platformAccount{ageGroup,identityType:"steam",platform:"steam",
+   identityId:<steamid64>,personaId}/account{type:"shadow",ageGroup,
+   identityId,personaId}` — persona = `amzn1.developerPersonaId.fc906c07-…`.
 
-- **Orca computer-use SÍ funciona** (corrige la nota de abajo):
-  `orca computer press-key --app NewWorld --key Return --json` y
-  `orca computer get-app-state --app NewWorld --json` (el PNG sale en
-  `result.screenshot.path`). PrintWindow sigue saliendo negro (D3D12).
-- **RE del getter de persona id** (callback de CreateSession en `0x5a94340`):
-  - `0x79b5160(buf,0x40)` = SDK GetPersonaId → `r14d`; `0x79b4f70` = ageGroup
-    enum; `0x79b58b0` = lector del override por cvar.
-  - Si `result == 0x133 (307)`: log "Get ags account persona id failed…" y se
-    aplica la cvar `javelin.omni-get-persona-id-result-override` (default -1,
-    registrada en `0x617fb87`). Nuestro resultado NO es 0x133 → el override no
-    aplica; "Not OK" = cualquier != 0.
-  - **Cvar `javelin.omni-login-result`** (default -1): si != -1 SOBREESCRIBE el
-    resultado de CreateSession (`cmovne r13d` en `0x5a943dd`) → fuerza el camino
-    de éxito en `0x5a943ef`. Candidato a forzar vía channel config/línea de
-    comandos (cvars `javelin.*`).
-  - Result OK → el string del buffer se copia a `session+0x178` y se loguea
-    desde `session+0x128`; error → `0x5a8fd20(rsi, r14d)`. Offsets de sesión:
-    `+0x128` id (log), `+0x150` ageGroup string, `+0x178` id copia, `+0xe8`
-    lock, `+0xf0` mutex, `+0x1a0/0x1b0` extra, `+0x230` flag.
-  - Switch ageGroup enum→string: 2→"Teen" (`0x6e656554`), 1→5 chars ("Adult"),
-    0→7 chars, 3→5 chars.
-- **Estado al cerrar**: juego atascado en pantalla de título (spinner) tras
-  2 intentos (20:47): 2× POST tokens OK, credentials "Calling Http API"
-  construida pero NO emitida (el misterio de siempre). Teclas/click no
-  avanzan la pantalla. Sin crash.
-- **Siguiente palo**: probar las cvars `javelin.omni-login-result=0` /
-  `javelin.omni-get-persona-id-result-override` (channel config JSON o
-  command line del juego) y el formato del personaId
-  (`amzn1.account.<22 base62>` en vez de `developerPersonaId`).
+## El crash tras credentials (y su fix)
 
-## Avances sesión tardía (08→09, commiteado)
+Con credenciales STS-shaped (`AccessKeyId`, `Expiration` ISO) el juego hizo
+**crash** (`0xc0000005` en `+0x7465476`) tras "Calling Http API". RE: el parser
+de credenciales busca claves **camelCase** con un lookup que devuelve NULL si
+falta la clave y el caller desreferencia:
+`accessKeyId`, `secretAccessKey`, `sessionToken`, `expiration` (**double con
+época unix, no ISO**), `region`. `routes/credentials.py` ya sirve exactamente
+eso (más copias planas legacy para herramientas) → ya no crashea y el login
+completa.
 
-Commits locales (sin push): `emulator@a6ac2ed`, `launcher@f231f78`,
-paraguas `@e6f1df8` (STATUS + bumps).
+## Frontera ACTUAL (siguiente sesión)
 
-- **Credenciales con `SecretKey`**: el parser espera `AccessKeyId`,
-  `SecretKey` (NO `SecretAccessKey`), `SessionToken`, `Expiration`
-  (literales en el binario). Mock corregido + testes. El juego la llama con
-  `GET` + `Authorization: Bearer` (vacío: la sesión no guarda accessToken)
-  y UA `aws-sdk-cpp/1.7.193`.
-- **Stub v3 (pending-ticket)**: cada `GetAuthTicketForWebApi` arma un flag y
-  el próximo `RunCallbacks` lo dispara (antes: solo el primero; los
-  reintentos morían en "Getting steam auth session ticket"). Verificado en
-  `%TEMP%\azoth_stub.log` (el de `Bin64\` es viejo del 06/09): fire por cada
-  request. Recompilado con clang (MSVC sin Windows SDK).
-- **Refresh flow descubierto**: el SDK persiste `platform_fallback_auth`
-  (DPAPI) en `HKCU\Software\Amazon Game Studios\new-world` y reintenta con
-  `POST tokens {…, "refresh": true, fallbackToken}` (backup del valor en
-  `Temp\opencode\azoth-reg-backup.reg` antes de purgar). Nuestro mock lo
-  acepta (`refresh complete result 0`).
-- **Computer-use**: PrintWindow sale negro (D3D12). `azoth-press-enter.ps1`
-  funciona como fallback, pero **Orca computer-use es la vía principal**
-  (ver sección de cierre).
-- **Misterio abierto (el envío de credenciales)**: el juego construye
-  `GET /prod/credentials/omni` en cada intento pero solo lo emite a veces
-  (2 envíos en ~14 intentos; probado con netstat en caliente + log TLS de
-  Caddy: sin handshake = no se emite). Descartado que dependa de:
-  contenido de tokens.json, tecla temprana/tardía, stub MSVC/MinGW, gateway
-  o Caddy reiniciados, foreground. Siguiente candidato: estado del worker
-  HTTP de SteamAuth / persistencia de sesión.
+El panel "ELEGir PERSONAJE" pide (vía gateway-CF, con SigV4 de NUESTRAS
+credenciales + `X-Nw-Auth: <accessToken JWT>`):
 
-## Qué falta (siguiente sesión)
+1. **`GET /prod/game/getlogininfo/jwt/omni?channelId=STEAM_APP_ID.1063730&…`**
+   (reintento cada 10s). Es el "login token" de mundo. No conocemos el shape
+   de la respuesta; probar override `getlogininfo.json` igual que tokens
+   (añadir ruta al gateway). Tras validar, pedirá world/queue.
+2. `GET /players/<persona>/games/new-world/platforms/steam/entitlements` y
+   `/sync` (entitlements). Servir lista vacía razonable.
+3. Después: selección de mundo → `login/queue/v2` → world REP/DTLS.
 
-1. **Envío de credentials**: sale 2 de ~12 veces. Sin handshake TLS en Caddy
-   cuando falla = el juego no lo emite (probado con netstat en caliente).
-   NO depende de: contenido de tokens.json (V14 idéntico envía o no),
-   tecla temprana/tardía, stub MSVC/MinGW, gateway/Caddy reiniciados.
-   Candidatos: race en el worker HTTP de SteamAuth, estado del AuthStack.
-2. **Persona vacía**: `Get persona id result: Not OK`, `id:` vacío,
-   `account type: Shadow, error 301` (nuestro `type: Full` no lo lee de
-   donde espera). Sin persona, el flujo no avanza tras credenciales.
-3. Cuando entren credenciales: S3 remoteCfg (mock listo) → characters →
-   `login/queue/v2` → world REP/DTLS.
-4. `switch-mode official` para volver a Amazon (ver PC abajo).
+## Entorno de esta sesión (qué queda montado y cómo reproducirlo)
 
-## Estado del PC (IMPORTANTE al volver)
+- **Admin sin UAC**: tarea programada `AzothAdminProxy` (ver
+  `docs/ADMIN.md`): escribes comando en
+  `%LOCALAPPDATA%\Azoth\admin\cmd.txt`, `Start-ScheduledTask`, lees
+  `out.txt`. La usamos para `hosts` y para lanzar Caddy elevado.
+- `hosts` en modo **private** (`switch-mode.ps1 private`, ya aplicado).
+- Gateway: ventana PowerShell (job) en `:8080` (`Start-Gateway.ps1`).
+- Caddy elevado oculto en `:443` (logs en `%TEMP%\azoth-caddy.{out,err}.log`).
+  OJO: `deploy/Caddyfile.json` tenía rutas absolutas viejas de otro equipo;
+  ya corregidas a `F:\Azoth\emulator\deploy\certs\*`.
+- Juego: `launcher\src\Start-NwPrivate.ps1` (o directo al exe del runtime).
+  El juego **auto-intenta el login** ~18s tras abrir; si falla y muestra
+  diálogo, `orca computer press-key --app NewWorld --key Return
+  --restore-window` reenvía. `orca computer get-app-state --app NewWorld`
+  da screenshot PNG (ver documentación en `docs/INDEX.md`).
+- Tests gateway: `python emulator/apps/gateway/tests/test_gateway.py` → 9/9 OK
+  (unittest stdlib; pytest NO instalado).
 
-- `hosts` en modo **private**. Para official:
-  `powershell -File emulator\deploy\switch-mode.ps1 official` (admin).
-  OJO: el script actual NO limpia bloques viejos (`# >>> AZOTH >>>` sin
-  `PRIVATE`) y su guardián <3 líneas se niega si el hosts quedó solo con el
-  bloque (pasó hoy: restaurado desde `hosts.azoth.bak` del 28/08).
-- Gateway corriendo (`python -m azoth_gateway`, :8080, código nuevo con
-  override). Caddy corriendo (`caddy run`, :443, con log). Juego cerrado.
-- Cambios sin commitear (a propósito): `emulator` (omni.py override,
-  app.py, credentials.py, s3.py, Caddyfile.json, tests), `launcher`
-  (stub.c + dll MinGW). `mock_discovery/` tiene los dumps del día
-  (gitignored).
-- `python -m pytest` no instalado: tests con `unittest` de stdlib:
-  `python emulator/apps/gateway/tests/test_gateway.py`.
+## Comandos útiles
 
-```
-Stub Steam v2 → frontend NightHaven → AuthManager → OmniSDK 1.6
-  → ticket 0xA5 aceptado localmente → POST /games/new-world/tokens (nuestro)
-  → 200 mock → CreateSession result 203 → retry con backoff. Sin crash.
+```powershell
+# gateway (ventana nueva)
+Start-Process powershell -ArgumentList '-NoProfile','-NoExit','-Command','& F:\Azoth\emulator\apps\gateway\Start-Gateway.ps1'
+# Caddy elevado (una línea en cmd.txt del proxy):
+Start-Process -FilePath F:\Azoth\emulator\deploy\bin\caddy.exe -ArgumentList 'run','--config','F:\Azoth\emulator\deploy\Caddyfile.json' -WindowStyle Hidden -RedirectStandardOutput $env:TEMP\azoth-caddy.out.log -RedirectStandardError $env:TEMP\azoth-caddy.err.log
+# pantalla del juego
+orca computer get-app-state --app NewWorld --json
+# pulsar tecla (foco del juego)
+orca computer press-key --app NewWorld --key Return --restore-window --json
 ```
 
-## Probado hoy (evidencia en Game.log + stub log + capturas)
+## Deuda técnica / refactor pendiente (siguiente sesión)
 
-- Stub v2 mínimo (22 exports): 6+ lanzamientos, 0 crashes, 0 EAC. Causas reales
-  encontradas con `tools/azoth_dbg.py`: vtable de Apps corta, slot-2 de User
-  desreferenciado como `CSteamID*` (`NewWorld+0x5a7f7ae`), callbacks sin dispatch.
-- Intercept TLS completo: hosts → Caddy `:443` (CA local + leaf con 13 SAN) →
-  gateway `:8080`. El cliente lee `Channel name: Azoth`, `ClusterId: azoth-1`.
-- Gateway sirve channel + CMS con ETag (el routing channel-earns-cms se cazó y
-  tiene test de regresión). Tests: stub OK, gateway 7/7 OK.
-- Descubierto y capturado: `POST tokenservice…/games/new-world/tokens`
-  (`platformIdentityType: steam`, ticket en hex, `attributionData`) en
-  `emulator/apps/gateway/mock_discovery/`… (ojo: ver nota abajo).
-
-## Qué falta (siguiente sesión)
-
-1. `CreateSession 203`: iterar el mock de `routes/omni.py` (el juego responde a
-   cada cambio: 201→202→203). Candidatos: forma exacta del `id`/sesión que Omni
-   espera antes de llamar a `/prod/credentials/omni`.
-2. `GET/POST /prod/credentials/omni` (gateway-CF): mock STS cuando Omni lo pida
-   (caerá en discovery con el body).
-3. `login/queue/v2` → ticket + `RepAddress` localhost, luego world (REP/DTLS).
-4. `switch-mode official` para volver a jugar en Amazon (ver PC abajo).
-
-## Estado del PC (IMPORTANTE al volver)
-
-- `hosts` queda en modo **official** (restaurado). Para seguir con Azoth:
-  `powershell -File emulator\deploy\switch-mode.ps1 private` (admin).
-- Caddy detenido; gateway detenido; juego cerrado. Para arrancar:
-  `Start-Gateway.ps1` (o el job), `caddy run --config deploy\Caddyfile.json`
-  (admin por el `:443`), `src\Start-NwPrivate.ps1`.
-- `AZOTH_STUB_LOG=1` → `%TEMP%\azoth_stub.log` (traza de llamadas Steam).
-- Binarios locales NO commiteados: `deploy/bin/caddy.exe`, `deploy/certs/`,
-  `mock_discovery/` (ver nota).
-
-## Notas / trampas conocidas
-
-- `mock_discovery/` vive en `emulator/apps/gateway/` (no en `emulator/`);
-  `config.py:GATEWAY_ROOT` ya apunta ahí. El README del gateway decía otra ruta.
-- No fiarse del puerto 8080 sin comprobar el PID dueño: hubo una sesión con
-  **dos gateways** (código viejo + nuevo) y métricas engañosas.
-- `switch-mode.ps1` nunca debe dejar `hosts` vacío: se niega si el contenido
-  superviviente tiene <3 líneas (lección del 2026-09-07: hubo que restaurar
-  desde `hosts.azoth-bak-*`).
-- `python -m pytest` no instalado: tests con `unittest` de stdlib.
+1. Pasar el override `tokens.json` del discovery a un fixture commiteado y
+   que el default del gateway sea determinista (persona/steamid fijos).
+2. Mock nuevo: `getlogininfo` (+ override file) y `entitlements`/`sync`.
+3. Mover a `research/docs/` el método RE (capstone snippets, offsets
+   `ags_fed_acc_token.cpp`, fórmula lea rip: `tgt = insn+7+0xA00+disp`,
+   `.rdata`: `vaddr = fileoff + 0x1800`, `.text`: `vaddr = fileoff + 0xA00`).
+4. Mundos: el channel-azoth.json apunta a los endpoints reales de fra-prod
+   (hosts redirigidos). Cuando el logininfo valide, responder con
+   `RepAddress` apuntando a nuestro world.
