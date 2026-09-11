@@ -24,3 +24,5 @@ private-client/
 *.pcapng
 *.etl
 Game.log.raw
+# Local Pi runtime state
+.atl/
