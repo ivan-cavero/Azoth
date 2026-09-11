@@ -5,7 +5,7 @@
 Después de semanas atascados en `CreateSession result: 203`, se rompió el
 bloqueo. Cadena completa verificada en vivo:
 
-```
+```text
 Stub Steam v3 → AuthManager → OmniSDK 1.6.7
   → POST /games/new-world/tokens        → 200 mock → CreateSession result 0
   → "Get persona id result: OK" / "account type: Shadow"
@@ -62,6 +62,68 @@ completa.
 
 ## Frontera ACTUAL (siguiente sesión)
 
+### Sesión 2026-09-11 (tarde): worlds/list + veto del override de config
+
+**Hallazgo 1 — la ruta que faltaba para la lista de mundos.**
+Tabla de paths del exe en `.rdata` @`0x84ff388`. Operaciones REST del
+`JavelinGatewayService` (nombre de operación → path):
+
+| Operación | Path |
+| --- | --- |
+| `GetLoginInfo` | `/prod/game/getlogininfo/jwt/omni` |
+| **`ListWorlds`** | **`/prod/game/worlds/list/jwt/omni`** ← faltaba y el cliente la pedía |
+| `PostGameWorldsWorldIdCharacters` | `/prod/game/worlds/%s/characters/jwt/omni` |
+| `PatchCharacter` | `/prod/game/characters/%s/jwt/omni` |
+| `QueueLogin` / `RefreshQueuedLogin` | `/prod/game/login/queue/v2/jwt/omni` (+ `/%s`) |
+| `ValidateCharacter` | `/prod/game/worlds/%s/characters/validator/jwt/omni` |
+| `LinkIdentity` / `UnlinkIdentity` | `/prod/game/linkIdentity`, `/game/unlinkIdentity` |
+
+`ListWorlds` llena `Game.GetWorldList` (la lista visible); `getlogininfo`
+(`GetLoginInfo` → `LoginInfoList`) es otra cosa. Ya implementado en
+`routes/worlds_list.py` desde el registro. El cliente ya la consume (3 hits)
+pero la lista sigue sin pintarse: falta el valor exacto del enum
+`WorldType`/`WorldStatus` (aws-sdk ignora claves que no matchean, sin error).
+
+**Hallazgo 2 — `ClientOverride.json` NO sirve en build de PAK (spike cerrado).**
+El juego busca `@assets@/ClientOverride.json` y loguea `Client config override
+file not found`. Se probó el archivo en 5 ubicaciones (install root, install
+`Assets`, game root, game `Assets`, `Bin64`) + `stack.override.json` en ambos
+roots, con formato anidado y plano-con-puntos: **en ninguna lo lee**. La config
+vive dentro de los PAK y se resuelve por el VFS interno, no por el sistema de
+archivos. Conclusión: redirigir endpoints por archivo suelto requiere repackear
+un PAK. Los archivos de prueba se borraron (install limpio).
+
+**Hallazgo 3 — la palanca de redirección es el CHANNEL (nuestro).**
+El log ecoa la config activa y esos valores salen del channel que servimos:
+
+```text
+ClusterId          <- clave del channel ("azoth-1")
+Gateway Signing Host <- channel.publicApis[loginGateway].apiEndpoint
+Gateway Address      <- channel.publicApis[JavelinGatewayService-CF].apiEndpoint
+HTTP Gateway Address <- "https://" + (esa) + "/prod"   <- esquema HARDCODEADO
+Gateway Mode         <- "gateway"
+```
+
+O sea: para mover el gateway se edita NUESTRO channel JSON; pero el esquema es
+`https://` fijo ⇒ **hosts + Caddy :443 se quedan**. Esto cierra la pregunta
+abierta de ARQUITECTURA.md (“URL parcheada vs hosts+CA”): hosts+CA, sin parche.
+
+**Superficie de config completa** (solo alcanzable por PAK, pero documentada en
+caso de repack futuro): `client-connection.client-gateway.{mode,endpoint,
+http-endpoint,region,signing-host}`, `client-connection.authorization.{mode,
+backend,auth-endpoint,cluster,cognito-pool-id,product-id,token-version}`,
+`client-connection.enable-local-dev` / `.enable-remote`,
+`client-connection.transport-options.{rep-default-port,tick-frequency-ms,
+transport-type}`, `client-connection.auth-testing.*` (inyección de fallos),
+`client-connection.warnings.*`.
+
+**Modo local-dev del propio juego**: `client-connection.enable-local-dev` levanta
+servicios stub in-process que persisten a `_persistence/{achievements,
+leaderboards,agsPrivacySettings}.json`. Servicios stub existentes: Gateway,
+Character, Guild, Inventory, GroupFinder, Matchmaking, Notification, Achievement,
+Leaderboard, FCS (entitlements/catálogo/transacciones), Privacy. Sirve para saber
+qué NO hace falta implementar todavía (si se logra repack).
+
 ### Sesión 2026-09-11: post-login mocks + RE de ListWorlds (NO CERRADO)
 
 Avance: el juego llegó al panel ELEGIR PERSONAJE → VER MUNDOS. Acepta Términos
@@ -71,6 +133,7 @@ DDS servido por `routes/images.py`). UI muestra `@mm_azoth_1` y lista de
 mundos VACÍA.
 
 **Lo que se implementó y probó esta sesión (todo commiteado + pushed):**
+
 - `routes/getlogininfo.py`: shape RE'd del exe. En `.rdata` (offset ~0x8702000)
   está la tabla del modelo aws-sdk `ListWorldsResponseBody`: `Worlds`,
   `LoginInfoList`, `RecommendedWorlds`, `PendingWorldMerges`, `AccountIsLocked`,
@@ -93,6 +156,7 @@ mundos VACÍA.
 - Tests gateway: 13/13 OK (unittest stdlib).
 
 **Por qué la lista de mundos sigue vacía (frontera exacta):**
+
 - El juego pide `GET /prod/game/getlogininfo/jwt/omni?channelId=…&includeNames=true&isTrialOwner=false` cada 60s, recibe 200 con el shape RE'd, pero NO pinta el mundo ni deja de pollear.
 - El motd `worlds_STEAM_APP_ID.1063730.json` (CMS, cada 60s también) ya sirve el mundo con el MISMO worldId. El Game.log no muestra errores de parseo (aws-sdk traga y no loguea).
 - **Siguiente paso**: RE del deserializador real de ListWorlds en el exe
@@ -101,6 +165,7 @@ mundos VACÍA.
 - Tras el primer mundo pintado: click en el mundo → `POST /prod/game/login/queue/v2/jwt/omni` (ticket `worldId_uuid`, `RepAddress 127.0.0.1:9000`) → world server DTLS (no existe todavía, `emulator/apps/world` vacío).
 
 ### Deuda menor detectada esta sesión
+
 - Aceptar-términos: RE-ear el endpoint para persistir el consentimiento (futura DB).
 - `Game.log` está en `%LOCALAPPDATA%/AGS/New World/Game.log` (no en el runtime dir).
 - launcher stub steam: sin errores; `@mm_azoth_1` del dropdown se cachea al arrancar → con el channel arreglado, al REINICIAR el juego el dropdown mostrará "Azoth-1".
@@ -148,7 +213,7 @@ Start-Process -FilePath F:\Azoth\emulator\deploy\bin\caddy.exe -ArgumentList 'ru
 orca computer get-app-state --app NewWorld --json
 # pulsar tecla (foco del juego)
 orca computer press-key --app NewWorld --key Return --restore-window --json
-```
+```text
 
 ## Deuda técnica / refactor pendiente (siguiente sesión)
 
