@@ -1,8 +1,8 @@
-# Azoth — estado (2026-09-09 noche)
+# Azoth — estado (2026-09-11 mañana)
 
 ## 🏆 HITO: LOGIN OMNI ACEPTADO (result 0) → pantalla ELEGIR PERSONAJE
 
-Después de semanas atascados en `CreateSession result: 203`, hoy se rompió el
+Después de semanas atascados en `CreateSession result: 203`, se rompió el
 bloqueo. Cadena completa verificada en vivo:
 
 ```
@@ -62,6 +62,51 @@ completa.
 
 ## Frontera ACTUAL (siguiente sesión)
 
+### Sesión 2026-09-11: post-login mocks + RE de ListWorlds (NO CERRADO)
+
+Avance: el juego llegó al panel ELEGIR PERSONAJE → VER MUNDOS. Acepta Términos
+(los acepta solos, se puede RE-ear el endpoint para persistirlo en la futura
+DB). Cuelga imagenes CMS (`nw_maintenance__modal`, `newstile2.dds` — placeholder
+DDS servido por `routes/images.py`). UI muestra `@mm_azoth_1` y lista de
+mundos VACÍA.
+
+**Lo que se implementó y probó esta sesión (todo commiteado + pushed):**
+- `routes/getlogininfo.py`: shape RE'd del exe. En `.rdata` (offset ~0x8702000)
+  está la tabla del modelo aws-sdk `ListWorldsResponseBody`: `Worlds`,
+  `LoginInfoList`, `RecommendedWorlds`, `PendingWorldMerges`, `AccountIsLocked`,
+  y por mundo `PublicName/PublicStatusCode/WorldName/WorldStatus/WorldType/
+  WorldVersion/QueueWaitTimeSec/WorldAgeDays/WorldPopulationStatus/IsFull/
+  IsRecommended/MaxConnectionCount/TransferToRegion`. En 0x83bf000 está el
+  descriptor UI (`UiLoginScreenRequestBus`, `GetLoginInfoLists`): claves
+  camelCase (`publicName`, `queueSize`, `worldPopulationStatus`,
+  `maxAccountCharacters`, `worldSet`, `isFull`...) y enums
+  `eWorldType_FTUE/OpenWorld/Unknown`. Ambos casings se sirven.
+- getlogininfo se sirve con `Content-Type: application/x-amz-json-1.1` (lo que
+  el cliente aws-sdk-cpp manda y espera).
+- `routes/queue.py`, `routes/characters.py`, `routes/entitlements.py`
+  (x-amz-json-1.1), `routes/images.py` (DDS placeholder válido 145B).
+- `research/schemas/live/cms_motd.json` reescrito: 1 mundo
+  (`00000000-0000-4000-8000-000000000001`) + worldSet `azoth-1`→"Azoth".
+- channel-azoth.json: `localizedName`/`displayName` = "Azoth-1" (fuera @mm).
+- `config.py`: DEFAULT_SCHEMAS ahora relativo al repo (antes F:\Azoth duro).
+- Caddyfile.json: certs a rutas del repo. Caddy corriendo elevado en :443.
+- Tests gateway: 13/13 OK (unittest stdlib).
+
+**Por qué la lista de mundos sigue vacía (frontera exacta):**
+- El juego pide `GET /prod/game/getlogininfo/jwt/omni?channelId=…&includeNames=true&isTrialOwner=false` cada 60s, recibe 200 con el shape RE'd, pero NO pinta el mundo ni deja de pollear.
+- El motd `worlds_STEAM_APP_ID.1063730.json` (CMS, cada 60s también) ya sirve el mundo con el MISMO worldId. El Game.log no muestra errores de parseo (aws-sdk traga y no loguea).
+- **Siguiente paso**: RE del deserializador real de ListWorlds en el exe
+  (capstone, buscar xrefs al offset de la tabla 0x87023d0 y mapear los offsets
+  de cada clave para reconstruir el orden/tipos EXACTOS que espera). Alternativa: iterar el override `mock_discovery/getlogininfo.json` con variantes de shape (p. ej. `JwtClaims` como objeto, `WorldStatus` con otros valores, worlds anidado por región).
+- Tras el primer mundo pintado: click en el mundo → `POST /prod/game/login/queue/v2/jwt/omni` (ticket `worldId_uuid`, `RepAddress 127.0.0.1:9000`) → world server DTLS (no existe todavía, `emulator/apps/world` vacío).
+
+### Deuda menor detectada esta sesión
+- Aceptar-términos: RE-ear el endpoint para persistir el consentimiento (futura DB).
+- `Game.log` está en `%LOCALAPPDATA%/AGS/New World/Game.log` (no en el runtime dir).
+- launcher stub steam: sin errores; `@mm_azoth_1` del dropdown se cachea al arrancar → con el channel arreglado, al REINICIAR el juego el dropdown mostrará "Azoth-1".
+
+### Frontera previa (2026-09-09)
+
 El panel "ELEGir PERSONAJE" pide (vía gateway-CF, con SigV4 de NUESTRAS
 credenciales + `X-Nw-Auth: <accessToken JWT>`):
 
@@ -87,9 +132,9 @@ credenciales + `X-Nw-Auth: <accessToken JWT>`):
 - Juego: `launcher\src\Start-NwPrivate.ps1` (o directo al exe del runtime).
   El juego **auto-intenta el login** ~18s tras abrir; si falla y muestra
   diálogo, `orca computer press-key --app NewWorld --key Return
-  --restore-window` reenvía. `orca computer get-app-state --app NewWorld`
-  da screenshot PNG (ver documentación en `docs/INDEX.md`).
-- Tests gateway: `python emulator/apps/gateway/tests/test_gateway.py` → 9/9 OK
+  --restore-window` reenvía. `orca computer get-app-state --app NewWorld
+  --restore-window --json` da screenshot PNG (path en `result.screenshot.path`).
+- Tests gateway: `python emulator/apps/gateway/tests/test_gateway.py` → 13/13 OK
   (unittest stdlib; pytest NO instalado).
 
 ## Comandos útiles
