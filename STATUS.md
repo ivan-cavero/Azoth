@@ -62,6 +62,63 @@ completa.
 
 ## Frontera ACTUAL (siguiente sesión)
 
+### Sesión 2026-09-11 (noche): el error es semántico — el cliente parsea y filtra
+
+**Señal nueva y decisiva:** el panel ya NO queda vacío en silencio; muestra
+**"no hay mundos activos en tu región"** (= `Errors::login_no_worlds` /
+`login_no_worlds_unknown`, cadena de enums en `.rdata` `0x7fc3d08`). Eso significa
+que el cliente **parsea la respuesta sin error** y luego **filtra** nuestra entrada
+de mundo. Ya no es un problema de shape roto, es un predicado que no se cumple.
+
+**Lo que se probó y NO alcanzó** (todo por override caliente, sin reiniciar el
+gateway; el cliente re-polea `getlogininfo` cada ~60 s):
+
+| Variante servida | Resultado |
+| --- | --- |
+| PascalCase `Worlds` (aws-sdk) | vacío |
+| mínimo strings-only | vacío |
+| camelCase `worlds` + `recommendedWorlds` + `WorldsInfo` + `Worlds` | vacío |
+| `LoginInfoList` con descriptor completo + `characters[]` | vacío |
+| `worldMetrics` como **objeto** anidado | vacío |
+| `awsRegion` alineado al cluster (`eu-central-1`) + `region`/`channel` | vacío |
+| lanzar con `+g_showHiddenWorlds 1` | vacío |
+
+**Ground truth adicional (xrefmap, una pasada):**
+
+- `publicStatusCode`, `maxAccountCharacters`, `worldSet`, `isRecommended` se leen
+  desde **la misma función** (`0x144f54d63`, `...dba`, `...dd7`, `...e4b`): es el
+  **registro de propiedades de `WorldPublicMetadata`**. O sea, los nombres de
+  propiedad camelCase **son** las claves de serialización. El schema camelCase es
+  el correcto y igualmente el filtro rechaza.
+- Tipos RTTI de la familia (registro en `0x144e57980`): `WorldFilter`,
+  `WorldMetrics`, `WorldPublicMetadata`, `WorldsInfo`, `UiVitalsStat*`.
+- **No hay tablas de punteros** a las claves del modelo PascalCase
+  (`Worlds`, `PublicName`, `WorldStatus`, `WorldsInfo`): 0 hits a 8 bytes. Confirma
+  que ese bloque es decorativo.
+- `CharacterMetadata` incluye `worldId`, `prevWorldId`, `personaId`, `name`,
+  `currency`, `position`, `currentLevel`, `crestData`, `guildId`, `portraitData`,
+  `ftueCompleted`, `mustRename`, `needsTransfer`, `hasTransfered`,
+  `transferReason`, `isNameLatent`, `isFreshStart` y los enums
+  `eTransferReason_*` / `eMustRenameReason_*`.
+- `CharacterNameData` (el que usa la UI) es **camelCase** con `name`, `personaId`,
+  `worldId`, `region`, `channel`, `creationDate` → nota el par **`region` +
+  `channel`**.
+- `@mm_defaultworldname` / `@mm_defaultworlddesc` / `@mm_defaultworldmotd`
+  existen; y el string **"No world metadata is available yet"**.
+- Cvar relevante: `g_showHiddenWorlds` ("When enabled, UI will show worlds which
+  are flagged as hidden"). `+g_showHiddenWorlds 1` por línea de comandos no
+  cambió nada (¿los args `+cvar` no se aplican, o el mundo no está "hidden"?).
+- `typeindex.json` del install **no** contiene los tipos del juego
+  (`WorldsInfo`/`WorldPublicMetadata`/`ListWorlds`: ausentes). Es el índice del
+  motor, no del título.
+
+**Siguiente paso honesto:** dejar de adivinar el predicado y decompilar el
+deserializador (Ghidra sobre el handler de `ListWorlds`/`GetLoginInfo`), o capturar
+una respuesta real de Amazon. La alternativa barata restante es iterar el predicado
+a ciegas (p. ej. `filterParams`, `OwnerState`, `IsTrialOwner`,
+`entitlement`-related, o el par `region`/`channel` del `CharacterNameData`),
+que es lento: 60 s por intento y sin ver el panel.
+
 ### Sesión 2026-09-11 (tarde-2): el MODELO real de la lista de mundos (RE con xrefmap)
 
 Nueva herramienta: `research/tools/re/xrefmap.py` (una pasada por `.text`, mapa
