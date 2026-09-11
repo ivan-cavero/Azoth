@@ -62,6 +62,69 @@ completa.
 
 ## Frontera ACTUAL (siguiente sesión)
 
+### Sesión 2026-09-11 (tarde-2): el MODELO real de la lista de mundos (RE con xrefmap)
+
+Nueva herramienta: `research/tools/re/xrefmap.py` (una pasada por `.text`, mapa
+`{target_va: [sitios]}` + `dump`/`xrefs`). El escaneo por-consulta era O(n) y
+timeouteaba; el mapa se construye una vez.
+
+**Hallazgo A — las claves del wire son camelCase, no PascalCase.**
+La ventana del modelo aws-sdk (`0x8702000`) tiene **solo** strings de *request*
+referenciados por código (`channelId` x4, `includeNames`, `isTrialOwner`,
+`IsFreshStart`, `FilterParams`, `ListWorldsRequestBody`, `SteamToken`,
+`TwitchToken`, `CognitoPoolId`, `SkipFtue`). **Ninguna** clave de respuesta
+(`Worlds`, `PublicName`, `WorldStatus`, `WorldType`, `LoginInfoList`) está
+referenciada → esa tabla es decorativa. Las claves vivas están en el bloque
+**camelCase** `0x1483c0900` (1 xref cada una, registro de propiedades del UI).
+
+**Hallazgo B — el modelo del mundo, en orden (bloque 0x1483c0900):**
+```text
+UiLoginScreenRequestBus · SetVisibleCharacter · GetLoginInfoLists · GetRegionList
+GetPendingWorldMergeList · GetGatewayRegion
+regionId · awsRegion(x7) · latencyMs · worldAgeDays · queueSize(x2) · queueWaitTimeSec
+worldPopulationStatus · publicStatusCode · publicName · maxAccountCharacters
+worldSet · worldMetrics · transferToRegion · isFull · isRecommended
+eWorldType_FTUE · eWorldType_OpenWorld · eWorldType_Unknown
+CharacterMetadata · prevWorldId · portraitData · publishedElapsedSeconds · needsTransfer
+hasTransfered · transferReason · modifiedDate · nameModifiedDate · needsTransferDate
+nameLatentDate · mustRenameReason · isNameLatent · isFreshStart
+eTransferReason_* · eMustRenameReason_*
+CharacterNameData · region(x5) · creationDate · paramKey · paramValue
+eFilterType_Seasonal · filterParams · recommendationType · recommendedWorlds
+```
+O sea: **el bus que llena la lista es `GetLoginInfoLists`** y el modelo incluye
+`CharacterMetadata` (los personajes por mundo) → la lista de mundos sale de
+**`LoginInfoList`**, cada entrada = descriptor del mundo + `characters[]`.
+`worldMetrics` y `worldPopulationStatus` son campos aparte.
+**No existen** como claves: `worldId` (en el bloque de mundo), `worldName`,
+`worldStatus`, `maxConnectionCount`.
+
+**Hallazgo C — el parser del CMS worlds.** Xrefs de `worlds` (minúscula, 3 sitios):
+uno es el parser del CMS con `worlds` / `worldSets` / `globalAnnouncement` /
+`newsStories` (confirma el shape del motd que ya servimos) y otro es el modelo
+`WorldsInfo { worlds[], recommendedWorlds[] }` + `RecommendedWorld {world,
+recommendationType}` + `FilterParam {paramKey, paramValue}` /
+`WorldFilter {filterType, filterParams}`.
+
+**Hallazgo D — el enum de tipo de mundo.** En el parser aparecen
+`eWorldType_OpenWorld` y `eWorldType_Unknown` **como valores**; un mapper aparte
+(VA `0x1417c4000`) referencia `"FTUE"` y `"OpenWorld"` pelados. Los valores de
+wire probables son los `eWorldType_*`. Sirvo ambos casings.
+
+**Estado del intento en vivo:** `getlogininfo` poleado ~47 veces, `worlds:list`
+solo **3 veces en todas las sesiones** (el cliente la pide al clickear la región,
+no en cada login). El payload probado ahora sirve `LoginInfoList` con el
+descriptor completo camelCase + `characters[]`, y también `worlds`,
+`recommendedWorlds`, `filterParams`, `WorldsInfo`, `Worlds`. **Todavía sin
+pintar** — pero `worlds/list` no se re-consultó, así que la prueba no se cerró.
+Override: `mock_discovery/getlogininfo.json` y `worlds_list.json` (hot).
+
+**Palanca de debug del cliente (no probada):** `ui_dumpDataLayer` — "Dumps debug
+info of UiDataLayer to log". Se lanzó con `+ui_dumpDataLayer 1` y no escribió
+dump (probablemente porque es de build no-retail o el arg necesita otra sintaxis:
+el CLI del juego usa `-FPSWarningThreshold <lo>,<hi>`). El juego tiene consola
+(`CXConsole`) pero `orca press-key` no soporta la tecla `~`.
+
 ### Sesión 2026-09-11 (tarde): worlds/list + veto del override de config
 
 **Hallazgo 1 — la ruta que faltaba para la lista de mundos.**
