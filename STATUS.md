@@ -410,3 +410,25 @@ getlogininfo.json.bak · getlogininfo.json.del (el histórico que produjo MAINTE
    — el helper extrae `&result.<member>`; encontrar el member-offset leyendo el lambda body.
 2. Usar el 400-probe como A/B: si al servir un 200-correcto el panel avanza sin error, ganamos.
 3. Quitar el probe `__http_error` de app.py cuando se diagnostique.
+
+## Sesión 2026-09-12: el hallazgo aplicado que faltaba (psc) + shape estricto
+
+- **Lo que estabas haciendo mal:** el RE decía `publicStatusCode: 1` FALLA la máscara
+  (`(psc & 0xffffe8b7)==0`, FUN_141720c20) pero `registry.py` seguía sirviendo `1`
+  en `_world_metadata` y `_aws_world` → el usable-check (0x12) filtraba el mundo
+  siempre. Cambiado a `0`. Además `regionId` extra en el objeto mundo (no existe en
+  el registro AZ de 13 campos) → fuera; el parser estricto puede soltar la entrada
+  con claves de más.
+- Borrado `mock_discovery/getlogininfo.json` (shotgun de 20KB con extras por objeto:
+  `region`, `awsRegion`, `characters` con Testchar, `RepAddress`/`JwtClaims` mezclados
+  en variantes). El registry vuelve a ser fuente única: `LoginInfoList` con metadata
+  exacta de 13 campos + `characters: []` + token; tests 17/17.
+- Verificado en exe: `worlds` minúscula = parser del CMS (motd), NO es la key de
+  getlogininfo; `Worlds`/`LoginInfoList` Pascal = 0 xrefs (decorativo); el modelo vivo
+  es el AZ camelCase. El juego NUNCA pidió `worlds/list` (0 hits con UA de juego en
+  `live.jsonl`); la lista sale de getlogininfo, poleado cada 60s.
+- **Cómo probar:** reinicia el gateway (o espera al próximo poll, el registry es
+  hot-reload) + reinicia el juego, Enter en "PULSA CUALQUIER BOTÓN", mira el dropdown.
+- **Si sigue vacío**, la frontera real es el predicado región de FUN_14641b020
+  (`_stricmp` mundo vs gateway): probar `worldSet`/`regionId` alineados al cluster
+  o servir `regions[]` (RegionMetadata) junto a la lista.
