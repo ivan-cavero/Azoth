@@ -1,4 +1,17 @@
-# Azoth — estado (2026-09-11 mañana)
+# Azoth — estado (2026-09-11 tarde)
+
+## Sesión orca: registry única fuente + getlogininfo camel-only (lista AÚN vacía)
+
+- `data/worlds.json` alineado (Azoth EU / azoth-1-01 / Azoth-1 / 1.400.6031.6004151);
+  borrados overrides `getlogininfo.json`/`worlds_list.json` (divergían del registry y del MOTD).
+- `getlogininfo` sirve `_world_metadata` camelCase + `characters[]` + `regionId`,
+  `publicStatusCode: 1`; unión PascalCase solo en `worlds/list` (el cliente nunca la
+  pide: 0 hits con UA de juego; la lista sale de `LoginInfoList`). Tests 17/17.
+- Probado en vivo con orca (refresh + screenshots): `MAINTENANCE`, personaje falso,
+  `worldSet=Azoth-1`, CMS `worlds.override.json` reescrito al shape del gateway —
+  panel sigue vacío. `FUN_14641b020` NO es el filtro (es selección de personaje).
+- Siguiente: deserializador real del filtro (Ghidra, `big_parser` 0x144f40780) o
+  captura oficial. Commit emulator `406e85c` pusheado.
 
 ## 🏆 HITO: LOGIN OMNI ACEPTADO (result 0) → pantalla ELEGIR PERSONAJE
 
@@ -135,6 +148,7 @@ referenciada → esa tabla es decorativa. Las claves vivas están en el bloque
 **camelCase** `0x1483c0900` (1 xref cada una, registro de propiedades del UI).
 
 **Hallazgo B — el modelo del mundo, en orden (bloque 0x1483c0900):**
+
 ```text
 UiLoginScreenRequestBus · SetVisibleCharacter · GetLoginInfoLists · GetRegionList
 GetPendingWorldMergeList · GetGatewayRegion
@@ -149,6 +163,7 @@ eTransferReason_* · eMustRenameReason_*
 CharacterNameData · region(x5) · creationDate · paramKey · paramValue
 eFilterType_Seasonal · filterParams · recommendationType · recommendedWorlds
 ```
+
 O sea: **el bus que llena la lista es `GetLoginInfoLists`** y el modelo incluye
 `CharacterMetadata` (los personajes por mundo) → la lista de mundos sale de
 **`LoginInfoList`**, cada entrada = descriptor del mundo + `characters[]`.
@@ -346,3 +361,52 @@ orca computer press-key --app NewWorld --key Return --restore-window --json
 4. Mundos: el channel-azoth.json apunta a los endpoints reales de fra-prod
    (hosts redirigidos). Cuando el logininfo valide, responder con
    `RepAddress` apuntando a nuestro world.
+
+## Sesión 2026-09-11 noche: instrumento 400-probe + frontera exacta (world list NO cerrada)
+
+### Lo que funciona (instrumento nuevo)
+- `app.py` sirve getlogininfo con **HTTP 400** si el override contiene `"__http_error"` → el
+  cliente muestra "FALLÓ EN LA CONEXIÓN — Falló al iniciar sesión ValidationException" y la UI
+  **avanza** a modo selección de personaje (4 slots + CREAR PERSONAJE + JUGAR).
+  Esto prueba: la cadena getlogininfo está viva y el outcome del aws-sdk llega a la UI.
+- Con **HTTP 200** (cualquier body), el cliente NO muestra error (parseo OK a nivel aws) pero
+  la UI **no avanza**: se queda en modo noticias + spinner eterno en el dropdown de mundo.
+  → el vector de mundos del resultado parseado queda vacío: **la key raíz del body que llena
+  `LoginInfoList`/`worlds` del GetLoginInfoResult no es ninguna de las probadas**.
+
+### Shapes probados CON REINICIO (todos: news-mode + spinner, sin error)
+worlds plano camel · worldId+regionId+psc0 · id/worldType proto · worldsInfo anidado ·
+loginInfoList anidado · mega Pascal+camel · regions anidado · type=eWorldType_OpenWorld ·
+getlogininfo.json.bak · getlogininfo.json.del (el histórico que produjo MAINTENANCE/personaje) ·
+.del+char+psc0+JWT-fresh · output-wrapper Coral · loginInfoList.lowerCamel · shotgun multi-key.
+(Los hot-swaps NO cuentan: el cliente solo consume getlogininfo al login.)
+
+### RE nuevo de esta sesión
+- Tabla PascalCase aws-sdk (0x148702000/0x148703xxx: Worlds/PublicName/WorldStatus/...) = **0 xrefs
+  de cualquier tipo** (lea, puntero 8B, RVA 4B, imm64 SSO) → decorativa; el marshaller de
+  GetLoginInfo NO usa esas claves.
+- Registro AZ reflection en big_parser (0x144f40780, ahora decompilado en
+  `research/derived/decomp/big-parser.c` 693KB): WorldsInfo{worlds, recommendedWorlds},
+  WorldMetadata{worldId,name,type,status,publicStatusCode,publicName,version,maxAccountCharacters,
+  worldSet,worldMetrics,transferToRegion,isFull,isRecommended}, RegionMetadata{regionId,name,
+  awsRegion,latencyMs}, CharacterMetadata{...}, CharacterNameData{name,personaId,worldId,region,
+  channel,creationDate,modifiedDate}, FilterParam, WorldFilter, RecommendedWorld.
+- usable-check FUN_1464460d0: `status[:6]=="ACTIVE"` Y `(publicStatusCode & 0xffffe8b7)==0`
+  (psc=1 FALLA la máscara; válido 0 o bits 0x4/0x40/0x100/0x200/0x400/0x1000).
+  Errores: 0x10 parse-fail, 0x11 worlds vacío, 0x12 no-elegible.
+- Convertidores FUN_146456b60/1464585d0/146427390 NO filtran: copian todo. La lista vacía =
+  el parse no llena el vector.
+- Config sets S3 cargan OK ("successfully, size: NNN"); refetch 5-min = ciclo credenciales,
+  no error. ConfigureLogin MODE_GATEWAY resuelve bien (log 23:14).
+- FNV-1a key lookup descartado (no hay constantes en .text).
+
+### Frontera exacta (siguiente sesión)
+1. Encontrar la **key raíz JSON** del body de getlogininfo que llena el vector de mundos del
+   resultado. Vía prometedora: decompilar el unmarshaller aws-sdk de la op (el resultado se
+   aloca en FUN_146472db0 con vtable 0x148503018; el wrapper de outcome FUN_146472370 con
+   vtable 0x148502fe8; los slots del vtable apuntan a FUN_146472110 (payload 0x70B,
+   vtable 0x148503048) etc. Buscar el JsonView-visit que hace Get* por hash/string.
+   Alternativa: lambda RTTI "MakeReturnCallbackWithStatus<GetLoginInfoResult, LoginInfoList>"
+   — el helper extrae `&result.<member>`; encontrar el member-offset leyendo el lambda body.
+2. Usar el 400-probe como A/B: si al servir un 200-correcto el panel avanza sin error, ganamos.
+3. Quitar el probe `__http_error` de app.py cuando se diagnostique.

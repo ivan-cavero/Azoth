@@ -5,9 +5,10 @@
 ## Sistema (paraguas)
 
 | Doc | Contenido |
-|---|---|
+| --- | --- |
 | [NOMBRE.md](NOMBRE.md) | Por qué Azoth |
-| [ARQUITECTURA.md](ARQUITECTURA.md) | Contrato: 2 procesos, skip-EAC, submódulos, PRs |
+| [ARQUITECTURA.md](ARQUITECTURA.md) | Contrato del **día 1 / MVP**: 2 procesos, skip-EAC, submódulos, PRs |
+| [ARQUITECTURA-FLOTAS.md](ARQUITECTURA-FLOTAS.md) | Contrato de **topología de producción**: Auth global, regiones, mundos, instancias, `azothctl`. El MVP crece hacia aquí; no lo reemplaza. |
 | [ROADMAP.md](ROADMAP.md) | Fases + **qué capturar ahora** |
 | [ADMIN.md](ADMIN.md) | **Permisos admin con gsudo: pedir el UAC al operador ANTES de empezar** |
 | [../emulator/docs/PERFORMANCE.md](../emulator/docs/PERFORMANCE.md) | Densidad / tick / AOI |
@@ -16,20 +17,22 @@
 ## Research (`research/docs/`)
 
 | Doc | Contenido |
-|---|---|
+| --- | --- |
 | [ANALISIS.md](../research/docs/ANALISIS.md) | Motor, login, GridMate, PAKs |
 | [CAPTURA.md](../research/docs/CAPTURA.md) | Kit pasivo |
 | [EAC.md](../research/docs/EAC.md) | EAC EOS, sin RPM en official |
 | [CONTRATO_CLIENTE.md](../research/docs/CONTRATO_CLIENTE.md) | JSON/hosts que espera el cliente |
 | [SESIONES.md](../research/docs/SESIONES.md) | Live 2026-09-06 |
 | [PROTOCOLO.md](../research/docs/PROTOCOLO.md) | DTLS, Carrier, RMI |
+| [SUPERFICIE.md](../research/docs/SUPERFICIE.md) | Inventario completo de endpoints (voz, métricas, crash, EAC) |
+| [CONTENIDO.md](../research/docs/CONTENIDO.md) | PAKs / datasheets / slices: emulador y contenido custom |
 
 Schemas: `research/schemas/live/`. Fixtures: `research/fixtures/`.
 
 ## Emulator (`emulator/docs/`)
 
 | Doc | Contenido |
-|---|---|
+| --- | --- |
 | [GATEWAY.md](../emulator/docs/GATEWAY.md) | HTTPS |
 | [WORLD.md](../emulator/docs/WORLD.md) | REP / spawn |
 | [DATA.md](../emulator/docs/DATA.md) | Postgres |

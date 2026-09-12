@@ -26,3 +26,6 @@ private-client/
 Game.log.raw
 # Local Pi runtime state
 .atl/
+
+# Capturas achicadas para el agente (descartables)
+*.small.jpg
