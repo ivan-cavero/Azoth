@@ -1,0 +1,60 @@
+# Copyright (c) 1993-2009 Microsoft Corp.
+#
+# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
+#
+# This file contains the mappings of IP addresses to host names. Each
+# entry should be kept on an individual line. The IP address should
+# be placed in the first column followed by the corresponding host name.
+# The IP address and the host name should be separated by at least one
+# space.
+#
+# Additionally, comments (such as these) may be inserted on individual
+# lines or following the machine name denoted by a '#' symbol.
+#
+# For example:
+#
+#      102.54.94.97     rhino.acme.com          # source server
+#       38.25.63.10     x.acme.com              # x client host
+
+# localhost name resolution is handled within DNS itself.
+#	127.0.0.1       localhost
+#	::1             localhost
+
+
+# SWTOR crash send
+0.0.0.0 bugcatcher.swtor.com
+0.0.0.0 crash.swtor.com
+0.0.0.0 patcher-crash.swtor.com
+
+
+# >>> AZOTH PRIVATE >>>
+127.0.0.1	d2c74t4zimux3r.cloudfront.net
+::1	d2c74t4zimux3r.cloudfront.net
+127.0.0.1	d1w0bfy6smo4d1.cloudfront.net
+::1	d1w0bfy6smo4d1.cloudfront.net
+127.0.0.1	2mfrik7h83.execute-api.us-east-1.amazonaws.com
+::1	2mfrik7h83.execute-api.us-east-1.amazonaws.com
+127.0.0.1	u433g9r00c.execute-api.eu-central-1.amazonaws.com
+::1	u433g9r00c.execute-api.eu-central-1.amazonaws.com
+127.0.0.1	8otrnl8e8d.execute-api.eu-central-1.amazonaws.com
+::1	8otrnl8e8d.execute-api.eu-central-1.amazonaws.com
+127.0.0.1	d1hkbwzm1bktgo.cloudfront.net
+::1	d1hkbwzm1bktgo.cloudfront.net
+127.0.0.1	client.content-service.amazongames.com
+::1	client.content-service.amazongames.com
+127.0.0.1	client.entitlementservice.amazongames.com
+::1	client.entitlementservice.amazongames.com
+127.0.0.1	client.catalogservice.amazongames.com
+::1	client.catalogservice.amazongames.com
+127.0.0.1	client.agsprivacysettingsservice.amazongames.com
+::1	client.agsprivacysettingsservice.amazongames.com
+127.0.0.1	prod.identity-service.amazongames.com
+::1	prod.identity-service.amazongames.com
+127.0.0.1	tokenservice.amazongames.com
+::1	tokenservice.amazongames.com
+127.0.0.1	ags-javelin-remote-config.s3.amazonaws.com
+::1	ags-javelin-remote-config.s3.amazonaws.com
+# <<< AZOTH PRIVATE <<<
+
+127.0.0.1 dynamodb.eu-central-1.amazonaws.com
+::1 dynamodb.eu-central-1.amazonaws.com
