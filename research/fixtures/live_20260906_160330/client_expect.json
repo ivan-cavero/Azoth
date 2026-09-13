@@ -1,0 +1,161 @@
+{
+  "purpose": "What the official client already asked for in live_20260906_160330. Bodies we have vs bodies still TLS. Our future backend can implement these however we want, but the client still expects these shapes/hosts/paths.",
+  "have_plaintext_json": {
+    "channel_config": {
+      "url": "https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json",
+      "file": "remote_json/channel.json",
+      "shape": {
+        "channelName": "Retail",
+        "clusters": ["fra-prod", "gru-prod", "iad-prod", "pdx-prod", "syd-prod"],
+        "per_cluster": ["displayName", "localizedName", "poolId", "publicApis[].{awsRegion,version,apiEndpoint,clientTag,stage}"],
+        "platformMetadata.OMNI": ["omniTokenUrl", "nwTokenUrl", "omniStage", "omniGameAlias"]
+      },
+      "note": "Client picks one cluster (this session: fra-prod). Mock can return a single cluster pointing at us."
+    },
+    "cms_news": {
+      "url": "https://d1hkbwzm1bktgo.cloudfront.net/newsstories/STEAM_APP_ID.1063730/metadata.json",
+      "file": "remote_json/news.json",
+      "etag_required": true,
+      "shape": {
+        "newsStories": [
+          {
+            "backgroundImage": "https://client.content-service.amazongames.com/images/.../*.dds",
+            "buttonText": "str",
+            "content": "str",
+            "convertToLocalTimeZone": "bool",
+            "internalName": "str",
+            "popUpOnReturnToMenu": "bool",
+            "popupCount": "int",
+            "popupMode": "UsePopUpCount",
+            "tabTitle": "str",
+            "timeDisplayMode": "None",
+            "title": "str",
+            "locales": "same keys prefixed de-DE-/es-ES-/es-MX-/fr-FR-/it-IT-/pl-PL-/pt-BR-"
+          }
+        ]
+      }
+    },
+    "cms_tiles": {
+      "url": "https://d1hkbwzm1bktgo.cloudfront.net/marketingtiles/STEAM_APP_ID.1063730/metadata.json",
+      "file": "remote_json/tiles.json",
+      "etag_required": true,
+      "shape": {
+        "tileData": [
+          {
+            "description": "str",
+            "imgKey": "https://client.content-service.amazongames.com/images/.../*.dds",
+            "internalName": "str",
+            "isVideoUrl": "bool",
+            "title": "str",
+            "urlToOpen": "https://..."
+          }
+        ]
+      }
+    },
+    "cms_motd": {
+      "url": "https://d1hkbwzm1bktgo.cloudfront.net/motd/worlds_STEAM_APP_ID.1063730.json",
+      "file": "remote_json/motd.json",
+      "etag_required": true,
+      "polled_about_every_60s": true,
+      "shape": {
+        "worlds": {
+          "<world-uuid>": {
+            "announcement": "str",
+            "warning": "str",
+            "locales": "es-ES-/es-MX-/fr-FR-/de-DE-/pl-PL-/it-IT-/pt-BR- prefixes"
+          }
+        },
+        "globalAnnouncement": {"title": "str", "description": "str"},
+        "worldSets": {"live-1-12": {"setName": "Vanaheim Omega"}}
+      },
+      "this_session_world": "86ae8332-ed32-420e-985c-61011022847a present, empty announcement/warning"
+    }
+  },
+  "logged_but_body_still_tls": {
+    "credentials_omni": {
+      "url": "https://d1w0bfy6smo4d1.cloudfront.net/prod/credentials/omni",
+      "observed": "SteamAuth Calling Http API",
+      "expect_shape_from_prior_analysis": {
+        "AccessKeyId": "20-char ASIA...",
+        "SecretAccessKey": "40-char",
+        "SessionToken": "str",
+        "Expiration": "RFC3339"
+      }
+    },
+    "login_queue": {
+      "path_inferred": "/prod/game/login/queue/v2/...",
+      "observed_from_log": {
+        "ticket": "<worldId>_<uuid>",
+        "location": "@mm_loginservices_location_FTUE000 or empty",
+        "RepAddress": "ip:port",
+        "WorldId": "uuid",
+        "WorldName": "live-1-12-2",
+        "CharacterId": "uuid"
+      }
+    },
+    "character_create": {
+      "path_inferred": "/characters and /characters/validator",
+      "observed": "not logged as URL. Happened during FTUE_V2_CC (14:06:09-14:06:55). After create, Connect playerName=Nozusss character=abdbd9e8-..."
+    },
+    "getlogininfo": {
+      "path_inferred": "/prod/game/getlogininfo/...",
+      "observed": "not logged as URL. Frontend must have listed both Nozusss (new) and xNozus (existing) because user switched at 14:13:46."
+    },
+    "s3_remote_config": {
+      "keys": [
+        "applications/public/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless (190 B)",
+        "applications/public/configuration-sets/RegionId/fra-prod/versionless (542 B)",
+        "applications/public/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/versionless (1070 B)",
+        "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID.1063730/versionless (1856 B)",
+        "applications/publicGameplay/configuration-sets/RegionId/fra-prod/versionless (872 B)",
+        "applications/publicGameplay/configuration-sets/CognitoId/.../versionless (5887 B)",
+        "applications/publicGameplay/configuration-sets/WorldId/86ae8332-.../versionless (146 B)"
+      ],
+      "note": "sizes known, bodies TLS. Mock can return {} or tiny JSON of those sizes."
+    }
+  },
+  "dns_https_no_path_in_log": [
+    "client.entitlementservice.amazongames.com",
+    "client.catalogservice.amazongames.com",
+    "client.agsprivacysettingsservice.amazongames.com",
+    "prod.identity-service.amazongames.com"
+  ],
+  "vivox": {
+    "keep": true,
+    "hosts": ["nwxp0euc1.www.vivox.com", "nwxp0euc1-mim.vivox.com", "www5-alb-nwxp0euc1-460873681.eu-central-1.elb.amazonaws.com"],
+    "login_as": ".amazon9050-ne28.<characterId>+B.",
+    "channel_sip": "sip:confctl-d-amazon9050-ne28.<gridId>_<token>@nwxp0euc1.vivox.com",
+    "pcap_udp_voice_ports": [27020, 27022, 27024, 27026],
+    "events_this_session": 91
+  },
+  "rep_dtls": {
+    "cipher": "ECDHE-RSA-AES256-GCM-SHA384",
+    "client_local_ports": [27000, 27001],
+    "server": "52.223.18.203",
+    "ports": [48274, 33000],
+    "dtls_hellos_per_flow": 16,
+    "payload": "ciphertext; sizes/timing only until we terminate DTLS ourselves"
+  },
+  "rmi_names_seen": [
+    "GlobalStorageComponentClientFacet_ReceiveStorageSearchItems",
+    "GatherableControllerComponentClientFacet_GatheringInterrupted",
+    "EventNotificationComponentClientFacet_SyncNotifications",
+    "GridTrackingComponentClientFacet_UpdatePhasing",
+    "GameModeParticipantComponentClientFacet_OnLeftQueueForGameModeMsg"
+  ],
+  "gameconnection_ladder": [
+    "Disconnected",
+    "QueryGameUpdateCheck",
+    "QueueGameLogin",
+    "WaitingForQueuedLogin",
+    "QueryForRemoteConfigClass",
+    "WaitingForRemoteConfigClass",
+    "ObtainREPRequirements",
+    "StartREPConnection",
+    "WaitingForREPConnection",
+    "WaitingForActorGameConnection",
+    "WaitingForSpawnPoint",
+    "WaitingForPlayerSpawn",
+    "InGame"
+  ]
+}

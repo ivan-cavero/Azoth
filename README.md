@@ -1,29 +1,32 @@
 # Azoth
 
-Servidor privado de **New World: Aeternum**. Azoth es la esencia del mundo en el juego; aquí es el nombre del proyecto y del mundo.
+Private server for **New World: Aeternum**. Azoth is the essence of the world in the game; here it is the name of the project and of the world.
 
-El cliente que ya posees no se crackea: se le habla en su idioma (modelo TrinityCore). En **private** se lanza **sin Easy Anti-Cheat** y **sin Steam**, con un launcher propio.
+The client you already own is not cracked: it is spoken to in its own language (TrinityCore model). In **private** mode it launches **without Easy Anti-Cheat** and **without Steam**, with our own launcher.
 
-Este directorio es el **repo paraguas**. Tres git independientes (submódulos):
+Single monorepo (no git submodules). Pre-monorepo history lives in the archived `Azoth-Research` / `Azoth-Emulator` / `Azoth-Launcher` repos and in the `archive/pre-monorepo` branch.
 
-| Submódulo | Repo | Qué es |
-|---|---|---|
-| [`research/`](research/) | [Azoth-Research](https://github.com/ivan-cavero/Azoth-Research) | Captura live, RE, decompilación, schemas JSON |
-| [`emulator/`](emulator/) | [Azoth-Emulator](https://github.com/ivan-cavero/Azoth-Emulator) | Gateway HTTPS + world/REP + Postgres |
-| [`launcher/`](launcher/) | [Azoth-Launcher](https://github.com/ivan-cavero/Azoth-Launcher) | Updater, cliente parcheado, Play |
+## Layout
 
-Docs de sistema: [`docs/INDEX.md`](docs/INDEX.md) · Arquitectura: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) · Nombre: [`docs/NOMBRE.md`](docs/NOMBRE.md)
+| Folder | What it is |
+| --- | --- |
+| [`az.py`](az.py) | **Single CLI**: `python az.py gateway start` · `gateway reload` (hot-reload dev) · `gateway test` · `caddy` · `game` · `mode private` · `shot` · `click` · `key` · `shape` · `doc` |
+| [`services/`](services/) | Services: `gateway/` (HTTPS :8080, stdlib Python, full traffic capture), `world/` (REP/DTLS, pending), `launcher/` (Steam stub + client launch) |
+| [`research/`](research/) | RE: **atlas** (endpoints, wire models, errors, debug levers, observed traffic + OpenAPI), method docs, tools (xrefmap, Ghidra headless, passive capture), live schemas |
+| [`deploy/`](deploy/) | Caddy :443, certs, host allowlist, official/private switch |
+| [`scripts/`](scripts/) | Live game instrumentation: OCR, synthetic click, input, A/B shape harness |
+| [`docs/`](docs/) | Architecture + historical sessions |
 
-## Dos perfiles, nunca mezclados
+## Two profiles, never mixed
 
-**Official** (grabar Amazon hasta 2027-01-31): Steam → launcher de Amazon → EAC → exe vanilla. Hosts limpio. Kit: `research/tools/capture`.
+**Official** (record Amazon until 2027-01-31): Steam → Amazon launcher → EAC → vanilla exe. Clean hosts. Kit: `research/tools/capture`.
 
-**Private** (Azoth): nuestro launcher → `Bin64\NewWorld.exe` directo. Habla solo con `emulator/`. Parches de URL/pin solo en una **copia** del cliente.
+**Private** (Azoth): our launcher → `Bin64\NewWorld.exe` directly. Talks only to `services/gateway`. No exe patches.
 
-## Clone
+## State
 
-```powershell
-git clone --recurse-submodules https://github.com/ivan-cavero/Azoth.git
-# o, si ya clonaste el paraguas:
-git submodule update --init --recursive
-```
+`STATUS.md` (lean) + `research/atlas/` (RE memory). Historical sessions in `docs/sessions/`.
+
+## Agent rules
+
+`AGENTS.md` — RE method, test loop, atlas discipline, conventions.

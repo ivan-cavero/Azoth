@@ -1,0 +1,63 @@
+{
+  "path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\New World\\Bin64\\NewWorld.exe",
+  "size": 179204176,
+  "image_base": "0x140000000",
+  "sections": [
+    {
+      "name": ".text",
+      "va": 5368713216,
+      "vsize": 132935869,
+      "raw": 1536,
+      "rsize": 132936192
+    },
+    {
+      "name": ".rdata",
+      "va": 5501652992,
+      "vsize": 33232158,
+      "raw": 132937728,
+      "rsize": 33232384
+    },
+    {
+      "name": ".data",
+      "va": 5534887936,
+      "vsize": 10175640,
+      "raw": 166170112,
+      "rsize": 4616192
+    },
+    {
+      "name": ".pdata",
+      "va": 5545066496,
+      "vsize": 5082948,
+      "raw": 170786304,
+      "rsize": 5083136
+    },
+    {
+      "name": "CPADinfo",
+      "va": 5550149632,
+      "vsize": 56,
+      "raw": 175869440,
+      "rsize": 512
+    },
+    {
+      "name": "_RDATA",
+      "va": 5550153728,
+      "vsize": 144096,
+      "raw": 175869952,
+      "rsize": 144384
+    },
+    {
+      "name": ".rsrc",
+      "va": 5550301184,
+      "vsize": 87000,
+      "raw": 176014336,
+      "rsize": 87040
+    },
+    {
+      "name": ".reloc",
+      "va": 5550391296,
+      "vsize": 1528860,
+      "raw": 176101376,
+      "rsize": 1529344
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+LIBRARY steam_api64
+EXPORTS
+    SteamAPI_Init
+    SteamAPI_InitSafe
+    SteamAPI_InitAnonymousUser
+    SteamAPI_Shutdown
+    SteamAPI_IsSteamRunning
+    SteamAPI_RestartAppIfNecessary
+    SteamAPI_RunCallbacks
+    SteamAPI_ReleaseCurrentThreadMemory
+    SteamAPI_GetHSteamUser
+    SteamAPI_GetHSteamPipe
+    SteamAPI_RegisterCallback
+    SteamAPI_UnregisterCallback
+    SteamAPI_RegisterCallResult
+    SteamAPI_UnregisterCallResult
+    SteamInternal_ContextInit
+    SteamInternal_CreateInterface
+    SteamInternal_FindOrCreateUserInterface
+    SteamInternal_FindOrCreateGameServerInterface
+    SteamAPI_SteamUser_v023
+    SteamAPI_SteamFriends_v017
+    SteamAPI_SteamUtils_v010
+    SteamAPI_SteamApps_v008

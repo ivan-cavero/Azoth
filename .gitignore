@@ -1,31 +1,30 @@
-# Umbrella — submodules have their own ignores.
-.DS_Store
-Thumbs.db
-*.swp
-.vscode/
-.idea/
-__pycache__/
-*.pyc
-.venv/
+# --- runtime / local state ---
 *.log
-
-# Local private client copy (patched exe). Never the Steam tree.
-private-client/
-
-# Operator certs
-**/certs/*.pem
-**/certs/*.key
-**/certs/*.crt
-
-# Accidental dumps at umbrella root (sessions live in research/sessions/)
-/captures/
-/capture/
+*.log.*
+hosts.*
+captures/
+/sessions/
+# --- capture & RE artifacts (regenerable or local-only) ---
 *.pcap
 *.pcapng
 *.etl
-Game.log.raw
-# Local Pi runtime state
+*.raw
+*.bin
+derived/decomp/
+!research/derived/*.json
+services/gateway/mock_discovery/
+deploy/certs/
+deploy/caddy_data/
+deploy/bin/
+# --- editor / OS ---
+__pycache__/
+*.pyc
+.ruff_cache/
 .atl/
-
-# Capturas achicadas para el agente (descartables)
+.pi/
+# --- screenshots (discardable, shrunk by scripts/shrink-image.py) ---
 *.small.jpg
+# --- private client copies (never commit patched game files) ---
+private-client/
+# --- keep tracked exceptions ---
+!launcher/steam_stub/steam_api64.dll

@@ -1,0 +1,56 @@
+{
+  "session": "live_20260906_160330",
+  "elapsed_sec": 725.34,
+  "cluster": "fra-prod",
+  "world_id": "86ae8332-ed32-420e-985c-61011022847a",
+  "world_name": "live-1-12-2",
+  "world_set": "live-1-12",
+  "world_set_name": "Vanaheim Omega",
+  "persona": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c",
+  "note": "identities.json only keeps the LAST character (xNozus). This file keeps both world entries.",
+  "entries": [
+    {
+      "player": "Nozusss",
+      "character": "abdbd9e8-50f8-4c05-a41b-3f17e9b0407e",
+      "actor": "3E61C9381402D27B18F457A3581F43F8",
+      "rep": "52.223.18.203:48274",
+      "local_bind": "192.168.12.16:27000",
+      "login_ticket_prefix": "86ae8332-ed32-420e-985c-61011022847a_e77e270e-b44a-45e1-83f3-6a538a2f230c",
+      "location": "@mm_loginservices_location_FTUE000",
+      "created_this_session": true,
+      "character_creator_map": "FTUE_V2_CC",
+      "character_creator_loaded": "2026-09-06 14:06:09.418",
+      "connect": "2026-09-06 14:06:55.134",
+      "ingame": "2026-09-06 14:07:03.172",
+      "maps": [
+        {"ts": "2026-09-06 14:06:09.418", "level": "FTUE_V2_CC", "role": "character-creator"},
+        {"ts": "2026-09-06 14:07:02.571", "level": "FTUE_V2", "role": "tutorial"},
+        {"ts": "2026-09-06 14:12:35.742", "level": "NewWorld_VitaeEterna", "role": "open-world"}
+      ],
+      "phasing": {
+        "from": "InGame",
+        "to": "WaitingForPlayerSpawn",
+        "ts": "2026-09-06 14:12:35.461",
+        "back_ingame": "2026-09-06 14:12:39.283",
+        "reason": "LevelInfoChanged FTUE_V2 -> NewWorld_VitaeEterna (map unload, not a hang)"
+      },
+      "disconnect": "2026-09-06 14:13:46.983"
+    },
+    {
+      "player": "xNozus",
+      "character": "07631b31-78f5-419d-8be8-ddca69eecbc9",
+      "actor": "462E0DB5432EE8FC9FF2049C9D2FD6F9",
+      "rep": "52.223.18.203:33000",
+      "local_bind": "192.168.12.16:27001",
+      "login_ticket_prefix": "86ae8332-ed32-420e-985c-61011022847a_d04c0a9c-508a-45a6-8f74-63c6d1b1f790",
+      "location": "",
+      "created_this_session": false,
+      "connect": "2026-09-06 14:14:07.562",
+      "ingame": "2026-09-06 14:14:16.459",
+      "maps": [
+        {"ts": "2026-09-06 14:13:47.377", "level": "NW_Frontend_NightHaven", "role": "frontend-after-disconnect"},
+        {"ts": "2026-09-06 14:14:16.459", "level": "NewWorld_VitaeEterna", "role": "open-world"}
+      ]
+    }
+  ]
+}

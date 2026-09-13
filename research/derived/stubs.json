@@ -1,0 +1,22 @@
+{
+  "services": [
+    "StubbedAchievementService",
+    "StubbedAgsPrivacySettingsService",
+    "StubbedCharacterService",
+    "StubbedClient",
+    "StubbedFcsService",
+    "StubbedGatewayService",
+    "StubbedGroupFinderServiceClient",
+    "StubbedGuildServiceClient",
+    "StubbedInventoryServiceClient",
+    "StubbedLeaderboardService",
+    "StubbedMatchmakingService",
+    "StubbedNotificationService",
+    "StubbedNotificationServiceClient"
+  ],
+  "persistence": [
+    "_persistence/achievements.json",
+    "_persistence/agsPrivacySettings.json",
+    "_persistence/leaderboards.json"
+  ]
+}

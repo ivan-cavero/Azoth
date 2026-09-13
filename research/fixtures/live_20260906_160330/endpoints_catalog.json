@@ -1,0 +1,686 @@
+{
+  "utc": "2026-09-06T14:15:44.793Z",
+  "channelName": "Retail",
+  "count": 38,
+  "endpoints": [
+    {
+      "host": "0prplal5u1.execute-api.us-east-1.amazonaws.com",
+      "roles": [
+        "loginGateway"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "iad-prod",
+      "awsRegion": "us-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "2mfrik7h83.execute-api.us-east-1.amazonaws.com",
+      "roles": [
+        "authStack",
+        "unknown"
+      ],
+      "paths": [
+        "/Prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "fra-prod",
+      "awsRegion": "us-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "3khxmonavl.execute-api.us-east-1.amazonaws.com",
+      "roles": [
+        "JavelinGatewayServiceV2"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "iad-prod",
+      "awsRegion": "us-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "52.223.18.203",
+      "roles": [
+        "rep-udp-dtls"
+      ],
+      "paths": [],
+      "sources": [
+        "pcap-dtls"
+      ],
+      "ips": [],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "UDP/DTLS"
+    },
+    {
+      "host": "8otrnl8e8d.execute-api.eu-central-1.amazonaws.com",
+      "roles": [
+        "JavelinGatewayServiceV2"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "fra-prod",
+      "awsRegion": "eu-central-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
+      "roles": [
+        "JavelinGatewayServiceV2"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "syd-prod",
+      "awsRegion": "ap-southeast-2",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "client.agsprivacysettingsservice.amazongames.com",
+      "roles": [
+        "privacy"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "18.172.213.18",
+        "18.172.213.41",
+        "18.172.213.82",
+        "18.172.213.87"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "client.catalogservice.amazongames.com",
+      "roles": [
+        "catalog"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "34.202.240.38",
+        "54.87.209.205"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "client.content-service.amazongames.com",
+      "roles": [
+        "cms-images",
+        "unknown"
+      ],
+      "paths": [
+        "/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+        "/images/j95d1p8hsuun/4vpdqds4vihl2mdcxl1dew/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+        "/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+        "/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+        "/images/j95d1p8hsuun/lz3b0x365ev1yk3amgeiw/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+        "/images/j95d1p8hsuun/nyt1ufo3mzazqbigk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds"
+      ],
+      "sources": [
+        "dns",
+        "gamelog"
+      ],
+      "ips": [
+        "18.172.213.127",
+        "18.172.213.41",
+        "18.172.213.52",
+        "18.172.213.58"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "client.entitlementservice.amazongames.com",
+      "roles": [
+        "entitlements"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "52.2.21.115",
+        "54.84.217.108"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "d1cjlmzk0xrm0z.cloudfront.net",
+      "roles": [
+        "JavelinGatewayService-CF",
+        "unknown"
+      ],
+      "paths": [
+        "/prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "gru-prod",
+      "awsRegion": "sa-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "d1hkbwzm1bktgo.cloudfront.net",
+      "roles": [
+        "cms",
+        "cms-marketing",
+        "cms-motd",
+        "cms-news"
+      ],
+      "paths": [
+        "/marketingtiles/STEAM_APP_ID.1063730/metadata.json",
+        "/motd/worlds_STEAM_APP_ID.1063730.json",
+        "/newsstories/STEAM_APP_ID.1063730/metadata.json"
+      ],
+      "sources": [
+        "dns",
+        "gamelog"
+      ],
+      "ips": [
+        "18.172.218.10",
+        "18.172.218.148",
+        "18.172.218.16",
+        "18.172.218.6"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "d1w0bfy6smo4d1.cloudfront.net",
+      "roles": [
+        "JavelinGatewayService-CF",
+        "auth-credentials-omni",
+        "gateway-cf-eu",
+        "unknown"
+      ],
+      "paths": [
+        "/prod",
+        "/prod,",
+        "/prod/credentials/omni"
+      ],
+      "sources": [
+        "channel_config",
+        "dns",
+        "gamelog"
+      ],
+      "ips": [
+        "18.172.218.128",
+        "18.172.218.152",
+        "18.172.218.64",
+        "18.172.218.77"
+      ],
+      "cluster": "fra-prod",
+      "awsRegion": "eu-central-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "d2c74t4zimux3r.cloudfront.net",
+      "roles": [
+        "channel-config"
+      ],
+      "paths": [
+        "/STEAM_APP_ID.1063730.json"
+      ],
+      "sources": [
+        "dns",
+        "gamelog"
+      ],
+      "ips": [
+        "18.154.56.120",
+        "18.154.56.22",
+        "18.154.56.23",
+        "18.154.56.87",
+        "18.172.223.104",
+        "18.172.223.117",
+        "18.172.223.50",
+        "18.172.223.88"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "d2oeuvxi3kfsrw.cloudfront.net",
+      "roles": [
+        "JavelinGatewayService-CF",
+        "unknown"
+      ],
+      "paths": [
+        "/prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "iad-prod",
+      "awsRegion": "us-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "d3bj4csovi1fe8.cloudfront.net",
+      "roles": [
+        "JavelinGatewayService-CF",
+        "unknown"
+      ],
+      "paths": [
+        "/prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "pdx-prod",
+      "awsRegion": "us-west-2",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "datarouter-weighted.ol.epicgames.com",
+      "roles": [
+        "unknown"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "datarouter.cfef.live.use1a.on.epicgames.com"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "datarouter.cfef.live.use1a.on.epicgames.com",
+      "roles": [
+        "unknown"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "100.63.71.222",
+        "3.212.101.152",
+        "3.214.16.123",
+        "34.193.138.23",
+        "34.194.171.203",
+        "34.206.46.237",
+        "35.174.197.20",
+        "44.194.56.235",
+        "52.202.15.173",
+        "52.206.14.248",
+        "54.196.30.118",
+        "54.235.68.224",
+        "54.242.115.129",
+        "54.90.7.95",
+        "98.84.94.199",
+        "98.86.114.69"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "datarouter.ol.epicgames.com",
+      "roles": [
+        "unknown"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "datarouter-weighted.ol.epicgames.com"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "de4mfzk9wkelz.cloudfront.net",
+      "roles": [
+        "JavelinGatewayService-CF",
+        "unknown"
+      ],
+      "paths": [
+        "/prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "syd-prod",
+      "awsRegion": "ap-southeast-2",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "ei4rb8pwvd.execute-api.sa-east-1.amazonaws.com",
+      "roles": [
+        "JavelinGatewayServiceV2"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "gru-prod",
+      "awsRegion": "sa-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
+      "roles": [
+        "loginGateway"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "syd-prod",
+      "awsRegion": "ap-southeast-2",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "eudbjx6mig.execute-api.us-east-1.amazonaws.com",
+      "roles": [
+        "authStack",
+        "unknown"
+      ],
+      "paths": [
+        "/Prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "iad-prod",
+      "awsRegion": "us-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
+      "roles": [
+        "authStack",
+        "unknown"
+      ],
+      "paths": [
+        "/Prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "syd-prod",
+      "awsRegion": "us-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "j4n6whncmi.execute-api.sa-east-1.amazonaws.com",
+      "roles": [
+        "loginGateway"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "gru-prod",
+      "awsRegion": "sa-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "kqqt5twsi7.execute-api.us-east-1.amazonaws.com",
+      "roles": [
+        "authStack",
+        "unknown"
+      ],
+      "paths": [
+        "/Prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "gru-prod",
+      "awsRegion": "us-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "modules-cdn.eac-prod.on.epicgames.com",
+      "roles": [
+        "unknown"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "18.172.213.2",
+        "18.172.213.37",
+        "18.172.213.4",
+        "18.172.213.89"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "mwsyzhfoe5.execute-api.us-west-2.amazonaws.com",
+      "roles": [
+        "JavelinGatewayServiceV2"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "pdx-prod",
+      "awsRegion": "us-west-2",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "nwxp0euc1-mim.vivox.com",
+      "roles": [
+        "voice-vivox"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "3.74.99.218"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "nwxp0euc1.www.vivox.com",
+      "roles": [
+        "voice-vivox"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "www5-alb-nwxp0euc1-460873681.eu-central-1.elb.amazonaws.com"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "prod.identity-service.amazongames.com",
+      "roles": [
+        "unknown"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "18.172.226.38",
+        "18.172.226.72",
+        "18.172.226.79",
+        "18.172.226.80"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "prod.newworld.com",
+      "roles": [
+        "omni-meta"
+      ],
+      "paths": [
+        "/"
+      ],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "q8hqllbg6k.execute-api.us-east-1.amazonaws.com",
+      "roles": [
+        "authStack",
+        "unknown"
+      ],
+      "paths": [
+        "/Prod"
+      ],
+      "sources": [
+        "channel_config",
+        "gamelog"
+      ],
+      "ips": [],
+      "cluster": "pdx-prod",
+      "awsRegion": "us-east-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "sts.us-east-1.amazonaws.com",
+      "roles": [
+        "unknown"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "13.217.79.237"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "tokenservice.amazongames.com",
+      "roles": [
+        "omni-meta"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+      "roles": [
+        "loginGateway"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "fra-prod",
+      "awsRegion": "eu-central-1",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "v7irlu1nrl.execute-api.us-west-2.amazonaws.com",
+      "roles": [
+        "loginGateway"
+      ],
+      "paths": [],
+      "sources": [
+        "channel_config"
+      ],
+      "ips": [],
+      "cluster": "pdx-prod",
+      "awsRegion": "us-west-2",
+      "protocol": "HTTPS/TLS"
+    },
+    {
+      "host": "www5-alb-nwxp0euc1-460873681.eu-central-1.elb.amazonaws.com",
+      "roles": [
+        "unknown"
+      ],
+      "paths": [],
+      "sources": [
+        "dns"
+      ],
+      "ips": [
+        "3.122.58.133",
+        "35.156.60.25"
+      ],
+      "cluster": null,
+      "awsRegion": null,
+      "protocol": "HTTPS/TLS"
+    }
+  ],
+  "notes": [
+    "HTTPS: mockear estos hosts (hosts file + CA) para el login propio.",
+    "UDP/DTLS: el RepAddress del ticket de cola debe apuntar a NUESTRO socket.",
+    "Omni CreateSession sigue pidiendo un Steam ticket local; Steam abierto, Amazon no."
+  ]
+}

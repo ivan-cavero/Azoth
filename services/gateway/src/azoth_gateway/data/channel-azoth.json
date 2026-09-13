@@ -1,0 +1,48 @@
+{
+  "channelName": "Azoth",
+  "azoth-1": {
+    "displayName": "Azoth-1",
+    "localizedName": "Azoth-1",
+    "poolId": "us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93",
+    "publicApis": [
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "2mfrik7h83.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "authStack",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+        "clientTag": "loginGateway",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "8otrnl8e8d.execute-api.eu-central-1.amazonaws.com",
+        "clientTag": "JavelinGatewayServiceV2",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "d1w0bfy6smo4d1.cloudfront.net",
+        "clientTag": "JavelinGatewayService-CF"
+      }
+    ]
+  },
+  "platformMetadata": {
+    "ENTITLEMENTS.STEAM_APP_ID.1063730": {
+      "app": "STEAM_APP_ID.1063730"
+    },
+    "OMNI.STEAM_APP_ID.1063730": {
+      "omniTokenUrl": "https://tokenservice.amazongames.com",
+      "nwTokenUrl": "https://prod.newworld.com/",
+      "omniStage": "prod",
+      "omniGameAlias": "new-world"
+    }
+  }
+}

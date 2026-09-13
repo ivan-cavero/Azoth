@@ -1,0 +1,110 @@
+{
+  "endpoints": [
+    "/Javelin.RPC.StubbedAchievementService/GetAchievements",
+    "/Javelin.RPC.StubbedAchievementService/ResetAccount",
+    "/Javelin.RPC.StubbedAchievementService/ResetAchievement",
+    "/Javelin.RPC.StubbedAchievementService/UnlockAchievements",
+    "/Javelin.RPC.StubbedAgsPrivacySettingsService/CreateOrUpdatePrivacySettingsForPlayer",
+    "/Javelin.RPC.StubbedAgsPrivacySettingsService/GetPrivacySettingsForPlayer",
+    "/Javelin.RPC.StubbedFcsService/ConfirmTransaction",
+    "/Javelin.RPC.StubbedFcsService/DeleteTransaction",
+    "/Javelin.RPC.StubbedFcsService/GetCatalog",
+    "/Javelin.RPC.StubbedFcsService/GetEntitlements",
+    "/Javelin.RPC.StubbedFcsService/GetTransactions",
+    "/Javelin.RPC.StubbedFcsService/InitializeTransaction",
+    "/Javelin.RPC.StubbedFcsService/RefundTransaction",
+    "/Javelin.RPC.StubbedFcsService/ResetEntitlement",
+    "/Javelin.RPC.StubbedFcsService/SyncEntitlements",
+    "/Javelin.RPC.StubbedFcsService/SyncPrimeGaming",
+    "/Javelin.RPC.StubbedGatewayService/CreateCharacter",
+    "/Javelin.RPC.StubbedGatewayService/DeactivateCharacter",
+    "/Javelin.RPC.StubbedGatewayService/GetCharacterList",
+    "/Javelin.RPC.StubbedGatewayService/GetCharactersPayload",
+    "/Javelin.RPC.StubbedGatewayService/GetGameCharacterNames",
+    "/Javelin.RPC.StubbedGatewayService/GetLoginInfo",
+    "/Javelin.RPC.StubbedGatewayService/GetWorldList",
+    "/Javelin.RPC.StubbedGatewayService/LinkIdentity",
+    "/Javelin.RPC.StubbedGatewayService/ListWorlds",
+    "/Javelin.RPC.StubbedGatewayService/PatchCharacter",
+    "/Javelin.RPC.StubbedGatewayService/QueueLogin",
+    "/Javelin.RPC.StubbedGatewayService/RefreshQueuedLogin",
+    "/Javelin.RPC.StubbedGatewayService/UnlinkIdentity",
+    "/Javelin.RPC.StubbedGatewayService/ValidateCharacter",
+    "/Javelin.RPC.StubbedLeaderboardService/GetLeaderboard",
+    "/Javelin.RPC.StubbedLeaderboardService/GetStats",
+    "/Javelin.RPC.StubbedLeaderboardService/UpdateLeaderboardStats",
+    "/Javelin.RPC.StubbedMatchmakingService/AbandonMatch",
+    "/Javelin.RPC.StubbedMatchmakingService/AcceptMatch",
+    "/Javelin.RPC.StubbedMatchmakingService/CleanupWorld",
+    "/Javelin.RPC.StubbedMatchmakingService/ConfigureBackfill",
+    "/Javelin.RPC.StubbedMatchmakingService/DebugStartMatch",
+    "/Javelin.RPC.StubbedMatchmakingService/GetMatch",
+    "/Javelin.RPC.StubbedMatchmakingService/JoinQueue",
+    "/Javelin.RPC.StubbedMatchmakingService/LeaveQueue",
+    "/Javelin.RPC.StubbedMatchmakingService/NotifyLeftGroup",
+    "/Javelin.RPC.StubbedMatchmakingService/PollForMatchSpawn",
+    "/Javelin.RPC.StubbedMatchmakingService/UpdateMatchStatus",
+    "/Javelin.RPC.StubbedNotificationService/ReceiveMessages"
+  ],
+  "services": {
+    "StubbedAchievementService": [
+      "GetAchievements",
+      "ResetAccount",
+      "ResetAchievement",
+      "UnlockAchievements"
+    ],
+    "StubbedAgsPrivacySettingsService": [
+      "CreateOrUpdatePrivacySettingsForPlayer",
+      "GetPrivacySettingsForPlayer"
+    ],
+    "StubbedFcsService": [
+      "ConfirmTransaction",
+      "DeleteTransaction",
+      "GetCatalog",
+      "GetEntitlements",
+      "GetTransactions",
+      "InitializeTransaction",
+      "RefundTransaction",
+      "ResetEntitlement",
+      "SyncEntitlements",
+      "SyncPrimeGaming"
+    ],
+    "StubbedGatewayService": [
+      "CreateCharacter",
+      "DeactivateCharacter",
+      "GetCharacterList",
+      "GetCharactersPayload",
+      "GetGameCharacterNames",
+      "GetLoginInfo",
+      "GetWorldList",
+      "LinkIdentity",
+      "ListWorlds",
+      "PatchCharacter",
+      "QueueLogin",
+      "RefreshQueuedLogin",
+      "UnlinkIdentity",
+      "ValidateCharacter"
+    ],
+    "StubbedLeaderboardService": [
+      "GetLeaderboard",
+      "GetStats",
+      "UpdateLeaderboardStats"
+    ],
+    "StubbedMatchmakingService": [
+      "AbandonMatch",
+      "AcceptMatch",
+      "CleanupWorld",
+      "ConfigureBackfill",
+      "DebugStartMatch",
+      "GetMatch",
+      "JoinQueue",
+      "LeaveQueue",
+      "NotifyLeftGroup",
+      "PollForMatchSpawn",
+      "UpdateMatchStatus"
+    ],
+    "StubbedNotificationService": [
+      "ReceiveMessages"
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "logging": {
+    "logs": {
+      "default": {
+        "level": "DEBUG"
+      }
+    }
+  },
+  "apps": {
+    "http": {
+      "servers": {
+        "azoth": {
+          "listen": [
+            ":443"
+          ],
+          "logs": {},
+          "routes": [
+            {
+              "handle": [
+                {
+                  "handler": "reverse_proxy",
+                  "upstreams": [
+                    {
+                      "dial": "127.0.0.1:8080"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "tls": {
+      "certificates": {
+        "automate": [
+          "d2c74t4zimux3r.cloudfront.net",
+          "d1w0bfy6smo4d1.cloudfront.net",
+          "2mfrik7h83.execute-api.us-east-1.amazonaws.com",
+          "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+          "8otrnl8e8d.execute-api.eu-central-1.amazonaws.com",
+          "d1hkbwzm1bktgo.cloudfront.net",
+          "client.content-service.amazongames.com",
+          "client.entitlementservice.amazongames.com",
+          "client.catalogservice.amazongames.com",
+          "client.agsprivacysettingsservice.amazongames.com",
+          "prod.identity-service.amazongames.com",
+          "tokenservice.amazongames.com",
+          "ags-javelin-remote-config.s3.amazonaws.com",
+          "dynamodb.eu-central-1.amazonaws.com"
+        ]
+      },
+      "automation": {
+        "policies": [
+          {
+            "issuers": [
+              {
+                "module": "internal"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

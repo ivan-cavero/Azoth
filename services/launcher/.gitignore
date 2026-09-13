@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+bin/
+obj/
+*.exe
+*.dll
+!steam_stub/steam_api64.dll
+*.pdb
+steam_stub/steam_api64_stub.c
+steam_stub/*.lib
+steam_stub/*.exp
+steam_stub/src/*.obj
+private-client/
+steam_appid.txt
+*.log

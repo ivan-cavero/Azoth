@@ -1,18 +1,18 @@
 # Documentación — índice
 
-**Azoth** — servidor privado de New World. El análisis largo vive en **research**; el contrato del server en **emulator**; el cliente propio en **launcher**. Este `docs/` es el pegamento.
+**Azoth** — servidor privado de New World. El análisis y la memoria RE viven en **research/**; el contrato del server en **services/docs/**; el cliente propio en **services/launcher/**. Este `docs/` es el pegamento.
 
-## Sistema (paraguas)
+## Sistema
 
 | Doc | Contenido |
 | --- | --- |
 | [NOMBRE.md](NOMBRE.md) | Por qué Azoth |
-| [ARQUITECTURA.md](ARQUITECTURA.md) | Contrato del **día 1 / MVP**: 2 procesos, skip-EAC, submódulos, PRs |
-| [ARQUITECTURA-FLOTAS.md](ARQUITECTURA-FLOTAS.md) | Contrato de **topología de producción**: Auth global, regiones, mundos, instancias, `azothctl`. El MVP crece hacia aquí; no lo reemplaza. |
+| [ARQUITECTURA.md](ARQUITECTURA.md) | Contrato del **día 1 / MVP**: 2 procesos, skip-EAC |
+| [ARQUITECTURA-FLOTAS.md](ARQUITECTURA-FLOTAS.md) | Contrato de **topología de producción**: Auth global, regiones, mundos, instancias. El MVP crece hacia aquí. |
 | [ROADMAP.md](ROADMAP.md) | Fases + **qué capturar ahora** |
-| [ADMIN.md](ADMIN.md) | **Permisos admin con gsudo: pedir el UAC al operador ANTES de empezar** |
-| [../emulator/docs/PERFORMANCE.md](../emulator/docs/PERFORMANCE.md) | Densidad / tick / AOI |
-| [../README.md](../README.md) | Clone y perfiles |
+| [ADMIN.md](ADMIN.md) | **Permisos admin: pedir el UAC al operador ANTES de empezar** |
+| [sessions/](sessions/) | Sesiones históricas (`2026-09-13_pre-monorepo-STATUS.md` = todo el pre-monorepo) |
+| [../services/docs/PERFORMANCE.md](../services/docs/PERFORMANCE.md) | Densidad / tick / AOI |
 
 ## Research (`research/docs/`)
 
@@ -24,21 +24,21 @@
 | [CONTRATO_CLIENTE.md](../research/docs/CONTRATO_CLIENTE.md) | JSON/hosts que espera el cliente |
 | [SESIONES.md](../research/docs/SESIONES.md) | Live 2026-09-06 |
 | [PROTOCOLO.md](../research/docs/PROTOCOLO.md) | DTLS, Carrier, RMI |
-| [SUPERFICIE.md](../research/docs/SUPERFICIE.md) | Inventario completo de endpoints (voz, métricas, crash, EAC) |
-| [CONTENIDO.md](../research/docs/CONTENIDO.md) | PAKs / datasheets / slices: emulador y contenido custom |
+| [DECOMPILATION.md](../research/docs/DECOMPILATION.md) | Método de decompilación |
 
-Schemas: `research/schemas/live/`. Fixtures: `research/fixtures/`.
+**Atlas (memoria RE viva):** [`research/atlas/`](../research/atlas/README.md) — endpoints, modelos wire, errores, palancas de debug.
+Schemas live: `research/schemas/live/`. Fixtures: `research/fixtures/`.
 
-## Emulator (`emulator/docs/`)
+## Services (`services/docs/`)
 
 | Doc | Contenido |
 | --- | --- |
-| [GATEWAY.md](../emulator/docs/GATEWAY.md) | HTTPS |
-| [WORLD.md](../emulator/docs/WORLD.md) | REP / spawn |
-| [DATA.md](../emulator/docs/DATA.md) | Postgres |
+| [GATEWAY.md](../services/docs/GATEWAY.md) | HTTPS :8080 |
+| [WORLD.md](../services/docs/WORLD.md) | REP / spawn |
+| [DATA.md](../services/docs/DATA.md) | Persistencia (nota: hoy sin DB, mocks) |
 
-## Launcher (`launcher/docs/`)
+## Launcher (`services/launcher/docs/`)
 
 | Doc | Contenido |
 |---|---|
-| [LAUNCHER.md](../launcher/docs/LAUNCHER.md) | Updater, Play, sin Steam |
+| [LAUNCHER.md](../services/launcher/docs/LAUNCHER.md) | Updater, Play, sin Steam |

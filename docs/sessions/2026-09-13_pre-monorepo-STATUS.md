@@ -1,0 +1,521 @@
+# Azoth — estado (2026-09-13 madrugada)
+
+## Sesión 2026-09-13: el gateway estaba caído y las pruebas previas no medían nada
+
+**Tres defectos de método invalidan buena parte de lo probado antes.** Leer esto
+antes de volver a iterar shapes de `getlogininfo`:
+
+1. **El gateway sirvió 502 a todo el tráfico del juego.** El override de captura
+   oficial dejó `AZOTH_PASSTHROUGH_HOSTS` activo en `app.py`: reenviaba cada request
+   a la IP real de Amazon, que con `hosts` en modo private resuelve a `127.0.0.1` →
+   timeout → 502. **Bloque borrado** (era un instrumento de una sola vez y un footgun).
+   Cualquier "el cliente ignora el body" medido con ese gateway es basura.
+2. **HTTP/1.0 vs 1.1.** Hasta ayer el gateway respondía HTTP/1.0; aws-sdk-cpp (WinHTTP)
+   descarta el body de un 200 HTTP/1.0. El fix (`protocol_version = "HTTP/1.1"`) es
+   de esta sesión: **todos los shapes "probados con reinicio" de sesiones anteriores
+   son sospechosos de no haber leído nunca el body.**
+3. `_world_metadata` servía `publicStatusCode: 1`, y el usable-check RE'd
+   (`FUN_1464460d0`: rechaza `(psc & 0xffffe8b7) != 0`) lo descarta. **Corregido a 0.**
+
+### Instrumento nuevo (esto es lo que faltaba para poder ver el resultado)
+
+El modelo no lee imágenes, así que la pantalla del juego era invisible. Ahora sí:
+
+| Script | Qué hace |
+| --- | --- |
+| `scripts/ocr-image.ps1` | OCR con Windows.Media.Ocr (WinRT, sin instalar nada). `-All` / `-Find <txt>` devuelven cajas de palabras → coordenadas de click. |
+| `scripts/capture-window.py` | Captura nativa del área cliente (PIL). **Lleva la ventana al frente**: `ImageGrab` lee la región de pantalla, sin foco capturabas la consola. |
+| `scripts/ocr-window.py` | Captura + upscale 2x + autocontrast + bandas, listo para OCR. |
+| `scripts/click-window.py` | **Click sintético real** (SendInput). `orca computer click` NO llega al juego; esto sí (validado: cambió de tab). |
+| `scripts/send-input.py` | Tecla/tecleo sintético (SendInput, VK o unicode). |
+| `scripts/try-world-shape.py` | Arnés A/B end-to-end: escribe override → reinicia juego → espera login **de esta corrida** → avanza al panel → OCR de la fila del dropdown. |
+
+Gotchas del arnés: el `Game.log` acumula sesiones, así que hay que cortar por el
+`Executable: NewWorld.exe` de esta corrida (un match viejo hace avanzar el panel
+antes de tiempo y el test mide pantalla vieja). Y **el panel NO re-renderiza** al
+re-polear `getlogininfo`: hay que reiniciar el juego (~2 min por shape).
+
+### Ground truth nueva del binario (xrefmap over the exe)
+
+**Claves exactas de `WorldMetadata`** (registro de reflexión en `0x144f54cda`):
+`worldId, status, publicStatusCode, maxAccountCharacters, worldSet,
+worldMetrics{worldAgeDays,queueSize,queueWaitTimeSec,worldPopulationStatus},
+transferToRegion, isRecommended` (+ `publicName`, `isFull` en el bloque gemelo).
+**No existen** `name`, `type`, `version`, `regionId` — el gateway servía 19 claves
+por entrada, incluidas seis inventadas.
+
+Ambientes hermanos del mismo registro: `RegionMetadata{regionId,awsRegion,latencyMs}`,
+`WorldMetrics{worldAgeDays,queueSize,queueWaitTimeSec,worldPopulationStatus}`,
+`CharacterMetadata{...}`, `CharacterNameData{name,personaId,worldId,region,channel,...}`,
+`FilterParam`, `WorldFilter`, `RecommendedWorld{world,recommendationType}`,
+`WorldsInfo{worlds[],recommendedWorlds[]}`.
+
+**Bloque del modelo aws-sdk** (`0x148703900`): `LoginInfoList` (tipo),
+`ListWorldsRequestBody`, `ListWorldsResponseBody` con sus miembros (`Worlds`,
+`RecommendedWorlds`, `PendingWorldMerges`, `AllowQueueTransfer`, `QueueName`,
+`RecommendedTransferWorldId`, `AccountAge`, `AccountIsLocked`, `GenerateTime`,
+`IssueTime`, `JwtClaims`, `RepAddress`, `TokenVersion`, `ScheduledDate`) y los del
+mundo (`WorldName`, `PublicName`, `PublicStatusCode`, `WorldStatus`, `WorldType`,
+`WorldVersion`, `QueueWaitTimeSec`, `WorldAgeDays`, `WorldPopulationStatus`,
+`IsFull`, `IsRecommended`, `MaxConnectionCount`, `TransferToRegion`).
+
+`big_parser` (0x144f40780) **no** es el parser de la respuesta HTTP: es registro de
+reflexión/behavior-context (`FUN_144ba9dc0(handler, "SetVisibleCharacter", …)`).
+Los parsers reales: CMS worlds en `0x143043600` (`worlds`, `worldSets`,
+`globalAnnouncement`, `internalName`, `popupMode`…), entitlements/rapidjson en
+`0x1417a7400`. Los vtables del resultado de GetLoginInfo (`0x148503018`) solo
+contienen dtor/copia, no el unmarshaller.
+
+**El cliente nunca pide `worlds/list`** en una sesión de login (0 hits). Solo polea
+`getlogininfo`. DynamoDB solo recibe `/ping` (nunca una query); lo único que se
+404ea es `/auth/platform/user/code`.
+
+### Frontera: shapes descartados y qué queda
+
+Con el arnés validado (login confirmado + polls contados) y entrada estricta:
+
+| Body servido | Resultado |
+| --- | --- |
+| `{worlds:[WorldMetadata]}` (clave única) | 0/0 |
+| `{LoginInfoList:[WorldMetadata]}` (clave única) | 0/0 |
+| `{Worlds:[…camel…]}`, `{Worlds:[…13 claves Pascal…]}` | 0/0 |
+| `ListWorldsResponseBody` completo (7 claves) | 0/0 |
+| `{LoginInfoList:[region{worlds:[…]}]}` | 0/0 |
+| **Centinelas**: 8 raíces candidatas, cada una con un `publicName` distinto (`AAA111` worlds, `BBB222` Worlds, `CCC333` LoginInfoList, `DDD444/EEE555` worldsInfo, `FFF666/GGG777` recommendedWorlds, `HHH888` regions) | **ninguno apareció** |
+
+El test de centinelas es el que más dice: ni con datos presentes bajo ocho raíces
+distintas la UI pintó un nombre. O la raíz es otra, o **la UI del dropdown no se
+llena con `getlogininfo` en absoluto**. El panel muestra la fila de región
+(`Azoth EU`, latencia `3-4 ms`) y un contador `0/0`; abrir y elegir la región no
+dispara ningún request nuevo.
+
+**Palancas ya descartadas:** `+g_showHiddenWorlds`, `+ui_dumpDataLayer` (los args
+`+cvar` no se aplican), `~` (VK 0xC0) no abre consola en retail, la captura
+`captures/official/official-login.mitm` es ruido de Microsoft Store (0 hits de
+`amazongames`/`getlogininfo`).
+
+**Palancas vivas:** (a) decompilar el unmarshaller real de GetLoginInfo con Ghidra
+(instalado: `C:\Users\ivang\tools\ghidra_12.1.3_PUBLIC`; driver
+`research/tools/re/decomp.py`; mirar el camino de `0x1464154e0`/`0x146412430`, no el
+vtable del resultado); (b) **capturar una respuesta real de Amazon con una cuenta
+válida** — es la única verdad de terreno que no depende de adivinar; (c) re-RE con
+foco en el consumidor de `GetLoginInfoLists` (`0x144f54ae3`) para ver qué campo del
+modelo lee la lista.
+
+### Estado del entorno (dejado funcionando)
+
+- Gateway `:8080` arriba (sin el passthrough, `HTTP/1.1`, `psc=0`), Caddy `:443` arriba
+  (el 443 se había caído: la máquina reinició). Caddy se levanta por el puente admin
+  (`docs/ADMIN.md`) con `emulator/deploy/bin/caddy.exe` + `Caddyfile.json`.
+- `mock_discovery/` con overrides de prueba `shape-*.json` (gitignored, descartables).
+
+## Sesión orca: registry única fuente + getlogininfo camel-only (lista AÚN vacía)
+
+- `data/worlds.json` alineado (Azoth EU / azoth-1-01 / Azoth-1 / 1.400.6031.6004151);
+  borrados overrides `getlogininfo.json`/`worlds_list.json` (divergían del registry y del MOTD).
+- `getlogininfo` sirve `_world_metadata` camelCase + `characters[]` + `regionId`,
+  `publicStatusCode: 1`; unión PascalCase solo en `worlds/list` (el cliente nunca la
+  pide: 0 hits con UA de juego; la lista sale de `LoginInfoList`). Tests 17/17.
+- Probado en vivo con orca (refresh + screenshots): `MAINTENANCE`, personaje falso,
+  `worldSet=Azoth-1`, CMS `worlds.override.json` reescrito al shape del gateway —
+  panel sigue vacío. `FUN_14641b020` NO es el filtro (es selección de personaje).
+- Siguiente: deserializador real del filtro (Ghidra, `big_parser` 0x144f40780) o
+  captura oficial. Commit emulator `406e85c` pusheado.
+
+## 🏆 HITO: LOGIN OMNI ACEPTADO (result 0) → pantalla ELEGIR PERSONAJE
+
+Después de semanas atascados en `CreateSession result: 203`, se rompió el
+bloqueo. Cadena completa verificada en vivo:
+
+```text
+Stub Steam v3 → AuthManager → OmniSDK 1.6.7
+  → POST /games/new-world/tokens        → 200 mock → CreateSession result 0
+  → "Get persona id result: OK" / "account type: Shadow"
+  → GET  /prod/credentials/omni         → 200 mock → credenciales AWS OK
+  → "CGame::OnCampfireLoginComplete, login successful. ownership=permanent"
+  → título "PULSA CUALQUIER BOTÓN" → Enter → PANEL "ELEGIR PERSONAJE"
+  → (nuevo frontera) reintenta GET /prod/game/getlogininfo/jwt/omni cada 10s
+```
+
+## La clave del 203 (leer antes de tocar nada)
+
+**203 NO es un código semántico: es `0xcb` = "JSON parse error" del SDK.**
+Todos los shapes "razonables" (result/id, JWTs sueltos, STS-shaped…) daban 203
+porque al SDK le faltaba una clave o tenía otro tipo. Cómo se sacó (método
+para futuras sesiones):
+
+1. **Oráculo**: el gateway sirve lo que haya en
+   `apps/gateway/mock_discovery/tokens.json` (override sin reiniciar). El juego
+   reintenta y loguea el result en Game.log → bucle de feedback de segundos.
+2. **Errores con nombre**: `{"errorCode":"INVALID_PLATFORM_AUTH"}` → result 303,
+   `INVALID_AGS_AUTH_TOKEN` → 302, `INVALID_GAME` → 102, `AGS_IDENTITY_REQUIRED`
+   → 203, `INVALID_AGS_IDENTITY` → 331. Con la tabla se identificó el 203.
+3. **RE del parser** (capstone sobre NewWorld.exe, offsets de fichero):
+   - `ags_fed_acc_token.cpp` (parser de la respuesta de tokens), claves en
+     orden: `region`, `limitedUseToken`, `platformAccount`, `account`,
+     `isNewAccount`, `conflictingAccount`, `accessToken`, `expiresIn`,
+     `fallbackToken`. Falta clave/typo mal → `0xcb` (203).
+   - `platform_persona_account.cpp`: `{ageGroup:int, identityType:str,
+     platform:str?, identityId:str, personaId:str}`.
+   - `ags_persona_account.cpp`: `{type:"shadow"|"full", ageGroup:int,
+     identityId:str, personaId:str}`; sin `account` → 307.
+   - `identityType` string→enum con tabla hash (FNV) interna: "ags",
+     "intermediate", "shadow", plataformas consola. En la respuesta a Steam el
+     `account.type` válido que se aceptó fue **"shadow"**.
+   - JWTs: `jwt_reader` exige 2 puntos; `alg:"none"` con firma vacía vale
+     (validación local). `iat`/`exp` en **milisegundos** ("AGS Auth token iat
+     %lldms").
+4. Respuesta final servida (ahora es el default en `routes/omni.py`):
+   `accessToken/expiresIn/fallbackToken/limitedUseToken/isNewAccount/region/
+   platformAccount{ageGroup,identityType:"steam",platform:"steam",
+   identityId:<steamid64>,personaId}/account{type:"shadow",ageGroup,
+   identityId,personaId}` — persona = `amzn1.developerPersonaId.fc906c07-…`.
+
+## El crash tras credentials (y su fix)
+
+Con credenciales STS-shaped (`AccessKeyId`, `Expiration` ISO) el juego hizo
+**crash** (`0xc0000005` en `+0x7465476`) tras "Calling Http API". RE: el parser
+de credenciales busca claves **camelCase** con un lookup que devuelve NULL si
+falta la clave y el caller desreferencia:
+`accessKeyId`, `secretAccessKey`, `sessionToken`, `expiration` (**double con
+época unix, no ISO**), `region`. `routes/credentials.py` ya sirve exactamente
+eso (más copias planas legacy para herramientas) → ya no crashea y el login
+completa.
+
+## Frontera ACTUAL (siguiente sesión)
+
+### Sesión 2026-09-11 (noche): el error es semántico — el cliente parsea y filtra
+
+**Señal nueva y decisiva:** el panel ya NO queda vacío en silencio; muestra
+**"no hay mundos activos en tu región"** (= `Errors::login_no_worlds` /
+`login_no_worlds_unknown`, cadena de enums en `.rdata` `0x7fc3d08`). Eso significa
+que el cliente **parsea la respuesta sin error** y luego **filtra** nuestra entrada
+de mundo. Ya no es un problema de shape roto, es un predicado que no se cumple.
+
+**Lo que se probó y NO alcanzó** (todo por override caliente, sin reiniciar el
+gateway; el cliente re-polea `getlogininfo` cada ~60 s):
+
+| Variante servida | Resultado |
+| --- | --- |
+| PascalCase `Worlds` (aws-sdk) | vacío |
+| mínimo strings-only | vacío |
+| camelCase `worlds` + `recommendedWorlds` + `WorldsInfo` + `Worlds` | vacío |
+| `LoginInfoList` con descriptor completo + `characters[]` | vacío |
+| `worldMetrics` como **objeto** anidado | vacío |
+| `awsRegion` alineado al cluster (`eu-central-1`) + `region`/`channel` | vacío |
+| lanzar con `+g_showHiddenWorlds 1` | vacío |
+
+**Ground truth adicional (xrefmap, una pasada):**
+
+- `publicStatusCode`, `maxAccountCharacters`, `worldSet`, `isRecommended` se leen
+  desde **la misma función** (`0x144f54d63`, `...dba`, `...dd7`, `...e4b`): es el
+  **registro de propiedades de `WorldPublicMetadata`**. O sea, los nombres de
+  propiedad camelCase **son** las claves de serialización. El schema camelCase es
+  el correcto y igualmente el filtro rechaza.
+- Tipos RTTI de la familia (registro en `0x144e57980`): `WorldFilter`,
+  `WorldMetrics`, `WorldPublicMetadata`, `WorldsInfo`, `UiVitalsStat*`.
+- **No hay tablas de punteros** a las claves del modelo PascalCase
+  (`Worlds`, `PublicName`, `WorldStatus`, `WorldsInfo`): 0 hits a 8 bytes. Confirma
+  que ese bloque es decorativo.
+- `CharacterMetadata` incluye `worldId`, `prevWorldId`, `personaId`, `name`,
+  `currency`, `position`, `currentLevel`, `crestData`, `guildId`, `portraitData`,
+  `ftueCompleted`, `mustRename`, `needsTransfer`, `hasTransfered`,
+  `transferReason`, `isNameLatent`, `isFreshStart` y los enums
+  `eTransferReason_*` / `eMustRenameReason_*`.
+- `CharacterNameData` (el que usa la UI) es **camelCase** con `name`, `personaId`,
+  `worldId`, `region`, `channel`, `creationDate` → nota el par **`region` +
+  `channel`**.
+- `@mm_defaultworldname` / `@mm_defaultworlddesc` / `@mm_defaultworldmotd`
+  existen; y el string **"No world metadata is available yet"**.
+- Cvar relevante: `g_showHiddenWorlds` ("When enabled, UI will show worlds which
+  are flagged as hidden"). `+g_showHiddenWorlds 1` por línea de comandos no
+  cambió nada (¿los args `+cvar` no se aplican, o el mundo no está "hidden"?).
+- `typeindex.json` del install **no** contiene los tipos del juego
+  (`WorldsInfo`/`WorldPublicMetadata`/`ListWorlds`: ausentes). Es el índice del
+  motor, no del título.
+
+**Siguiente paso honesto:** dejar de adivinar el predicado y decompilar el
+deserializador (Ghidra sobre el handler de `ListWorlds`/`GetLoginInfo`), o capturar
+una respuesta real de Amazon. La alternativa barata restante es iterar el predicado
+a ciegas (p. ej. `filterParams`, `OwnerState`, `IsTrialOwner`,
+`entitlement`-related, o el par `region`/`channel` del `CharacterNameData`),
+que es lento: 60 s por intento y sin ver el panel.
+
+### Sesión 2026-09-11 (tarde-2): el MODELO real de la lista de mundos (RE con xrefmap)
+
+Nueva herramienta: `research/tools/re/xrefmap.py` (una pasada por `.text`, mapa
+`{target_va: [sitios]}` + `dump`/`xrefs`). El escaneo por-consulta era O(n) y
+timeouteaba; el mapa se construye una vez.
+
+**Hallazgo A — las claves del wire son camelCase, no PascalCase.**
+La ventana del modelo aws-sdk (`0x8702000`) tiene **solo** strings de *request*
+referenciados por código (`channelId` x4, `includeNames`, `isTrialOwner`,
+`IsFreshStart`, `FilterParams`, `ListWorldsRequestBody`, `SteamToken`,
+`TwitchToken`, `CognitoPoolId`, `SkipFtue`). **Ninguna** clave de respuesta
+(`Worlds`, `PublicName`, `WorldStatus`, `WorldType`, `LoginInfoList`) está
+referenciada → esa tabla es decorativa. Las claves vivas están en el bloque
+**camelCase** `0x1483c0900` (1 xref cada una, registro de propiedades del UI).
+
+**Hallazgo B — el modelo del mundo, en orden (bloque 0x1483c0900):**
+
+```text
+UiLoginScreenRequestBus · SetVisibleCharacter · GetLoginInfoLists · GetRegionList
+GetPendingWorldMergeList · GetGatewayRegion
+regionId · awsRegion(x7) · latencyMs · worldAgeDays · queueSize(x2) · queueWaitTimeSec
+worldPopulationStatus · publicStatusCode · publicName · maxAccountCharacters
+worldSet · worldMetrics · transferToRegion · isFull · isRecommended
+eWorldType_FTUE · eWorldType_OpenWorld · eWorldType_Unknown
+CharacterMetadata · prevWorldId · portraitData · publishedElapsedSeconds · needsTransfer
+hasTransfered · transferReason · modifiedDate · nameModifiedDate · needsTransferDate
+nameLatentDate · mustRenameReason · isNameLatent · isFreshStart
+eTransferReason_* · eMustRenameReason_*
+CharacterNameData · region(x5) · creationDate · paramKey · paramValue
+eFilterType_Seasonal · filterParams · recommendationType · recommendedWorlds
+```
+
+O sea: **el bus que llena la lista es `GetLoginInfoLists`** y el modelo incluye
+`CharacterMetadata` (los personajes por mundo) → la lista de mundos sale de
+**`LoginInfoList`**, cada entrada = descriptor del mundo + `characters[]`.
+`worldMetrics` y `worldPopulationStatus` son campos aparte.
+**No existen** como claves: `worldId` (en el bloque de mundo), `worldName`,
+`worldStatus`, `maxConnectionCount`.
+
+**Hallazgo C — el parser del CMS worlds.** Xrefs de `worlds` (minúscula, 3 sitios):
+uno es el parser del CMS con `worlds` / `worldSets` / `globalAnnouncement` /
+`newsStories` (confirma el shape del motd que ya servimos) y otro es el modelo
+`WorldsInfo { worlds[], recommendedWorlds[] }` + `RecommendedWorld {world,
+recommendationType}` + `FilterParam {paramKey, paramValue}` /
+`WorldFilter {filterType, filterParams}`.
+
+**Hallazgo D — el enum de tipo de mundo.** En el parser aparecen
+`eWorldType_OpenWorld` y `eWorldType_Unknown` **como valores**; un mapper aparte
+(VA `0x1417c4000`) referencia `"FTUE"` y `"OpenWorld"` pelados. Los valores de
+wire probables son los `eWorldType_*`. Sirvo ambos casings.
+
+**Estado del intento en vivo:** `getlogininfo` poleado ~47 veces, `worlds:list`
+solo **3 veces en todas las sesiones** (el cliente la pide al clickear la región,
+no en cada login). El payload probado ahora sirve `LoginInfoList` con el
+descriptor completo camelCase + `characters[]`, y también `worlds`,
+`recommendedWorlds`, `filterParams`, `WorldsInfo`, `Worlds`. **Todavía sin
+pintar** — pero `worlds/list` no se re-consultó, así que la prueba no se cerró.
+Override: `mock_discovery/getlogininfo.json` y `worlds_list.json` (hot).
+
+**Palanca de debug del cliente (no probada):** `ui_dumpDataLayer` — "Dumps debug
+info of UiDataLayer to log". Se lanzó con `+ui_dumpDataLayer 1` y no escribió
+dump (probablemente porque es de build no-retail o el arg necesita otra sintaxis:
+el CLI del juego usa `-FPSWarningThreshold <lo>,<hi>`). El juego tiene consola
+(`CXConsole`) pero `orca press-key` no soporta la tecla `~`.
+
+### Sesión 2026-09-11 (tarde): worlds/list + veto del override de config
+
+**Hallazgo 1 — la ruta que faltaba para la lista de mundos.**
+Tabla de paths del exe en `.rdata` @`0x84ff388`. Operaciones REST del
+`JavelinGatewayService` (nombre de operación → path):
+
+| Operación | Path |
+| --- | --- |
+| `GetLoginInfo` | `/prod/game/getlogininfo/jwt/omni` |
+| **`ListWorlds`** | **`/prod/game/worlds/list/jwt/omni`** ← faltaba y el cliente la pedía |
+| `PostGameWorldsWorldIdCharacters` | `/prod/game/worlds/%s/characters/jwt/omni` |
+| `PatchCharacter` | `/prod/game/characters/%s/jwt/omni` |
+| `QueueLogin` / `RefreshQueuedLogin` | `/prod/game/login/queue/v2/jwt/omni` (+ `/%s`) |
+| `ValidateCharacter` | `/prod/game/worlds/%s/characters/validator/jwt/omni` |
+| `LinkIdentity` / `UnlinkIdentity` | `/prod/game/linkIdentity`, `/game/unlinkIdentity` |
+
+`ListWorlds` llena `Game.GetWorldList` (la lista visible); `getlogininfo`
+(`GetLoginInfo` → `LoginInfoList`) es otra cosa. Ya implementado en
+`routes/worlds_list.py` desde el registro. El cliente ya la consume (3 hits)
+pero la lista sigue sin pintarse: falta el valor exacto del enum
+`WorldType`/`WorldStatus` (aws-sdk ignora claves que no matchean, sin error).
+
+**Hallazgo 2 — `ClientOverride.json` NO sirve en build de PAK (spike cerrado).**
+El juego busca `@assets@/ClientOverride.json` y loguea `Client config override
+file not found`. Se probó el archivo en 5 ubicaciones (install root, install
+`Assets`, game root, game `Assets`, `Bin64`) + `stack.override.json` en ambos
+roots, con formato anidado y plano-con-puntos: **en ninguna lo lee**. La config
+vive dentro de los PAK y se resuelve por el VFS interno, no por el sistema de
+archivos. Conclusión: redirigir endpoints por archivo suelto requiere repackear
+un PAK. Los archivos de prueba se borraron (install limpio).
+
+**Hallazgo 3 — la palanca de redirección es el CHANNEL (nuestro).**
+El log ecoa la config activa y esos valores salen del channel que servimos:
+
+```text
+ClusterId          <- clave del channel ("azoth-1")
+Gateway Signing Host <- channel.publicApis[loginGateway].apiEndpoint
+Gateway Address      <- channel.publicApis[JavelinGatewayService-CF].apiEndpoint
+HTTP Gateway Address <- "https://" + (esa) + "/prod"   <- esquema HARDCODEADO
+Gateway Mode         <- "gateway"
+```
+
+O sea: para mover el gateway se edita NUESTRO channel JSON; pero el esquema es
+`https://` fijo ⇒ **hosts + Caddy :443 se quedan**. Esto cierra la pregunta
+abierta de ARQUITECTURA.md (“URL parcheada vs hosts+CA”): hosts+CA, sin parche.
+
+**Superficie de config completa** (solo alcanzable por PAK, pero documentada en
+caso de repack futuro): `client-connection.client-gateway.{mode,endpoint,
+http-endpoint,region,signing-host}`, `client-connection.authorization.{mode,
+backend,auth-endpoint,cluster,cognito-pool-id,product-id,token-version}`,
+`client-connection.enable-local-dev` / `.enable-remote`,
+`client-connection.transport-options.{rep-default-port,tick-frequency-ms,
+transport-type}`, `client-connection.auth-testing.*` (inyección de fallos),
+`client-connection.warnings.*`.
+
+**Modo local-dev del propio juego**: `client-connection.enable-local-dev` levanta
+servicios stub in-process que persisten a `_persistence/{achievements,
+leaderboards,agsPrivacySettings}.json`. Servicios stub existentes: Gateway,
+Character, Guild, Inventory, GroupFinder, Matchmaking, Notification, Achievement,
+Leaderboard, FCS (entitlements/catálogo/transacciones), Privacy. Sirve para saber
+qué NO hace falta implementar todavía (si se logra repack).
+
+### Sesión 2026-09-11: post-login mocks + RE de ListWorlds (NO CERRADO)
+
+Avance: el juego llegó al panel ELEGIR PERSONAJE → VER MUNDOS. Acepta Términos
+(los acepta solos, se puede RE-ear el endpoint para persistirlo en la futura
+DB). Cuelga imagenes CMS (`nw_maintenance__modal`, `newstile2.dds` — placeholder
+DDS servido por `routes/images.py`). UI muestra `@mm_azoth_1` y lista de
+mundos VACÍA.
+
+**Lo que se implementó y probó esta sesión (todo commiteado + pushed):**
+
+- `routes/getlogininfo.py`: shape RE'd del exe. En `.rdata` (offset ~0x8702000)
+  está la tabla del modelo aws-sdk `ListWorldsResponseBody`: `Worlds`,
+  `LoginInfoList`, `RecommendedWorlds`, `PendingWorldMerges`, `AccountIsLocked`,
+  y por mundo `PublicName/PublicStatusCode/WorldName/WorldStatus/WorldType/
+  WorldVersion/QueueWaitTimeSec/WorldAgeDays/WorldPopulationStatus/IsFull/
+  IsRecommended/MaxConnectionCount/TransferToRegion`. En 0x83bf000 está el
+  descriptor UI (`UiLoginScreenRequestBus`, `GetLoginInfoLists`): claves
+  camelCase (`publicName`, `queueSize`, `worldPopulationStatus`,
+  `maxAccountCharacters`, `worldSet`, `isFull`...) y enums
+  `eWorldType_FTUE/OpenWorld/Unknown`. Ambos casings se sirven.
+- getlogininfo se sirve con `Content-Type: application/x-amz-json-1.1` (lo que
+  el cliente aws-sdk-cpp manda y espera).
+- `routes/queue.py`, `routes/characters.py`, `routes/entitlements.py`
+  (x-amz-json-1.1), `routes/images.py` (DDS placeholder válido 145B).
+- `research/schemas/live/cms_motd.json` reescrito: 1 mundo
+  (`00000000-0000-4000-8000-000000000001`) + worldSet `azoth-1`→"Azoth".
+- channel-azoth.json: `localizedName`/`displayName` = "Azoth-1" (fuera @mm).
+- `config.py`: DEFAULT_SCHEMAS ahora relativo al repo (antes F:\Azoth duro).
+- Caddyfile.json: certs a rutas del repo. Caddy corriendo elevado en :443.
+- Tests gateway: 13/13 OK (unittest stdlib).
+
+**Por qué la lista de mundos sigue vacía (frontera exacta):**
+
+- El juego pide `GET /prod/game/getlogininfo/jwt/omni?channelId=…&includeNames=true&isTrialOwner=false` cada 60s, recibe 200 con el shape RE'd, pero NO pinta el mundo ni deja de pollear.
+- El motd `worlds_STEAM_APP_ID.1063730.json` (CMS, cada 60s también) ya sirve el mundo con el MISMO worldId. El Game.log no muestra errores de parseo (aws-sdk traga y no loguea).
+- **Siguiente paso**: RE del deserializador real de ListWorlds en el exe
+  (capstone, buscar xrefs al offset de la tabla 0x87023d0 y mapear los offsets
+  de cada clave para reconstruir el orden/tipos EXACTOS que espera). Alternativa: iterar el override `mock_discovery/getlogininfo.json` con variantes de shape (p. ej. `JwtClaims` como objeto, `WorldStatus` con otros valores, worlds anidado por región).
+- Tras el primer mundo pintado: click en el mundo → `POST /prod/game/login/queue/v2/jwt/omni` (ticket `worldId_uuid`, `RepAddress 127.0.0.1:9000`) → world server DTLS (no existe todavía, `emulator/apps/world` vacío).
+
+### Deuda menor detectada esta sesión
+
+- Aceptar-términos: RE-ear el endpoint para persistir el consentimiento (futura DB).
+- `Game.log` está en `%LOCALAPPDATA%/AGS/New World/Game.log` (no en el runtime dir).
+- launcher stub steam: sin errores; `@mm_azoth_1` del dropdown se cachea al arrancar → con el channel arreglado, al REINICIAR el juego el dropdown mostrará "Azoth-1".
+
+### Frontera previa (2026-09-09)
+
+El panel "ELEGir PERSONAJE" pide (vía gateway-CF, con SigV4 de NUESTRAS
+credenciales + `X-Nw-Auth: <accessToken JWT>`):
+
+1. **`GET /prod/game/getlogininfo/jwt/omni?channelId=STEAM_APP_ID.1063730&…`**
+   (reintento cada 10s). Es el "login token" de mundo. No conocemos el shape
+   de la respuesta; probar override `getlogininfo.json` igual que tokens
+   (añadir ruta al gateway). Tras validar, pedirá world/queue.
+2. `GET /players/<persona>/games/new-world/platforms/steam/entitlements` y
+   `/sync` (entitlements). Servir lista vacía razonable.
+3. Después: selección de mundo → `login/queue/v2` → world REP/DTLS.
+
+## Entorno de esta sesión (qué queda montado y cómo reproducirlo)
+
+- **Admin sin UAC**: tarea programada `AzothAdminProxy` (ver
+  `docs/ADMIN.md`): escribes comando en
+  `%LOCALAPPDATA%\Azoth\admin\cmd.txt`, `Start-ScheduledTask`, lees
+  `out.txt`. La usamos para `hosts` y para lanzar Caddy elevado.
+- `hosts` en modo **private** (`switch-mode.ps1 private`, ya aplicado).
+- Gateway: ventana PowerShell (job) en `:8080` (`Start-Gateway.ps1`).
+- Caddy elevado oculto en `:443` (logs en `%TEMP%\azoth-caddy.{out,err}.log`).
+  OJO: `deploy/Caddyfile.json` tenía rutas absolutas viejas de otro equipo;
+  ya corregidas a `F:\Azoth\emulator\deploy\certs\*`.
+- Juego: `launcher\src\Start-NwPrivate.ps1` (o directo al exe del runtime).
+  El juego **auto-intenta el login** ~18s tras abrir; si falla y muestra
+  diálogo, `orca computer press-key --app NewWorld --key Return
+  --restore-window` reenvía. `orca computer get-app-state --app NewWorld
+  --restore-window --json` da screenshot PNG (path en `result.screenshot.path`).
+- Tests gateway: `python emulator/apps/gateway/tests/test_gateway.py` → 13/13 OK
+  (unittest stdlib; pytest NO instalado).
+
+## Comandos útiles
+
+```powershell
+# gateway (ventana nueva)
+Start-Process powershell -ArgumentList '-NoProfile','-NoExit','-Command','& F:\Azoth\emulator\apps\gateway\Start-Gateway.ps1'
+# Caddy elevado (una línea en cmd.txt del proxy):
+Start-Process -FilePath F:\Azoth\emulator\deploy\bin\caddy.exe -ArgumentList 'run','--config','F:\Azoth\emulator\deploy\Caddyfile.json' -WindowStyle Hidden -RedirectStandardOutput $env:TEMP\azoth-caddy.out.log -RedirectStandardError $env:TEMP\azoth-caddy.err.log
+# pantalla del juego
+orca computer get-app-state --app NewWorld --json
+# pulsar tecla (foco del juego)
+orca computer press-key --app NewWorld --key Return --restore-window --json
+```text
+
+## Deuda técnica / refactor pendiente (siguiente sesión)
+
+1. Pasar el override `tokens.json` del discovery a un fixture commiteado y
+   que el default del gateway sea determinista (persona/steamid fijos).
+2. Mock nuevo: `getlogininfo` (+ override file) y `entitlements`/`sync`.
+3. Mover a `research/docs/` el método RE (capstone snippets, offsets
+   `ags_fed_acc_token.cpp`, fórmula lea rip: `tgt = insn+7+0xA00+disp`,
+   `.rdata`: `vaddr = fileoff + 0x1800`, `.text`: `vaddr = fileoff + 0xA00`).
+4. Mundos: el channel-azoth.json apunta a los endpoints reales de fra-prod
+   (hosts redirigidos). Cuando el logininfo valide, responder con
+   `RepAddress` apuntando a nuestro world.
+
+## Sesión 2026-09-11 noche: instrumento 400-probe + frontera exacta (world list NO cerrada)
+
+### Lo que funciona (instrumento nuevo)
+- `app.py` sirve getlogininfo con **HTTP 400** si el override contiene `"__http_error"` → el
+  cliente muestra "FALLÓ EN LA CONEXIÓN — Falló al iniciar sesión ValidationException" y la UI
+  **avanza** a modo selección de personaje (4 slots + CREAR PERSONAJE + JUGAR).
+  Esto prueba: la cadena getlogininfo está viva y el outcome del aws-sdk llega a la UI.
+- Con **HTTP 200** (cualquier body), el cliente NO muestra error (parseo OK a nivel aws) pero
+  la UI **no avanza**: se queda en modo noticias + spinner eterno en el dropdown de mundo.
+  → el vector de mundos del resultado parseado queda vacío: **la key raíz del body que llena
+  `LoginInfoList`/`worlds` del GetLoginInfoResult no es ninguna de las probadas**.
+
+### Shapes probados CON REINICIO (todos: news-mode + spinner, sin error)
+worlds plano camel · worldId+regionId+psc0 · id/worldType proto · worldsInfo anidado ·
+loginInfoList anidado · mega Pascal+camel · regions anidado · type=eWorldType_OpenWorld ·
+getlogininfo.json.bak · getlogininfo.json.del (el histórico que produjo MAINTENANCE/personaje) ·
+.del+char+psc0+JWT-fresh · output-wrapper Coral · loginInfoList.lowerCamel · shotgun multi-key.
+(Los hot-swaps NO cuentan: el cliente solo consume getlogininfo al login.)
+
+### RE nuevo de esta sesión
+- Tabla PascalCase aws-sdk (0x148702000/0x148703xxx: Worlds/PublicName/WorldStatus/...) = **0 xrefs
+  de cualquier tipo** (lea, puntero 8B, RVA 4B, imm64 SSO) → decorativa; el marshaller de
+  GetLoginInfo NO usa esas claves.
+- Registro AZ reflection en big_parser (0x144f40780, ahora decompilado en
+  `research/derived/decomp/big-parser.c` 693KB): WorldsInfo{worlds, recommendedWorlds},
+  WorldMetadata{worldId,name,type,status,publicStatusCode,publicName,version,maxAccountCharacters,
+  worldSet,worldMetrics,transferToRegion,isFull,isRecommended}, RegionMetadata{regionId,name,
+  awsRegion,latencyMs}, CharacterMetadata{...}, CharacterNameData{name,personaId,worldId,region,
+  channel,creationDate,modifiedDate}, FilterParam, WorldFilter, RecommendedWorld.
+- usable-check FUN_1464460d0: `status[:6]=="ACTIVE"` Y `(publicStatusCode & 0xffffe8b7)==0`
+  (psc=1 FALLA la máscara; válido 0 o bits 0x4/0x40/0x100/0x200/0x400/0x1000).
+  Errores: 0x10 parse-fail, 0x11 worlds vacío, 0x12 no-elegible.
+- Convertidores FUN_146456b60/1464585d0/146427390 NO filtran: copian todo. La lista vacía =
+  el parse no llena el vector.
+- Config sets S3 cargan OK ("successfully, size: NNN"); refetch 5-min = ciclo credenciales,
+  no error. ConfigureLogin MODE_GATEWAY resuelve bien (log 23:14).
+- FNV-1a key lookup descartado (no hay constantes en .text).
+
+### Frontera exacta (siguiente sesión)
+1. Encontrar la **key raíz JSON** del body de getlogininfo que llena el vector de mundos del
+   resultado. Vía prometedora: decompilar el unmarshaller aws-sdk de la op (el resultado se
+   aloca en FUN_146472db0 con vtable 0x148503018; el wrapper de outcome FUN_146472370 con
+   vtable 0x148502fe8; los slots del vtable apuntan a FUN_146472110 (payload 0x70B,
+   vtable 0x148503048) etc. Buscar el JsonView-visit que hace Get* por hash/string.
+   Alternativa: lambda RTTI "MakeReturnCallbackWithStatus<GetLoginInfoResult, LoginInfoList>"
+   — el helper extrae `&result.<member>`; encontrar el member-offset leyendo el lambda body.
+2. Usar el 400-probe como A/B: si al servir un 200-correcto el panel avanza sin error, ganamos.
+3. Quitar el probe `__http_error` de app.py cuando se diagnostique.

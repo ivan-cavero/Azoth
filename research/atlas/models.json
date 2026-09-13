@@ -1,0 +1,117 @@
+{
+  "$comment": "Wire models reverse-engineered from NewWorld.exe. evidence: VA offsets from xrefmap/capstone, or 'guessed'. Key order = AZ reflection registration order. Extra keys are IGNORED by aws-sdk (no error), missing/typo'd keys in strict parsers cause 0xcb errors or crashes.",
+  "models": [
+    {
+      "name": "WorldMetadata / WorldPublicMetadata",
+      "evidence": "AZ reflection registration @ 0x144f54cda (xrefmap)",
+      "keys": {
+        "worldId": "string uuid",
+        "status": "string: 'ACTIVE' required by usable-check FUN_1464460d0",
+        "publicStatusCode": "int — MUST satisfy (psc & 0xffffe8b7) == 0, so use 0 (1 FAILS the mask)",
+        "maxAccountCharacters": "int",
+        "worldSet": "string (e.g. 'Azoth-1')",
+        "worldMetrics": "object WorldMetrics",
+        "transferToRegion": "string?",
+        "isRecommended": "bool",
+        "publicName": "string (twin block, e.g. 'Azoth EU')",
+        "isFull": "bool"
+      },
+      "doesNotExist": ["name", "type", "version", "regionId", "worldName", "worldStatus", "maxConnectionCount"],
+      "note": "The gateway once served 19 keys incl. six invented ones — harmless (ignored) but misleading. Serve exactly this set."
+    },
+    {
+      "name": "WorldMetrics",
+      "evidence": "twin block @ 0x144f54cda",
+      "keys": {
+        "worldAgeDays": "int",
+        "queueSize": "int",
+        "queueWaitTimeSec": "int",
+        "worldPopulationStatus": "int/string enum"
+      }
+    },
+    {
+      "name": "RegionMetadata",
+      "evidence": "reflection registry (same block)",
+      "keys": {"regionId": "string", "awsRegion": "string (e.g. eu-central-1)", "latencyMs": "int"}
+    },
+    {
+      "name": "LoginInfoList (GetLoginInfo response model)",
+      "evidence": "aws-sdk model block @ 0x148703900; UI bus GetLoginInfoLists @ 0x1483c0900",
+      "keys": {
+        "Worlds": "array — PascalCase block exists but 0 xrefs = DECORATIVE",
+        "RecommendedWorlds": "array",
+        "PendingWorldMerges": "array",
+        "AllowQueueTransfer": "bool",
+        "QueueName": "string",
+        "RecommendedTransferWorldId": "string",
+        "AccountAge": "int"
+      },
+      "wireTruth": "camelCase UI keys are the live serialization: regionId, awsRegion, latencyMs, worldAgeDays, queueSize, queueWaitTimeSec, worldPopulationStatus, publicStatusCode, publicName, maxAccountCharacters, worldSet, worldMetrics, transferToRegion, isFull, isRecommended, filterParams, recommendedWorlds",
+      "openQuestion": "ROOT KEY of getlogininfo body that fills the worlds vector. Sentinels tried: worlds, LoginInfoList, Worlds, WorldsInfo, regions, recommendedWorlds (8 roots) — NONE appeared in UI. Either another root or dropdown is not filled by getlogininfo at all. Levers: decompile unmarshaller at 0x1464154e0/0x146412430; lambda RTTI MakeReturnCallbackWithStatus<GetLoginInfoResult, LoginInfoList>."
+    },
+    {
+      "name": "CharacterNameData (UI model)",
+      "evidence": "camelCase block @ 0x1483c0900",
+      "keys": {"name": "string", "personaId": "string", "worldId": "string uuid", "region": "string", "channel": "string", "creationDate": "string"}
+    },
+    {
+      "name": "CharacterMetadata",
+      "evidence": "reflection registry",
+      "keys": {
+        "worldId": "uuid", "prevWorldId": "uuid", "personaId": "string", "name": "string",
+        "currency": "int", "position": "object", "currentLevel": "int", "crestData": "object",
+        "guildId": "string", "portraitData": "object", "ftueCompleted": "bool",
+        "mustRename": "bool", "needsTransfer": "bool", "hasTransfered": "bool",
+        "transferReason": "enum eTransferReason_*", "isNameLatent": "bool", "isFreshStart": "bool",
+        "modifiedDate": "string", "mustRenameReason": "enum eMustRenameReason_*"
+      }
+    },
+    {
+      "name": "WorldsInfo (CMS worlds parser)",
+      "evidence": "parser @ 0x143043600",
+      "keys": {"worlds": "array", "recommendedWorlds": "array", "filterParams": "array", "globalAnnouncement": "object"}
+    },
+    {
+      "name": "RecommendedWorld / FilterParam / WorldFilter",
+      "evidence": "reflection block 0x1483c0900",
+      "keys": {
+        "RecommendedWorld": {"world": "ref", "recommendationType": "string enum"},
+        "FilterParam": {"paramKey": "string", "paramValue": "string"},
+        "WorldFilter": {"filterType": "enum eFilterType_Seasonal|...", "filterParams": "array"}
+      }
+    },
+    {
+      "name": "WorldType enum (wire values)",
+      "evidence": "eWorldType_* appear as VALUES in parser; mapper @ 0x1417c4000 references 'FTUE'/'OpenWorld' bare",
+      "values": ["eWorldType_FTUE", "eWorldType_OpenWorld", "eWorldType_Unknown"],
+      "note": "Serve both casings until confirmed."
+    },
+    {
+      "name": "Omni token response",
+      "evidence": "ags_fed_acc_token.cpp parser (capstone), claves en orden",
+      "keys": {
+        "region": "string", "limitedUseToken": "string", "platformAccount": "object",
+        "account": "object", "isNewAccount": "bool", "conflictingAccount": "bool",
+        "accessToken": "JWT (2 dots required; alg none + empty sig OK; iat/exp in MILLISECONDS)",
+        "expiresIn": "int", "fallbackToken": "string"
+      },
+      "note": "Missing/typo'd key => result 203 (0xcb JSON parse error). Named errors: INVALID_PLATFORM_AUTH=303, INVALID_AGS_AUTH_TOKEN=302, INVALID_GAME=102, AGS_IDENTITY_REQUIRED=203, INVALID_AGS_IDENTITY=331, no account=307."
+    },
+    {
+      "name": "Omni credentials response",
+      "evidence": "credentials parser (capstone) — camelCase lookup, NULL deref crash if missing",
+      "keys": {
+        "accessKeyId": "string ASIA...",
+        "secretAccessKey": "string 40 chars",
+        "sessionToken": "string",
+        "expiration": "double unix epoch — NOT ISO (ISO format crashed the client)",
+        "region": "string"
+      }
+    },
+    {
+      "name": "ListWorldsRequestBody",
+      "evidence": "aws-sdk model block @ 0x148703900 (request keys ARE referenced by code)",
+      "keys": {"channelId": "string", "includeNames": "bool", "isTrialOwner": "bool", "FilterParams": "array", "IsFreshStart": "bool", "SkipFtue": "bool", "SteamToken": "string", "TwitchToken": "string"}
+    }
+  ]
+}

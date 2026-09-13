@@ -21,12 +21,12 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO / "scripts"
-OVERRIDE = REPO / "emulator/apps/gateway/mock_discovery/getlogininfo.json"
+OVERRIDE = REPO / "services/gateway/mock_discovery/getlogininfo.json"
 GAME_LOG = Path.home() / "AppData/Local/AGS/New World/Game.log"
-GW_LOG = REPO / "emulator/apps/gateway/gateway.out.log"
+GW_LOG = REPO / "services/gateway/gateway.out.log"
 ROW_PNG = Path.home() / "AppData/Local/Temp/azoth-ocr/row.png"
 WORLD_ID = "00000000-0000-4000-8000-000000000001"
-LAUNCHER = r"& 'C:\Users\ivang\Desktop\Dev\NewWorldPrivateServer\launcher\src\Start-NwPrivate.ps1'"
+LAUNCHER = f"& '{REPO / 'services/launcher/src/Start-NwPrivate.ps1'}'"
 
 # Exact WorldMetadata property set, in registration order, from the AZ reflection
 # table at 0x144f54cda (research xrefmap dump). Extra keys are not just ignored:

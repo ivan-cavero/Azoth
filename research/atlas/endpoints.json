@@ -1,0 +1,130 @@
+{
+  "$comment": "REST operations of JavelinGatewayService and friends. Source: .rdata path table @ 0x84ff388 + Game.log + live captures. status: implemented | known | guessed",
+  "service": "JavelinGatewayService (aws-sdk-cpp, x-amz-json-1.1, HTTP/1.1 required)",
+  "operations": [
+    {
+      "operation": "GetLoginInfo",
+      "method": "GET",
+      "path": "/prod/game/getlogininfo/jwt/omni",
+      "query": {"channelId": "STEAM_APP_ID.1063730", "includeNames": "true", "isTrialOwner": "false"},
+      "auth": "SigV4 (credentials/omni) + X-Nw-Auth: <accessToken JWT>",
+      "frequency": "poll every ~10s after login screen, ~60s later",
+      "responseModel": "LoginInfoList (see models.json)",
+      "status": "implemented",
+      "notes": "Fills GetLoginInfoLists bus. Panel renders regions; world rows pending root-key confirmation. 400 response makes UI advance to character-select (ValidationException path)."
+    },
+    {
+      "operation": "ListWorlds",
+      "method": "POST",
+      "path": "/prod/game/worlds/list/jwt/omni",
+      "requestModel": "ListWorldsRequestBody (see models.json)",
+      "responseModel": "ListWorldsResponseBody",
+      "status": "implemented",
+      "notes": "Client requests it only when clicking a region (3 hits across all sessions, 0 during plain login). Fills Game.GetWorldList."
+    },
+    {
+      "operation": "PostGameWorldsWorldIdCharacters",
+      "method": "POST",
+      "path": "/prod/game/worlds/{worldId}/characters/jwt/omni",
+      "status": "known"
+    },
+    {
+      "operation": "PatchCharacter",
+      "method": "PATCH",
+      "path": "/prod/game/characters/{characterId}/jwt/omni",
+      "status": "known"
+    },
+    {
+      "operation": "ValidateCharacter",
+      "method": "POST",
+      "path": "/prod/game/worlds/{worldId}/characters/validator/jwt/omni",
+      "status": "known"
+    },
+    {
+      "operation": "QueueLogin",
+      "method": "POST",
+      "path": "/prod/game/login/queue/v2/jwt/omni",
+      "requestModel": {"worldId": "uuid", "characterId": "uuid"},
+      "responseModel": {"ticket": "<worldId>_<uuid>", "RepAddress": "ip:port", "WorldId": "uuid", "WorldName": "str", "CharacterId": "uuid"},
+      "status": "implemented",
+      "notes": "RepAddress must point at our world server (services/world, DTLS). Ticket format worldId_uuid confirmed by official Game.log."
+    },
+    {
+      "operation": "RefreshQueuedLogin",
+      "method": "POST",
+      "path": "/prod/game/login/queue/v2/{ticket}/jwt/omni",
+      "status": "known"
+    },
+    {
+      "operation": "LinkIdentity",
+      "method": "POST",
+      "path": "/prod/game/linkIdentity",
+      "status": "known"
+    },
+    {
+      "operation": "UnlinkIdentity",
+      "method": "POST",
+      "path": "/prod/game/unlinkIdentity",
+      "status": "known"
+    },
+    {
+      "operation": "ChannelConfig",
+      "method": "GET",
+      "path": "/STEAM_APP_ID.1063730.json",
+      "host": "d2c74t4zimux3r.cloudfront.net",
+      "responseModel": "channel.json (research/schemas/live)",
+      "status": "implemented",
+      "notes": "The redirect lever: cluster + publicApis we serve decide where the client talks. HTTP gateway address scheme is hard-coded https:// in the client."
+    },
+    {
+      "operation": "OmniTokens",
+      "method": "POST",
+      "path": "/games/new-world/tokens",
+      "host": "tokenservice.amazongames.com",
+      "responseModel": "token set (see errors.json: 203 = JSON parse error)",
+      "status": "implemented",
+      "notes": "Keys in parser order: region, limitedUseToken, platformAccount{ageGroup,identityType,platform,identityId,personaId}, account{type:shadow|full,ageGroup,identityId,personaId}, isNewAccount, conflictingAccount, accessToken, expiresIn, fallbackToken."
+    },
+    {
+      "operation": "OmniCredentials",
+      "method": "GET",
+      "path": "/prod/credentials/omni",
+      "responseModel": "camelCase STS: accessKeyId, secretAccessKey, sessionToken, expiration (double epoch, NOT ISO), region",
+      "status": "implemented",
+      "notes": "PascalCase/ISO shapes crash the client (0xc0000005)."
+    },
+    {
+      "operation": "CmsMotd",
+      "method": "GET",
+      "path": "/motd/worlds_STEAM_APP_ID.1063730.json",
+      "host": "d1hkbwzm1bktgo.cloudfront.net",
+      "responseModel": "{worlds[], worldSets{}, globalAnnouncement, newsStories, internalName, popupMode}",
+      "status": "implemented",
+      "notes": "ETag mandatory (client crashes without it). Re-polled ~60s."
+    },
+    {
+      "operation": "CmsNews / CmsTiles",
+      "method": "GET",
+      "path": "/newsstories/{app}/metadata.json | /marketingtiles/{app}/metadata.json",
+      "responseModel": "research/schemas/live/cms_news.json | cms_tiles.json",
+      "status": "implemented",
+      "notes": "ETag mandatory."
+    },
+    {
+      "operation": "Entitlements",
+      "method": "GET",
+      "path": "/players/{persona}/games/new-world/platforms/steam/entitlements (+ /sync)",
+      "host": "client.entitlementservice.amazongames.com",
+      "status": "implemented",
+      "notes": "RapidJSON parser at 0x1417a7400."
+    },
+    {
+      "operation": "RemoteConfig",
+      "method": "GET",
+      "path": "/applications/publicGameplay/configuration-sets/{CognitoId}/{key}/versionless",
+      "host": "ags-javelin-remote-config.s3.amazonaws.com",
+      "status": "implemented",
+      "notes": "SigV4 sent by client but NOT verified by our stub. 5-min refetch cycle."
+    }
+  ]
+}

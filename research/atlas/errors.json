@@ -1,0 +1,15 @@
+{
+  "$comment": "Observed client-side error codes and their real causes. Source: Game.log + capstone parser analysis.",
+  "errors": [
+    {"code": 102, "where": "Omni CreateSession", "cause": "INVALID_GAME", "note": "Wrong game/product in token request"},
+    {"code": 203, "where": "Omni CreateSession", "cause": "AGS_IDENTITY_REQUIRED — but semantically it is 0xcb = JSON PARSE ERROR of the aws-sdk", "note": "Any missing/typo'd key in the token response produces 203. NOT a semantic code."},
+    {"code": 302, "where": "Omni", "cause": "INVALID_AGS_AUTH_TOKEN"},
+    {"code": 303, "where": "Omni", "cause": "INVALID_PLATFORM_AUTH"},
+    {"code": 307, "where": "Omni", "cause": "missing 'account' in token response"},
+    {"code": 331, "where": "Omni", "cause": "INVALID_AGS_IDENTITY"},
+    {"code": "0xc0000005", "where": "post-credentials", "cause": "credentials parser: PascalCase keys or ISO expiration. Parser reads camelCase with a lookup returning NULL if missing; caller dereferences. expiration must be double epoch."},
+    {"code": "Errors::login_no_worlds", "where": "world panel", "cause": "'no hay mundos activos en tu región' — getlogininfo parsed OK but filter rejected the world. publicStatusCode mask or root key wrong."},
+    {"code": "@mm_csdkerr_transport_security_error / unknown ca", "where": "REP DTLS", "cause": "self-signed cert not trusted by client pin. Client has embedded cert/pin; patching requires private-build copy."},
+    {"code": "aws-sdk ignores extra keys silently", "where": "x-amz-json-1.1 responses", "cause": "No error for unknown fields — but wrong TYPE on a known field fails the parse."}
+  ]
+}

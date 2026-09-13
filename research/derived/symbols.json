@@ -1,0 +1,55 @@
+{
+  "_comment": "Landmarks in NewWorld.exe, RE'd so future sessions can name addresses instead of re-deriving them. 'va' = virtual address (image base 0x140000000). Add entries as they are confirmed; every va here should be reachable with: python tools/re/decomp.py --symbol <name>",
+  "worldtype_mapper": {
+    "va": "0x1417c40a0",
+    "what": "Maps a string to the WorldType enum: strncmp 'FTUE' (len 4) -> 0, 'OpenWorld' (len 9) -> 1, else 2 (Unknown). Confirms the wire token is the bare 'OpenWorld', not 'eWorldType_OpenWorld'.",
+    "found_by": "callers of the 'FTUE'/'OpenWorld' lea sites (0x1417c40d5, 0x1417c4138)"
+  },
+  "worldmetadata_property_table": {
+    "va": "0x144f54c00-0x144f54f00",
+    "what": "Registration table for the WorldMetadata property set. Each property is registered with a type-specific helper: FUN_144c6c330 (int, 2 args), FUN_144c60a10 (string/object), FUN_144c55a20 (enum), FUN_144c6c550, FUN_144c5b320, FUN_144c6a7f0 (bool). Real property names: worldId, name, type, status, version, publicStatusCode, publicName, maxAccountCharacters, worldSet, worldMetrics (nested WorldMetrics: worldAgeDays, queueSize, queueWaitTimeSec, worldPopulationStatus), transferToRegion, isFull, isRecommended. NOTE: name/type/status, NOT worldName/worldType/worldStatus.",
+    "found_by": "xrefs to the camelCase key block 0x1483c0900, all inside FUN_144f40780"
+  },
+  "worlds_info_accessor": {
+    "va": "0x144ad6e70",
+    "what": "Accessor for the WorldsInfo property (FNV-1a hash map lookup). Called from 0x144f55461 inside the big parser.",
+    "found_by": "xrefs to 'WorldsInfo' (0x1483af838)"
+  },
+  "big_parser": {
+    "va": "0x144f40780",
+    "end": "0x144f555e0",
+    "what": "85 KB function containing the WorldMetadata/WorldMetrics property registration AND the only caller of the WorldsInfo accessor. This is the landing-screen world model: start here when hunting the world-list predicate.",
+    "found_by": ".pdata range containing all WorldMetadata property xrefs"
+  },
+  "getlogininfo_request_builder": {
+    "va": "0x1474ea680",
+    "end": "0x1474ea9ae",
+    "what": "Builds the GetLoginInfo/ListWorlds request. Sets 'channelId', 'includeNames', 'isTrialOwner' via FUN_14747e6f0(obj, key, value). Explains the observed query string.",
+    "found_by": "xrefs to 'channelId' (0x148702f20) and 'includeNames' (0x148702ee8)"
+  },
+  "worldtype_mapper_callers": {
+    "va": "0x146427100",
+    "what": "One of 4 callers of worldtype_mapper (0x1464272a4). Others: 0x1464582b0, 0x146462b20, 0x146474d00. Candidates for the code that filters worlds by type.",
+    "found_by": "call scan on 0x1417c40a0"
+  },
+  "worldmetadata_type_rtti": {
+    "va": "0x144e57980",
+    "what": "RTTI/type-registration block for the world model family: WorldFilter, WorldMetrics, WorldPublicMetadata, WorldsInfo, UiVitalsStat*.",
+    "found_by": "xrefs to 'WorldsInfo' (second site, type registration)"
+  },
+  "data_locations": {
+    "va": "0x1483c0900",
+    "what": "UI/login descriptor block: camelCase property name strings (regionId, awsRegion, latencyMs, worldAgeDays, queueSize, queueWaitTimeSec, worldPopulationStatus, publicStatusCode, publicName, maxAccountCharacters, worldSet, worldMetrics, transferToRegion, isFull, isRecommended, eWorldType_*, CharacterMetadata fields, CharacterNameData fields, filterParams, recommendedWorlds).",
+    "found_by": "one xref per key from the property registration code"
+  },
+  "aws_model_name_table": {
+    "va": "0x148702000",
+    "what": "aws-sdk-cpp ListWorldsResponseBody name table (Worlds, PublicName, WorldStatus, WorldType, ...). ZERO xrefs from code and no pointer tables: decorative, not the wire schema. Do not chase this.",
+    "found_by": "xref scan + 8-byte pointer scan (both empty)"
+  },
+  "login_error_enum": {
+    "va": "0x147fc3d08",
+    "what": "Concatenated login error tokens: login_no_worlds, login_no_worlds_unknown, login_world_list_failed, login_character_list_failed, login_failed_to_create_character, login_create_character_rate_limited, TOO_MANY_CHARACTERS_ERROR, TOO_MANY_CHARACTERS_FOR_WORLD, MAINTENANCE_MODE, ... The 'no active worlds in your region' panel string maps here.",
+    "found_by": "string search for 'login_no_worlds'"
+  }
+}

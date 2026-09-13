@@ -1,0 +1,130 @@
+[
+  {
+    "host": "82elumhw4i.execute-api.us-west-2.amazonaws.com",
+    "role": "api-gateway"
+  },
+  {
+    "host": "agsprivacysettingsservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "beta.client.agsnotificationservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "beta.identity-service.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "beta.tokenservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "catalogservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "client.agsnotificationservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "client.agsprivacysettingsservice.amazongames.com",
+    "role": "privacy"
+  },
+  {
+    "host": "client.catalogservice.amazongames.com",
+    "role": "catalog"
+  },
+  {
+    "host": "client.entitlementservice.amazongames.com",
+    "role": "entitlements"
+  },
+  {
+    "host": "client.moderationservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "client.transactionservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "d1hkbwzm1bktgo.cloudfront.net",
+    "role": "cms"
+  },
+  {
+    "host": "d2c74t4zimux3r.cloudfront.net",
+    "role": "channel-config"
+  },
+  {
+    "host": "db1l286nfcls8.cloudfront.net",
+    "role": "cloudfront-unknown"
+  },
+  {
+    "host": "dvenz6p69b1j0.cloudfront.net",
+    "role": "cloudfront-unknown"
+  },
+  {
+    "host": "entitlementservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "gamma.client.agsnotificationservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "gamma.identity-service.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "gamma.tokenservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "moderationservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "monitoring.us-west-2.amazonaws.com",
+    "role": "unknown"
+  },
+  {
+    "host": "nsmby71o2f.execute-api.us-west-2.amazonaws.com",
+    "role": "api-gateway"
+  },
+  {
+    "host": "prod.identity-service.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "s3-fips-us-gov-west-1.amazonaws.com",
+    "role": "unknown"
+  },
+  {
+    "host": "s3-us-gov-west-1.amazonaws.com",
+    "role": "unknown"
+  },
+  {
+    "host": "tokenservice.amazongames.com",
+    "role": "omni-tokens"
+  },
+  {
+    "host": "transactionservice.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "us-east-1.gamma.client.stats-service.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "us-east-1.gamma.stats-ingestion-service.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "us-east-1.gamma.stats-service.amazongames.com",
+    "role": "unknown"
+  },
+  {
+    "host": "wztz33l18j.execute-api.us-west-2.amazonaws.com",
+    "role": "api-gateway"
+  }
+]
