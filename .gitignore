@@ -13,6 +13,7 @@ captures/
 derived/decomp/
 !research/derived/*.json
 services/gateway/mock_discovery/
+services/gateway/traffic.jsonl
 deploy/certs/
 deploy/caddy_data/
 deploy/bin/
