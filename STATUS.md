@@ -1,4 +1,113 @@
-# Azoth — estado (2026-09-11 tarde)
+# Azoth — estado (2026-09-13 madrugada)
+
+## Sesión 2026-09-13: el gateway estaba caído y las pruebas previas no medían nada
+
+**Tres defectos de método invalidan buena parte de lo probado antes.** Leer esto
+antes de volver a iterar shapes de `getlogininfo`:
+
+1. **El gateway sirvió 502 a todo el tráfico del juego.** El override de captura
+   oficial dejó `AZOTH_PASSTHROUGH_HOSTS` activo en `app.py`: reenviaba cada request
+   a la IP real de Amazon, que con `hosts` en modo private resuelve a `127.0.0.1` →
+   timeout → 502. **Bloque borrado** (era un instrumento de una sola vez y un footgun).
+   Cualquier "el cliente ignora el body" medido con ese gateway es basura.
+2. **HTTP/1.0 vs 1.1.** Hasta ayer el gateway respondía HTTP/1.0; aws-sdk-cpp (WinHTTP)
+   descarta el body de un 200 HTTP/1.0. El fix (`protocol_version = "HTTP/1.1"`) es
+   de esta sesión: **todos los shapes "probados con reinicio" de sesiones anteriores
+   son sospechosos de no haber leído nunca el body.**
+3. `_world_metadata` servía `publicStatusCode: 1`, y el usable-check RE'd
+   (`FUN_1464460d0`: rechaza `(psc & 0xffffe8b7) != 0`) lo descarta. **Corregido a 0.**
+
+### Instrumento nuevo (esto es lo que faltaba para poder ver el resultado)
+
+El modelo no lee imágenes, así que la pantalla del juego era invisible. Ahora sí:
+
+| Script | Qué hace |
+| --- | --- |
+| `scripts/ocr-image.ps1` | OCR con Windows.Media.Ocr (WinRT, sin instalar nada). `-All` / `-Find <txt>` devuelven cajas de palabras → coordenadas de click. |
+| `scripts/capture-window.py` | Captura nativa del área cliente (PIL). **Lleva la ventana al frente**: `ImageGrab` lee la región de pantalla, sin foco capturabas la consola. |
+| `scripts/ocr-window.py` | Captura + upscale 2x + autocontrast + bandas, listo para OCR. |
+| `scripts/click-window.py` | **Click sintético real** (SendInput). `orca computer click` NO llega al juego; esto sí (validado: cambió de tab). |
+| `scripts/send-input.py` | Tecla/tecleo sintético (SendInput, VK o unicode). |
+| `scripts/try-world-shape.py` | Arnés A/B end-to-end: escribe override → reinicia juego → espera login **de esta corrida** → avanza al panel → OCR de la fila del dropdown. |
+
+Gotchas del arnés: el `Game.log` acumula sesiones, así que hay que cortar por el
+`Executable: NewWorld.exe` de esta corrida (un match viejo hace avanzar el panel
+antes de tiempo y el test mide pantalla vieja). Y **el panel NO re-renderiza** al
+re-polear `getlogininfo`: hay que reiniciar el juego (~2 min por shape).
+
+### Ground truth nueva del binario (xrefmap over the exe)
+
+**Claves exactas de `WorldMetadata`** (registro de reflexión en `0x144f54cda`):
+`worldId, status, publicStatusCode, maxAccountCharacters, worldSet,
+worldMetrics{worldAgeDays,queueSize,queueWaitTimeSec,worldPopulationStatus},
+transferToRegion, isRecommended` (+ `publicName`, `isFull` en el bloque gemelo).
+**No existen** `name`, `type`, `version`, `regionId` — el gateway servía 19 claves
+por entrada, incluidas seis inventadas.
+
+Ambientes hermanos del mismo registro: `RegionMetadata{regionId,awsRegion,latencyMs}`,
+`WorldMetrics{worldAgeDays,queueSize,queueWaitTimeSec,worldPopulationStatus}`,
+`CharacterMetadata{...}`, `CharacterNameData{name,personaId,worldId,region,channel,...}`,
+`FilterParam`, `WorldFilter`, `RecommendedWorld{world,recommendationType}`,
+`WorldsInfo{worlds[],recommendedWorlds[]}`.
+
+**Bloque del modelo aws-sdk** (`0x148703900`): `LoginInfoList` (tipo),
+`ListWorldsRequestBody`, `ListWorldsResponseBody` con sus miembros (`Worlds`,
+`RecommendedWorlds`, `PendingWorldMerges`, `AllowQueueTransfer`, `QueueName`,
+`RecommendedTransferWorldId`, `AccountAge`, `AccountIsLocked`, `GenerateTime`,
+`IssueTime`, `JwtClaims`, `RepAddress`, `TokenVersion`, `ScheduledDate`) y los del
+mundo (`WorldName`, `PublicName`, `PublicStatusCode`, `WorldStatus`, `WorldType`,
+`WorldVersion`, `QueueWaitTimeSec`, `WorldAgeDays`, `WorldPopulationStatus`,
+`IsFull`, `IsRecommended`, `MaxConnectionCount`, `TransferToRegion`).
+
+`big_parser` (0x144f40780) **no** es el parser de la respuesta HTTP: es registro de
+reflexión/behavior-context (`FUN_144ba9dc0(handler, "SetVisibleCharacter", …)`).
+Los parsers reales: CMS worlds en `0x143043600` (`worlds`, `worldSets`,
+`globalAnnouncement`, `internalName`, `popupMode`…), entitlements/rapidjson en
+`0x1417a7400`. Los vtables del resultado de GetLoginInfo (`0x148503018`) solo
+contienen dtor/copia, no el unmarshaller.
+
+**El cliente nunca pide `worlds/list`** en una sesión de login (0 hits). Solo polea
+`getlogininfo`. DynamoDB solo recibe `/ping` (nunca una query); lo único que se
+404ea es `/auth/platform/user/code`.
+
+### Frontera: shapes descartados y qué queda
+
+Con el arnés validado (login confirmado + polls contados) y entrada estricta:
+
+| Body servido | Resultado |
+| --- | --- |
+| `{worlds:[WorldMetadata]}` (clave única) | 0/0 |
+| `{LoginInfoList:[WorldMetadata]}` (clave única) | 0/0 |
+| `{Worlds:[…camel…]}`, `{Worlds:[…13 claves Pascal…]}` | 0/0 |
+| `ListWorldsResponseBody` completo (7 claves) | 0/0 |
+| `{LoginInfoList:[region{worlds:[…]}]}` | 0/0 |
+| **Centinelas**: 8 raíces candidatas, cada una con un `publicName` distinto (`AAA111` worlds, `BBB222` Worlds, `CCC333` LoginInfoList, `DDD444/EEE555` worldsInfo, `FFF666/GGG777` recommendedWorlds, `HHH888` regions) | **ninguno apareció** |
+
+El test de centinelas es el que más dice: ni con datos presentes bajo ocho raíces
+distintas la UI pintó un nombre. O la raíz es otra, o **la UI del dropdown no se
+llena con `getlogininfo` en absoluto**. El panel muestra la fila de región
+(`Azoth EU`, latencia `3-4 ms`) y un contador `0/0`; abrir y elegir la región no
+dispara ningún request nuevo.
+
+**Palancas ya descartadas:** `+g_showHiddenWorlds`, `+ui_dumpDataLayer` (los args
+`+cvar` no se aplican), `~` (VK 0xC0) no abre consola en retail, la captura
+`captures/official/official-login.mitm` es ruido de Microsoft Store (0 hits de
+`amazongames`/`getlogininfo`).
+
+**Palancas vivas:** (a) decompilar el unmarshaller real de GetLoginInfo con Ghidra
+(instalado: `C:\Users\ivang\tools\ghidra_12.1.3_PUBLIC`; driver
+`research/tools/re/decomp.py`; mirar el camino de `0x1464154e0`/`0x146412430`, no el
+vtable del resultado); (b) **capturar una respuesta real de Amazon con una cuenta
+válida** — es la única verdad de terreno que no depende de adivinar; (c) re-RE con
+foco en el consumidor de `GetLoginInfoLists` (`0x144f54ae3`) para ver qué campo del
+modelo lee la lista.
+
+### Estado del entorno (dejado funcionando)
+
+- Gateway `:8080` arriba (sin el passthrough, `HTTP/1.1`, `psc=0`), Caddy `:443` arriba
+  (el 443 se había caído: la máquina reinició). Caddy se levanta por el puente admin
+  (`docs/ADMIN.md`) con `emulator/deploy/bin/caddy.exe` + `Caddyfile.json`.
+- `mock_discovery/` con overrides de prueba `shape-*.json` (gitignored, descartables).
 
 ## Sesión orca: registry única fuente + getlogininfo camel-only (lista AÚN vacía)
 
