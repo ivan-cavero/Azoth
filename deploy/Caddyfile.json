@@ -63,7 +63,11 @@
                     "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
                     "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
                     "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
-                    "de4mfzk9wkelz.cloudfront.net"
+                    "de4mfzk9wkelz.cloudfront.net",
+                    "dynamodb.sa-east-1.amazonaws.com",
+                    "dynamodb.us-east-1.amazonaws.com",
+                    "dynamodb.us-west-2.amazonaws.com",
+                    "dynamodb.ap-southeast-2.amazonaws.com"
                 ]
             },
             "automation": {

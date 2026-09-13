@@ -120,6 +120,22 @@
     {
       "host": "de4mfzk9wkelz.cloudfront.net",
       "role": "syd-prod-JavelinGatewayService-CF"
+    },
+    {
+      "host": "dynamodb.sa-east-1.amazonaws.com",
+      "role": "worlds-dynamodb-sa-east-1"
+    },
+    {
+      "host": "dynamodb.us-east-1.amazonaws.com",
+      "role": "worlds-dynamodb-us-east-1"
+    },
+    {
+      "host": "dynamodb.us-west-2.amazonaws.com",
+      "role": "worlds-dynamodb-us-west-2"
+    },
+    {
+      "host": "dynamodb.ap-southeast-2.amazonaws.com",
+      "role": "worlds-dynamodb-ap-southeast-2"
     }
   ],
   "never_redirect": [
