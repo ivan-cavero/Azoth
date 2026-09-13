@@ -93,11 +93,14 @@ def cmd_gateway_reload() -> int:
             now = snapshot()
             if now != last:
                 changed = [p for p, m in now.items() if last.get(p) != m]
-                print(f"[az] change: {changed[0].name} - restarting gateway", flush=True)
+                print(
+                    f"[az] change: {changed[0].name} - restarting gateway", flush=True
+                )
                 proc.terminate()
                 proc.wait(timeout=5)
                 proc = subprocess.Popen(
-                    [sys.executable, "-u", "-m", "azoth_gateway", "--port", "8080"], env=env
+                    [sys.executable, "-u", "-m", "azoth_gateway", "--port", "8080"],
+                    env=env,
                 )
                 last = now
     except KeyboardInterrupt:

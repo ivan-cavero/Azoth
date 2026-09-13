@@ -88,9 +88,7 @@ def main() -> int:
                     }
                 resp = body_schema(fam["example"], "resp_body")
                 status = next(iter(sorted(fam["status"]))) or 200
-                content = (
-                    {"application/json": {"schema": resp}} if resp else {}
-                )
+                content = {"application/json": {"schema": resp}} if resp else {}
                 op["responses"] = {str(status or 200): {"content": content}}
             else:
                 op["responses"] = {"200": {}}

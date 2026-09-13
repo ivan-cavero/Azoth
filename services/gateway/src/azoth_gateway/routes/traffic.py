@@ -26,8 +26,8 @@ _UUID_RE = re.compile(
 )
 _TOKEN_RE = re.compile(r"^(?:[0-9a-fA-F]{16,}|[A-Za-z0-9_-]{40,}|\d{6,})$")
 STEAM_APP_ID = "1063730"
-MAX_RAW_BYTES = 64 * 1024        # per body in traffic.jsonl
-MAX_EXAMPLE_BYTES = 4 * 1024     # per body example in the atlas summary
+MAX_RAW_BYTES = 64 * 1024  # per body in traffic.jsonl
+MAX_EXAMPLE_BYTES = 4 * 1024  # per body example in the atlas summary
 
 SENSITIVE_HEADERS = {"authorization", "x-nw-auth", "x-amz-security-token"}
 
@@ -77,12 +77,8 @@ class TrafficLog:
     """Append-only JSONL + growing atlas summary. Best-effort, never raises."""
 
     def __init__(self, jsonl_path: Path, atlas_path: Path) -> None:
-        self.jsonl_path = Path(
-            os.environ.get("AZOTH_TRAFFIC_JSONL") or jsonl_path
-        )
-        self.atlas_path = Path(
-            os.environ.get("AZOTH_ATLAS_JSONL") or atlas_path
-        )
+        self.jsonl_path = Path(os.environ.get("AZOTH_TRAFFIC_JSONL") or jsonl_path)
+        self.atlas_path = Path(os.environ.get("AZOTH_ATLAS_JSONL") or atlas_path)
         self._lock = threading.Lock()
         self._hits: dict[str, dict] = {}
         self._seq = 0
@@ -198,9 +194,7 @@ class TrafficLog:
                         "last": e["last"],
                         **({"example": e["example"]} if "example" in e else {}),
                     }
-                    for norm, e in sorted(
-                        self._hits.items(), key=lambda kv: -kv[1]["hits"]
-                    )
+                    for norm, e in sorted(self._hits.items(), key=lambda kv: -kv[1]["hits"])
                 ],
             }
             self.atlas_path.write_text(

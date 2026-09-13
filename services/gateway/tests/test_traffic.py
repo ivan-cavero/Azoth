@@ -36,7 +36,9 @@ class TestNormalize(unittest.TestCase):
         from azoth_gateway.routes.traffic import normalize_path
 
         self.assertEqual(
-            normalize_path("/prod/game/worlds/86ae8332-ed32-420e-985c-61011022847a/characters/jwt/omni"),
+            normalize_path(
+                "/prod/game/worlds/86ae8332-ed32-420e-985c-61011022847a/characters/jwt/omni"
+            ),
             "/prod/game/worlds/{id}/characters/jwt/omni",
         )
         self.assertEqual(
@@ -44,7 +46,9 @@ class TestNormalize(unittest.TestCase):
             "/STEAM_APP_ID.json",
         )
         self.assertEqual(
-            normalize_path("/prod/game/login/queue/v2/86ae8332-ed32-420e-985c-61011022847a_7978b8a9-1234-5678-9abc-def012345678/jwt/omni"),
+            normalize_path(
+                "/prod/game/login/queue/v2/86ae8332-ed32-420e-985c-61011022847a_7978b8a9-1234-5678-9abc-def012345678/jwt/omni"
+            ),
             "/prod/game/login/queue/v2/{id}/jwt/omni",
         )
 
@@ -72,10 +76,7 @@ class TestCaptureEndToEnd(unittest.TestCase):
         finally:
             srv.shutdown()
 
-        recs = [
-            json.loads(line)
-            for line in (tmp / "traffic.jsonl").read_text().splitlines()
-        ]
+        recs = [json.loads(line) for line in (tmp / "traffic.jsonl").read_text().splitlines()]
         self.assertEqual(len(recs), 1)
         rec = recs[0]
         # Full capture: request headers, request body, pure-JSON response body.
@@ -133,9 +134,7 @@ class TestCaptureEndToEnd(unittest.TestCase):
         doc = json.loads(out.read_text(encoding="utf-8"))
         op = doc["paths"]["/games/new-world/tokens"]["post"]
         self.assertIn("requestBody", op)
-        props = op["responses"]["200"]["content"]["application/json"]["schema"][
-            "properties"
-        ]
+        props = op["responses"]["200"]["content"]["application/json"]["schema"]["properties"]
         self.assertIn("accessToken", props)
         self.assertIn("expiresIn", props)
 

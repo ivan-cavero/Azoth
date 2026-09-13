@@ -47,6 +47,7 @@ class GatewayTest(unittest.TestCase):
             discovery_dir=pathlib.Path(cls.tmp.name),
         )
         import os
+
         os.environ["AZOTH_NO_TRAFFIC"] = "1"  # tests must not touch the atlas
         cls.srv, cls.th = run_in_thread(cfg)
 

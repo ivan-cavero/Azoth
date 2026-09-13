@@ -44,8 +44,8 @@ from .util.etag import etag_for, matches_if_none_match
 # Repo layout: services/gateway/src/azoth_gateway/app.py
 GATEWAY_ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = Path(__file__).resolve().parents[4]
-    
-    
+
+
 class State:
     def __init__(self, cfg: Config) -> None:
         self.cfg = cfg
@@ -60,7 +60,7 @@ class State:
             self.traffic = TrafficLog(
                 jsonl_path=GATEWAY_ROOT / "traffic.jsonl",
                 atlas_path=REPO_ROOT / "research" / "atlas" / "observed-endpoints.json",
-                )
+            )
 
 
 class Handler(BaseHTTPRequestHandler):
