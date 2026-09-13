@@ -165,9 +165,15 @@ and the client **parses without error** (the failure is semantic). The missing
 piece is either the **root JSON key** of the getlogininfo body that fills the
 worlds vector, or a **predicate** discarding our entry. Open leads, by value:
 
-1. **Decompile the real GetLoginInfo unmarshaller** — paths `0x1464154e0` /
-   `0x146412430` (NOT the result vtable `0x148503018`, which only holds
-   dtor/copy). The unmarshaller names the root key it visits.
+1. **Decompile the real GetLoginInfo unmarshaller** — done (2026-09-13):
+   handler `0x1464154e0` builds the result via `FUN_146456b60` -> `FUN_1464033e0`.
+   The intermediate model has FOUR vectors (0x168/0x420/0x170/0x78) + an error
+   flag at +0x70 that gates success vs error rendering. Vector A = worlds
+   (converter calls world-entry ctor + worldtype_mapper). The handler is invoked
+   via vtable (no direct callers). Remaining: the JSON root key that fills the
+   four vectors (aws-sdk-cpp/1.7.193 deserializer, reached through the callback
+   mechanism). Ground truth: the client requests `worlds/list` only when the
+   region dropdown opens.
 2. **Lambda RTTI** `MakeReturnCallbackWithStatus<GetLoginInfoResult, LoginInfoList>`
    — the helper extracts `&result.<member>`; reading the lambda body yields the
    member offset, then find the member written by the unmarshaller.

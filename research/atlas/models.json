@@ -181,16 +181,18 @@
       "name": "GetLoginInfoResult (C++ layout)",
       "evidence": "decompiled FUN_1464033e0 (result constructor) + FUN_1464154e0 (outcome handler), research/derived/decomp/",
       "layout": {
-        "vector0": "element size 0x168 bytes — world/character entries group A",
-        "vector1": "element size 0x420 bytes — entries group B (largest: likely CharacterMetadata)",
-        "vector2": "element size 0x170 bytes — entries group C",
-        "offset 0x60": "param_5 int",
-        "offset 100": "param_6 int",
-        "offset 0xd*8": "param_7 object (moved, dtor 0x1441d9030)",
-        "result vtable": "0x148503018 (payload size 0x110 alloc)",
-        "outcome vtable": "0x148502fe8 (payload size 0xd0 alloc)"
+        "intermediate model (param of FUN_146456b60)": {
+          "+0x18/+0x20": "count + vector A — worlds; elements 0x168 B; converter FUN_1464582b0 -> calls FUN_146407ad0 (world-entry ctor) + FUN_1417c40a0 (worldtype_mapper)",
+          "+0x30/+0x38": "count + vector B — elements 0x420 B (largest; likely CharacterMetadata); converter FUN_1417423e0",
+          "+0x48/+0x50": "count + vector C — elements 0x170 B; converter FUN_146456360",
+          "+0x60/+0x68": "count + vector D — elements 0x78 B; converter FUN_146457ee0",
+          "+0x70": "int error/status flag — 0 => success path builds result; !=0 => error message path (FUN_141741510/FUN_1417419f0)",
+          "+0x74/+0x78": "two ints passed as param_5/param_6 to FUN_1464033e0"
+        },
+        "result ctor FUN_1464033e0": "copies 3 source vectors (0x168/0x420/0x170) + 2 ints + object; vtable 0x148503018 (0x110 alloc)",
+        "result caller chain": "FUN_1464154e0 -> FUN_146456b60 -> FUN_1464033e0 ; FUN_146412430 (called by pointer, no direct callers) -> FUN_146456b60"
       },
-      "note": "The handler at 0x1464154e0 branches on FUN_14646fca0 (likely getlogininfo vs worlds mode) and builds either GetLoginInfoResult (0x148503018) or an outcome object (0x148502fe8) from three source vectors. To find the ROOT JSON KEY: decompile the aws-sdk JsonView visitor that fills the source vectors (FUN_1464291e0/146428750/1464278c0/146429770 are moves of strings/objects into the request-side; the unmarshaller is upstream of 0x1464033e0's caller)."
+      "note": "CORRECTION: the atlas previously said 3 vectors. The intermediate model has FOUR (0x168/0x420/0x170/0x78) + an error flag at +0x70 that gates success vs error rendering. Vector A is the WORLDS list (its converter calls the world-entry constructor and the worldtype_mapper). Element converter A reads a string at source+0x48 (world name/id) and a nested object at source+0x50 (worldMetrics: 3 ints + string). The handler 0x1464154e0 is reached via vtable (no direct callers found)."
     }
   ]
 }
