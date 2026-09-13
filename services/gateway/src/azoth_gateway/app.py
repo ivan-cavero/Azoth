@@ -97,21 +97,24 @@ class Handler(BaseHTTPRequestHandler):
         # Body capture starts after the header block is written.
         self._az_body_on = True
 
-    def finish(self) -> None:
+    def handle_one_request(self) -> None:  # keep-alive: per-request capture
+        self._az_resp_buf = bytearray()
+        self._az_body_on = False
+        self._az_status = 0
+        super().handle_one_request()
         st = type(self).state
-        if st is not None and st.traffic is not None:
+        if st is not None and st.traffic is not None and self._az_status:
             try:
                 st.traffic.record_full(
                     self.command,
                     self.path,
-                    getattr(self, "_az_status", 0),
+                    self._az_status,
                     dict(self.headers.items()),
                     self._az_req_body,
                     bytes(self._az_resp_buf),
                 )
             except (OSError, ValueError) as exc:  # capture must never break responses
                 print(f"[gw] traffic capture failed: {exc}")
-        super().finish()
 
     def send_response(self, code: int, message: str | None = None) -> None:
         self._az_status = code

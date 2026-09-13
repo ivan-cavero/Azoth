@@ -100,6 +100,330 @@
         }
       }
     },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/ProductId/STEAM_APP_ID/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/ProductId/STEAM_APP_ID/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/ProductId/STEAM_APP_ID/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/ProductId/STEAM_APP_ID/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/azoth-1/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/azoth-1/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/azoth-1/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/azoth-1/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/azoth-1/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/azoth-1/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/azoth-1/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/azoth-1/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/games/new-world/tokens": {
       "post": {
         "summary": "games/new-world/tokens",
@@ -207,6 +531,230 @@
                   "properties": {
                     "ok": {
                       "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/{id}/nw_maintenance__modal_ct-000022652.dds": {
+      "get": {
+        "summary": "images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/{id}/nw_maintenance__modal_ct-000022652.dds",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {}
+          }
+        }
+      }
+    },
+    "/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/{id}/newstile2.dds": {
+      "get": {
+        "summary": "images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/{id}/newstile2.dds",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {}
+          }
+        }
+      }
+    },
+    "/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/{id}/nw_maintenance_tile_final_652x360_ct-000022652.dds": {
+      "get": {
+        "summary": "images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/{id}/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {}
+          }
+        }
+      }
+    },
+    "/marketingtiles/STEAM_APP_ID/metadata.json": {
+      "get": {
+        "summary": "marketingtiles/STEAM_APP_ID/metadata.json",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tileData": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "de-DE-description": {
+                            "type": "string"
+                          },
+                          "de-DE-imgKey": {
+                            "type": "string"
+                          },
+                          "de-DE-internalName": {
+                            "type": "string"
+                          },
+                          "de-DE-isVideoUrl": {
+                            "type": "boolean"
+                          },
+                          "de-DE-title": {
+                            "type": "string"
+                          },
+                          "de-DE-urlToOpen": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "es-ES-description": {
+                            "type": "string"
+                          },
+                          "es-ES-imgKey": {
+                            "type": "string"
+                          },
+                          "es-ES-internalName": {
+                            "type": "string"
+                          },
+                          "es-ES-isVideoUrl": {
+                            "type": "boolean"
+                          },
+                          "es-ES-title": {
+                            "type": "string"
+                          },
+                          "es-ES-urlToOpen": {
+                            "type": "string"
+                          },
+                          "es-MX-description": {
+                            "type": "string"
+                          },
+                          "es-MX-imgKey": {
+                            "type": "string"
+                          },
+                          "es-MX-internalName": {
+                            "type": "string"
+                          },
+                          "es-MX-isVideoUrl": {
+                            "type": "boolean"
+                          },
+                          "es-MX-title": {
+                            "type": "string"
+                          },
+                          "es-MX-urlToOpen": {
+                            "type": "string"
+                          },
+                          "fr-FR-description": {
+                            "type": "string"
+                          },
+                          "fr-FR-imgKey": {
+                            "type": "string"
+                          },
+                          "fr-FR-internalName": {
+                            "type": "string"
+                          },
+                          "fr-FR-isVideoUrl": {
+                            "type": "boolean"
+                          },
+                          "fr-FR-title": {
+                            "type": "string"
+                          },
+                          "fr-FR-urlToOpen": {
+                            "type": "string"
+                          },
+                          "imgKey": {
+                            "type": "string"
+                          },
+                          "internalName": {
+                            "type": "string"
+                          },
+                          "isVideoUrl": {
+                            "type": "boolean"
+                          },
+                          "it-IT-description": {
+                            "type": "string"
+                          },
+                          "it-IT-imgKey": {
+                            "type": "string"
+                          },
+                          "it-IT-internalName": {
+                            "type": "string"
+                          },
+                          "it-IT-isVideoUrl": {
+                            "type": "boolean"
+                          },
+                          "it-IT-title": {
+                            "type": "string"
+                          },
+                          "it-IT-urlToOpen": {
+                            "type": "string"
+                          },
+                          "pl-PL-description": {
+                            "type": "string"
+                          },
+                          "pl-PL-imgKey": {
+                            "type": "string"
+                          },
+                          "pl-PL-internalName": {
+                            "type": "string"
+                          },
+                          "pl-PL-isVideoUrl": {
+                            "type": "boolean"
+                          },
+                          "pl-PL-title": {
+                            "type": "string"
+                          },
+                          "pl-PL-urlToOpen": {
+                            "type": "string"
+                          },
+                          "pt-BR-description": {
+                            "type": "string"
+                          },
+                          "pt-BR-imgKey": {
+                            "type": "string"
+                          },
+                          "pt-BR-internalName": {
+                            "type": "string"
+                          },
+                          "pt-BR-isVideoUrl": {
+                            "type": "boolean"
+                          },
+                          "pt-BR-title": {
+                            "type": "string"
+                          },
+                          "pt-BR-urlToOpen": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "urlToOpen": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -371,7 +919,8 @@
           "observed"
         ],
         "x-observed-status": [
-          200
+          200,
+          304
         ],
         "responses": {
           "200": {
@@ -651,6 +1200,134 @@
                           }
                         }
                       }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ping": {
+      "get": {
+        "summary": "ping",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/players/amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c/games/new-world/platforms/steam/entitlements/sync": {
+      "post": {
+        "summary": "players/amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c/games/new-world/platforms/steam/entitlements/sync",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "syncTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prod/credentials/omni": {
+      "get": {
+        "summary": "prod/credentials/omni",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessKeyId": {
+                      "type": "string"
+                    },
+                    "secretAccessKey": {
+                      "type": "string"
+                    },
+                    "sessionToken": {
+                      "type": "string"
+                    },
+                    "expiration": {
+                      "type": "number"
+                    },
+                    "region": {
+                      "type": "string"
+                    },
+                    "AccessKeyId": {
+                      "type": "string"
+                    },
+                    "SecretKey": {
+                      "type": "string"
+                    },
+                    "SecretAccessKey": {
+                      "type": "string"
+                    },
+                    "SessionToken": {
+                      "type": "string"
+                    },
+                    "Expiration": {
+                      "type": "number"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "accountType": {
+                      "type": "string"
+                    },
+                    "ownership": {
+                      "type": "string"
+                    },
+                    "personaId": {
+                      "type": "string"
                     }
                   }
                 }

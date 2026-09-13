@@ -16,7 +16,15 @@
         "publicName": "string (twin block, e.g. 'Azoth EU')",
         "isFull": "bool"
       },
-      "doesNotExist": ["name", "type", "version", "regionId", "worldName", "worldStatus", "maxConnectionCount"],
+      "doesNotExist": [
+        "name",
+        "type",
+        "version",
+        "regionId",
+        "worldName",
+        "worldStatus",
+        "maxConnectionCount"
+      ],
       "note": "The gateway once served 19 keys incl. six invented ones — harmless (ignored) but misleading. Serve exactly this set."
     },
     {
@@ -32,7 +40,11 @@
     {
       "name": "RegionMetadata",
       "evidence": "reflection registry (same block)",
-      "keys": {"regionId": "string", "awsRegion": "string (e.g. eu-central-1)", "latencyMs": "int"}
+      "keys": {
+        "regionId": "string",
+        "awsRegion": "string (e.g. eu-central-1)",
+        "latencyMs": "int"
+      }
     },
     {
       "name": "LoginInfoList (GetLoginInfo response model)",
@@ -52,48 +64,91 @@
     {
       "name": "CharacterNameData (UI model)",
       "evidence": "camelCase block @ 0x1483c0900",
-      "keys": {"name": "string", "personaId": "string", "worldId": "string uuid", "region": "string", "channel": "string", "creationDate": "string"}
+      "keys": {
+        "name": "string",
+        "personaId": "string",
+        "worldId": "string uuid",
+        "region": "string",
+        "channel": "string",
+        "creationDate": "string"
+      }
     },
     {
       "name": "CharacterMetadata",
       "evidence": "reflection registry",
       "keys": {
-        "worldId": "uuid", "prevWorldId": "uuid", "personaId": "string", "name": "string",
-        "currency": "int", "position": "object", "currentLevel": "int", "crestData": "object",
-        "guildId": "string", "portraitData": "object", "ftueCompleted": "bool",
-        "mustRename": "bool", "needsTransfer": "bool", "hasTransfered": "bool",
-        "transferReason": "enum eTransferReason_*", "isNameLatent": "bool", "isFreshStart": "bool",
-        "modifiedDate": "string", "mustRenameReason": "enum eMustRenameReason_*"
+        "worldId": "uuid",
+        "prevWorldId": "uuid",
+        "personaId": "string",
+        "name": "string",
+        "currency": "int",
+        "position": "object",
+        "currentLevel": "int",
+        "crestData": "object",
+        "guildId": "string",
+        "portraitData": "object",
+        "ftueCompleted": "bool",
+        "mustRename": "bool",
+        "needsTransfer": "bool",
+        "hasTransfered": "bool",
+        "transferReason": "enum eTransferReason_*",
+        "isNameLatent": "bool",
+        "isFreshStart": "bool",
+        "modifiedDate": "string",
+        "mustRenameReason": "enum eMustRenameReason_*"
       }
     },
     {
       "name": "WorldsInfo (CMS worlds parser)",
       "evidence": "parser @ 0x143043600",
-      "keys": {"worlds": "array", "recommendedWorlds": "array", "filterParams": "array", "globalAnnouncement": "object"}
+      "keys": {
+        "worlds": "array",
+        "recommendedWorlds": "array",
+        "filterParams": "array",
+        "globalAnnouncement": "object"
+      }
     },
     {
       "name": "RecommendedWorld / FilterParam / WorldFilter",
       "evidence": "reflection block 0x1483c0900",
       "keys": {
-        "RecommendedWorld": {"world": "ref", "recommendationType": "string enum"},
-        "FilterParam": {"paramKey": "string", "paramValue": "string"},
-        "WorldFilter": {"filterType": "enum eFilterType_Seasonal|...", "filterParams": "array"}
+        "RecommendedWorld": {
+          "world": "ref",
+          "recommendationType": "string enum"
+        },
+        "FilterParam": {
+          "paramKey": "string",
+          "paramValue": "string"
+        },
+        "WorldFilter": {
+          "filterType": "enum eFilterType_Seasonal|...",
+          "filterParams": "array"
+        }
       }
     },
     {
       "name": "WorldType enum (wire values)",
       "evidence": "eWorldType_* appear as VALUES in parser; mapper @ 0x1417c4000 references 'FTUE'/'OpenWorld' bare",
-      "values": ["eWorldType_FTUE", "eWorldType_OpenWorld", "eWorldType_Unknown"],
+      "values": [
+        "eWorldType_FTUE",
+        "eWorldType_OpenWorld",
+        "eWorldType_Unknown"
+      ],
       "note": "Serve both casings until confirmed."
     },
     {
       "name": "Omni token response",
       "evidence": "ags_fed_acc_token.cpp parser (capstone), claves en orden",
       "keys": {
-        "region": "string", "limitedUseToken": "string", "platformAccount": "object",
-        "account": "object", "isNewAccount": "bool", "conflictingAccount": "bool",
+        "region": "string",
+        "limitedUseToken": "string",
+        "platformAccount": "object",
+        "account": "object",
+        "isNewAccount": "bool",
+        "conflictingAccount": "bool",
         "accessToken": "JWT (2 dots required; alg none + empty sig OK; iat/exp in MILLISECONDS)",
-        "expiresIn": "int", "fallbackToken": "string"
+        "expiresIn": "int",
+        "fallbackToken": "string"
       },
       "note": "Missing/typo'd key => result 203 (0xcb JSON parse error). Named errors: INVALID_PLATFORM_AUTH=303, INVALID_AGS_AUTH_TOKEN=302, INVALID_GAME=102, AGS_IDENTITY_REQUIRED=203, INVALID_AGS_IDENTITY=331, no account=307."
     },
@@ -111,7 +166,31 @@
     {
       "name": "ListWorldsRequestBody",
       "evidence": "aws-sdk model block @ 0x148703900 (request keys ARE referenced by code)",
-      "keys": {"channelId": "string", "includeNames": "bool", "isTrialOwner": "bool", "FilterParams": "array", "IsFreshStart": "bool", "SkipFtue": "bool", "SteamToken": "string", "TwitchToken": "string"}
+      "keys": {
+        "channelId": "string",
+        "includeNames": "bool",
+        "isTrialOwner": "bool",
+        "FilterParams": "array",
+        "IsFreshStart": "bool",
+        "SkipFtue": "bool",
+        "SteamToken": "string",
+        "TwitchToken": "string"
+      }
+    },
+    {
+      "name": "GetLoginInfoResult (C++ layout)",
+      "evidence": "decompiled FUN_1464033e0 (result constructor) + FUN_1464154e0 (outcome handler), research/derived/decomp/",
+      "layout": {
+        "vector0": "element size 0x168 bytes — world/character entries group A",
+        "vector1": "element size 0x420 bytes — entries group B (largest: likely CharacterMetadata)",
+        "vector2": "element size 0x170 bytes — entries group C",
+        "offset 0x60": "param_5 int",
+        "offset 100": "param_6 int",
+        "offset 0xd*8": "param_7 object (moved, dtor 0x1441d9030)",
+        "result vtable": "0x148503018 (payload size 0x110 alloc)",
+        "outcome vtable": "0x148502fe8 (payload size 0xd0 alloc)"
+      },
+      "note": "The handler at 0x1464154e0 branches on FUN_14646fca0 (likely getlogininfo vs worlds mode) and builds either GetLoginInfoResult (0x148503018) or an outcome object (0x148502fe8) from three source vectors. To find the ROOT JSON KEY: decompile the aws-sdk JsonView visitor that fills the source vectors (FUN_1464291e0/146428750/1464278c0/146429770 are moves of strings/objects into the request-side; the unmarshaller is upstream of 0x1464033e0's caller)."
     }
   ]
 }

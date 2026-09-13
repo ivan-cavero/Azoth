@@ -9,7 +9,7 @@
 - **Omni login fully OK** (result 0) → CHOOSE CHARACTER screen. Steam stub v3 → OmniSDK → tokens → credentials → campfire.
 - **Current blocker:** the panel shows the REGION (`Azoth EU`, latency) but the world dropdown stays empty ("no hay mundos activos en tu región" on earlier variants). The client parses `getlogininfo` without error, then filters / fails to find the root.
 - Environment: gateway `:8080` (HTTP/1.1, `publicStatusCode: 0`), Caddy `:443`, hosts in private mode. Start: `python az.py gateway start` (or `gateway reload` for hot-reload dev) / `az.py caddy` / `az.py game`.
-- **Traffic capture is live**: every request/response lands in `services/gateway/traffic.jsonl` and `research/atlas/observed-endpoints.json`. After a session, `python az.py doc` regenerates `research/atlas/openapi.json`.
+- **Traffic capture is live and battle-tested** (2026-09-13 session): 25 endpoint families captured with full bodies; keep-alive per-request capture fixed (`handle_one_request` hook). After a session, `python az.py doc` regenerates `research/atlas/openapi.json`.
 
 ## What NOT to repeat (read before iterating shapes)
 
