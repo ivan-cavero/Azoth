@@ -1,7 +1,7 @@
 # Roadmap — Azoth
 
-Performance contract: [emulator/docs/PERFORMANCE.md](../emulator/docs/PERFORMANCE.md).  
-Architecture: [ARQUITECTURA.md](ARQUITECTURA.md).
+Performance contract: [services/docs/PERFORMANCE.md](../services/docs/PERFORMANCE.md).  
+Architecture: [ARCHITECTURE (archived, Spanish)](archive/ARQUITECTURA.md).
 
 Amazon’s servers lagged with relatively few people **stacked in one place**. Azoth is built for **density** (many players together) and only then for raw CCU. Capture work stays **in parallel** until 2027-01-31: every session is protocol we cannot get after shutdown.
 
@@ -26,7 +26,7 @@ Use `research\tools\capture\Start-NwCapture.bat` (admin), play **5–12 minutes*
 ### Must-have (do these first)
 
 | # | Session | What to do in-game | Why we need it |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | **Move** | Walk/run 2–3 min, camera, stop, jump if you can | Done `live_20260906_173554` (Vivox grids + DTLS). Payloads still ciphertext. |
 | 2 | **Combat** | Hit a dummy or a weak mob, use 2–3 abilities, block/dodge | Done same session: `CameraLock` + `SlayerScript` CRCs. Ability wire is DTLS. |
 | 3 | **Inventory** | Open bag, move an item, equip/unequip, open storage if any | Done in-game; **no Game.log**. DTLS only. |
@@ -34,12 +34,12 @@ Use `research\tools\capture\Start-NwCapture.bat` (admin), play **5–12 minutes*
 | 5 | **Death** | Die on purpose, respawn at shrine | Done: **stays InGame**. No Death/Respawn string. |
 | 6 | **Expedition** | Queue and **enter a dungeon** (any expedition) | **Still open** — no group on live. Need instance or solo queue. |
 
-#6 is the highest-value “new endpoint” session. Official used a pool of instance boxes; we need to see whether `RepAddress` changes, `LevelInfoChanged` name, and queue RMI (`GameModeParticipant*`).
+# 6 is the highest-value “new endpoint” session. Official used a pool of instance boxes; we need to see whether `RepAddress` changes, `LevelInfoChanged` name, and queue RMI (`GameModeParticipant*`).
 
 ### High value (after 1–6)
 
 | # | Session | What to do |
-|---|---|---|
+| --- | --- | --- |
 | 7 | Fast travel / shrine | Two shrines, travel |
 | 8 | Crafting | One recipe at a station |
 | 9 | Trading | Buy from a vendor **or** trade with another player |
@@ -97,7 +97,7 @@ Datasheets, PAK packs, Azoth news. Not before spawn+move work.
 ## Parallelism
 
 | Track | Who | Blocks |
-|---|---|---|
+| --- | --- | --- |
 | Official capture 1–6 | You, this week if possible | Combat/instance protocol |
 | Skip-EAC spike | Us | Private URL/pin patches |
 | Gateway channel/CMS | Us | Login mock |

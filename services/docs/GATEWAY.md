@@ -1,26 +1,26 @@
-# Gateway HTTPS
+# HTTPS Gateway
 
-Proceso Python en `127.0.0.1:8080`. Caddy termina TLS en `:443` (SNI, ALPN h1/h2). CA local instalada en Windows para el perfil private (hosts o URL parcheada).
+Python process on `127.0.0.1:8080`. Caddy terminates TLS on `:443` (SNI, ALPN h1/h2). Local CA installed on Windows for the private profile (hosts or patched URL).
 
-## Módulos (un binario, no microservicios)
+## Modules (one binary, no microservices)
 
-| Módulo | Qué responde |
+| Module | What it serves |
 | --- | --- |
-| `channel` | `STEAM_APP_ID.1063730.json` — un solo cluster apuntando a nosotros |
-| `cms` | news / tiles / MOTD **con ETag** |
-| `omni` | `tokenservice` + `/prod/credentials/omni` (forma STS, `type=full`) |
-| `remote_config` | keyspace S3 `configuration-sets/…` (SigV4 **sin verificar**) |
+| `channel` | `STEAM_APP_ID.1063730.json` — a single cluster pointing at us |
+| `cms` | news / tiles / MOTD **with ETag** |
+| `omni` | `tokenservice` + `/prod/credentials/omni` (STS shape, `type=full`) |
+| `remote_config` | S3 keyspace `configuration-sets/…` (SigV4 **unverified**) |
 | `entitlements` / catalog / privacy | stubs |
-| `characters` | getlogininfo + create (path se descubre en `FTUE_V2_CC`) |
-| `queue` | ticket `worldId_uuid` + `RepAddress` de `worlds.rep_host:port` |
-| `discovery` | dump de paths desconocidos a `mock_discovery/` (gitignored) |
+| `characters` | getlogininfo + create (path discovered in `FTUE_V2_CC`) |
+| `queue` | ticket `worldId_uuid` + `RepAddress` from `worlds.rep_host:port` |
+| `discovery` | dumps unknown paths to `mock_discovery/` (gitignored) |
 
-## Allowlist de hosts
+## Host allowlist
 
-Único fichero: `deploy/hosts-allowlist.json` (se añade en el PR de deploy). S3 remote-config **sí**. Epic, EAC, Vivox, Steam, STS **no**.
+Single file: `deploy/hosts-allowlist.json` (added in the deploy PR). S3 remote-config **yes**. Epic, EAC, Vivox, Steam, STS **no**.
 
-No usar el catálogo de 38 hosts al por mayor.
+Do not adopt the 38-host catalog wholesale.
 
-## Criterio Fase 1
+## Phase 1 criterion
 
-Game.log: `StartREPConnection` con `RepAddress` localhost. Quedarse en `WaitingForREPConnection` sin world es éxito de esta pieza.
+Game.log: `StartREPConnection` with `RepAddress` localhost. Staying on `WaitingForREPConnection` without a world is success for this piece.

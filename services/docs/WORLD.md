@@ -1,20 +1,20 @@
 # World / REP
 
-Proceso **Rust** + **openssl** DTLS 1.2 (rustls **no** habla DTLS). Cipher `ECDHE-RSA-AES256-GCM-SHA384` hay que habilitarlo explícito.
+**Rust** process + **openssl** DTLS 1.2 (rustls does **not** speak DTLS). Cipher `ECDHE-RSA-AES256-GCM-SHA384` must be enabled explicitly.
 
-Tick **30 Hz**, sim thread único, **sin GC**, AOI por celda. Contrato de densidad: [PERFORMANCE.md](PERFORMANCE.md). Server authority: el cliente manda input, el server integra y replica. El mapa no se envía: `LevelInfoChanged` + `Cmd_NewProxy`.
+Tick **30 Hz**, single sim thread, **no GC**, per-cell AOI. Density contract: [PERFORMANCE.md](PERFORMANCE.md). Server authority: the client sends input, the server integrates and replicates. The map is not sent: `LevelInfoChanged` + `Cmd_NewProxy`.
 
-## Spawn congelado (MVP)
+## Frozen spawn (MVP)
 
 1. UDP bind  
-2. Handshake DTLS (pin: informe DER/PE en capture, o parche en copia private)  
+2. DTLS handshake (pin: DER/PE report in capture, or patch on the private copy)  
 3. Carrier `CONNECT_REQUEST` → `CONNECT_ACK`  
-4. V3 registration (consume ticket, `UPDATE … WHERE consumed_at IS NULL`)  
+4. V3 registration (consumes ticket, `UPDATE … WHERE consumed_at IS NULL`)  
 5. `LevelInfoChanged`  
-6. `Cmd_NewProxy` del player → Game.log `player spawn succeeds, in game`
+6. `Cmd_NewProxy` for the player → Game.log `player spawn succeeds, in game`
 
-Personaje quieto. Combate/AI/inventario después, un sistema por vez, contra capturas.
+Character standing still. Combat/AI/inventory later, one system at a time, against captures.
 
-## Módulos internos
+## Internal modules
 
-`dtls`, `carrier`, `registration`, `replicas`, `levels`, `tickets`. `libs/protocol` es Rust **solo de este proceso**. El gateway no interpreta Carrier.
+`dtls`, `carrier`, `registration`, `replicas`, `levels`, `tickets`. `libs/protocol` is Rust **for this process only**. The gateway does not interpret Carrier.

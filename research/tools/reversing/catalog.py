@@ -6,7 +6,7 @@ already exists as a string or a table inside the client binary. This tool dumps
 those into `research/derived/*.json` so gateway code consumes a versioned
 artifact instead of ad-hoc archaeology per session.
 
-Disk only. Never opens the game process (see tools/re/memory.py for that rule).
+Disk only. Never opens the game process (see tools/reversing/memory.py for that rule).
 
 Sections (each also printed as a short report):
   pe          section map + file-offset <-> VA helpers, xref scanner
@@ -20,7 +20,7 @@ Sections (each also printed as a short report):
   hosts       domains + emulator role
 
 Usage:
-  python research/tools/re/catalog.py [--exe PATH] [--out research/derived]
+  python research/tools/reversing/catalog.py [--exe PATH] [--out research/derived]
 """
 
 from __future__ import annotations

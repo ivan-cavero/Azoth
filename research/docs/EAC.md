@@ -1,10 +1,10 @@
-# Easy Anti-Cheat EOS y por qué leer memoria ahora es mala idea
+# Easy Anti-Cheat EOS and why reading memory now is a bad idea
 
-New World usa **Easy Anti-Cheat EOS** (Epic Online Services), no el EAC clásico suelto.
+New World uses **Easy Anti-Cheat EOS** (Epic Online Services), not the classic standalone EAC.
 
-IDs de esta instalación (`EasyAntiCheat/Settings.json`):
+IDs of this install (`EasyAntiCheat/Settings.json`):
 
-| Campo | Valor |
+| Field | Value |
 | --- | --- |
 | productid | `b0855340e2ed491096135339f6fc94b7` |
 | sandboxid | `c9882365293e4c2e858eee62c4b181b5` |
@@ -12,84 +12,84 @@ IDs de esta instalación (`EasyAntiCheat/Settings.json`):
 | executable | `Bin64/NewWorld.exe` |
 | bootstrap | `NewWorldLauncher.exe` → `EasyAntiCheat_EOS_Setup.exe install <productid>` |
 
-## Cómo está montado
+## How it is set up
 
-Tres piezas:
+Three pieces:
 
-1. **Launcher** — Steam abre `NewWorldLauncher.exe`, que arranca el servicio EAC EOS y luego el juego “protegido”.
-2. **Módulo usermode** — una DLL de EAC se carga **dentro** de `NewWorld.exe`. Integrity checks, lista de procesos, módulos, heartbeats al backend de Epic.
-3. **Driver kernel** (`EasyAntiCheat_EOS.sys` / familia EAC) — ring 0. Aquí está la protección de memoria.
+1. **Launcher** — Steam opens `NewWorldLauncher.exe`, which starts the EAC EOS service and then the "protected" game.
+2. **Usermode module** — an EAC DLL loads **inside** `NewWorld.exe`. Integrity checks, process/module lists, heartbeats to Epic's backend.
+3. **Kernel driver** (`EasyAntiCheat_EOS.sys` / EAC family) — ring 0. This is where the memory protection lives.
 
-Documentación oficial de Epic (crash dumpers): un proceso externo **no puede** abrir un handle al juego con derechos de memoria. Si lo hace, el juego se cuelga y EAC lo mata. Eso incluye dumpers “solo lectura”.
+Epic's official documentation (crash dumpers): an external process **cannot** open a handle to the game with memory rights. If it does, the game hangs and EAC kills it. That includes "read-only" dumpers.
 
-## Leer vs escribir
+## Reading vs writing
 
-No es “escribir = ban, leer = ok”.
+It is not "write = ban, read = ok".
 
-El driver registra `ObRegisterCallbacks` sobre procesos. Cuando *cualquier* programa hace:
+The driver registers `ObRegisterCallbacks` over processes. When *any* program does:
 
 ```text
 OpenProcess(PROCESS_VM_READ,  ..., NewWorld.exe)
 OpenProcess(PROCESS_VM_WRITE, ..., NewWorld.exe)
 ```
 
-el callback del kernel **se dispara igual**. EAC puede:
+the kernel callback **fires all the same**. EAC can:
 
-- quitar `PROCESS_VM_READ` y `PROCESS_VM_WRITE` del handle (la lectura falla)
-- marcar la sesión y mandar telemetría al backend
-- cerrar el juego
+- strip `PROCESS_VM_READ` and `PROCESS_VM_WRITE` from the handle (the read fails)
+- flag the session and send telemetry to the backend
+- close the game
 
-`ReadProcessMemory` es el API de wallhacks, radar y bots. Protegerlo es el trabajo del anti-cheat, no un extra. Cheat Engine en modo “solo mirar” también pisa esto.
+`ReadProcessMemory` is the API of wallhacks, radar and bots. Protecting it is the anti-cheat's job, not an extra. Cheat Engine in "just looking" mode steps on this too.
 
-Tampoco es stealth:
+It is not stealth either:
 
 - Frida / inject / debugger
-- drivers “para que no se note”
-- mapear memoria física para saltarse el handle
+- drivers "so it doesn't show"
+- mapping physical memory to bypass the handle
 
-Eso es el catálogo de cheats que EAC está diseñado para cazar. No lo vamos a construir, ni ahora ni “un poquito”.
+That is the catalog of cheats EAC is designed to catch. We are not building it, not now, not "a little".
 
-## Qué sí es seguro *mientras juegas en oficial*
+## What IS safe *while playing official*
 
-Todo lo que **no abre el proceso del juego con VM_READ**:
+Everything that **does not open the game process with VM_READ**:
 
-| Técnica | Qué aporta al private server |
+| Technique | What it gives the private server |
 | --- | --- |
-| `Game.log` | Login entero, estados, URLs, REP `ip:puerto`, nombres de RMI |
-| pktmon en la NIC | Flujos TCP 443 + UDP, SNI TLS, DTLS hello, tamaños, timing |
+| `Game.log` | Entire login, states, URLs, REP `ip:port`, RMI names |
+| pktmon at the NIC | TCP 443 + UDP flows, TLS SNI, DTLS hello, sizes, timing |
 | DNS cache / ETW DNS | hostname → IP (CloudFront, API Gateway, Vivox, EAC) |
-| netstat por PID | tabla de conexiones sin leer RAM del juego |
-| Archivos en disco | PAKs, configs, channel JSON, logs EAC locales |
-| Strings / PE del exe **en disco** | URLs embebidas, cipher DTLS, nombres Javelin, imports |
+| netstat per PID | connection table without reading game RAM |
+| Files on disk | PAKs, configs, channel JSON, local EAC logs |
+| Strings / PE of the exe **on disk** | embedded URLs, DTLS cipher, Javelin names, imports |
 
-Eso es ingeniería inversa de **protocolo**, que es lo que hay que clonar. Un dump de RAM te da estructuras C++ (offsets de `GameConnection`). Útil, sí. **No es lo que cierra en enero.** Lo que cierra es el tráfico vivo Amazon ↔ cliente.
+That is **protocol** reverse engineering, which is what needs cloning. A RAM dump gives you C++ structures (`GameConnection` offsets). Useful, yes. **It is not what closes in January.** What closes is the live Amazon ↔ client traffic.
 
-## Cuándo sí leeremos memoria
+## When we WILL read memory
 
-Cuando el cliente **ya no hable con Amazon ni con el backend de EAC**:
+When the client **no longer talks to Amazon or the EAC backend**:
 
-- servidores oficiales apagados (31 ene 2027), o
-- nuestro REP + el juego lanzado **sin** el bootstrap EAC (exe directo, producto EAC dado de baja)
+- official servers off (Jan 31, 2027), or
+- our REP + the game launched **without** the EAC bootstrap (direct exe, EAC product decommissioned)
 
-Ahí `ReadProcessMemory` es un depurador sobre *nuestro* proceso local, no una evasión. Lo haremos entonces, con scripts claros, **sin** ocultarnos del kernel.
+Then `ReadProcessMemory` is a debugger over *our* local process, not an evasion. We will do it then, with clear scripts, **without** hiding from the kernel.
 
-Hasta esa fecha, el valor por hora invertida es:
+Until that date, the value per invested hour is:
 
-1. **Red** (pcap + SNI + DTLS + cola de login)
-2. **Game.log** estructurado
-3. **Estático del exe** (Ghidra / strings)
-4. Memoria — después
+1. **Network** (pcap + SNI + DTLS + login queue)
+2. **Game.log** structured
+3. **Static of the exe** (Ghidra / strings)
+4. Memory — later
 
-## Qué nos hace falta de “runtime” sin RAM
+## What we need of "runtime" without RAM
 
-El juego, al correr, ya emite:
+The game, while running, already emits:
 
-- cada transición `Disconnected → … → InGame`
-- cada URL HTTPS que pega
-- el `RepAddress` que el launcher/gateway le da para el mundo
-- el cipher y el hecho de que el socket REP se establece
-- los `messageType` de las RMI (`*ComponentClientFacet_*`)
+- every transition `Disconnected → … → InGame`
+- every HTTPS URL it hits
+- the `RepAddress` the launcher/gateway gives it for the world
+- the cipher and the fact that the REP socket establishes
+- the `messageType` of the RMIs (`*ComponentClientFacet_*`)
 
-Eso *es* runtime. Sale a disco y a la red. No hace falta entrar en el address space.
+That *is* runtime. It goes to disk and to the network. There is no need to enter the address space.
 
-Scripts: `tools/re/README.md`.
+Scripts: `tools/reversing/README.md`.

@@ -19,10 +19,10 @@ Targets are chosen by address, by symbol name, or by walking up from a leaf:
   --callers-of 0x1417c40a0          # every function that calls it
 
 Usage:
-  python research/tools/re/decomp.py --symbol worldtype_mapper
-  python research/tools/re/decomp.py --target 0x144ad6e70 --out big.txt
-  python research/tools/re/decomp.py --callers-of 0x1417c40a0
-  python research/tools/re/decomp.py --selftest
+  python research/tools/reversing/decomp.py --symbol worldtype_mapper
+  python research/tools/reversing/decomp.py --target 0x144ad6e70 --out big.txt
+  python research/tools/reversing/decomp.py --callers-of 0x1417c40a0
+  python research/tools/reversing/decomp.py --selftest
 """
 
 from __future__ import annotations

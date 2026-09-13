@@ -1,48 +1,48 @@
-# Launcher propio
+# Our own launcher
 
-## Qué es
+## What it is
 
-Un cliente de escritorio (Windows primero) que:
+A desktop client (Windows first) that:
 
-- Comprueba versión contra **nuestro** update server (no Steam, no Amazon).
-- Baja deltas: parche de `NewWorld.exe` (skip EAC, channel URL, pin DTLS), packs de contenido (`*.pak`), configs.
-- Botón **Play** → `Bin64\NewWorld.exe` con working directory del install private.
-- Muestra estado del emulator (gateway/world up) y noticias de nuestro CMS.
+- Checks the version against **our** update server (not Steam, not Amazon).
+- Downloads deltas: patch for `NewWorld.exe` (skip EAC, channel URL, DTLS pin), content packs (`*.pak`), configs.
+- **Play** button → `Bin64\NewWorld.exe` with the working directory of the private install.
+- Shows emulator status (gateway/world up) and news from our CMS.
 
-No envuelve EAC. No llama a `NewWorldLauncher.exe`. No necesita `steam.exe` en runtime.
+It does not wrap EAC. It does not call `NewWorldLauncher.exe`. It does not need `steam.exe` at runtime.
 
-## Seed del juego
+## Game seed
 
-El operador (tú) copia su install Steam **una vez** a un directorio private (p.ej. `private-client/` gitignored). Ese árbol es el origen. El launcher:
+The operator (you) copies your Steam install **once** to a private directory (e.g. `private-client/`, gitignored). That tree is the origin. The launcher:
 
-1. Verifica que existen PAKs / exe (el usuario posee el juego).
-2. Aplica nuestros parches encima.
-3. En un círculo cerrado de amigos: cada uno aporta su copia legal; el launcher no hospeda los 80+ GB de Amazon.
+1. Verifies the PAKs / exe exist (the user owns the game).
+2. Applies our patches on top.
+3. In a closed circle of friends: each member contributes their legal copy; the launcher does not host Amazon's 80+ GB.
 
-Distribuir el cliente completo de Amazon a quien no lo compró no es el objetivo de este repo.
+Distributing Amazon's full client to someone who did not buy it is not this repo's goal.
 
 ## Play (spike)
 
 `src/Start-NwPrivate.ps1`:
 
-Azoth **no usa Steam en runtime**. `steam_appid.txt` en el árbol de Steam no basta: `SteamAPI_Init` habla con `steam.exe` por IPC y `SteamAPI_RestartAppIfNecessary` relanza por Steam. Program Files además no deja escribir el appid (la sesión `live_20260906_175804` murió en *Steam must be running* con Steam abierto).
+Azoth **does not use Steam at runtime**. `steam_appid.txt` in the Steam tree is not enough: `SteamAPI_Init` talks to `steam.exe` over IPC and `SteamAPI_RestartAppIfNecessary` relaunches through Steam. Program Files also refuses to let you write the appid (the `live_20260906_175804` session died on *Steam must be running* with Steam open).
 
-El launcher:
+The launcher:
 
-1. Compila (si hace falta) `steam_stub/steam_api64.dll` — Init siempre OK, RestartAppIfNecessary = no.
-2. Crea `%LOCALAPPDATA%\Azoth\game\` con junction a `assets` y hardlinks de `Bin64` **excepto** el `steam_api64.dll` de Valve.
-3. Copia el stub + `steam_appid.txt` ahí.
-4. Arranca **ese** `NewWorld.exe`. No toca el install de Steam. Official Play sigue intacto.
+1. Builds (if needed) `steam_stub/steam_api64.dll` — Init always OK, RestartAppIfNecessary = no.
+2. Creates `%LOCALAPPDATA%\Azoth\game\` with a junction to `assets` and hardlinks of `Bin64` **except** Valve's `steam_api64.dll`.
+3. Copies the stub + `steam_appid.txt` there.
+4. Launches **that** `NewWorld.exe`. It does not touch the Steam install. Official Play stays intact.
 
-Señal verde: no hay `EasyAntiCheat_EOS.exe` ni MessageBox Steam; Game.log llega a `Channel service uri`.
-Señal roja: crash de EAC embebido en el exe (entonces nop **solo en la copia runtime**).
+Green signal: no `EasyAntiCheat_EOS.exe` and no Steam MessageBox; Game.log reaches `Channel service uri`.
+Red signal: crash of the EAC embedded in the exe (then nop **only on the runtime copy**).
 
-## Update server (futuro)
+## Update server (future)
 
-HTTP nuestro: manifiesto de versión, hashes, deltas. El emulator gateway puede hospedarlo al principio (`/updates/...`). Más adelante un servicio aparte si hace falta.
+Our own HTTP: version manifest, hashes, deltas. The emulator gateway can host it at first (`/updates/...`). A separate service later if needed.
 
-## Relación con los otros submódulos
+## Relationship with the other submodules
 
-- **capture** sigue usando Steam+EAC para grabar official.
-- **emulator** es a lo que Play conecta.
-- Este repo no contiene el exe ni los PAKs.
+- **capture** keeps using Steam+EAC to record official.
+- **emulator** is what Play connects to.
+- This repo contains neither the exe nor the PAKs.

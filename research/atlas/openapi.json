@@ -1,0 +1,785 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Azoth \u2014 observed New World client traffic",
+    "version": "0.1.0",
+    "description": "Auto-generated from gateway captures (services/gateway/traffic.jsonl). Paths are endpoint families: volatile ids collapsed to {id}. Curated field-level notes live in endpoints.json / models.json."
+  },
+  "paths": {
+    "/STEAM_APP_ID.json": {
+      "get": {
+        "summary": "STEAM_APP_ID.json",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channelName": {
+                      "type": "string"
+                    },
+                    "azoth-1": {
+                      "type": "object",
+                      "properties": {
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "localizedName": {
+                          "type": "string"
+                        },
+                        "poolId": {
+                          "type": "string"
+                        },
+                        "publicApis": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "awsRegion": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "apiEndpoint": {
+                                "type": "string"
+                              },
+                              "clientTag": {
+                                "type": "string"
+                              },
+                              "stage": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "platformMetadata": {
+                      "type": "object",
+                      "properties": {
+                        "ENTITLEMENTS.STEAM_APP_ID.1063730": {
+                          "type": "object",
+                          "properties": {
+                            "app": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "OMNI.STEAM_APP_ID.1063730": {
+                          "type": "object",
+                          "properties": {
+                            "omniTokenUrl": {
+                              "type": "string"
+                            },
+                            "nwTokenUrl": {
+                              "type": "string"
+                            },
+                            "omniStage": {
+                              "type": "string"
+                            },
+                            "omniGameAlias": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/new-world/tokens": {
+      "post": {
+        "summary": "games/new-world/tokens",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string"
+                    },
+                    "expiresIn": {
+                      "type": "number"
+                    },
+                    "fallbackToken": {
+                      "type": "string"
+                    },
+                    "limitedUseToken": {
+                      "type": "string"
+                    },
+                    "isNewAccount": {
+                      "type": "boolean"
+                    },
+                    "region": {
+                      "type": "string"
+                    },
+                    "platformAccount": {
+                      "type": "object",
+                      "properties": {
+                        "ageGroup": {
+                          "type": "number"
+                        },
+                        "identityType": {
+                          "type": "string"
+                        },
+                        "platform": {
+                          "type": "string"
+                        },
+                        "identityId": {
+                          "type": "string"
+                        },
+                        "personaId": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "account": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "ageGroup": {
+                          "type": "number"
+                        },
+                        "identityId": {
+                          "type": "string"
+                        },
+                        "personaId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "healthz",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/motd/worlds_STEAM_APP_ID.json": {
+      "get": {
+        "summary": "motd/worlds_STEAM_APP_ID.json",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "worlds": {
+                      "type": "object",
+                      "properties": {
+                        "00000000-0000-4000-8000-000000000001": {
+                          "type": "object",
+                          "properties": {
+                            "announcement": {
+                              "type": "string"
+                            },
+                            "es-ES-announcement": {
+                              "type": "string"
+                            },
+                            "es-MX-announcement": {
+                              "type": "string"
+                            },
+                            "fr-FR-announcement": {
+                              "type": "string"
+                            },
+                            "de-DE-announcement": {
+                              "type": "string"
+                            },
+                            "pl-PL-announcement": {
+                              "type": "string"
+                            },
+                            "it-IT-announcement": {
+                              "type": "string"
+                            },
+                            "pt-BR-announcement": {
+                              "type": "string"
+                            },
+                            "warning": {
+                              "type": "string"
+                            },
+                            "es-ES-warning": {
+                              "type": "string"
+                            },
+                            "es-MX-warning": {
+                              "type": "string"
+                            },
+                            "fr-FR-warning": {
+                              "type": "string"
+                            },
+                            "de-DE-warning": {
+                              "type": "string"
+                            },
+                            "pl-PL-warning": {
+                              "type": "string"
+                            },
+                            "it-IT-warning": {
+                              "type": "string"
+                            },
+                            "pt-BR-warning": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "worldSets": {
+                      "type": "object",
+                      "properties": {
+                        "azoth-1": {
+                          "type": "object",
+                          "properties": {
+                            "setName": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "globalAnnouncement": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string"
+                        },
+                        "es-ES-title": {
+                          "type": "string"
+                        },
+                        "es-MX-title": {
+                          "type": "string"
+                        },
+                        "fr-FR-title": {
+                          "type": "string"
+                        },
+                        "de-DE-title": {
+                          "type": "string"
+                        },
+                        "pl-PL-title": {
+                          "type": "string"
+                        },
+                        "it-IT-title": {
+                          "type": "string"
+                        },
+                        "pt-BR-title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "es-ES-description": {
+                          "type": "string"
+                        },
+                        "es-MX-description": {
+                          "type": "string"
+                        },
+                        "fr-FR-description": {
+                          "type": "string"
+                        },
+                        "de-DE-description": {
+                          "type": "string"
+                        },
+                        "pl-PL-description": {
+                          "type": "string"
+                        },
+                        "it-IT-description": {
+                          "type": "string"
+                        },
+                        "pt-BR-description": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/newsstories/STEAM_APP_ID/metadata.json": {
+      "get": {
+        "summary": "newsstories/STEAM_APP_ID/metadata.json",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "newsStories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "backgroundImage": {
+                            "type": "string"
+                          },
+                          "buttonText": {
+                            "type": "string"
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "convertToLocalTimeZone": {
+                            "type": "boolean"
+                          },
+                          "de-DE-backgroundImage": {
+                            "type": "string"
+                          },
+                          "de-DE-buttonText": {
+                            "type": "string"
+                          },
+                          "de-DE-content": {
+                            "type": "string"
+                          },
+                          "de-DE-convertToLocalTimeZone": {
+                            "type": "boolean"
+                          },
+                          "de-DE-internalName": {
+                            "type": "string"
+                          },
+                          "de-DE-popUpOnReturnToMenu": {
+                            "type": "boolean"
+                          },
+                          "de-DE-popupCount": {
+                            "type": "number"
+                          },
+                          "de-DE-popupMode": {
+                            "type": "string"
+                          },
+                          "de-DE-tabTitle": {
+                            "type": "string"
+                          },
+                          "de-DE-timeDisplayMode": {
+                            "type": "string"
+                          },
+                          "de-DE-title": {
+                            "type": "string"
+                          },
+                          "es-ES-backgroundImage": {
+                            "type": "string"
+                          },
+                          "es-ES-buttonText": {
+                            "type": "string"
+                          },
+                          "es-ES-content": {
+                            "type": "string"
+                          },
+                          "es-ES-convertToLocalTimeZone": {
+                            "type": "boolean"
+                          },
+                          "es-ES-internalName": {
+                            "type": "string"
+                          },
+                          "es-ES-popUpOnReturnToMenu": {
+                            "type": "boolean"
+                          },
+                          "es-ES-popupCount": {
+                            "type": "number"
+                          },
+                          "es-ES-popupMode": {
+                            "type": "string"
+                          },
+                          "es-ES-tabTitle": {
+                            "type": "string"
+                          },
+                          "es-ES-timeDisplayMode": {
+                            "type": "string"
+                          },
+                          "es-ES-title": {
+                            "type": "string"
+                          },
+                          "es-MX-backgroundImage": {
+                            "type": "string"
+                          },
+                          "es-MX-buttonText": {
+                            "type": "string"
+                          },
+                          "es-MX-content": {
+                            "type": "string"
+                          },
+                          "es-MX-convertToLocalTimeZone": {
+                            "type": "boolean"
+                          },
+                          "es-MX-internalName": {
+                            "type": "string"
+                          },
+                          "es-MX-popUpOnReturnToMenu": {
+                            "type": "boolean"
+                          },
+                          "es-MX-popupCount": {
+                            "type": "number"
+                          },
+                          "es-MX-popupMode": {
+                            "type": "string"
+                          },
+                          "es-MX-tabTitle": {
+                            "type": "string"
+                          },
+                          "es-MX-timeDisplayMode": {
+                            "type": "string"
+                          },
+                          "es-MX-title": {
+                            "type": "string"
+                          },
+                          "fr-FR-backgroundImage": {
+                            "type": "string"
+                          },
+                          "fr-FR-buttonText": {
+                            "type": "string"
+                          },
+                          "fr-FR-content": {
+                            "type": "string"
+                          },
+                          "fr-FR-convertToLocalTimeZone": {
+                            "type": "boolean"
+                          },
+                          "fr-FR-internalName": {
+                            "type": "string"
+                          },
+                          "fr-FR-popUpOnReturnToMenu": {
+                            "type": "boolean"
+                          },
+                          "fr-FR-popupCount": {
+                            "type": "number"
+                          },
+                          "fr-FR-popupMode": {
+                            "type": "string"
+                          },
+                          "fr-FR-tabTitle": {
+                            "type": "string"
+                          },
+                          "fr-FR-timeDisplayMode": {
+                            "type": "string"
+                          },
+                          "fr-FR-title": {
+                            "type": "string"
+                          },
+                          "internalName": {
+                            "type": "string"
+                          },
+                          "it-IT-backgroundImage": {
+                            "type": "string"
+                          },
+                          "it-IT-buttonText": {
+                            "type": "string"
+                          },
+                          "it-IT-content": {
+                            "type": "string"
+                          },
+                          "it-IT-convertToLocalTimeZone": {
+                            "type": "boolean"
+                          },
+                          "it-IT-internalName": {
+                            "type": "string"
+                          },
+                          "it-IT-popUpOnReturnToMenu": {
+                            "type": "boolean"
+                          },
+                          "it-IT-popupCount": {
+                            "type": "number"
+                          },
+                          "it-IT-popupMode": {
+                            "type": "string"
+                          },
+                          "it-IT-tabTitle": {
+                            "type": "string"
+                          },
+                          "it-IT-timeDisplayMode": {
+                            "type": "string"
+                          },
+                          "it-IT-title": {
+                            "type": "string"
+                          },
+                          "pl-PL-backgroundImage": {
+                            "type": "string"
+                          },
+                          "pl-PL-buttonText": {
+                            "type": "string"
+                          },
+                          "pl-PL-content": {
+                            "type": "string"
+                          },
+                          "pl-PL-convertToLocalTimeZone": {
+                            "type": "boolean"
+                          },
+                          "pl-PL-internalName": {
+                            "type": "string"
+                          },
+                          "pl-PL-popUpOnReturnToMenu": {
+                            "type": "boolean"
+                          },
+                          "pl-PL-popupCount": {
+                            "type": "number"
+                          },
+                          "pl-PL-popupMode": {
+                            "type": "string"
+                          },
+                          "pl-PL-tabTitle": {
+                            "type": "string"
+                          },
+                          "pl-PL-timeDisplayMode": {
+                            "type": "string"
+                          },
+                          "pl-PL-title": {
+                            "type": "string"
+                          },
+                          "popUpOnReturnToMenu": {
+                            "type": "boolean"
+                          },
+                          "popupCount": {
+                            "type": "number"
+                          },
+                          "popupMode": {
+                            "type": "string"
+                          },
+                          "pt-BR-backgroundImage": {
+                            "type": "string"
+                          },
+                          "pt-BR-buttonText": {
+                            "type": "string"
+                          },
+                          "pt-BR-content": {
+                            "type": "string"
+                          },
+                          "pt-BR-convertToLocalTimeZone": {
+                            "type": "boolean"
+                          },
+                          "pt-BR-internalName": {
+                            "type": "string"
+                          },
+                          "pt-BR-popUpOnReturnToMenu": {
+                            "type": "boolean"
+                          },
+                          "pt-BR-popupCount": {
+                            "type": "number"
+                          },
+                          "pt-BR-popupMode": {
+                            "type": "string"
+                          },
+                          "pt-BR-tabTitle": {
+                            "type": "string"
+                          },
+                          "pt-BR-timeDisplayMode": {
+                            "type": "string"
+                          },
+                          "pt-BR-title": {
+                            "type": "string"
+                          },
+                          "tabTitle": {
+                            "type": "string"
+                          },
+                          "timeDisplayMode": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prod/game/getlogininfo/jwt/omni": {
+      "get": {
+        "summary": "prod/game/getlogininfo/jwt/omni",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "LoginInfoList": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "worldId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "publicStatusCode": {
+                            "type": "number"
+                          },
+                          "publicName": {
+                            "type": "string"
+                          },
+                          "maxAccountCharacters": {
+                            "type": "number"
+                          },
+                          "worldSet": {
+                            "type": "string"
+                          },
+                          "worldMetrics": {
+                            "type": "object",
+                            "properties": {
+                              "worldAgeDays": {
+                                "type": "number"
+                              },
+                              "queueSize": {
+                                "type": "number"
+                              },
+                              "queueWaitTimeSec": {
+                                "type": "number"
+                              },
+                              "worldPopulationStatus": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "transferToRegion": {
+                            "type": "string"
+                          },
+                          "isFull": {
+                            "type": "boolean"
+                          },
+                          "isRecommended": {
+                            "type": "boolean"
+                          },
+                          "regionId": {
+                            "type": "string"
+                          },
+                          "characters": {
+                            "type": "array"
+                          },
+                          "RepAddress": {
+                            "type": "string"
+                          },
+                          "JwtClaims": {
+                            "type": "string"
+                          },
+                          "GenerateTime": {
+                            "type": "number"
+                          },
+                          "IssueTime": {
+                            "type": "number"
+                          },
+                          "TokenVersion": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    "RecommendedWorlds": {
+                      "type": "array"
+                    },
+                    "PendingWorldMerges": {
+                      "type": "array"
+                    },
+                    "AccountIsLocked": {
+                      "type": "boolean"
+                    },
+                    "AllowQueueTransfer": {
+                      "type": "boolean"
+                    },
+                    "QueueName": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

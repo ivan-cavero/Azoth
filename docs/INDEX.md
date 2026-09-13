@@ -1,44 +1,43 @@
-# Documentación — índice
+# Documentation — index
 
-**Azoth** — servidor privado de New World. El análisis y la memoria RE viven en **research/**; el contrato del server en **services/docs/**; el cliente propio en **services/launcher/**. Este `docs/` es el pegamento.
+**Azoth** — New World private server. RE knowledge lives in **research/** (atlas + docs), the server contract in **services/docs/**, the own-client in **services/launcher/**. This `docs/` is the glue. All docs are written in English; `docs/archive/` and `docs/sessions/` hold Spanish historical documents.
 
-## Sistema
+## System
 
-| Doc | Contenido |
+| Doc | Content |
 | --- | --- |
-| [NOMBRE.md](NOMBRE.md) | Por qué Azoth |
-| [ARQUITECTURA.md](ARQUITECTURA.md) | Contrato del **día 1 / MVP**: 2 procesos, skip-EAC |
-| [ARQUITECTURA-FLOTAS.md](ARQUITECTURA-FLOTAS.md) | Contrato de **topología de producción**: Auth global, regiones, mundos, instancias. El MVP crece hacia aquí. |
-| [ROADMAP.md](ROADMAP.md) | Fases + **qué capturar ahora** |
-| [ADMIN.md](ADMIN.md) | **Permisos admin: pedir el UAC al operador ANTES de empezar** |
-| [sessions/](sessions/) | Sesiones históricas (`2026-09-13_pre-monorepo-STATUS.md` = todo el pre-monorepo) |
-| [../services/docs/PERFORMANCE.md](../services/docs/PERFORMANCE.md) | Densidad / tick / AOI |
+| [NOMBRE.md](NOMBRE.md) | Why "Azoth" |
+| [ROADMAP.md](ROADMAP.md) | Phases + **what to capture now** |
+| [ADMIN.md](ADMIN.md) | **Admin permissions: ask the operator for UAC ONCE before starting** (Spanish) |
+| [sessions/](sessions/) | Historical session log (`2026-09-13_pre-monorepo-STATUS.md` = the full pre-monorepo STATUS) |
+| [archive/](archive/) | Pre-monorepo design docs (Spanish, old paths — design rationale only) |
+| [../services/docs/PERFORMANCE.md](../services/docs/PERFORMANCE.md) | Density / tick / AOI |
 
 ## Research (`research/docs/`)
 
-| Doc | Contenido |
+| Doc | Content |
 | --- | --- |
-| [ANALISIS.md](../research/docs/ANALISIS.md) | Motor, login, GridMate, PAKs |
-| [CAPTURA.md](../research/docs/CAPTURA.md) | Kit pasivo |
-| [EAC.md](../research/docs/EAC.md) | EAC EOS, sin RPM en official |
-| [CONTRATO_CLIENTE.md](../research/docs/CONTRATO_CLIENTE.md) | JSON/hosts que espera el cliente |
-| [SESIONES.md](../research/docs/SESIONES.md) | Live 2026-09-06 |
-| [PROTOCOLO.md](../research/docs/PROTOCOLO.md) | DTLS, Carrier, RMI |
-| [DECOMPILATION.md](../research/docs/DECOMPILATION.md) | Método de decompilación |
+| [ANALYSIS.md](../research/docs/ANALYSIS.md) | Engine, login, GridMate, PAKs |
+| [CAPTURE.md](../research/docs/CAPTURE.md) | Passive capture kit |
+| [EAC.md](../research/docs/EAC.md) | EAC EOS, no process memory while on official |
+| [CLIENT_CONTRACT.md](../research/docs/CLIENT_CONTRACT.md) | JSON/hosts the client expects |
+| [SESSIONS.md](../research/docs/SESSIONS.md) | Live 2026-09-06 findings |
+| [PROTOCOL.md](../research/docs/PROTOCOL.md) | DTLS, Carrier, RMI |
+| [DECOMPILATION.md](../research/docs/DECOMPILATION.md) | Decompilation workflow (tools, method, findings) |
 
-**Atlas (memoria RE viva):** [`research/atlas/`](../research/atlas/README.md) — endpoints, modelos wire, errores, palancas de debug.
-Schemas live: `research/schemas/live/`. Fixtures: `research/fixtures/`.
+**Atlas (live RE memory):** [`research/atlas/`](../research/atlas/README.md) — endpoints, wire models, errors, debug levers, observed traffic + OpenAPI.
+Live schemas: `research/schemas/live/`. Fixtures: `research/fixtures/`. Working RE notes: `research/notes/`.
 
 ## Services (`services/docs/`)
 
-| Doc | Contenido |
+| Doc | Content |
 | --- | --- |
 | [GATEWAY.md](../services/docs/GATEWAY.md) | HTTPS :8080 |
 | [WORLD.md](../services/docs/WORLD.md) | REP / spawn |
-| [DATA.md](../services/docs/DATA.md) | Persistencia (nota: hoy sin DB, mocks) |
+| [DATA.md](../services/docs/DATA.md) | Persistence (note: today DB-free, mocks) |
 
 ## Launcher (`services/launcher/docs/`)
 
-| Doc | Contenido |
+| Doc | Content |
 |---|---|
-| [LAUNCHER.md](../services/launcher/docs/LAUNCHER.md) | Updater, Play, sin Steam |
+| [LAUNCHER.md](../services/launcher/docs/LAUNCHER.md) | Updater, Play, no Steam |

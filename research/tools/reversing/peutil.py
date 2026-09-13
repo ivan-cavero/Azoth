@@ -14,14 +14,14 @@ three things you actually need to aim a decompiler at a specific place:
   how you turn "this key is read at 0x144f54d63" into "the property is
   `publicStatusCode`".
 
-Disk only. Never touches the running game process (see tools/re/memory.py).
+Disk only. Never touches the running game process (see tools/reversing/memory.py).
 
 Usage:
-    python research/tools/re/peutil.py func 0x144f54d63
-    python research/tools/re/peutil.py callers 0x1417c40a0
-    python research/tools/re/peutil.py str publicStatusCode
-    python research/tools/re/peutil.py resolve 0x1483c09a0
-    python research/tools/re/peutil.py selftest
+    python research/tools/reversing/peutil.py func 0x144f54d63
+    python research/tools/reversing/peutil.py callers 0x1417c40a0
+    python research/tools/reversing/peutil.py str publicStatusCode
+    python research/tools/reversing/peutil.py resolve 0x1483c09a0
+    python research/tools/reversing/peutil.py selftest
 """
 
 from __future__ import annotations

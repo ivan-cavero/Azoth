@@ -21,9 +21,9 @@ Epic docs: an external dumper with memory rights kills the game.
 
 Use instead:
   1. Game.log   tools/capture/nw_capture.py ingest|watch
-  2. NIC        Start-NwCapture.bat  then  tools/re/net.py analyze
-  3. Endpoints  tools/re/endpoints.py --session sessions/<session>
-  4. EXE disk   tools/re/strings.py
+  2. NIC        Start-NwCapture.bat  then  tools/reversing/net.py analyze
+  3. Endpoints  tools/reversing/endpoints.py --session sessions/<session>
+  4. EXE disk   tools/reversing/strings.py
 
 After Jan 2027 / our REP without EAC: explicit ReadProcessMemory, no stealth.
 

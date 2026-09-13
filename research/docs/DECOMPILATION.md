@@ -14,7 +14,7 @@ optional, and the VA as evidence — and confirmed function addresses go into
 `research/derived/symbols.json` with `va`, `what`, `found_by`. If it only lives in
 the conversation, it does not exist. This is what makes the work cumulative.
 
-## Tools (all in `research/tools/re/`)
+## Tools (all in `research/tools/reversing/`)
 
 | Tool | For |
 | --- | --- |
@@ -36,8 +36,8 @@ $env:AZOTH_DECOMP_WORK = "C:\Users\ivang\tools"   # Ghidra project + classes + l
 Verify (must print `OK`; otherwise trust nothing below):
 
 ```bash
-python research/tools/re/peutil.py selftest    # 6/6 PASS, 423,594 functions
-python research/tools/re/decomp.py --selftest  # compiles the helper, decompiles 1 fn
+python research/tools/reversing/peutil.py selftest    # 6/6 PASS, 423,594 functions
+python research/tools/reversing/decomp.py --selftest  # compiles the helper, decompiles 1 fn
 ```
 
 ## Procedure: from a question to code
@@ -47,11 +47,11 @@ python research/tools/re/decomp.py --selftest  # compiles the helper, decompiles
 A string, an HTTP route, or a JSON key. `peutil` resolves VAs and finds who touches them:
 
 ```bash
-python research/tools/re/peutil.py info                       # sections + image base
-python research/tools/re/peutil.py resolve 0x1483c09a0        # VA -> 'publicName'
-python research/tools/re/peutil.py str publicStatusCode       # string -> VAs
-python research/tools/re/peutil.py func 0x144f54d63           # VA -> function range
-python research/tools/re/peutil.py callers 0x1417c40a0        # who calls it
+python research/tools/reversing/peutil.py info                       # sections + image base
+python research/tools/reversing/peutil.py resolve 0x1483c09a0        # VA -> 'publicName'
+python research/tools/reversing/peutil.py str publicStatusCode       # string -> VAs
+python research/tools/reversing/peutil.py func 0x144f54d63           # VA -> function range
+python research/tools/reversing/peutil.py callers 0x1417c40a0        # who calls it
 ```
 
 Method warning: a string with **0 xrefs** may be dead **or** referenced through a
@@ -62,16 +62,16 @@ with the aws-sdk model table: it was decorative).
 
 ```bash
 # a function we already know by symbolic name
-python research/tools/re/decomp.py --symbol worldtype_mapper
+python research/tools/reversing/decomp.py --symbol worldtype_mapper
 
 # the code that reads a key (VA of the xref)
-python research/tools/re/decomp.py --target 0x144f54d63
+python research/tools/reversing/decomp.py --target 0x144f54d63
 
 # every function calling a helper (to climb from a leaf)
-python research/tools/re/decomp.py --callers-of 0x1417c40a0
+python research/tools/reversing/decomp.py --callers-of 0x1417c40a0
 
 # explicit range (when .pdata is not enough)
-python research/tools/re/decomp.py --range 144f40780-144f555e0
+python research/tools/reversing/decomp.py --range 144f40780-144f555e0
 ```
 
 Default output: `derived/decomp/<start>-<end>.c` (gitignored; regenerable).
@@ -87,6 +87,39 @@ project (`-process`) and take ~1-2 min of startup + decompilation.
   re-deriving.
 - **Debug levers / config switches** spotted in memory → `research/atlas/levers.md`
   ("To investigate" section) immediately, not "later".
+
+## Modern tooling landscape (researched 2026-09-13)
+
+| Tool | Verdict for Azoth |
+| --- | --- |
+| **Ghidra headless + `decomp.py`** (current) | **Keep.** Free, scriptable, project cache works. This is the automation backbone. |
+| **PyGhidra** (bundled since Ghidra 11.2; ex-`pyhidra`) | **Adopt when needed.** Drives Ghidra from native CPython 3 (no Jython): `import pyghidra; with pyghidra.open_program(exe) as flat: ...` — lets RE scripts live in the same Python env as the atlas tooling. Upgrade path for `decomp.py` if Jython friction bites. |
+| **ghidra_bridge** | Alternative CPython bridge (RPC server inside Ghidra). Prefer PyGhidra: first-party, no server process. |
+| **Binary Ninja** | Best-in-class HLIL API and decompiler UX, but paid. Not needed: our targets are JSON parsers and reflection tables, well within Ghidra's reach. |
+| **IDA Pro** | Industry king, priced for studios. Same verdict as Binary Ninja. |
+| **angr** | Symbolic execution. Overkill for wire-format RE; potentially useful later for finding predicate inputs (e.g. the world-filter check) if decompilation stalls. |
+| **x64dbg / Cheat Engine** | Live debugging only — forbidden while EAC is active (see `EAC.md`); valid against our own private build. |
+
+## Traffic capture: why our gateway beats a MITM proxy
+
+Generic game-RE workflow uses mitmproxy/mitmproxy2swagger against the live client,
+then fights TLS and certificate pinning. We do not need any of that:
+
+1. **The client talks to OUR gateway** (hosts + local CA, private mode). We see every
+   request and response **in plaintext** at the server — no pinning to defeat, no
+   proxy certs, no baneable interception of Amazon traffic.
+2. **Full capture is built in** (`routes/traffic.py`): every request/response
+   (headers + bodies, auth redacted) lands in `services/gateway/traffic.jsonl`, and
+   `research/atlas/observed-endpoints.json` grows one entry per endpoint family with
+   a captured example.
+3. **`python az.py doc`** renders `research/atlas/openapi.json` (OpenAPI 3.1) from
+   that traffic — our equivalent of mitmproxy2swagger, but sourced from the server
+   itself, so it is always exact.
+4. External capture (pktmon via `research/tools/capture/`) stays useful ONLY for
+   official sessions (encrypted: gives IPs, ports, sizes, timing — never bodies).
+
+Reference for the generic approach if ever needed offline: mitmproxy2swagger
+(converts mitmproxy flows to OpenAPI). We already have the better source.
 
 ## Method rules (learned the hard way)
 

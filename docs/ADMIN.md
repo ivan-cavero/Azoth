@@ -1,80 +1,80 @@
-# Permisos admin controlados (tarea programada elevada) — LEER AL INICIAR SESIÓN
+# Controlled admin permissions (elevated scheduled task) — READ AT SESSION START
 
-> **Regla para el agente**: antes de empezar a probar nada, comprueba si esta
-> sesión necesita tareas admin (redirect de `hosts`, Caddy en `:443`,
-> `switch-mode.ps1`). Si las necesita, usa el **puente admin** de abajo —
-> NO pide UAC, NO caduca. Si la tarea `AzothAdminProxy` no existe, entonces sí
-> pide al operador el setup de UNA vez (sección "Setup").
-> Caché de gsudo descartada: expiraba en medio de sesiones largas y con la
-> consola del agente cada árbol de proceso re-pedía UAC.
+> **Agent rule:** before testing anything, check whether this session needs admin
+> tasks (`hosts` redirect, Caddy on `:443`, `switch-mode.ps1`). If it does, use the
+> **admin bridge** below — it does NOT prompt UAC and does NOT expire. If the
+> `AzothAdminProxy` task does not exist, then ask the operator for the ONE-TIME
+> setup ("Setup" section).
+> The gsudo cache was discarded: it expired mid-session and with the agent console
+> each process tree re-prompted UAC.
 
-## Por qué
+## Why
 
-El modo private necesita dos cosas que solo un admin puede hacer:
+Private mode needs two things only an admin can do:
 
-1. Escribir el bloque `# >>> AZOTH PRIVATE >>>` en `C:\Windows\System32\drivers\etc\hosts`
-   (redirige `tokenservice.amazongames.com` etc. a `127.0.0.1`).
-2. Arrancar Caddy en el puerto `:443` (TLS del juego).
+1. Writing the `# >>> AZOTH PRIVATE >>>` block into `C:\Windows\System32\drivers\etc\hosts`
+   (redirects `tokenservice.amazongames.com` etc. to `127.0.0.1`).
+2. Starting Caddy on port `:443` (the game's TLS).
 
-El agente corre como usuario normal (`ivan\ivang`, no admin).
+The agent runs as a normal user (`ivan\ivang`, not admin).
 
-## El puente admin (lo que se usa en el día a día)
+## The admin bridge (day-to-day)
 
-Tarea programada `AzothAdminProxy` que corre como admin (`RunLevel Highest`)
-y ejecuta lo que encuentre en un fichero de comandos:
+Scheduled task `AzothAdminProxy` runs as admin (`RunLevel Highest`) and executes
+whatever it finds in a command file:
 
-- **Comando a ejecutar**: `%LOCALAPPDATA%\Azoth\admin\cmd.txt` (una línea)
-- **Salida**: `%LOCALAPPDATA%\Azoth\admin\out.txt` (se sobrescribe en cada run)
+- **Command to run**: `%LOCALAPPDATA%\Azoth\admin\cmd.txt` (one line)
+- **Output**: `%LOCALAPPDATA%\Azoth\admin\out.txt` (overwritten on every run)
 
-Uso (todo sin UAC, sin admin):
+Usage (all without UAC, without admin):
 
 ```powershell
 $dir = "$env:LOCALAPPDATA\Azoth\admin"
-# 1) escribir el comando
+# 1) write the command
 "whoami /groups | findstr /C:S-1-16-12288" | Set-Content "$dir\cmd.txt" -Encoding ascii
-# 2) lanzar la tarea elevada
+# 2) start the elevated task
 Start-ScheduledTask -TaskName 'AzothAdminProxy'
-# 3) esperar a que termine y leer la salida
+# 3) wait for it to finish and read the output
 Start-Sleep -Seconds 2
 Get-Content "$dir\out.txt"
 ```
 
-Detalles:
+Details:
 
-- El proxy ejecuta **una sola línea** de comando por run (`Invoke-Expression`).
-  Para varias cosas, encadénalas con `;` o llama a un script: 
-  `powershell -NoProfile -File F:\Azoth\emulator\deploy\switch-mode.ps1 private`
-- `out.txt` guarda stdout+stderr. Si dice `NO-CMD`, no había `cmd.txt`.
-- La tarea tiene `ExecutionTimeLimit = 10 min`. Para Caddy (largo), ver abajo.
-- Al lanzar la tarea, `Start-ScheduledTask` devuelve inmediato; si el comando
-  es lento, espera con un bucle comprobando si `out.txt` cambió.
+- The proxy executes **a single command line** per run (`Invoke-Expression`).
+  For several things, chain them with `;` or call a script:
+  `powershell -NoProfile -File <repo>\deploy\switch-mode.ps1 private`
+- `out.txt` stores stdout+stderr. If it says `NO-CMD`, there was no `cmd.txt`.
+- The task has `ExecutionTimeLimit = 10 min`. For Caddy (long-running), see below.
+- `Start-ScheduledTask` returns immediately; if the command is slow, wait in a
+  loop checking whether `out.txt` changed.
 
-### Procesos largos (Caddy, etc.)
+### Long-running processes (Caddy, etc.)
 
-La tarea mata el proceso a los 10 min. Para Caddy, el patrón es: el proxy
-ejecuta un comando que **desacopla** el proceso largo:
+The task kills the process after 10 min. For Caddy the pattern is: the proxy
+executes a command that **detaches** the long-running process:
 
 ```powershell
-# cmd.txt (una línea):
-Start-Process -FilePath F:\Azoth\emulator\deploy\bin\caddy.exe -ArgumentList 'run','--config','F:\Azoth\emulator\deploy\Caddyfile.json' -WindowStyle Hidden -RedirectStandardOutput $env:TEMP\azoth-caddy.out.log -RedirectStandardError $env:TEMP\azoth-caddy.err.log
+# cmd.txt (one line):
+Start-Process -FilePath <repo>\deploy\bin\caddy.exe -ArgumentList 'run','--config','<repo>\deploy\Caddyfile.json' -WindowStyle Hidden -RedirectStandardOutput $env:TEMP\azoth-caddy.out.log -RedirectStandardError $env:TEMP\azoth-caddy.err.log
 ```
 
-El `Start-Process` vuelve al momento y Caddy queda corriendo elevado, ajeno a
-la tarea programada.
+`Start-Process` returns immediately and Caddy keeps running elevated, detached
+from the scheduled task.
 
-### Parar Caddy
+### Stopping Caddy
 
 ```powershell
 # cmd.txt:
 Stop-Process -Name caddy -Force -ErrorAction SilentlyContinue; 'stopped'
 ```
 
-## Setup (ya hecho en esta máquina; reproducir si falta)
+## Setup (already done on this machine; reproduce if missing)
 
-1. **proxy.ps1** ( `%LOCALAPPDATA%\Azoth\admin\proxy.ps1`):
+1. **proxy.ps1** (`%LOCALAPPDATA%\Azoth\admin\proxy.ps1`):
 
 ```powershell
-# Azoth admin proxy: ejecuta el comando de cmd.txt como admin y guarda la salida.
+# Azoth admin proxy: runs the cmd.txt command as admin and stores the output.
 $dir = "$env:LOCALAPPDATA\Azoth\admin"
 $f = Join-Path $dir 'cmd.txt'
 $out = Join-Path $dir 'out.txt'
@@ -89,7 +89,7 @@ try {
 }
 ```
 
-2. **La tarea** (esto es lo único que pide UAC, una vez en la vida):
+1. **The task** (the only step that asks UAC, once ever):
 
 ```powershell
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\Users\ivang\AppData\Local\Azoth\admin\proxy.ps1'
@@ -98,13 +98,13 @@ $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoi
 Register-ScheduledTask -TaskName 'AzothAdminProxy' -Action $action -Principal $principal -Settings $settings -Force
 ```
 
-## Trampas conocidas
+## Known traps
 
-- El backup de `hosts` lo hace `switch-mode.ps1` solo (`hosts.azoth-bak-*`).
-  Nunca editar `hosts` a mano.
-- `cmd.txt` en **ASCII** (el proxy lo lee con `Get-Content -Raw`; evita BOM).
-- Si el comando falla silenciosamente, revisa `out.txt` (contiene el error).
-- Seguridad: cualquiera que pueda escribir `cmd.txt` ejecuta como admin. Está
-  en el perfil del usuario, mismo riesgo que tener una consola admin abierta.
-  Si el equipo es compartido, eliminar la tarea:
+- The `hosts` backup is done by `switch-mode.ps1` itself (`hosts.azoth-bak-*`).
+  Never edit `hosts` by hand.
+- `cmd.txt` must be **ASCII** (the proxy reads it with `Get-Content -Raw`; avoid BOM).
+- If a command fails silently, check `out.txt` (it contains the error).
+- Security: anyone who can write `cmd.txt` runs commands as admin. It lives in the
+  user profile — same risk as leaving an admin console open. On a shared machine,
+  remove the task:
   `Unregister-ScheduledTask -TaskName 'AzothAdminProxy' -Confirm:$false` (admin).

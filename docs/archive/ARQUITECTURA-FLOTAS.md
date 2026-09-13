@@ -1,3 +1,12 @@
+# [ARCHIVED — pre-monorepo design document (Spanish)]
+
+> Written 2026-09-06 for the three-submodule layout (research/emulator/launcher).
+> The repo is now a single monorepo: research/ and services/{gateway,world,launcher} + deploy/.
+> Kept for design rationale; paths inside refer to the OLD layout and do NOT resolve.
+> Live architecture docs: [docs/INDEX.md](../INDEX.md) and [services/docs/](../../services/docs/INDEX.md).
+
+---
+
 # Azoth — Arquitectura de flota: Auth global, Regiones, Mundos
 
 | Campo | Valor |
@@ -118,7 +127,7 @@ Citas concretas. Si un hecho nuevo del cliente contradice este doc, gana el clie
 
 ### Channel = directorio de regiones
 
-Fuente: `research/_re/channel_config.json`. Mock actual: `emulator/apps/gateway/src/azoth_gateway/data/channel-azoth.json`. El cliente elige un cluster; construye:
+Fuente: `research/notes/channel_config.json`. Mock actual: `emulator/apps/gateway/src/azoth_gateway/data/channel-azoth.json`. El cliente elige un cluster; construye:
 
 ```
 ClusterId            <- clave del channel (oficial: fra-prod; Azoth hoy: azoth-1)
@@ -1079,7 +1088,7 @@ HTTP de tickets: **fuera** de este doc (`TICKETS_DATABASE_URL` al PG Auth).
 - `emulator/apps/gateway/src/azoth_gateway/app.py` — dispatch stdlib; POST body no llega a queue.
 - `emulator/deploy/hosts-allowlist.json`, `mint-cert.ps1` (CA = `%APPDATA%\Caddy\pki\authorities\local\`), `Caddyfile.json` (`leaf.crt`, no `azoth-leaf.pem`), `switch-mode.ps1` (hoy siempre `::1`). `certs/azoth-ca.pem` = leftover trustme, muerto hasta el snapshot F-09.
 - `emulator/docs/PERFORMANCE.md`, `DATA.md`, `GATEWAY.md`, `WORLD.md`
-- `research/_re/channel_config.json` — 5 clusters; iad authStack ≠ fra; orden `publicApis` distinto.
+- `research/notes/channel_config.json` — 5 clusters; iad authStack ≠ fra; orden `publicApis` distinto.
 - `research/derived/routes.json`, `grpc.json`, `enums.json`, `models.json` (`PendingWorldMerge.sourceWorldId/targetWorldId/scheduledDate`).
 - `research/docs/CONTRATO_CLIENTE.md`, `ANALISIS.md`, `PROTOCOLO.md`
 - `research/fixtures/live_20260906_160330/client_expect.json` — credentials URL en Javelin-CF.

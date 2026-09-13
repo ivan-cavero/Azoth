@@ -1,7 +1,16 @@
+# [ARCHIVED — pre-monorepo design document (Spanish)]
+
+> Written 2026-09-06 for the three-submodule layout (research/emulator/launcher).
+> The repo is now a single monorepo: research/ and services/{gateway,world,launcher} + deploy/.
+> Kept for design rationale; paths inside refer to the OLD layout and do NOT resolve.
+> Live architecture docs: [docs/INDEX.md](../INDEX.md) and [services/docs/](../../services/docs/INDEX.md).
+
+---
+
 # New World Private Server — Arquitectura del emulador
 
 | Campo | Valor |
-|---|---|
+| --- | --- |
 | **Título** | Emulador privado de New World: Aeternum — diseño de arquitectura |
 | **Autor** | operador del repo |
 | **Fecha** | 2026-09-06 |
@@ -57,9 +66,9 @@ Dolor actual:
 **Sí tenemos (evidencia en este repo):**
 
 | Pieza | Dónde | Qué cubre |
-|---|---|---|
+| --- | --- | --- |
 | Escalera `GameConnection` | `captures/live_20260906_160330/extracted/state_machine.jsonl`, `REPORT.md` | `Disconnected → QueryGameUpdateCheck → QueueGameLogin → WaitingForQueuedLogin → QueryForRemoteConfigClass → WaitingForRemoteConfigClass → ObtainREPRequirements → StartREPConnection → WaitingForREPConnection → WaitingForActorGameConnection → WaitingForSpawnPoint → WaitingForPlayerSpawn → InGame`. También `InGame → WaitingForPlayerSpawn` en cambio de mapa y `InGame → Disconnected` al cambiar de mundo. |
-| Channel config completo | `_re/channel_config.json`, `captures/live_20260906_160330/extracted/remote_json/channel.json` | Clusters `fra/gru/iad/pdx/syd-prod`, Omni metadata (`tokenservice.amazongames.com`, `prod.newworld.com`). |
+| Channel config completo | `notes/channel_config.json`, `captures/live_20260906_160330/extracted/remote_json/channel.json` | Clusters `fra/gru/iad/pdx/syd-prod`, Omni metadata (`tokenservice.amazongames.com`, `prod.newworld.com`). |
 | CMS plaintext | `captures/live_20260906_160330/extracted/remote_json/{news,tiles,motd}.json` | News, marketing tiles, MOTD. ETag obligatorio (sin ETag el cliente crashea). MOTD polleado ~60 s. |
 | Catálogo de hosts (38) | `captures/live_20260906_160330/extracted/endpoints_catalog.json` | Auth stack, loginGateway, JavelinGateway CF, CMS, entitlements, catalog, privacy, identity, Vivox, EAC datarouter, STS. **No** incluye `ags-javelin-remote-config.s3.amazonaws.com` (sí está en `tools/re/common.py` `ENDPOINT_ROLES`). El catálogo **no** es la allowlist de hosts. |
 | Forma Vivox | `captures/live_20260906_160330/logs/events.jsonl` (91 eventos) | Login `.amazon9050-ne28.<characterId>+B.`, SIP `sip:confctl-d-amazon9050-ne28.<gridId>_<token>@nwxp0euc1.vivox.com`. Puertos UDP **vistos en esta sesión**: 27020, 27022, 27024, 27026 (`client_expect.json` `pcap_udp_voice_ports`). 27018 **no** apareció aquí. |
@@ -73,7 +82,7 @@ Dolor actual:
 **No tenemos (bloquean “emulador hecho”):**
 
 | Hueco | Severidad | Cómo se cierra |
-|---|---|---|
+| --- | --- | --- |
 | Cuerpos HTTPS de `/prod/credentials/omni`, `getlogininfo`, create/validate character, `login/queue/v2` | Alta | El cliente los pedirá a **nuestro** mock. Game.log solo imprime efectos (ticket, `RepAddress`, character id), no el JSON. |
 | Cuerpos S3 `remoteCfg` | Alta (acoplado a Omni) | Tamaños conocidos: 190, 542, 1070, 1856, 872, 5887, 146 bytes. `{}` **puede ser demasiado pequeño**. El mock sirve el keyspace S3; tamaños capturados son fallback de longitud, no conjetura de forma JSON. Ver contrato Omni+S3+SigV4. |
 | Plaintext DTLS / Carrier Javelin del pcap oficial | Alta | Ciphertext. Tamaños, hellos, IPs. El decode real llega cuando **nosotros** terminamos DTLS. |
@@ -251,7 +260,7 @@ flowchart LR
 ### Lenguajes
 
 | Pieza | Elección v1 | Motivo |
-|---|---|---|
+| --- | --- | --- |
 | Terminator TLS | **Caddy** (compose, `:443`) | SNI, ALPN h1/h2, Python sin admin en 443. rustls del gateway no entra. |
 | Gateway | **Python** (FastAPI o Starlette + uvicorn en `127.0.0.1:8080`, HTTP claro detrás de Caddy) | El 90 % del trabajo próximo es JSON que **aún no tenemos**. `docs/ANALISIS.md` §5.3 lo permite. Reescritura a Rust (`axum`) cuando el schema cierre. |
 | World / REP / sim | **Rust** + **openssl** (crate `openssl` / `tokio-native-tls` sobre OpenSSL, o `s2n-tls` si openssl se atasca) | Tick **30 Hz**, un hilo de sim, **sin GC**. Densidad > CCU: ver `emulator/docs/PERFORMANCE.md`. **rustls no habla DTLS 1.2**. C++ solo si el crate DTLS no da el cipher. |
@@ -305,8 +314,8 @@ tools/capture/.last-session
 *.etl
 *.pcap
 *.pcapng
-_re/*.exe
-_re/*.dll
+notes/*.exe
+notes/*.dll
 deploy/certs/*.pem
 apps/gateway/certs/*.pem
 apps/world/certs/*.pem
@@ -352,7 +361,7 @@ TLS **no** vive en Python. Caddy termina TLS y proxea a `:8080`.
 Redirect = sí → líneas `127.0.0.1` **y** `::1` en hosts. Redirect = no → no se toca; el cliente habla con el real (o falla solo).
 
 | hostname | rol | redirect | módulo |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `d2c74t4zimux3r.cloudfront.net` | channel-config | **sí** | `channel.py` |
 | `d1w0bfy6smo4d1.cloudfront.net` | JavelinGateway-CF / credentials/omni | **sí** | `omni.py`, `queue.py` |
 | `u433g9r00c.execute-api.eu-central-1.amazonaws.com` | loginGateway | **sí** | `characters.py`, `queue.py` |
@@ -476,7 +485,7 @@ Comunidad first-light se quedó post-V3. No repetir 8 meses de Ghidra a ciegas.
 `tools/re/` ya cubre disco:
 
 | Script | Rol |
-|---|---|
+| --- | --- |
 | `disk.py` | Snapshot install, PAK index (ZIP), copia `typeindex.json`, `bootstrap.cfg`, `engine.json` |
 | `strings.py` | Strings/PE del exe-como-archivo; needles Javelin/GridMate/DTLS/Omni |
 | `eac.py` | Lee `EasyAntiCheat/Settings.json` y logs locales. No bypass. |
@@ -517,7 +526,7 @@ Prioridad de sesiones mientras Amazon viva (`docs/CAPTURA.md`):
 ### Fases de producto (refinadas)
 
 | Fase | Criterio de hecho | Dependencias |
-|---|---|---|
+| --- | --- | --- |
 | 0 Captura official | Kit live + pcap alineado a Game.log | **Hecho** el login. Agotar prioridad 2–6 en **official** (launcher+EAC, hosts limpio). |
 | A-private spike | `NewWorld.exe` directo, sin EAC, llega a channel-uri/frontend | PR-03b `Start-NwPrivate.ps1`. Aún no medido en 1.400. |
 | 1 Auth mock | Cliente private en `StartREPConnection` → localhost | Caddy+channel+CMS; hosts+CA y/o URL parcheada si spike verde; Omni+S3+queue |
@@ -538,14 +547,14 @@ No hay API previa en este repo. Contratos que el gateway debe cumplir, con hones
 
 `GET https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`
 
-Shape real (`_re/channel_config.json`): `channelName`, un objeto por cluster, `platformMetadata.OMNI.STEAM_APP_ID.1063730` (`omniTokenUrl`, `nwTokenUrl`, `omniStage=prod`, `omniGameAlias=new-world`).
+Shape real (`notes/channel_config.json`): `channelName`, un objeto por cluster, `platformMetadata.OMNI.STEAM_APP_ID.1063730` (`omniTokenUrl`, `nwTokenUrl`, `omniStage=prod`, `omniGameAlias=new-world`).
 
 Mock v1: un cluster. Los `apiEndpoint` son hostnames que el hosts file resuelve a `127.0.0.1`.
 
 ### CMS (plaintext + ETag)
 
 | Recurso | URL |
-|---|---|
+| --- | --- |
 | News | `/newsstories/STEAM_APP_ID.1063730/metadata.json` |
 | Tiles | `/marketingtiles/STEAM_APP_ID.1063730/metadata.json` |
 | MOTD | `/motd/worlds_STEAM_APP_ID.1063730.json` |
@@ -702,7 +711,7 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ### A1. Parchear `NewWorldLauncher.exe` vs launch directo skip-EAC (elegido: skip-EAC en private)
 
 | | Parchear el launcher | `NewWorld.exe` directo (private) |
-|---|---|---|
+| --- | --- | --- |
 | Pros | Un atajo de bootstrap. | El launcher **es** el bootstrap de EAC; no usarlo evita integrity checks. Steam puede seguir abierto por `steam_api64.dll`. Parche de URL/pin en **copia** private. |
 | Cons | EAC lo mide. Ban en la cuenta de captura. | **No medido** en 1.400: puede arrancar, salir, o pedir nop del init EAC. |
 | Veredicto | **Rechazado** en ambos perfiles. | **Elegido** para private. Spike PR-03b. Official sigue launcher+EAC vanilla. Hosts+CA queda como fallback (segunda cuenta si hay que mockear con EAC vivo). |
@@ -710,7 +719,7 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ### A2. Docenas de microservicios al estilo Amazon (rechazado)
 
 | | |
-|---|---|
+| --- | --- |
 | Pros | Mapeo 1:1 con `clientTag` del channel config; escala teórica. |
 | Cons | No tenemos los JSON. 20 procesos vacíos no descubren protocolo. Operación absurda para 1–50 jugadores. |
 | Veredicto | Dos procesos. Interfaces internas. Split cuando un worker de dungeon lo justifique. |
@@ -718,7 +727,7 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ### A3. Git submodules por componente (rechazado v1)
 
 | | |
-|---|---|
+| --- | --- |
 | Pros | Ciclos de release independientes; un GridMate fork público se pinnea. |
 | Cons | Clone pain, SHA pin drift, CI. Un operador. El repo ya es la semilla. |
 | Veredicto | Directorios. Revisitar si decomp tooling o GridMate fork merecen repo propio. |
@@ -726,7 +735,7 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ### A4. Gateway en Rust desde el día 1 (aplazado, no rechazado)
 
 | | |
-|---|---|
+| --- | --- |
 | Pros | Un lenguaje, TLS propio, un binario, schemas estrictos (`docs/ANALISIS.md` §5.3 lo recomienda a largo plazo). |
 | Cons | El trabajo inmediato es “el cliente mandó un POST que no está en el log”. Python gana en el bucle de descubrimiento. |
 | Veredicto | Python para el mock. **World = Rust + openssl DTLS** (no rustls; rustls no tiene record layer DTLS). C++ solo si openssl no entrega `ECDHE-RSA-AES256-GCM-SHA384`. Gateway se reescribe cuando el schema de login cierre (post Fase 1–2). |
@@ -734,7 +743,7 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ### A5. Un solo proceso (gateway+world) (rechazado)
 
 | | |
-|---|---|
+| --- | --- |
 | Pros | Un binario, un puerto extra menos. |
 | Cons | GC/runtime de Python en el tick, o un binario nativo arrastrando HTTP JSON que cambia cada hora. El split HTTP vs DTLS es el split de cadencia. |
 | Veredicto | Dos procesos. |
@@ -742,7 +751,7 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ### A6. MITM de Amazon con CA (rechazado)
 
 | | |
-|---|---|
+| --- | --- |
 | Pros | Veríamos los JSON de login oficiales. |
 | Cons | Pin/CA de Amazon. Interceptar login oficial es atacar su TLS y arriesga la cuenta. `docs/CAPTURA.md`: “Mientras juguemos en oficial, no interceptar”. |
 | Veredicto | MITM **solo** de nuestro mock. Los JSON oficiales se descubren cuando el cliente nos los pida. |
@@ -750,7 +759,7 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ### A7. uvicorn termina TLS en :443 vs Caddy/nginx delante (elegido: Caddy)
 
 | | |
-|---|---|
+| --- | --- |
 | uvicorn TLS | Un proceso menos. HTTP/1.1. Python necesita admin / `netsh http add urlacl` / Docker cap para 443. ALPN h2 no sale de uvicorn estándar. |
 | Caddy/nginx | SNI, ALPN h1/h2, Python en `127.0.0.1:8080` sin privilegios. Compose publica 443/tcp. Sigue siendo CA local, **sin** parche de launcher. |
 | Veredicto v1 | **Caddy**. El spike de trust store es independiente de quién termina TLS: el cliente tiene que confiar el cert. Caddy da HTTP/2 “gratis” si el exe lo pide. nginx es equivalente; no los dos. |
@@ -758,7 +767,7 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ### A8. Redirect de STS “por si acaso” (rechazado)
 
 | | |
-|---|---|
+| --- | --- |
 | Pros | Si el cliente llama STS, no 403 contra AWS real. |
 | Cons | Hijack de un SDK que puede solo resolver el nombre. Un stub STS mal hecho tumba Fase 1. DNS ≠ uso. |
 | Veredicto | Allowlist `redirect=no`. Reabrir solo con dump de request STS tras poseer S3. |
@@ -768,10 +777,10 @@ Steam: el cliente envía el ticket a Omni embebido → nuestro `tokenservice`. `
 ## Security & Privacy Considerations
 
 | Amenaza | Severidad | Mitigación |
-|---|---|---|
+| --- | --- | --- |
 | Ban EAC por inject/RPM/parche en **official** | Crítica | Prohibido. `memory.py` refuse si EAC vivo. Captura pasiva. |
 | Exe parcheado / skip-EAC contra Amazon | Crítica | `switch-mode.ps1 official` rechaza `Start-NwPrivate` y cualquier hash de copia private. Nunca hosts Amazon + exe no-vanilla. |
-| Commitear Steam session tickets | Alta | Default-deny `captures/*`; ignore `mock_discovery/`, `*.raw`, certs. CI grep `steam|` / `ASIA`. `redact()` no cubre bodies Omni crudos. |
+| Commitear Steam session tickets | Alta | Default-deny `captures/*`; ignore `mock_discovery/`, `*.raw`, certs. CI grep `steam | ` / `ASIA`.`redact()` no cubre bodies Omni crudos. |
 | Hosts sucio al jugar oficial (IPv4-only, DNS cache, proceso vivo) | Alta | Checklist PR-04: kill client/launcher/EAC → escribir/restaurar hosts (IPv4+IPv6 allowlist) → `ipconfig /flushdns` → `nslookup` / `curl --resolve` **antes** de Steam. `tools/capture` no toca hosts. |
 | CA local instalada globalmente | Media | CA **solo** en la máquina del operador. **Puede quedarse** en Root en modo official (los certs de Amazon siguen encadenando a CAs públicas). No distribuir la private key. SAN = allowlist, no el catálogo 38. |
 | Reenviar tickets a Amazon / 403 S3 real | Alta | Gateway **sin egress** a login Amazon. S3 remote-config **está** en la allowlist (el cliente habla con nosotros, no con AWS). STS **no** se redirige. |
@@ -814,7 +823,7 @@ El kit de captura **es** la observabilidad del protocolo. El emulador debe emiti
 **Métricas de carga esperada (día 1)**
 
 | | Target |
-|---|---|
+| --- | --- |
 | Jugadores | 1 congelado (Fase 2) → 1 moviéndose (Fase 3) → ~50 (Fase 4) |
 | Tick | 20–30 Hz |
 | HTTPS | decenas de req/s en login; MOTD 1/60 s |
@@ -845,7 +854,7 @@ No hay usuarios externos. El “rollout” es el operador en esta máquina.
 ## Riesgos
 
 | Riesgo | Sev. | Mitigación |
-|---|---|---|
+| --- | --- | --- |
 | Schema de queue/getlogininfo distinto al inferido | Alta | Discovery log; no hardcodear un JSON inventado como “oficial”. Comparar avance de `state_machine.jsonl`. |
 | Pin DTLS no extraíble de PEM ASCII | Alta | PR-06. Si skip-EAC verde: parche de pin en **copia private** (PR-06b). Si skip-EAC rojo: no se toca el Steam vanilla; Carrier espera o fallback segunda cuenta. |
 | Skip-EAC falla en 1.400 (sale / pide EAC) | Alta | Nop del init EAC **solo** en copia private, o fallback hosts+CA+EAC con **segunda cuenta**. Nunca skip contra Amazon. |
@@ -898,7 +907,7 @@ Solo las que bloquean arquitectura. **No** se pregunta submodules vs folders (de
 - `captures/live_20260906_160330/extracted/remote_json/` — channel, news, tiles, motd.
 - `captures/live_20260906_160330/REPORT.md`, `network/pktmon.analysis.json`.
 - `captures/live_20260906_155045/` — segunda sesión InGame, REP `35.71.153.244:23771`.
-- `_re/channel_config.json`.
+- `notes/channel_config.json`.
 - Lumberyard GridMate MIT: `aws/lumberyard` `Code/Framework/GridMate/` (`SecureSocket`, verify callbacks — input de PR-06).
 - AWS re:Invent 2021, Werner Vogels — 4 REPs, 7 hubs (contexto, no blueprint).
 - Comunidad: OpenWorld / first-light (Discord, repo histórico defunct); Aeternum Legacy (tratar con escepticismo). Usar specs de wire format, no copiar un server.
@@ -1043,4 +1052,3 @@ Aceptación: **no** hay un gate único de `state_machine.jsonl` para todos. Cada
 - **Descripción:** Fase 3–4. Fuera del primer lote.
 
 Orden de merge: **01 → 02**; luego **03 ∥ 03b ∥ 04 ∥ 05 ∥ 06**; spike TLS + spike skip-EAC; **06b** solo si 03b verde; **07 → 08 → 09 → 10 → 11**; **12 → 13 → 14** con informe pin (y parche private si hace falta). **15** después.
-

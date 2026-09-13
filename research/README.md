@@ -1,23 +1,26 @@
 # Azoth research
 
-Laboratorio de **captura, ingeniería inversa y decompilación** del cliente New World. Submódulo de **Azoth**.
+**Capture, reverse engineering and decompilation** lab for the New World client, part of the **Azoth** monorepo.
 
-No hay carpeta `capture/captures`: el repo se llama `research/`, las sesiones van en `sessions/`.
+Sessions go in `sessions/` (raw dumps gitignored). Docs, atlas and commits are in English.
 
 ```
 research/
-  docs/            análisis, kit, EAC, contrato, sesiones, protocolo
-  tools/capture/   Start-NwCapture.bat — grabar una sesión official
-  tools/re/        disk, strings, pcap, endpoints
-  tools/decomp/    Ghidra / parches de la copia private
+  atlas/           RE memory: endpoints, models, errors, levers
+  docs/            analysis, kit, EAC, contract, decompilation, sessions, protocol
+  derived/         decompilation output — regenerable, gitignored
+  fixtures/        redacted extracts
   schemas/live/    channel + CMS (plaintext)
-  fixtures/        extractos redactados
-  sessions/        dumps crudos — gitignored (tickets, pcap)
-  _re/             channel_config local
+  sessions/        raw dumps — gitignored (tickets, pcap)
+  notes/           local channel_config
+  tools/capture/   Start-NwCapture.bat — record an official session
+  tools/reversing/ disk, strings, pcap, endpoints
 ```
 
-## Capturar (perfil official)
+## Capture (official profile)
 
-Steam + New World como siempre. Admin: `tools\capture\Start-NwCapture.bat`. Juega 5–15 min. ENTER. Empieza por `sessions/<sesión>/REPORT.md`.
+Steam + New World as always. Admin: `tools\capture\Start-NwCapture.bat`. Play 5–15 min. ENTER. Start with `sessions/<session>/REPORT.md`.
 
 Docs: [docs/INDEX.md](docs/INDEX.md).
+
+Docs and commits are written in English.

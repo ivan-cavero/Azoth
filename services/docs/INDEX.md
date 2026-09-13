@@ -1,10 +1,10 @@
-# Emulador — índice
+# Emulator — index
 
-| Doc | Contenido |
+| Doc | Content |
 | --- | --- |
-| [GATEWAY.md](GATEWAY.md) | HTTPS: channel, CMS, Omni, S3, personajes, cola |
-| [WORLD.md](WORLD.md) | DTLS, Carrier, spawn congelado |
-| [PERFORMANCE.md](PERFORMANCE.md) | Densidad, tick, AOI — por qué official laggeaba |
-| [DATA.md](DATA.md) | Postgres mínimo |
+| [GATEWAY.md](GATEWAY.md) | HTTPS: channel, CMS, Omni, S3, characters, queue |
+| [WORLD.md](WORLD.md) | DTLS, Carrier, frozen spawn |
+| [PERFORMANCE.md](PERFORMANCE.md) | Density, tick, AOI — why official lagged |
+| [DATA.md](DATA.md) | Minimal Postgres |
 
-Arquitectura de sistema: `../../docs/ARQUITECTURA.md`. JSON que el cliente ya pidió: `../../research/schemas/live/` y `../../research/docs/CONTRATO_CLIENTE.md`.
+System architecture: `../../docs/archive/ARQUITECTURA.md` (archived). JSON the client already requested: `../../research/schemas/live/` and `../../research/docs/CONTRATO_CLIENTE.md`.

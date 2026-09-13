@@ -1,5 +1,5 @@
 {
-  "_comment": "Landmarks in NewWorld.exe, RE'd so future sessions can name addresses instead of re-deriving them. 'va' = virtual address (image base 0x140000000). Add entries as they are confirmed; every va here should be reachable with: python tools/re/decomp.py --symbol <name>",
+  "_comment": "Landmarks in NewWorld.exe, RE'd so future sessions can name addresses instead of re-deriving them. 'va' = virtual address (image base 0x140000000). Add entries as they are confirmed; every va here should be reachable with: python tools/reversing/decomp.py --symbol <name>",
   "worldtype_mapper": {
     "va": "0x1417c40a0",
     "what": "Maps a string to the WorldType enum: strncmp 'FTUE' (len 4) -> 0, 'OpenWorld' (len 9) -> 1, else 2 (Unknown). Confirms the wire token is the bare 'OpenWorld', not 'eWorldType_OpenWorld'.",

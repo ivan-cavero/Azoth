@@ -1,5 +1,5 @@
-# Launcher — índice
+# Launcher — index
 
-| Doc | Contenido |
+| Doc | Content |
 |---|---|
-| [LAUNCHER.md](LAUNCHER.md) | Updater, Play, seed legal, skip-EAC |
+| [LAUNCHER.md](LAUNCHER.md) | Updater, Play, legal seed, skip-EAC |

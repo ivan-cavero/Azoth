@@ -5,9 +5,9 @@ The naive approach (scan .text per query) is O(n) per string and times out on a
 400 MB binary. This builds {target_va: [insn_file_offsets]} once.
 
 Usage:
-  python research/tools/re/xrefmap.py dump --lo <hex> --hi <hex>   # strings the
+  python research/tools/reversing/xrefmap.py dump --lo <hex> --hi <hex>   # strings the
       code in that VA window loads (its key table), one scan
-  python research/tools/re/xrefmap.py xrefs --needle <str> [--needle ...]
+  python research/tools/reversing/xrefmap.py xrefs --needle <str> [--needle ...]
 """
 
 from __future__ import annotations

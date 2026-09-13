@@ -51,11 +51,11 @@ If it still 413s: `python scripts/shrink-image.py <capture.png> "" 640`. The
 
 See `research/docs/DECOMPILATION.md` for the full workflow. Summary:
 
-1. **xrefmap first** (`research/tools/re/xrefmap.py`): one pass over `.text`,
+1. **xrefmap first** (`research/tools/reversing/xrefmap.py`): one pass over `.text`,
    persisted `{va: [xrefs]}` map. Per-query scans are O(n) and timeout.
 2. **Strings and the AZ reflection registry**: the camelCase property names in the
    reflection block ARE the wire keys. A block with no xrefs is decorative.
-3. **Ghidra headless** for the real unmarshaller: `research/tools/re/decomp.py`
+3. **Ghidra headless** for the real unmarshaller: `research/tools/reversing/decomp.py`
    (Ghidra at `C:\Users\ivang\tools\ghidra_12.1.3_PUBLIC`). Output to
    `research/derived/decomp/` (gitignored, regenerable).
 4. **Capstone for targeted parsers** (key order, types). Offset conventions:

@@ -14,11 +14,11 @@ validate.py compile + env check
 ```
 
 ```bat
-python tools\re\validate.py
-python tools\re\disk.py --out sessions\disk_snapshot
-python tools\re\strings.py --out sessions\static_exe
-python tools\re\endpoints.py --session sessions\<session>
-python tools\re\net.py analyze sessions\<session>\network\pktmon.pcapng
+python tools\reversing\validate.py
+python tools\reversing\disk.py --out sessions\disk_snapshot
+python tools\reversing\strings.py --out sessions\static_exe
+python tools\reversing\endpoints.py --session sessions\<session>
+python tools\reversing\net.py analyze sessions\<session>\network\pktmon.pcapng
 ```
 
 `memory.py` is a hard no while EAC EOS is live. See `docs/EAC.md`.
