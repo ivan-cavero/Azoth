@@ -65,7 +65,7 @@ class GatewayTest(unittest.TestCase):
         code, h, body = get(18080, "/STEAM_APP_ID.1.BRANCH.xyz123.json")
         self.assertEqual(code, 200)
         self.assertIn("ETag", h)
-        self.assertIn("azoth-1", body.decode())
+        self.assertIn("fra-prod", body.decode())
         # 304 on If-None-Match
         code2, _, _ = get(18080, "/STEAM_APP_ID.1063730.json", {"If-None-Match": h["ETag"]})
         self.assertEqual(code2, 304)
@@ -253,8 +253,8 @@ class GatewayTest(unittest.TestCase):
         self.assertEqual(code, 200)
         doc = json.loads(body.decode())
         # Region names come from the registry, not live @mm_ cluster ids.
-        self.assertEqual(doc["azoth-1"]["displayName"], "Azoth EU")
-        self.assertEqual(doc["azoth-1"]["localizedName"], "Azoth EU")
+        self.assertEqual(doc["fra-prod"]["displayName"], "EU Central")
+        self.assertEqual(doc["fra-prod"]["localizedName"], "EU Central")
         self.assertNotIn("@mm_", body.decode())
 
     def test_images_dds_placeholder(self):

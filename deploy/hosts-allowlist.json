@@ -56,6 +56,70 @@
     {
       "host": "dynamodb.eu-central-1.amazonaws.com",
       "role": "worlds-dynamodb"
+    },
+    {
+      "host": "kqqt5twsi7.execute-api.us-east-1.amazonaws.com",
+      "role": "gru-prod-authStack"
+    },
+    {
+      "host": "j4n6whncmi.execute-api.sa-east-1.amazonaws.com",
+      "role": "gru-prod-loginGateway"
+    },
+    {
+      "host": "ei4rb8pwvd.execute-api.sa-east-1.amazonaws.com",
+      "role": "gru-prod-JavelinGatewayServiceV2"
+    },
+    {
+      "host": "d1cjlmzk0xrm0z.cloudfront.net",
+      "role": "gru-prod-JavelinGatewayService-CF"
+    },
+    {
+      "host": "0prplal5u1.execute-api.us-east-1.amazonaws.com",
+      "role": "iad-prod-loginGateway"
+    },
+    {
+      "host": "eudbjx6mig.execute-api.us-east-1.amazonaws.com",
+      "role": "iad-prod-authStack"
+    },
+    {
+      "host": "3khxmonavl.execute-api.us-east-1.amazonaws.com",
+      "role": "iad-prod-JavelinGatewayServiceV2"
+    },
+    {
+      "host": "d2oeuvxi3kfsrw.cloudfront.net",
+      "role": "iad-prod-JavelinGatewayService-CF"
+    },
+    {
+      "host": "q8hqllbg6k.execute-api.us-east-1.amazonaws.com",
+      "role": "pdx-prod-authStack"
+    },
+    {
+      "host": "v7irlu1nrl.execute-api.us-west-2.amazonaws.com",
+      "role": "pdx-prod-loginGateway"
+    },
+    {
+      "host": "mwsyzhfoe5.execute-api.us-west-2.amazonaws.com",
+      "role": "pdx-prod-JavelinGatewayServiceV2"
+    },
+    {
+      "host": "d3bj4csovi1fe8.cloudfront.net",
+      "role": "pdx-prod-JavelinGatewayService-CF"
+    },
+    {
+      "host": "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
+      "role": "syd-prod-authStack"
+    },
+    {
+      "host": "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
+      "role": "syd-prod-loginGateway"
+    },
+    {
+      "host": "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
+      "role": "syd-prod-JavelinGatewayServiceV2"
+    },
+    {
+      "host": "de4mfzk9wkelz.cloudfront.net",
+      "role": "syd-prod-JavelinGatewayService-CF"
     }
   ],
   "never_redirect": [

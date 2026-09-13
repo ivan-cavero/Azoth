@@ -1,10 +1,106 @@
 {
   "regions": [
-    {"awsRegion": "eu-central-1", "displayName": "Azoth EU", "id": "azoth-1", "status": "ACTIVE"},
-    {"awsRegion": "us-east-1", "displayName": "Azoth US", "id": "azoth-2", "status": "ACTIVE"}
+    {
+      "id": "fra-prod",
+      "displayName": "EU Central",
+      "awsRegion": "eu-central-1",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "gru-prod",
+      "displayName": "SA East",
+      "awsRegion": "sa-east-1",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "iad-prod",
+      "displayName": "US East",
+      "awsRegion": "us-east-1",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "pdx-prod",
+      "displayName": "US West",
+      "awsRegion": "us-west-2",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "syd-prod",
+      "displayName": "AP Southeast",
+      "awsRegion": "ap-southeast-2",
+      "status": "ACTIVE"
+    }
   ],
   "worlds": [
-    {"announcement": "", "awsRegion": "eu-central-1", "displayName": "Azoth-1", "id": "00000000-0000-4000-8000-000000000001", "maxPlayers": 2500, "name": "azoth-1-01", "regionId": "azoth-1", "repAddress": "127.0.0.1:9000", "status": "ACTIVE", "type": "OpenWorld", "version": "1.400.6031.6004151", "worldSet": "azoth-1"},
-    {"announcement": "", "awsRegion": "us-east-1", "displayName": "Azoth-2", "id": "00000000-0000-4000-8000-000000000002", "maxPlayers": 2500, "name": "azoth-2-01", "regionId": "azoth-2", "repAddress": "127.0.0.1:9001", "status": "ACTIVE", "type": "OpenWorld", "version": "1.400.6031.6004151", "worldSet": "azoth-2"}
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "name": "azoth-01",
+      "displayName": "Azoth EU Central",
+      "regionId": "fra-prod",
+      "worldSet": "fra-prod",
+      "awsRegion": "eu-central-1",
+      "status": "ACTIVE",
+      "type": "OpenWorld",
+      "version": "1.400.6031.6004151",
+      "maxPlayers": 2500,
+      "repAddress": "127.0.0.1:9000",
+      "announcement": ""
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "name": "azoth-02",
+      "displayName": "Azoth SA East",
+      "regionId": "gru-prod",
+      "worldSet": "gru-prod",
+      "awsRegion": "sa-east-1",
+      "status": "ACTIVE",
+      "type": "OpenWorld",
+      "version": "1.400.6031.6004151",
+      "maxPlayers": 2500,
+      "repAddress": "127.0.0.1:9001",
+      "announcement": ""
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "name": "azoth-03",
+      "displayName": "Azoth US East",
+      "regionId": "iad-prod",
+      "worldSet": "iad-prod",
+      "awsRegion": "us-east-1",
+      "status": "ACTIVE",
+      "type": "OpenWorld",
+      "version": "1.400.6031.6004151",
+      "maxPlayers": 2500,
+      "repAddress": "127.0.0.1:9002",
+      "announcement": ""
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "name": "azoth-04",
+      "displayName": "Azoth US West",
+      "regionId": "pdx-prod",
+      "worldSet": "pdx-prod",
+      "awsRegion": "us-west-2",
+      "status": "ACTIVE",
+      "type": "OpenWorld",
+      "version": "1.400.6031.6004151",
+      "maxPlayers": 2500,
+      "repAddress": "127.0.0.1:9003",
+      "announcement": ""
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "name": "azoth-05",
+      "displayName": "Azoth AP Southeast",
+      "regionId": "syd-prod",
+      "worldSet": "syd-prod",
+      "awsRegion": "ap-southeast-2",
+      "status": "ACTIVE",
+      "type": "OpenWorld",
+      "version": "1.400.6031.6004151",
+      "maxPlayers": 2500,
+      "repAddress": "127.0.0.1:9004",
+      "announcement": ""
+    }
   ]
 }
