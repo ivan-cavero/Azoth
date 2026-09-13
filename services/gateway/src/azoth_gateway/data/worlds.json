@@ -1,1 +1,10 @@
-{"regions": [{"awsRegion": "eu-central-1", "displayName": "Azoth EU", "id": "azoth-1", "status": "ACTIVE"}], "worlds": [{"announcement": "", "awsRegion": "eu-central-1", "displayName": "Azoth-1", "id": "00000000-0000-4000-8000-000000000001", "maxPlayers": 2500, "name": "azoth-1-01", "regionId": "azoth-1", "repAddress": "127.0.0.1:9000", "status": "ACTIVE", "type": "OpenWorld", "version": "1.400.6031.6004151", "worldSet": "azoth-1"}]}
+{
+  "regions": [
+    {"awsRegion": "eu-central-1", "displayName": "Azoth EU", "id": "azoth-1", "status": "ACTIVE"},
+    {"awsRegion": "us-east-1", "displayName": "Azoth US", "id": "azoth-2", "status": "ACTIVE"}
+  ],
+  "worlds": [
+    {"announcement": "", "awsRegion": "eu-central-1", "displayName": "Azoth-1", "id": "00000000-0000-4000-8000-000000000001", "maxPlayers": 2500, "name": "azoth-1-01", "regionId": "azoth-1", "repAddress": "127.0.0.1:9000", "status": "ACTIVE", "type": "OpenWorld", "version": "1.400.6031.6004151", "worldSet": "azoth-1"},
+    {"announcement": "", "awsRegion": "us-east-1", "displayName": "Azoth-2", "id": "00000000-0000-4000-8000-000000000002", "maxPlayers": 2500, "name": "azoth-2-01", "regionId": "azoth-2", "repAddress": "127.0.0.1:9001", "status": "ACTIVE", "type": "OpenWorld", "version": "1.400.6031.6004151", "worldSet": "azoth-2"}
+  ]
+}

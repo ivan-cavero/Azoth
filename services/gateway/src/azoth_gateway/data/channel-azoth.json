@@ -44,5 +44,39 @@
       "omniStage": "prod",
       "omniGameAlias": "new-world"
     }
+  },
+  "azoth-2": {
+    "displayName": "Azoth-2",
+    "localizedName": "Azoth-2",
+    "poolId": "us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93",
+    "publicApis": [
+      {
+        "awsRegion": "us-east-1",
+        "version": "1.0",
+        "apiEndpoint": "2mfrik7h83.execute-api.us-east-1.amazonaws.com",
+        "clientTag": "authStack",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+        "clientTag": "loginGateway",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "8otrnl8e8d.execute-api.eu-central-1.amazonaws.com",
+        "clientTag": "JavelinGatewayServiceV2",
+        "stage": "prod"
+      },
+      {
+        "awsRegion": "eu-central-1",
+        "version": "1.0",
+        "apiEndpoint": "d1w0bfy6smo4d1.cloudfront.net",
+        "clientTag": "JavelinGatewayService-CF"
+      }
+    ]
   }
 }
