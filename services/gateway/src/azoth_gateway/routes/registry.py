@@ -169,19 +169,16 @@ def _world_entry(w: dict) -> dict:
 def worlds_list_doc(reg: Registry) -> dict:
     """GET /prod/game/worlds/list/... = ListWorlds.
 
-    Landing screen GetWorldList; GetLoginInfoLists is filled by getlogininfo.
-    Live wire is the WorldsInfo reflection model (camelCase): `worlds` /
-    `recommendedWorlds` with WorldMetadata entries (see symbols.json
-    worldmetadata_property_table). The PascalCase aws-sdk member names are
-    dead in 1.400 (0 xrefs, decorative table 0x148702000).
+    Fills Game.GetWorldList (the VER MUNDOS table). Live wire is the
+    WorldsInfo reflection model (camelCase): `worlds` / `recommendedWorlds`
+    (getter thunks registered in big_parser; PascalCase names have 0 lea
+    xrefs). Per-world shape: exactly the 16 WorldMetadata keys - a strict
+    parse drops the element on unknown-type keys, so no casing unions here.
     """
-    entries = [_world_entry(w) for w in reg.worlds]
-    # ponytail: top-level dual casing, strict per-world shape stays in _world_entry
+    entries = [_world_metadata(w) for w in reg.worlds]
     return {
         "worlds": entries,
         "recommendedWorlds": [],
-        "Worlds": entries,
-        "RecommendedWorlds": [],
     }
 
 
