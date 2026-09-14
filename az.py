@@ -4,6 +4,8 @@
 Examples:
   python az.py gateway start     # gateway :8080 in a new window
   python az.py gateway test      # gateway unit tests (17)
+  python az.py world start       # Javelin REP/DTLS server :9000 in a new window
+  python az.py world test        # world unit tests (javelin + DTLS handshake)
   python az.py caddy             # Caddy :443 (elevates via UAC)
   python az.py game              # launch New World private (watch mode)
   python az.py mode status       # hosts mode: official | private
@@ -113,6 +115,21 @@ def cmd_doc(_args: list[str]) -> int:
     return subprocess.call([sys.executable, str(SCRIPTS / "gen_openapi.py")])
 
 
+def cmd_world(args: list[str]) -> int:
+    action = args[0] if args else "start"
+    src = ROOT / "services" / "world" / "src"
+    if action == "test":
+        return sh([sys.executable, str(ROOT / "services" / "world" / "tests" / "test_javelin.py")]) + sh(
+            [sys.executable, str(ROOT / "services" / "world" / "tests" / "test_rep.py")]
+        )
+    if action != "start":
+        print(__doc__)
+        return 2
+    port = args[1] if len(args) > 1 else "9000"
+    cmd = f"$env:PYTHONPATH='{src}'; python -u -m azoth_world --port {port}"
+    return ps_window(cmd, "Azoth World")
+
+
 def cmd_caddy(_args: list[str]) -> int:
     exe = ROOT / "deploy" / "bin" / "caddy.exe"
     cfg = ROOT / "deploy" / "Caddyfile.json"
@@ -163,6 +180,8 @@ def main() -> int:
     head, rest = argv[0], argv[1:]
     if head == "gateway":
         return cmd_gateway(rest)
+    if head == "world":
+        return cmd_world(rest)
     if head == "doc":
         return cmd_doc(rest)
     if head == "caddy":

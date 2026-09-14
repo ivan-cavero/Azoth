@@ -14,6 +14,8 @@ derived/decomp/
 !research/derived/*.json
 services/gateway/mock_discovery/
 services/gateway/traffic.jsonl
+services/world/rep_traffic.jsonl
+services/world/certs/
 deploy/certs/
 deploy/caddy_data/
 deploy/bin/
