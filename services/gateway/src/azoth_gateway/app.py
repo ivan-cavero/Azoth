@@ -73,6 +73,10 @@ class Handler(BaseHTTPRequestHandler):
     # ponytail: Amazon responde HTTP/1.1; aws-sdk-cpp (WinHTTP) descarta bodies
     # de un 200 HTTP/1.0.
     protocol_version = "HTTP/1.1"
+    # ponytail: sin TCP_NODELAY, el write de headers + write de body sufre el
+    # stall delayed-ACK(~40ms)/Nagle de Windows -> el "ping de región" que el
+    # cliente muestra sobre /ping medía ~40-70ms en loopback. Con NODELAY: ~2ms.
+    disable_nagle_algorithm = True
 
     def log_message(self, format: str, *args: object) -> None:  # stdlib signature
         print(f"[gw] {self.command} {self.path} " + (format % args))
@@ -210,7 +214,7 @@ class Handler(BaseHTTPRequestHandler):
         elif is_characters_path(path):
             key, payload = "characters", characters_response(st.cfg.discovery_dir)
         elif is_queue_path(path):
-            key, payload = "queue", queue_response(st.cfg.discovery_dir)
+            key, payload = "queue", queue_response(st.cfg.discovery_dir, path)
         elif is_entitlements_sync_path(path):
             key, payload = (
                 "entitlements:sync",
