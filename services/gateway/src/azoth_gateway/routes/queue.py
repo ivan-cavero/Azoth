@@ -16,6 +16,7 @@ Override: <discovery_dir>/queue.json is served verbatim (no restart).
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from pathlib import Path
@@ -24,46 +25,71 @@ from .characters import PLACEHOLDER_CHARACTER_ID
 from .registry import load, queue_fields
 
 OVERRIDE_NAME = "queue.json"
+# Refresh path carries the issued ticket: /prod/game/login/queue/v2/<id>/jwt/omni
+_REFRESH_RE = re.compile(r"/queue/v2/[^/]+/jwt")
 
 
-def queue_response(discovery_dir: Path | None = None) -> bytes:
+def _ticket(rep: str, world_id: str, world_name: str) -> dict:
+    """The login-ticket envelope (parser: FUN_1474e4f20 family)."""
+    ticket_id = str(uuid.uuid4())
+    now = int(time.time())
+    return {
+        "AccountAge": 0,
+        "AccountIsLocked": False,
+        "CharacterId": PLACEHOLDER_CHARACTER_ID,
+        "ClientCapabilities": "",
+        "GenerateTime": now,
+        "HostHash": "",
+        "IsPermanentAppOwner": True,
+        "IsTrialOwner": False,
+        "IssueTime": now,
+        "Location": "",
+        "LocationGroupId": "",
+        "LocationId": "",
+        "PersonaId": "",
+        "RepAddress": rep,
+        "Signature": f"sig:{ticket_id}",  # handoff gate: must be non-empty
+        "SteamAppId": 1063730,
+        "SteamUserId": "",
+        "TicketId": ticket_id,
+        "TokenVersion": 10,
+        "WorldId": world_id,
+        "WorldName": world_name,
+    }
+
+
+def queue_response(discovery_dir: Path | None = None, path: str = "") -> bytes:
     if discovery_dir is not None:
         fp = discovery_dir / OVERRIDE_NAME
         if fp.is_file():
             return fp.read_bytes()
     rep, world_id, world_name = queue_fields(load(discovery_dir))
-    ticket_id = str(uuid.uuid4())
-    now = int(time.time())
-    return (
-        json.dumps(
-            {
-                "LoginQueueResponse": {
-                    "AccountAge": 0,
-                    "AccountIsLocked": False,
-                    "CharacterId": PLACEHOLDER_CHARACTER_ID,
-                    "ClientCapabilities": "",
-                    "GenerateTime": now,
-                    "HostHash": "",
-                    "IsPermanentAppOwner": True,
-                    "IsTrialOwner": False,
-                    "IssueTime": now,
-                    "Location": "",
-                    "LocationGroupId": "",
-                    "LocationId": "",
-                    "PersonaId": "",
-                    "RepAddress": rep,
-                    "Signature": f"sig:{ticket_id}",
-                    "SteamAppId": 1063730,
-                    "SteamUserId": "",
-                    "TicketId": ticket_id,
-                    "TokenVersion": 10,
-                    "WorldId": world_id,
-                    "WorldName": world_name,
+
+    if _REFRESH_RE.search(path):
+        # Refresh path (GET /queue/v2/<ticketId>/jwt/omni): the ready
+        # envelope. Position 0 + a full Token is what moves the client from
+        # WaitingForQueuedLogin to StartREPConnection.
+        ticket = _ticket(rep, world_id, world_name)
+        return (
+            json.dumps(
+                {
+                    "LoginQueueResponse": {
+                        "AllowQueueTransfer": False,
+                        "EstimatedTime": 0,
+                        "Position": 0,
+                        "QueueName": "eu-central-1",
+                        "RecommendedTransferWorldId": "",
+                        "RefreshInterval": 15,
+                        "TicketId": ticket["TicketId"],
+                        "Token": ticket,
+                    }
                 }
-            }
-        )
-        + "\n"
-    ).encode()
+            )
+            + "\n"
+        ).encode()
+
+    # Initial enqueue: issue a parseable ticket immediately (no real queue).
+    return (json.dumps({"LoginQueueResponse": _ticket(rep, world_id, world_name)}) + "\n").encode()
 
 
 def is_queue_path(path: str) -> bool:

@@ -11,7 +11,7 @@ research/docs/REP-PROTOCOL.md and `bytepat.py dtls-verify`):
 
     0x145dce8ad: 48 83 BF 88 02 00 00 00   CMP qword ptr [RDI+0x288], 0
     0x145dce8b5: 0F 84 19 01 00 00         JZ  0x145dce9d4   <- patch here
-    patched:     E9 19 01 00 00 90         JMP 0x145dce9d4 (same target)
+    patched:     E9 1A 01 00 00 90         JMP 0x145dce9d4 (recomputed)
 
 Re-derive with `python research/tools/reversing/bytepat.py dtls-verify`
 before trusting the VA on a newer client. This patch is IN-MEMORY ONLY (no
@@ -27,9 +27,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import ctypes
+import os
 import struct
-import sys
+import time
 from pathlib import Path
 
 IMAGE_BASE = 0x140000000
@@ -41,59 +41,43 @@ ORIGINAL = bytes.fromhex("0F8419010000")  # JZ rel32 -> 0x145dce9d4
 # archived displacements — rel32_jmp() recomputes from the verified target.
 
 FRIDA_JS = """
-const base = Module.getBaseAddress('NewWorld.exe');
-const patchVa = base.add(OFFSET_FROM_IMAGE_BASE);
-const size = 6;
-console.log('[azoth] NewWorld.exe base =', base);
-console.log('[azoth] patch site =', patchVa);
-
-const before = Memory.readByteArray(patchVa, size);
-console.log('[azoth] before:', Array.from(new Uint8Array(before))
-    .map(b => b.toString(16).padStart(2, '0')).join(' '));
-
-Memory.patchCode(patchVa, size, function (code) {
-    const bytes = new Uint8Array(PATCH_BYTES);
-    for (let i = 0; i < size; i++) code.add(i).writeU8(bytes[i]);
-});
-
-const after = Memory.readByteArray(patchVa, size);
-console.log('[azoth] after:', Array.from(new Uint8Array(after))
-    .map(b => b.toString(16).padStart(2, '0')).join(' '));
-console.log('[azoth] DTLS verify bypass ACTIVE');
+const mod = Process.findModuleByName('NewWorld.exe');
+if (!mod) { send(''); } else {
+  const base = mod.base;
+  const patchVa = base.add(%OFFSET%);
+  console.log('[azoth] NewWorld.exe base =', base);
+  console.log('[azoth] patch site =', patchVa);
+  console.log('[azoth] before:', hexdump(patchVa, {length: 6, header: false}));
+  if (%REVERT%) {
+    Memory.patchCode(patchVa, 6, function (code) {
+      const bytes = new Uint8Array(%ORIGINAL%);
+      for (let i = 0; i < 6; i++) code.add(i).writeU8(bytes[i]);
+    });
+    console.log('[azoth] ORIGINAL bytes restored');
+  } else {
+    Memory.patchCode(patchVa, 6, function (code) {
+      const bytes = new Uint8Array(%PATCHED%);
+      for (let i = 0; i < 6; i++) code.add(i).writeU8(bytes[i]);
+    });
+    console.log('[azoth] DTLS verify bypass ACTIVE');
+  }
+  console.log('[azoth] after:', hexdump(patchVa, {length: 6, header: false}));
+  send(base.toString(16));
+}
 """
 
 
-def image_base_of_pid(pid: int) -> int:
-    """Module base of NewWorld.exe for an already-running process."""
-    import frida
-
-    session = frida.attach(pid)
-    script = session.create_script(
-        "send(Module.getBaseAddress('NewWorld.exe').toString(16));"
-    )
-    result: list[str] = []
-    script.on("message", lambda msg, _data: result.append(msg["payload"]))
-    script.load()
-    session.detach()
-    if not result:
-        raise SystemExit("could not read module base — is this NewWorld.exe?")
-    return int(result[0], 16)
-
-
-def find_game_pid() -> int:
-    import frida
-
-    for proc in frida.enumerate_processes():
-        if proc.name.lower() == "newworld.exe":
-            return proc.pid
-    raise SystemExit("NewWorld.exe not running (or use --spawn)")
+def rel32_jmp(site_va: int, target_va: int) -> bytes:
+    """E9 rel32 from site_va (5 bytes) + NOP pad to the 6-byte JZ slot."""
+    rel = target_va - (site_va + 5)
+    return b"\xe9" + struct.pack("<i", rel) + b"\x90"
 
 
 def find_private_exe() -> Path:
     """Our private runtime exe (no EAC), never the Steam install."""
     local = Path(__file__).resolve().parents[1]
     for base in (
-        Path(__import__("os").environ["LOCALAPPDATA"]) / "Azoth" / "game" / "Bin64",
+        Path(os.environ["LOCALAPPDATA"]) / "Azoth" / "game" / "Bin64",
         local / "private-client" / "Bin64",
     ):
         exe = base / "NewWorld.exe"
@@ -104,12 +88,6 @@ def find_private_exe() -> Path:
     )
 
 
-def rel32_jmp(site_va: int, target_va: int) -> bytes:
-    """E9 rel32 from site_va (6-byte form: E9 + rel32 + NOP pad)."""
-    rel = target_va - (site_va + 5)
-    return b"\xe9" + struct.pack("<i", rel) + b"\x90"
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--spawn", action="store_true", help="spawn the private exe under Frida")
@@ -118,44 +96,69 @@ def main() -> int:
 
     import frida
 
+    target_va = PATCH_VA + 6 + struct.unpack("<i", ORIGINAL[2:6])[0]
+    patched = rel32_jmp(PATCH_VA, target_va)
+    js = (
+        FRIDA_JS.replace("%OFFSET%", str(PATCH_VA - IMAGE_BASE))
+        .replace("%ORIGINAL%", "[" + ", ".join(map(str, ORIGINAL)) + "]")
+        .replace("%PATCHED%", "[" + ", ".join(map(str, patched)) + "]")
+        .replace("%REVERT%", "true" if args.revert else "false")
+    )
+
     if args.spawn:
         exe = find_private_exe()
         print(f"[azoth] spawning {exe}")
         pid = frida.spawn([str(exe)])
-        session = frida.attach(pid)
-        frida.resume(pid)
     else:
-        pid = find_game_pid()
-        session = frida.attach(pid)
-    print(f"[azoth] attached to pid {pid}")
+        device = frida.get_local_device()
+        matches = [p for p in device.enumerate_processes() if p.name.lower() == "newworld.exe"]
+        if not matches:
+            raise SystemExit("NewWorld.exe not running (or use --spawn)")
+        pid = matches[0].pid
+    print(f"[azoth] attaching to pid {pid}")
+    session = frida.attach(pid)
 
-    base = image_base_of_pid(pid)
-    offset = PATCH_VA - IMAGE_BASE
-    # Recompute the jump from OUR build's disassembly — never trust the
-    # archived rel32 blindly (it was off by one; see NOTE above).
-    target_va = PATCH_VA + 6 + struct.unpack("<i", ORIGINAL[2:6])[0]
-    patch_bytes = ORIGINAL if args.revert else rel32_jmp(PATCH_VA, target_va)
-    print(f"[azoth] base={hex(base)} site={hex(base + offset)} bytes={patch_bytes.hex()}")
+    base: int | None = None
 
-    script = session.create_script(
-        FRIDA_JS.replace("OFFSET_FROM_IMAGE_BASE", str(offset)).replace(
-            "PATCH_BYTES",
-            "[" + ", ".join(str(b) for b in patch_bytes) + "]",
+    def make() -> "frida.core.Script":
+        s = session.create_script(js)
+        s.on(
+            "message",
+            lambda msg, _data: (
+                base_result.append(msg.get("payload") or "")
+                if msg.get("type") == "send"
+                else print(f"[frida:{msg.get('type')}] {msg.get('description') or msg}"),
+            ),
         )
-    )
-    script.on("message", lambda msg, _data: print(f"[frida] {msg}"))
+        return s
+
+    base_result: list[str] = []
+    script = make()
     script.load()
+    # Post-spawn the exe may still be mapping: retry until the module exists.
+    for _ in range(30):
+        if base_result:
+            base = int(base_result[0], 16)
+            break
+        time.sleep(1)
+        script.unload()
+        script = make()
+        script.load()
+    if base is None:
+        raise SystemExit("NewWorld.exe module never appeared (game still loading?)")
+
+    print(f"[azoth] done. image base {hex(base)}")
+
     if args.spawn:
-        print("[azoth] spawned under Frida — Ctrl+C detaches (game keeps running)")
+        frida.resume(pid)
+        print("[azoth] resumed under Frida — Ctrl+C exits (patch stays while alive)")
         try:
             while True:
-                import time
-
                 time.sleep(1)
         except KeyboardInterrupt:
-            pass
+            print("[azoth] exiting (game keeps running; patch persists per-session)")
     else:
-        session.detach()  # patch persists for the process lifetime
+        session.detach()
         print("[azoth] detached; patch stays until the process exits")
     return 0
 
