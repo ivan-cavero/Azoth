@@ -48,18 +48,18 @@
     },
     {
       "name": "LoginInfoList (GetLoginInfo response model)",
-      "evidence": "aws-sdk model block @ 0x148703900; UI bus GetLoginInfoLists @ 0x1483c0900",
+      "evidence": "aws-sdk model block @ 0x148703900; UI bus GetLoginInfoLists @ 0x1483c0900; RESOLVED live 2026-09-14 (panel renders, VER MUNDOS populated, queue ticket accepted)",
       "keys": {
-        "Worlds": "array — PascalCase block exists but 0 xrefs = DECORATIVE",
-        "RecommendedWorlds": "array",
+        "Worlds": "array — PascalCase wire (see loginInfoList.wireTruth below)",
+        "Characters": "array — PascalCase CharacterMetadata; EMPTY = character panel renders nothing even with correct worlds",
+        "MaxChannelCharacters": "int",
+        "CrossRegionTransferCooldownMins": "int",
+        "NameReservations": "array",
         "PendingWorldMerges": "array",
-        "AllowQueueTransfer": "bool",
-        "QueueName": "string",
-        "RecommendedTransferWorldId": "string",
-        "AccountAge": "int"
+        "RecommendedWorlds": "array"
       },
-      "wireTruth": "camelCase UI keys are the live serialization: regionId, awsRegion, latencyMs, worldAgeDays, queueSize, queueWaitTimeSec, worldPopulationStatus, publicStatusCode, publicName, maxAccountCharacters, worldSet, worldMetrics, transferToRegion, isFull, isRecommended, filterParams, recommendedWorlds",
-      "openQuestion": "ROOT KEY of getlogininfo body that fills the worlds vector. Sentinels tried: worlds, LoginInfoList, Worlds, WorldsInfo, regions, recommendedWorlds (8 roots) — NONE appeared in UI. Either another root or dropdown is not filled by getlogininfo at all. Levers: decompile unmarshaller at 0x1464154e0/0x146412430; lambda RTTI MakeReturnCallbackWithStatus<GetLoginInfoResult, LoginInfoList>."
+      "wireTruth": "RESOLVED 2026-09-14 — getlogininfo serves TWO schemas in ONE body, both consumed by different UI parts (external Ghidra traces FUN_1474e01e0/FUN_1474e42e0, proven on our client): (1) top-level lowercase `worlds`/`recommendedWorlds` -> UI dropdown, INT enums, exactly the reflection keys — ANY extra key (name, regionId) drops the whole object; (2) top-level `LoginInfoList` as an OBJECT (NOT array!) containing PascalCase Worlds/Characters with STRING enums (WorldStatus=\"ACTIVE\", WorldType=\"OpenWorld\", PublicStatusCode=0). Served one schema alone = empty panel (both failure modes proven). PascalCase aws-sdk block 0x148703900 IS used here — earlier 'decorative' verdict applied to ListWorlds, not GetLoginInfo.",
+      "regionScope": "The client reads getlogininfo through ITS region's gateway-CF host (d1w0bfy6smo4d1=fra-prod, d1cjlmzk0xrm0z=gru-prod, d2oeuvxi3kfsrw=iad-prod, d3bj4csovi1fe8=pdx-prod, de4mfzk9wkelz=syd-prod). Scoping the world lists to that region stops every world repeating under every region."
     },
     {
       "name": "CharacterNameData (UI model)",

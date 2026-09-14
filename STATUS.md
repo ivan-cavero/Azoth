@@ -13,19 +13,25 @@
 
 ## What NOT to repeat (read before iterating shapes)
 
+Full method lessons: `research/docs/LESSONS.md` — the 10 rules behind every stall we hit. Highlights:
+
 1. **HTTP/1.1 only** — aws-sdk-cpp discards HTTP/1.0 bodies.
-2. **getlogininfo is TWO schemas in one body**: lowercase `worlds` (INT enums, exactly the reflection keys — extra keys drop the object) for the dropdown; `LoginInfoList` OBJECT with PascalCase `Worlds`/`Characters`/`PublicStatusCode=0`/`WorldStatus="ACTIVE"` for the gate. One casing alone = empty panel (we proved both failure modes).
-3. **Queue**: envelope key `LoginQueueResponse`, PascalCase fields, `Signature` non-empty (handoff gate); refresh path (`/queue/v2/<id>/jwt`) wants `Position: 0` + nested `Token`.
-4. **Entitlements** is `{hasMoreResults, lineItems[]}` — `{entitlements: []}` was invented and wrong.
-5. Without ETag on CMS the client crashes. Credentials `expiration` is a **double epoch**.
-6. Hot-swapping overrides does NOT count: **restart the game** (panel does not re-render on re-poll).
-7. External reference: nw-private-server/first-light (defunct, moved to Discord). Their VAs are build 1.365 — re-derive with `research/tools/reversing/bytepat.py`, never trust archived displacements (their archived patch rel32 was off by one).
+2. **getlogininfo is TWO schemas in one body**: lowercase `worlds` (INT enums, exactly the reflection keys — **extra keys DROP the object**) for the dropdown; `LoginInfoList` OBJECT with PascalCase `Worlds`/`Characters`/`PublicStatusCode=0`/`WorldStatus="ACTIVE"` for the gate. One casing alone = empty panel (both failure modes proven).
+3. **`Characters: []` empties the whole panel** — seed a character entry; UI paths are gated by list contents.
+4. **Queue**: envelope key `LoginQueueResponse`, PascalCase fields, `Signature` non-empty (handoff gate); refresh path (`/queue/v2/<id>/jwt`) wants `Position: 0` + nested `Token`.
+5. **Entitlements** is `{hasMoreResults, lineItems[]}` — `{entitlements: []}` was invented and wrong.
+6. Without ETag on CMS the client crashes. Credentials `expiration` is a **double epoch**.
+7. Hot-swapping overrides does NOT count: **restart the game** (panel does not re-render on re-poll).
+8. **Region scope**: the client reads getlogininfo via ITS region's gateway-CF host; scope world lists per region or every world repeats under every region.
+9. **TCP_NODELAY** on server responses: without it, delayed-ACK/Nagle adds ~40ms the client reports as "ping".
+10. External reference: nw-private-server/first-light (defunct, moved to Discord). Their VAs are build 1.365 — re-derive with `research/tools/reversing/bytepat.py`, never trust archived displacements (their archived patch rel32 was off by one).
 
 ## Exact frontier
 
-1. Client → REP `:9000` with the Frida patch active → watch `services/world/rep_traffic.jsonl` for the DTLS handshake + V3 from the REAL client (our synthetic handshake already works).
-2. Post-V3 ladder: CONNECT_REQUEST/ACK (system channel 3, msgId LAST byte) → SelfIdent → LevelInfoChanged → replica-creation message (state 10→14 map: `research/docs/REP-PROTOCOL.md`).
-3. Known cosmetic: client lists every world under every region (it does not filter by `regionId`/`awsRegion`); region "ping" ~10ms is Caddy TLS+proxy overhead (loopback RTT is ~0).
+- **REP Carrier handshake**: real client completes DTLS (`dtls-established` in `services/world/rep_traffic.jsonl`) and loops CONNECT_REQUEST (system ch3, msgId LAST byte, payload `[u32 BE len][cookie]`, raw hex logged) ~1/s for ~30s, then "ERROR DE CONEXIÓN". Our echo-ACK is not yet accepted — next: compare against a real-login capture reference or hook the client's cookie-compare function.
+- Post-V3 ladder after the handshake: SelfIdent → LevelInfoChanged → replica-creation (state 10→14 map: `research/docs/REP-PROTOCOL.md`).
+- Known cosmetic: seeded `Azoth_Dev` exists in every world (mock-level, not per-world persistence).
+- Ops gotcha: duplicated service processes after restarts — kill by command line before diagnosing (LESSONS.md #9).
 
 ## Minor debt
 

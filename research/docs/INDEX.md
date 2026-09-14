@@ -9,6 +9,8 @@
 | [SESSIONS.md](SESSIONS.md) | What came out of the 2026-09-06 captures |
 | [PROTOCOL.md](PROTOCOL.md) | DTLS, Carrier, RMI, spawn |
 | [DECOMPILATION.md](DECOMPILATION.md) | Decompilation workflow: tools, method, findings, tooling landscape |
+| [LESSONS.md](LESSONS.md) | Method errors that cost days (guessing vs decompiling, strict models, seed data, process hygiene) — read before any RE round |
+| [REP-PROTOCOL.md](REP-PROTOCOL.md) | Javelin REP wire: DTLS trust bypass, Carrier framing, V3 registration, post-V3 ladder |
 
 Plain-text schemas: `../schemas/live/`. Fixtures: `../fixtures/`. Raw sessions: `../sessions/` (gitignored).
 Live RE memory: `../atlas/` (endpoints, models, errors, levers, observed traffic + OpenAPI).
