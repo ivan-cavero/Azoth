@@ -6,31 +6,29 @@
 
 ## Where we are
 
-- **Omni login fully OK** (result 0) → CHOOSE CHARACTER screen. Steam stub v3 → OmniSDK → tokens → credentials → campfire.
-- **Current blocker:** the panel shows the REGION (`Azoth EU`, latency) but the world dropdown stays empty ("no hay mundos activos en tu región" on earlier variants). The client parses `getlogininfo` without error, then filters / fails to find the root.
-- Environment: gateway `:8080` (HTTP/1.1, `publicStatusCode: 0`), Caddy `:443`, hosts in private mode. Start: `python az.py gateway start` (or `gateway reload` for hot-reload dev) / `az.py caddy` / `az.py game`.
-- **Traffic capture is live and battle-tested** (2026-09-13 session): 25 endpoint families captured with full bodies; keep-alive per-request capture fixed (`handle_one_request` hook). After a session, `python az.py doc` regenerates `research/atlas/openapi.json`.
+- **Character select renders** (2026-09-14): dual-schema `getlogininfo` (lowercase `worlds` for the dropdown + `LoginInfoList` OBJECT with PascalCase `Worlds`/`Characters` for the gate; external-verified shapes) → panel shows 1/1 + seeded character; VER MUNDOS table populated; queue ticket accepted (`LoginQueueResponse` envelope, non-empty `Signature`) → UI reaches "POSICIÓN EN LA COLA: 1" and polls the refresh path.
+- **Current frontier: the REP/DTLS connection.** The client now wants to connect to `RepAddress` (`127.0.0.1:9000`). `services/world` (Javelin REP server) is BUILT: Carrier framing lib + V3 registration round-trip + DTLS 1.2 via pyOpenSSL; tests include a real DTLS handshake. The client pins an embedded `CN=New World` cert → handshake only completes with the in-memory verify-bypass (`scripts/frida-trust-patch.py`; site VERIFIED byte-identical on our build: `0x145dce8b5`, see `research/docs/REP-PROTOCOL.md`).
+- Stack up: gateway `:8080` (TCP_NODELAY: region ping 40-70ms → ~10ms), Caddy `:443`, hosts private (34/34, `switch-mode.ps1 status` checks drift), world `:9000`, game via `az.py game` + Frida patch.
+- One lore-named world per region (Everfall/Windsward/First Light/Monarch's Bluffs/Cutlass Keys); all `repAddress` → the single REP at `:9000`.
 
 ## What NOT to repeat (read before iterating shapes)
 
-1. **The gateway must answer HTTP/1.1** — aws-sdk-cpp discards HTTP/1.0 bodies. Everything measured before that fix was garbage.
-2. `publicStatusCode` must be **0** (`(psc & 0xffffe8b7) != 0` rejects; 1 failed the mask).
-3. `status` must be `"ACTIVE"`.
-4. Wire keys are **camelCase** (AZ registry `0x144f54cda`); the PascalCase block `0x148703900` is decorative (0 xrefs).
-5. Without ETag on CMS the client crashes. Credentials `expiration` is a **double epoch**, not ISO.
-6. The client only requests `worlds/list` when clicking a region (0 hits in normal login). The dropdown list comes from `getlogininfo` → `LoginInfoList` (bus `GetLoginInfoLists`).
-7. Hot-swapping overrides does NOT count: **restart the game** (~2 min per shape) because the panel does not re-render on re-poll.
+1. **HTTP/1.1 only** — aws-sdk-cpp discards HTTP/1.0 bodies.
+2. **getlogininfo is TWO schemas in one body**: lowercase `worlds` (INT enums, exactly the reflection keys — extra keys drop the object) for the dropdown; `LoginInfoList` OBJECT with PascalCase `Worlds`/`Characters`/`PublicStatusCode=0`/`WorldStatus="ACTIVE"` for the gate. One casing alone = empty panel (we proved both failure modes).
+3. **Queue**: envelope key `LoginQueueResponse`, PascalCase fields, `Signature` non-empty (handoff gate); refresh path (`/queue/v2/<id>/jwt`) wants `Position: 0` + nested `Token`.
+4. **Entitlements** is `{hasMoreResults, lineItems[]}` — `{entitlements: []}` was invented and wrong.
+5. Without ETag on CMS the client crashes. Credentials `expiration` is a **double epoch**.
+6. Hot-swapping overrides does NOT count: **restart the game** (panel does not re-render on re-poll).
+7. External reference: nw-private-server/first-light (defunct, moved to Discord). Their VAs are build 1.365 — re-derive with `research/tools/reversing/bytepat.py`, never trust archived displacements (their archived patch rel32 was off by one).
 
 ## Exact frontier
 
-- 8 candidate JSON roots tried with sentinels (worlds, Worlds, LoginInfoList, WorldsInfo, regions, recommendedWorlds, DDD/EEE...) → **none painted**. Either the root is something else, or the dropdown is not fed by getlogininfo at all.
-- Promising lead A: decompile the real GetLoginInfo unmarshaller (Ghidra headless: `research/tools/re/decomp.py`; paths `0x1464154e0` / `0x146412430`, NOT result vtable `0x148503018`).
-- Promising lead B: lambda RTTI `MakeReturnCallbackWithStatus<GetLoginInfoResult, LoginInfoList>` — extracts `&result.<member>`; reading the lambda body gives the member offset.
-- Promising lead C: capture a real Amazon response with a valid account (mitm of gateway-CF impossible due to TLS; left is unmarshaller RE or consumer `0x144f54ae3`).
-- 400-probe as A/B: 200-parse-OK does not advance the panel; 400 does. If we serve the correct 200, the panel advances without error.
+1. Client → REP `:9000` with the Frida patch active → watch `services/world/rep_traffic.jsonl` for the DTLS handshake + V3 from the REAL client (our synthetic handshake already works).
+2. Post-V3 ladder: CONNECT_REQUEST/ACK (system channel 3, msgId LAST byte) → SelfIdent → LevelInfoChanged → replica-creation message (state 10→14 map: `research/docs/REP-PROTOCOL.md`).
+3. Known cosmetic: client lists every world under every region (it does not filter by `regionId`/`awsRegion`); region "ping" ~10ms is Caddy TLS+proxy overhead (loopback RTT is ~0).
 
 ## Minor debt
 
-- Accept-terms: RE the endpoint to persist consent (future DB).
-- `mock_discovery/` is gitignored and disposable; `shape-*.json` regenerate via `az.py shape`.
-- Old `emulator/` only keeps 2 logs locked by the old gateway process; they vanish on restart.
+- `services/world` needs `pyOpenSSL` (the one deliberate non-stdlib dep — stdlib ssl has no DTLS).
+- The EAC memory ban is SCOPED: official process = never; our private runtime = OK (Frida patch proves it).
+- After a session: `python az.py doc`, commit atlas.
