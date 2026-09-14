@@ -175,7 +175,11 @@ class Handler(BaseHTTPRequestHandler):
         if is_getlogininfo_path(path):
             # aws-sdk-cpp JavelinGatewayService client: the deserializer only
             # accepts the x-amz-json content type (observed on its requests).
-            key, payload = "getlogininfo", getlogininfo_response(st.cfg.discovery_dir)
+            key = "getlogininfo"
+            payload = getlogininfo_response(st.cfg.discovery_dir)
+            if payload is None:  # 400-probe override active
+                self.send_error(400, "getlogininfo probe")
+                return True
             self._send_body(payload, ctype="application/x-amz-json-1.1", aws_id=True)
             st.metrics.hit(key)
             keep = {k: v[:200] for k, v in self.headers.items()}

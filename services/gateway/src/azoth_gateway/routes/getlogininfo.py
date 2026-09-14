@@ -25,11 +25,14 @@ from .registry import getlogininfo_doc, load
 OVERRIDE_NAME = "getlogininfo.json"
 
 
-def getlogininfo_response(discovery_dir: Path | None = None) -> bytes:
+def getlogininfo_response(discovery_dir: Path | None = None) -> bytes | None:
     if discovery_dir is not None:
         fp = discovery_dir / OVERRIDE_NAME
         if fp.is_file():
-            return fp.read_bytes()
+            raw = fp.read_bytes()
+            if b"__http_error" in raw:
+                    return None  # 400-probe: caller answers HTTP 400
+            return raw
     return (json.dumps(getlogininfo_doc(load(discovery_dir))) + "\n").encode()
 
 
