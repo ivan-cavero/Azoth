@@ -34,6 +34,7 @@ from .routes.getlogininfo import (
     getlogininfo_response,
     is_getlogininfo_path,
     is_platform_user_code_path,
+    region_from_headers,
 )
 from .routes.health import Metrics
 from .routes.images import images_response, is_images_path
@@ -184,7 +185,8 @@ class Handler(BaseHTTPRequestHandler):
             # aws-sdk-cpp JavelinGatewayService client: the deserializer only
             # accepts the x-amz-json content type (observed on its requests).
             key = "getlogininfo"
-            payload = getlogininfo_response(st.cfg.discovery_dir)
+            region_id = region_from_headers(self.headers)
+            payload = getlogininfo_response(st.cfg.discovery_dir, region_id)
             if payload is None:  # 400-probe override active
                 self.send_error(400, "getlogininfo probe")
                 return True

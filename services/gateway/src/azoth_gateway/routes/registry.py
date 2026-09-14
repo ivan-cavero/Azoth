@@ -182,6 +182,25 @@ def worlds_list_doc(reg: Registry) -> dict:
     }
 
 
+def worlds_for_region(reg: Registry, region_id: str | None) -> list[dict]:
+    """Worlds of one region (registry `regionId`), or every world when the
+    region is unknown/None. The region→world link: the client renders one
+    list per region and must not repeat every world under every region."""
+    if region_id is None:
+        return list(reg.worlds)
+    own = [w for w in reg.worlds if w.get("regionId") == region_id]
+    return own or list(reg.worlds)
+
+
+def region_id_for_request(reg: Registry, aws_region: str | None) -> str | None:
+    """Map an awsRegion (e.g. eu-central-1 from the client's login context)
+    to a registry region id (fra-prod). None when unknown."""
+    for r in reg.regions:
+        if r.get("awsRegion") == aws_region:
+            return r.get("id")
+    return None
+
+
 def _login_world_dropdown(w: dict) -> dict:
     """Lowercase WorldMetadata that feeds the UI dropdown (big_parser
     0x144f40780 reflection table). Enums are INTEGERS here ("ACTIVE"->1,
@@ -287,7 +306,7 @@ def _seed_character(w: dict) -> dict:
     }
 
 
-def getlogininfo_doc(reg: Registry) -> dict:
+def getlogininfo_doc(reg: Registry, region_id: str | None = None) -> dict:
     """GetLoginInfoResult body — TWO schemas in one document, both proven on
     the live client by nw-private-server/first-light (Codex/Ghidra traces
     FUN_1474e01e0 / FUN_1474e42e0 / FUN_144f40780):
@@ -298,13 +317,18 @@ def getlogininfo_doc(reg: Registry) -> dict:
       `Worlds` + `Characters` feed the create-character gate. The parser
       reads ONLY the "LoginInfoList" root key and recurses into it; without
       the envelope the candidate vector stays zeroed (dropdown 0/0).
+
+    `region_id` (from the requesting client's login context) scopes the
+    lists to that region's worlds — otherwise the client repeats every
+    world under every region.
     """
-    w = active_world(reg) or (reg.worlds[0] if reg.worlds else {})
+    worlds = worlds_for_region(reg, region_id)
+    w = active_world(reg) or (worlds[0] if worlds else {})
     return {
-        "worlds": [_login_world_dropdown(x) for x in reg.worlds] or [_login_world_dropdown(w)],
+        "worlds": [_login_world_dropdown(x) for x in worlds] or [_login_world_dropdown(w)],
         "recommendedWorlds": [],
         "LoginInfoList": {
-            "Worlds": [_login_world_gate(x) for x in reg.worlds] or [_login_world_gate(w)],
+            "Worlds": [_login_world_gate(x) for x in worlds] or [_login_world_gate(w)],
             "Characters": [_seed_character(w)],
             "MaxChannelCharacters": 4,
             "CrossRegionTransferCooldownMins": 0,

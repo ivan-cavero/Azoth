@@ -25,7 +25,9 @@ from .registry import getlogininfo_doc, load
 OVERRIDE_NAME = "getlogininfo.json"
 
 
-def getlogininfo_response(discovery_dir: Path | None = None) -> bytes | None:
+def getlogininfo_response(
+    discovery_dir: Path | None = None, region_id: str | None = None
+) -> bytes | None:
     if discovery_dir is not None:
         fp = discovery_dir / OVERRIDE_NAME
         if fp.is_file():
@@ -33,11 +35,32 @@ def getlogininfo_response(discovery_dir: Path | None = None) -> bytes | None:
             if b"__http_error" in raw:
                     return None  # 400-probe: caller answers HTTP 400
             return raw
-    return (json.dumps(getlogininfo_doc(load(discovery_dir))) + "\n").encode()
+    return (
+        json.dumps(getlogininfo_doc(load(discovery_dir), region_id)) + "\n"
+    ).encode()
 
 
 def is_getlogininfo_path(path: str) -> bool:
     return "/prod/game/getlogininfo" in path.split("?", 1)[0]
+
+
+# gateway-CF CloudFront host -> registry region id (mirrors the channel JSON:
+# each region's JavelinGatewayService-CF endpoint). The client talks to the
+# gateway of ITS region, so the Host it connected through IS the region scope.
+CF_HOST_TO_REGION = {
+    "d1w0bfy6smo4d1.cloudfront.net": "fra-prod",
+    "d1cjlmzk0xrm0z.cloudfront.net": "gru-prod",
+    "d2oeuvxi3kfsrw.cloudfront.net": "iad-prod",
+    "d3bj4csovi1fe8.cloudfront.net": "pdx-prod",
+    "de4mfzk9wkelz.cloudfront.net": "syd-prod",
+}
+
+
+def region_from_headers(headers) -> str | None:
+    """Region id from the gateway-CF host the client used (X-Forwarded-Host
+    set by Caddy; falls back to Host)."""
+    host = (headers.get("X-Forwarded-Host") or headers.get("Host") or "").split(":")[0]
+    return CF_HOST_TO_REGION.get(host.lower())
 
 
 def is_platform_user_code_path(path: str) -> bool:

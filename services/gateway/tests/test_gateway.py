@@ -202,6 +202,24 @@ class GatewayTest(unittest.TestCase):
         self.assertEqual(lil["Characters"][0]["WorldId"], world["WorldId"])
         self.assertEqual(lil["Characters"][0]["Name"], WORLD.get("characterName", "Azoth_Dev"))
 
+    def test_getlogininfo_region_scoped(self):
+        # The client talks to the gateway-CF of ITS region; the world list is
+        # scoped so each region only sees its own worlds.
+        hdrs = {"X-Forwarded-Host": "d1w0bfy6smo4d1.cloudfront.net"}  # fra-prod
+        _, _, body = get(18080, "/prod/game/getlogininfo/jwt/omni", hdrs)
+        doc = json.loads(body.decode())
+        names = [w["publicName"] for w in doc["worlds"]]
+        self.assertEqual(names, ["Everfall"])  # fra-prod has exactly one world
+        self.assertEqual(doc["LoginInfoList"]["Worlds"][0]["WorldName"], "everfall")
+        # Another region -> its own world.
+        hdrs["X-Forwarded-Host"] = "d2oeuvxi3kfsrw.cloudfront.net"  # iad-prod
+        _, _, body = get(18080, "/prod/game/getlogininfo/jwt/omni", hdrs)
+        names = [w["publicName"] for w in json.loads(body.decode())["worlds"]]
+        self.assertEqual(names, ["First Light"])
+        # Unknown host -> falls back to every world (tests' Host is 127.0.0.1).
+        _, _, body = get(18080, "/prod/game/getlogininfo/jwt/omni")
+        self.assertEqual(len(json.loads(body.decode())["worlds"]), 5)
+
     def test_getlogininfo_override_file(self):
         override = pathlib.Path(self.tmp.name) / "getlogininfo.json"
         override.write_text('{"custom":true}\n', encoding="utf-8")
@@ -213,25 +231,37 @@ class GatewayTest(unittest.TestCase):
             override.unlink()
 
     def test_queue_v2_mock(self):
-        # GET and POST both hit the queue mock.
-        for method, data in (("GET", None), ("POST", b"{}")):
-            req = urllib.request.Request(
-                "http://127.0.0.1:18080/prod/game/login/queue/v2/enqueue",
-                data=data,
-                headers={"Content-Type": "application/json"},
-                method=method,
-            )
-            with urllib.request.urlopen(req) as r:
-                self.assertEqual(r.status, 200)
-                doc = json.loads(r.read().decode())
-            # LoginQueueResponse envelope (first-light RE: FUN_1474e4f20).
-            t = doc["LoginQueueResponse"]
-            self.assertTrue(t["TicketId"])
-            self.assertTrue(t["Signature"])  # handoff gate: must be non-empty
-            self.assertEqual(t["RepAddress"], "127.0.0.1:9000")
-            self.assertEqual(t["WorldName"], WORLD["name"])
-            self.assertTrue(t["WorldId"])
-            self.assertTrue(t["CharacterId"])
+        # Initial enqueue issues a parseable ticket.
+        req = urllib.request.Request(
+            "http://127.0.0.1:18080/prod/game/login/queue/v2/enqueue",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req) as r:
+            self.assertEqual(r.status, 200)
+            doc = json.loads(r.read().decode())
+        # LoginQueueResponse envelope (first-light RE: FUN_1474e4f20).
+        t = doc["LoginQueueResponse"]
+        self.assertTrue(t["TicketId"])
+        self.assertTrue(t["Signature"])  # handoff gate: must be non-empty
+        self.assertEqual(t["RepAddress"], "127.0.0.1:9000")
+        self.assertEqual(t["WorldName"], WORLD["name"])
+        self.assertTrue(t["WorldId"])
+        self.assertTrue(t["CharacterId"])
+
+        # Refresh path (with ticket id) returns the READY envelope whose
+        # Token carries the ticket — this moves the client to the REP.
+        with urllib.request.urlopen(
+            "http://127.0.0.1:18080/prod/game/login/queue/v2/"
+            "86ae8332-ed32-420e-985c-61011022847a/jwt/omni?tokenVersion=10"
+        ) as r:
+            doc = json.loads(r.read().decode())
+        q = doc["LoginQueueResponse"]
+        self.assertEqual(q["Position"], 0)
+        self.assertEqual(q["QueueName"], "eu-central-1")
+        self.assertEqual(q["Token"]["RepAddress"], "127.0.0.1:9000")
+        self.assertTrue(q["Token"]["Signature"])
 
     def test_characters_list_and_validator(self):
         code, _, body = get(18080, "/characters")
