@@ -1,4 +1,5 @@
 {
+  "$comment": "One world per region, lore names from New World territories. All repAddress point at the single REP server (services/world, port 9000). Ops: edit statuses/announcements here — no gateway restart needed.",
   "regions": [
     {
       "id": "fra-prod",
@@ -34,8 +35,8 @@
   "worlds": [
     {
       "id": "00000000-0000-4000-8000-000000000001",
-      "name": "azoth-01",
-      "displayName": "Azoth EU Central",
+      "name": "everfall",
+      "displayName": "Everfall",
       "regionId": "fra-prod",
       "worldSet": "fra-prod",
       "awsRegion": "eu-central-1",
@@ -48,8 +49,8 @@
     },
     {
       "id": "00000000-0000-4000-8000-000000000002",
-      "name": "azoth-02",
-      "displayName": "Azoth SA East",
+      "name": "windsward",
+      "displayName": "Windsward",
       "regionId": "gru-prod",
       "worldSet": "gru-prod",
       "awsRegion": "sa-east-1",
@@ -57,13 +58,13 @@
       "type": "OpenWorld",
       "version": "1.400.6031.6004151",
       "maxPlayers": 2500,
-      "repAddress": "127.0.0.1:9001",
+      "repAddress": "127.0.0.1:9000",
       "announcement": ""
     },
     {
       "id": "00000000-0000-4000-8000-000000000003",
-      "name": "azoth-03",
-      "displayName": "Azoth US East",
+      "name": "first-light",
+      "displayName": "First Light",
       "regionId": "iad-prod",
       "worldSet": "iad-prod",
       "awsRegion": "us-east-1",
@@ -71,13 +72,13 @@
       "type": "OpenWorld",
       "version": "1.400.6031.6004151",
       "maxPlayers": 2500,
-      "repAddress": "127.0.0.1:9002",
+      "repAddress": "127.0.0.1:9000",
       "announcement": ""
     },
     {
       "id": "00000000-0000-4000-8000-000000000004",
-      "name": "azoth-04",
-      "displayName": "Azoth US West",
+      "name": "monarchs-bluffs",
+      "displayName": "Monarch's Bluffs",
       "regionId": "pdx-prod",
       "worldSet": "pdx-prod",
       "awsRegion": "us-west-2",
@@ -85,13 +86,13 @@
       "type": "OpenWorld",
       "version": "1.400.6031.6004151",
       "maxPlayers": 2500,
-      "repAddress": "127.0.0.1:9003",
+      "repAddress": "127.0.0.1:9000",
       "announcement": ""
     },
     {
       "id": "00000000-0000-4000-8000-000000000005",
-      "name": "azoth-05",
-      "displayName": "Azoth AP Southeast",
+      "name": "cutlass-keys",
+      "displayName": "Cutlass Keys",
       "regionId": "syd-prod",
       "worldSet": "syd-prod",
       "awsRegion": "ap-southeast-2",
@@ -99,7 +100,7 @@
       "type": "OpenWorld",
       "version": "1.400.6031.6004151",
       "maxPlayers": 2500,
-      "repAddress": "127.0.0.1:9004",
+      "repAddress": "127.0.0.1:9000",
       "announcement": ""
     }
   ]
