@@ -30,7 +30,11 @@ from .routes.entitlements import (
     is_entitlements_path,
     is_entitlements_sync_path,
 )
-from .routes.getlogininfo import getlogininfo_response, is_getlogininfo_path
+from .routes.getlogininfo import (
+    getlogininfo_response,
+    is_getlogininfo_path,
+    is_platform_user_code_path,
+)
 from .routes.health import Metrics
 from .routes.images import images_response, is_images_path
 from .routes.omni import is_tokens_path, tokens_response
@@ -181,6 +185,18 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_error(400, "getlogininfo probe")
                 return True
             self._send_body(payload, ctype="application/x-amz-json-1.1", aws_id=True)
+            st.metrics.hit(key)
+            keep = {k: v[:200] for k, v in self.headers.items()}
+            st.discovery.dump(self.command, path, dict(keep))
+            print(f"[gw] {self.command} {path} -> {key} mock")
+            return True
+        if is_platform_user_code_path(path):
+            # Omni account-link code request: client POSTs {token, type:ags}
+            # and expects a link code. 404 makes Omni log
+            # 'AGS account link error ... code: 202'. Serve a stub code.
+            key = "platform:user-code"
+            payload = b'{"code": "AZOTH-PRIVATE", "statusCode": 0}'
+            self._send_body(payload)
             st.metrics.hit(key)
             keep = {k: v[:200] for k, v in self.headers.items()}
             st.discovery.dump(self.command, path, dict(keep))

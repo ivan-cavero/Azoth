@@ -38,3 +38,7 @@ def getlogininfo_response(discovery_dir: Path | None = None) -> bytes | None:
 
 def is_getlogininfo_path(path: str) -> bool:
     return "/prod/game/getlogininfo" in path.split("?", 1)[0]
+
+
+def is_platform_user_code_path(path: str) -> bool:
+    return "/auth/platform/user/code" in path.split("?", 1)[0]
