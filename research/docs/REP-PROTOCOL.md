@@ -39,9 +39,12 @@ validation against the **embedded** self-signed `CN=New World` cert
 **VERIFIED on our build 1.400.6031.6004151 (2026-09-14,
 `bytepat.py dtls-verify`):** the site is byte-identical AND at the same VA —
 CMP at `0x145dce8ad` (`48 83 BF 88 02 00 00 00`), JZ at `0x145dce8b5`
-(`0F 84 19 01 00 00` -> `0x145dce9d4`). Patch bytes:
-`E9 19 01 00 00 90`. Both builds share the `6031` branch and this code did
-not move. Keep re-deriving on every client update anyway.
+(`0F 84 19 01 00 00` -> `0x145dce9d4`). Patch bytes recomputed:
+`E9 1A 01 00 00 90`. (The externally archived `E9 19 01 00 00 90` is off by
+one — a 5-byte JMP in a 6-byte slot must use rel32 = 0x11A, not the JZ's
+0x119. `scripts/frida-trust-patch.py` always recomputes.) Both builds share
+the `6031` branch and this code did not move. Keep re-deriving on every
+client update anyway.
 
 Lever entry: `research/atlas/levers.md` ("DTLS verify bypass").
 

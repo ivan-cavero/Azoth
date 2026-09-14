@@ -20,6 +20,7 @@ NOW, not "for later").
 ## Dead / closed (do not waste time again)
 
 | OCR kit (`ocr-image.ps1`, `ocr-window.py`, `capture-window.py`) | Removed 2026-09-13: the orca computer-use skill covers screenshots/interaction; only SendInput (`az.py click`/`key`) remains because `orca click` never reaches the game window (validated). |
+| Memory/instrumentation ban — SCOPED (2026-09-14) | The Frida/ReadProcessMemory ban covers the OFFICIAL process (EAC kernel callbacks). Our private runtime (Start-NwPrivate.ps1, no EAC, no Steam) is fair game: `scripts/frida-trust-patch.py` runs against it. Official process = still never. |
 
 | Lever | Why not |
 | --- | --- |
@@ -35,7 +36,7 @@ NOW, not "for later").
 
 | Lever | Where seen | What it promises |
 | --- | --- | --- |
-| DTLS verify bypass (REP trust) | **VERIFIED on our build**: CMP `0x145dce8ad` + JZ `0x145dce8b5` -> `0x145dce9d4` (`bytepat.py dtls-verify`); site is byte-identical to the external trace. Patch: `E9 19 01 00 00 90` via `scripts/frida-trust-patch.py`. Details: `research/docs/REP-PROTOCOL.md` | Force the DTLS driver's permissive verify path so the handshake against our REP server succeeds. In-memory only, against the private runtime (no EAC). The embedded `CN=New World` cert means our own CA can never validate — this patch is the only viable trust path. |
+| DTLS verify bypass (REP trust) | **VERIFIED on our build**: CMP `0x145dce8ad` + JZ `0x145dce8b5` -> `0x145dce9d4` (`bytepat.py dtls-verify`); site is byte-identical to the external trace. Patch: `E9 1A 01 00 00 90` via `scripts/frida-trust-patch.py` (recomputes rel32; the archived external bytes were off by one). Details: `research/docs/REP-PROTOCOL.md` | Force the DTLS driver's permissive verify path so the handshake against our REP server succeeds. In-memory only, against the private runtime (no EAC). The embedded `CN=New World` cert means our own CA can never validate — this patch is the only viable trust path. |
 | `ui_dumpDataLayer` | cvar string in the exe ("Dumps debug info of UiDataLayer to log") | Dump the UI data-layer state: which worlds are loaded and why they don't paint. |
 | In-process local-dev mode | `client-connection.enable-local-dev` (documented, requires PAK repack) | The game's own stub services persisting to `_persistence/*.json` — reveals the EXACT shapes the client expects without a gateway. |
 | `auth-testing` fault injection | `client-connection.auth-testing.*` (same repack requirement) | Controlled auth failure injection. |
