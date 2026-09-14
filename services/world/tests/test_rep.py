@@ -32,6 +32,50 @@ except ImportError:
     pass
 
 
+class TestSystemHandshake(unittest.TestCase):
+    def test_connect_request_gets_ack(self):
+        from azoth_world.rep import handle_app_data
+
+        # Client CONNECT_REQUEST: system channel 3, msgId LAST byte.
+        rec = MessageRecord(
+            channel=3,
+            payload=b"\x01\x02\x03\x04\x05" + bytes([1]),  # cookie + msgId=1
+            sequence=1,
+            flags_override=0xA0,  # DATA_CHANNEL | CONNECTING
+        )
+        request = b"\x80\x01\x00\x01" + marshal_datagram([rec])
+        reply = handle_app_data(request, 2)
+        self.assertIsNotNone(reply, "CONNECT_REQUEST must be answered")
+        env, body = parse_envelope(reply)
+        self.assertEqual(env.sequence, 2)
+        result = parse_datagram(body)
+        self.assertIsNone(result.error)
+        ack = result.messages[0]
+        self.assertEqual(ack.channel, 3)
+        self.assertEqual(ack.system_msg_id, 2)  # CONNECT_ACK, LAST byte
+        self.assertIn(b"\x01\x02\x03\x04\x05", ack.payload)  # cookie echoed
+
+    def test_acks_are_not_answered(self):
+        from azoth_world.rep import handle_app_data
+
+        rec = MessageRecord(
+            channel=3, payload=bytes([6]), sequence=1, flags_override=0xA0
+        )
+        wire = b"\x80\x01\x00\x01" + marshal_datagram([rec])
+        self.assertIsNone(handle_app_data(wire, 2))
+
+    def test_v3_still_answered(self):
+        from azoth_world.rep import handle_app_data
+
+        rec = MessageRecord(channel=0, payload=bytes(200), flags_override=0xE0)
+        wire = b"\x80\x01\x00\x01" + marshal_datagram([rec])
+        reply = handle_app_data(wire, 2)
+        self.assertIsNotNone(reply)
+        _, body = parse_envelope(reply)
+        result = parse_datagram(body)
+        self.assertEqual(len(result.messages[0].payload), 88)
+
+
 class TestResponseDatagram(unittest.TestCase):
     def test_v3_response_is_parseable(self):
         wire = v3_response_datagram(7)

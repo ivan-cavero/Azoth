@@ -35,6 +35,7 @@ from pathlib import Path
 
 from .javelin import (
     MessageRecord,
+    SystemMessageId,
     V3RegistrationResponse,
     marshal_datagram,
     parse_datagram,
@@ -66,7 +67,7 @@ def log_event(event: dict) -> None:
 
 def describe_datagram(data: bytes) -> dict:
     """Best-effort decode: envelope + records + V3 identity if present."""
-    event: dict = {"size": len(data)}
+    event: dict = {"size": len(data), "raw": data[:96].hex()}
     try:
         env, body = parse_envelope(data)
         event["envelope"] = {
@@ -116,6 +117,55 @@ def v3_response_datagram(seq: int) -> bytes:
         flags_override=0xE0,  # DATA_CHANNEL | NO_LENGTH | CONNECTING (V3 form)
     )
     return b"\x80\x01" + seq.to_bytes(2, "big") + marshal_datagram([rec])
+
+
+def system_record(msg_id: int, body: bytes, *, connecting: bool = False) -> MessageRecord:
+    """System-channel (3) record: msgId is the LAST payload byte
+    (Javelin_Carrier_WriteSystemMessage layout)."""
+    return MessageRecord(
+        channel=3,
+        payload=body + bytes([msg_id]),
+        sequence=1,
+        reliable_sequence=1,
+        reliable=False,
+        connecting=connecting,
+    )
+
+
+def connect_ack_datagram(seq: int, request_body: bytes) -> bytes:
+    """CONNECT_ACK echoing the client's CONNECT_REQUEST cookie.
+
+    Wire-derived (live capture 2026-09-14): request payload is
+    [u32 BE len][cookie bytes] + msgId(1) at the END; flags 0xa0 (DATA_
+    CHANNEL | CONNECTING), client seq is per-datagram-independent. The ACK
+    echoes the request payload verbatim (cookie included, WITHOUT the
+    trailing msgId — the writer re-adds it) and carries flags 0xa0."""
+    rec = system_record(SystemMessageId.SM_CONNECT_ACK, bytes(request_body))
+    rec.flags_override = 0xA0
+    return b"\x80\x01" + seq.to_bytes(2, "big") + marshal_datagram([rec])
+
+
+def handle_app_data(app: bytes, seq: int) -> bytes | None:
+    """Server logic for one decrypted datagram -> reply datagram (or None).
+
+    Recognizes the Carrier system handshake on channel 3 and the V3
+    registration on channel 0; everything else is logged-only."""
+    try:
+        _, body = parse_envelope(app)
+    except ValueError:
+        return None
+    result = parse_datagram(body)
+    for rec in result.messages:
+        if rec.is_system:
+            mid = rec.system_msg_id
+            if mid == SystemMessageId.SM_CONNECT_REQUEST:
+                # payload without the trailing msgId = [len][cookie]
+                return connect_ack_datagram(seq, rec.payload[:-1])
+            if mid == SystemMessageId.SM_CT_ACKS:
+                continue  # our acks; nothing to answer yet
+        elif rec.channel == 0 and rec.size > 64:
+            return v3_response_datagram(seq)  # V3 registration
+    return None
 
 
 def make_self_signed_cert(cert_dir: Path = CERT_DIR) -> tuple[Path, Path]:
@@ -182,14 +232,12 @@ class PeerSession:
         event = describe_datagram(app)
         event.update(event="app-data", peer=f"{self.peer[0]}:{self.peer[1]}")
         log_event(event)
-        # V3 data-channel record present -> answer the registration.
-        try:
-            _, body = parse_envelope(app)
-            if any(r.size > 64 for r in parse_datagram(body).messages):
+        # System handshake (CONNECT_REQUEST->ACK) and V3 registration.
+        reply = handle_app_data(app, self.next_seq())
+        if reply is not None:
+            if b"LoginResponse" in reply or len(reply) > 100:
                 server.v3_seen(self.peer, event)
-                self.send(server, v3_response_datagram(self.next_seq()))
-        except (ValueError, StopIteration):
-            pass
+            self.send(server, reply)
 
     def send(self, server, datagram: bytes) -> None:
         try:
@@ -273,15 +321,10 @@ class PlainRepServer(RepServer):
             event = describe_datagram(data)
             event.update(event="datagram", peer=f"{peer[0]}:{peer[1]}")
             log_event(event)
-            try:
-                _, body = parse_envelope(data)
-                if any(r.size > 64 for r in parse_datagram(body).messages):
-                    self.v3_count += 1
-                    n = self.peers.get(peer, 0) + 1
-                    self.peers[peer] = n
-                    self.sock.sendto(v3_response_datagram(n), peer)
-            except ValueError:
-                pass
+            reply = handle_app_data(data, self.peers.get(peer, 0) + 1)
+            if reply is not None:
+                self.peers[peer] = self.peers.get(peer, 0) + 1
+                self.sock.sendto(reply, peer)
 
 
 def serve(host: str = "127.0.0.1", port: int = 9000, dtls: bool = True):
