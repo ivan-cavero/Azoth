@@ -25,7 +25,155 @@
                     "channelName": {
                       "type": "string"
                     },
-                    "azoth-1": {
+                    "fra-prod": {
+                      "type": "object",
+                      "properties": {
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "localizedName": {
+                          "type": "string"
+                        },
+                        "poolId": {
+                          "type": "string"
+                        },
+                        "publicApis": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "awsRegion": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "apiEndpoint": {
+                                "type": "string"
+                              },
+                              "clientTag": {
+                                "type": "string"
+                              },
+                              "stage": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "gru-prod": {
+                      "type": "object",
+                      "properties": {
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "localizedName": {
+                          "type": "string"
+                        },
+                        "poolId": {
+                          "type": "string"
+                        },
+                        "publicApis": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "awsRegion": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "apiEndpoint": {
+                                "type": "string"
+                              },
+                              "clientTag": {
+                                "type": "string"
+                              },
+                              "stage": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "iad-prod": {
+                      "type": "object",
+                      "properties": {
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "localizedName": {
+                          "type": "string"
+                        },
+                        "poolId": {
+                          "type": "string"
+                        },
+                        "publicApis": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "awsRegion": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "apiEndpoint": {
+                                "type": "string"
+                              },
+                              "clientTag": {
+                                "type": "string"
+                              },
+                              "stage": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "pdx-prod": {
+                      "type": "object",
+                      "properties": {
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "localizedName": {
+                          "type": "string"
+                        },
+                        "poolId": {
+                          "type": "string"
+                        },
+                        "publicApis": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "awsRegion": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "apiEndpoint": {
+                                "type": "string"
+                              },
+                              "clientTag": {
+                                "type": "string"
+                              },
+                              "stage": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "syd-prod": {
                       "type": "object",
                       "properties": {
                         "displayName": {
@@ -208,9 +356,9 @@
         }
       }
     },
-    "/applications/public/configuration-sets/RegionId/azoth-1/6031%3B6004151": {
+    "/applications/public/configuration-sets/RegionId/fra-prod/6031%3B6004151": {
       "get": {
-        "summary": "applications/public/configuration-sets/RegionId/azoth-1/6031%3B6004151",
+        "summary": "applications/public/configuration-sets/RegionId/fra-prod/6031%3B6004151",
         "tags": [
           "observed"
         ],
@@ -235,9 +383,9 @@
         }
       }
     },
-    "/applications/public/configuration-sets/RegionId/azoth-1/versionless": {
+    "/applications/public/configuration-sets/RegionId/fra-prod/versionless": {
       "get": {
-        "summary": "applications/public/configuration-sets/RegionId/azoth-1/versionless",
+        "summary": "applications/public/configuration-sets/RegionId/fra-prod/versionless",
         "tags": [
           "observed"
         ],
@@ -370,9 +518,9 @@
         }
       }
     },
-    "/applications/publicGameplay/configuration-sets/RegionId/azoth-1/6031%3B6004151": {
+    "/applications/publicGameplay/configuration-sets/RegionId/fra-prod/6031%3B6004151": {
       "get": {
-        "summary": "applications/publicGameplay/configuration-sets/RegionId/azoth-1/6031%3B6004151",
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/fra-prod/6031%3B6004151",
         "tags": [
           "observed"
         ],
@@ -397,9 +545,9 @@
         }
       }
     },
-    "/applications/publicGameplay/configuration-sets/RegionId/azoth-1/versionless": {
+    "/applications/publicGameplay/configuration-sets/RegionId/fra-prod/versionless": {
       "get": {
-        "summary": "applications/publicGameplay/configuration-sets/RegionId/azoth-1/versionless",
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/fra-prod/versionless",
         "tags": [
           "observed"
         ],
@@ -415,6 +563,53 @@
                   "properties": {
                     "azoth": {
                       "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/platform/user/code": {
+      "post": {
+        "summary": "auth/platform/user/code",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "statusCode": {
+                      "type": "number"
                     }
                   }
                 }
@@ -438,7 +633,42 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {}
+                "properties": {
+                  "platformIdentityType": {
+                    "type": "string"
+                  },
+                  "platformAuth": {
+                    "type": "object",
+                    "properties": {
+                      "ticket": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "fallbackToken": {
+                    "type": "string"
+                  },
+                  "attributionData": {
+                    "type": "object",
+                    "properties": {
+                      "os": {
+                        "type": "string"
+                      },
+                      "resolution": {
+                        "type": "string"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "platform": {
+                        "type": "string"
+                      },
+                      "created": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -771,7 +1001,8 @@
           "observed"
         ],
         "x-observed-status": [
-          200
+          200,
+          304
         ],
         "responses": {
           "200": {
@@ -835,13 +1066,257 @@
                               "type": "string"
                             }
                           }
+                        },
+                        "00000000-0000-4000-8000-000000000002": {
+                          "type": "object",
+                          "properties": {
+                            "announcement": {
+                              "type": "string"
+                            },
+                            "es-ES-announcement": {
+                              "type": "string"
+                            },
+                            "es-MX-announcement": {
+                              "type": "string"
+                            },
+                            "fr-FR-announcement": {
+                              "type": "string"
+                            },
+                            "de-DE-announcement": {
+                              "type": "string"
+                            },
+                            "pl-PL-announcement": {
+                              "type": "string"
+                            },
+                            "it-IT-announcement": {
+                              "type": "string"
+                            },
+                            "pt-BR-announcement": {
+                              "type": "string"
+                            },
+                            "warning": {
+                              "type": "string"
+                            },
+                            "es-ES-warning": {
+                              "type": "string"
+                            },
+                            "es-MX-warning": {
+                              "type": "string"
+                            },
+                            "fr-FR-warning": {
+                              "type": "string"
+                            },
+                            "de-DE-warning": {
+                              "type": "string"
+                            },
+                            "pl-PL-warning": {
+                              "type": "string"
+                            },
+                            "it-IT-warning": {
+                              "type": "string"
+                            },
+                            "pt-BR-warning": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "00000000-0000-4000-8000-000000000003": {
+                          "type": "object",
+                          "properties": {
+                            "announcement": {
+                              "type": "string"
+                            },
+                            "es-ES-announcement": {
+                              "type": "string"
+                            },
+                            "es-MX-announcement": {
+                              "type": "string"
+                            },
+                            "fr-FR-announcement": {
+                              "type": "string"
+                            },
+                            "de-DE-announcement": {
+                              "type": "string"
+                            },
+                            "pl-PL-announcement": {
+                              "type": "string"
+                            },
+                            "it-IT-announcement": {
+                              "type": "string"
+                            },
+                            "pt-BR-announcement": {
+                              "type": "string"
+                            },
+                            "warning": {
+                              "type": "string"
+                            },
+                            "es-ES-warning": {
+                              "type": "string"
+                            },
+                            "es-MX-warning": {
+                              "type": "string"
+                            },
+                            "fr-FR-warning": {
+                              "type": "string"
+                            },
+                            "de-DE-warning": {
+                              "type": "string"
+                            },
+                            "pl-PL-warning": {
+                              "type": "string"
+                            },
+                            "it-IT-warning": {
+                              "type": "string"
+                            },
+                            "pt-BR-warning": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "00000000-0000-4000-8000-000000000004": {
+                          "type": "object",
+                          "properties": {
+                            "announcement": {
+                              "type": "string"
+                            },
+                            "es-ES-announcement": {
+                              "type": "string"
+                            },
+                            "es-MX-announcement": {
+                              "type": "string"
+                            },
+                            "fr-FR-announcement": {
+                              "type": "string"
+                            },
+                            "de-DE-announcement": {
+                              "type": "string"
+                            },
+                            "pl-PL-announcement": {
+                              "type": "string"
+                            },
+                            "it-IT-announcement": {
+                              "type": "string"
+                            },
+                            "pt-BR-announcement": {
+                              "type": "string"
+                            },
+                            "warning": {
+                              "type": "string"
+                            },
+                            "es-ES-warning": {
+                              "type": "string"
+                            },
+                            "es-MX-warning": {
+                              "type": "string"
+                            },
+                            "fr-FR-warning": {
+                              "type": "string"
+                            },
+                            "de-DE-warning": {
+                              "type": "string"
+                            },
+                            "pl-PL-warning": {
+                              "type": "string"
+                            },
+                            "it-IT-warning": {
+                              "type": "string"
+                            },
+                            "pt-BR-warning": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "00000000-0000-4000-8000-000000000005": {
+                          "type": "object",
+                          "properties": {
+                            "announcement": {
+                              "type": "string"
+                            },
+                            "es-ES-announcement": {
+                              "type": "string"
+                            },
+                            "es-MX-announcement": {
+                              "type": "string"
+                            },
+                            "fr-FR-announcement": {
+                              "type": "string"
+                            },
+                            "de-DE-announcement": {
+                              "type": "string"
+                            },
+                            "pl-PL-announcement": {
+                              "type": "string"
+                            },
+                            "it-IT-announcement": {
+                              "type": "string"
+                            },
+                            "pt-BR-announcement": {
+                              "type": "string"
+                            },
+                            "warning": {
+                              "type": "string"
+                            },
+                            "es-ES-warning": {
+                              "type": "string"
+                            },
+                            "es-MX-warning": {
+                              "type": "string"
+                            },
+                            "fr-FR-warning": {
+                              "type": "string"
+                            },
+                            "de-DE-warning": {
+                              "type": "string"
+                            },
+                            "pl-PL-warning": {
+                              "type": "string"
+                            },
+                            "it-IT-warning": {
+                              "type": "string"
+                            },
+                            "pt-BR-warning": {
+                              "type": "string"
+                            }
+                          }
                         }
                       }
                     },
                     "worldSets": {
                       "type": "object",
                       "properties": {
-                        "azoth-1": {
+                        "fra-prod": {
+                          "type": "object",
+                          "properties": {
+                            "setName": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "gru-prod": {
+                          "type": "object",
+                          "properties": {
+                            "setName": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "iad-prod": {
+                          "type": "object",
+                          "properties": {
+                            "setName": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "pdx-prod": {
+                          "type": "object",
+                          "properties": {
+                            "setName": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "syd-prod": {
                           "type": "object",
                           "properties": {
                             "setName": {
@@ -1209,9 +1684,9 @@
         }
       }
     },
-    "/ping": {
+    "/players/amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c/games/new-world/platforms/steam/entitlements": {
       "get": {
-        "summary": "ping",
+        "summary": "players/amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c/games/new-world/platforms/steam/entitlements",
         "tags": [
           "observed"
         ],
@@ -1223,7 +1698,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "entitlements": {
+                      "type": "array"
+                    }
+                  }
                 }
               }
             }

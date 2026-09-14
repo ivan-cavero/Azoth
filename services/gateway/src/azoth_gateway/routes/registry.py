@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from .omni import _jwt
+from .omni import AZOTH_PERSONA
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DEFAULT_PATH = DATA_DIR / "worlds.json"
@@ -182,35 +182,135 @@ def worlds_list_doc(reg: Registry) -> dict:
     }
 
 
-def getlogininfo_doc(reg: Registry) -> dict:
-    login_infos = []
-    for w in reg.worlds:
-        now_ms = time.time_ns() // 1_000_000
-        login_infos.append(
-            {
-                # ponytail: solo camelCase; la unión Pascal rompe el parser estricto (dropdown 0/4 -> 0/0)
-                **_world_metadata(w),
-                "characters": [],  # ponytail: RE GetLoginInfoLists = descriptor + characters[]; sin esto el parser estricto puede soltar la entrada
-                "RepAddress": w.get("repAddress", ""),
-                "JwtClaims": _jwt(
-                    {"sub": w.get("id", AZOTH_WORLD_ID), "iat": now_ms, "exp": now_ms + 7_200_000}
-                ),
-                "GenerateTime": now_ms // 1000,
-                "IssueTime": now_ms // 1000,
-                "TokenVersion": 1,
-            }
-        )
-    # GetLoginInfoResult (HTTP) is NOT ListWorlds. Putting a `Worlds` array
-    # here can fail the aws-sdk-cpp unmarshaller → outcome never completes
-    # (UI spinner) and ListWorlds is never requested. Worlds live on
-    # GET /game/worlds/list only.
+def _login_world_dropdown(w: dict) -> dict:
+    """Lowercase WorldMetadata that feeds the UI dropdown (big_parser
+    0x144f40780 reflection table). Enums are INTEGERS here ("ACTIVE"->1,
+    "OpenWorld"->1, worldPopulationStatus->1); extra keys not in the model
+    (name, regionId) drop the whole object on strict parse -> dropdown 0/0.
+    Shape verified working by nw-private-server/first-light auth_mock.
+    """
+    maintenance = w.get("status") == "MAINTENANCE"
     return {
-        "LoginInfoList": login_infos,
-        "RecommendedWorlds": [],
-        "PendingWorldMerges": [],
-        "AccountIsLocked": False,
-        "AllowQueueTransfer": False,
-        "QueueName": "",
+        "worldId": w.get("id", AZOTH_WORLD_ID),
+        "type": 1,  # eWorldType_OpenWorld
+        "status": 1,  # ACTIVE
+        "publicStatusCode": 1,  # dropdown render value (int model)
+        "worldMetrics": {
+            "worldAgeDays": 1,
+            "queueSize": 0,
+            "queueWaitTimeSec": 0,
+            "worldPopulationStatus": 1,  # LOW
+        },
+        "publicName": w.get("displayName", ""),
+        "version": w.get("version", "1.0.0"),
+        "maxAccountCharacters": 4,
+        "worldSet": w.get("worldSet", ""),
+        "transferToRegion": "",
+        "isFull": False,
+        "isRecommended": not maintenance,
+    }
+
+
+def _login_world_gate(w: dict) -> dict:
+    """PascalCase world for the LoginInfoList create-character gate
+    (FUN_1474e42e0). String enums here: WorldStatus="ACTIVE" +
+    WorldType="OpenWorld" + PublicStatusCode=0 is the combo that passes
+    the candidate gate FUN_1464460d0 ((psc & 0xffffe8b7) == 0).
+    """
+    maintenance = w.get("status") == "MAINTENANCE"
+    return {
+        "WorldId": w.get("id", AZOTH_WORLD_ID),
+        "WorldName": w.get("name", AZOTH_WORLD_NAME),
+        "PublicName": w.get("displayName", ""),
+        "WorldStatus": w.get("status", "ACTIVE"),
+        "WorldType": _wire_world_type(str(w.get("type", "OpenWorld"))),
+        "WorldSet": w.get("worldSet", ""),
+        "WorldVersion": w.get("version", "1.0.0"),
+        "PublicStatusCode": 0,  # gate value (PascalCase model)
+        "MaxAccountCharacters": 4,
+        "MaxConnectionCount": w.get("maxPlayers", 2500),
+        "ConnectionCount": 0,
+        "IsFull": False,
+        "IsRecommended": not maintenance,
+        "TransferToRegion": "",
+        "WorldMetrics": {
+            "WorldAgeDays": 1,
+            "QueueSize": 0,
+            "QueueWaitTimeSec": 0,
+            "WorldPopulationStatus": 1,
+        },
+    }
+
+
+_SEED_CHARACTER_ID = "11111111-1111-1111-1111-111111111111"
+
+
+def _seed_character(w: dict) -> dict:
+    """PascalCase CharacterMetadata (FUN_1474e1f60) so the character panel
+    has something to render; the client then proceeds to validate/queue
+    instead of stalling on an empty Characters vector.
+    """
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return {
+        "CharacterId": _SEED_CHARACTER_ID,
+        "Name": w.get("characterName", "Azoth_Dev"),
+        "PersonaId": AZOTH_PERSONA,
+        "WorldId": w.get("id", AZOTH_WORLD_ID),
+        "CreatedDate": now,
+        "ModifiedDate": now,
+        "NameModifiedDate": now,
+        "NameLatentDate": now,
+        "NeedsTransferDate": now,
+        "TransferDate": now,
+        "RegionTransferDate": now,
+        "LocationGroupId": "",
+        "LocationId": "",
+        "MustRenameReason": "",
+        "OwnerState": "",
+        "PublishedData": "",
+        "PublishedSource": "",
+        "PublishedElapsedSeconds": 0,
+        "PublishedSocialSource": "",
+        "PublishedSocialElapsedSeconds": 0,
+        "SocialData": "",
+        "TransferCrossRegionCooldownEndTime": 0,
+        "TransferFreeCooldownEndTime": 0,
+        "TransferData": "",
+        "TransferReason": "",
+        "FtueCompleted": True,
+        "IsFreshStart": False,
+        "IsNameLatent": False,
+        "IsTrialOwner": False,
+        "MustRename": False,
+        "NeedsTransfer": False,
+        "Transferrable": False,
+    }
+
+
+def getlogininfo_doc(reg: Registry) -> dict:
+    """GetLoginInfoResult body — TWO schemas in one document, both proven on
+    the live client by nw-private-server/first-light (Codex/Ghidra traces
+    FUN_1474e01e0 / FUN_1474e42e0 / FUN_144f40780):
+
+    * top-level lowercase `worlds`/`recommendedWorlds` -> the UI dropdown
+      (int enums, exactly the reflection-model keys),
+    * top-level `LoginInfoList` OBJECT (not array!) whose PascalCase
+      `Worlds` + `Characters` feed the create-character gate. The parser
+      reads ONLY the "LoginInfoList" root key and recurses into it; without
+      the envelope the candidate vector stays zeroed (dropdown 0/0).
+    """
+    w = active_world(reg) or (reg.worlds[0] if reg.worlds else {})
+    return {
+        "worlds": [_login_world_dropdown(x) for x in reg.worlds] or [_login_world_dropdown(w)],
+        "recommendedWorlds": [],
+        "LoginInfoList": {
+            "Worlds": [_login_world_gate(x) for x in reg.worlds] or [_login_world_gate(w)],
+            "Characters": [_seed_character(w)],
+            "MaxChannelCharacters": 4,
+            "CrossRegionTransferCooldownMins": 0,
+            "NameReservations": [],
+            "PendingWorldMerges": [],
+        },
     }
 
 

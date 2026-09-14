@@ -86,9 +86,17 @@ def main() -> int:
                     op["requestBody"] = {
                         "content": {"application/json": {"schema": req}}
                     }
+                    if "example" not in op["requestBody"]["content"]["application/json"]:
+                        ex = fam["example"].get("req_body", {}).get("json")
+                        if ex is not None:
+                            op["requestBody"]["content"]["application/json"]["example"] = ex
                 resp = body_schema(fam["example"], "resp_body")
                 status = next(iter(sorted(fam["status"]))) or 200
                 content = {"application/json": {"schema": resp}} if resp else {}
+                if resp:
+                    ex = fam["example"].get("resp_body", {}).get("json")
+                    if ex is not None:
+                        content["application/json"]["example"] = ex
                 op["responses"] = {str(status or 200): {"content": content}}
             else:
                 op["responses"] = {"200": {}}

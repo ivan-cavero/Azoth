@@ -183,18 +183,24 @@ class GatewayTest(unittest.TestCase):
         code, _, body = get(18080, "/prod/game/getlogininfo/jwt/omni")
         self.assertEqual(code, 200)
         doc = json.loads(body.decode())
-        # GetLoginInfoResult has LoginInfoList, not Worlds (that's ListWorlds).
-        # WorldMetadata wire keys are camelCase (symbols.json
-        # worldmetadata_property_table); PascalCase is decorative.
-        info = doc["LoginInfoList"][0]
-        self.assertEqual(info["name"], WORLD["name"])
-        self.assertEqual(info["status"], WORLD["status"])
-        self.assertEqual(info["type"], "OpenWorld")
-        self.assertEqual(info["publicName"], WORLD["displayName"])
-        self.assertEqual(info["characters"], [])
-        self.assertEqual(info["RepAddress"], "127.0.0.1:9000")
-        self.assertNotIn("Worlds", doc)
-        self.assertNotIn("worlds", doc)
+        # Two schemas in one body (first-light-verified, FUN_1474e01e0 /
+        # FUN_1474e42e0 / FUN_144f40780):
+        # - top-level lowercase `worlds` -> dropdown, INT enums,
+        # - `LoginInfoList` OBJECT with PascalCase Worlds/Characters -> gate.
+        self.assertIn("worlds", doc)
+        self.assertIn("recommendedWorlds", doc)
+        lil = doc["LoginInfoList"]
+        self.assertIsInstance(lil, dict)
+        world = lil["Worlds"][0]
+        self.assertEqual(world["WorldName"], WORLD["name"])
+        self.assertEqual(world["WorldStatus"], WORLD["status"])
+        self.assertEqual(world["WorldType"], "OpenWorld")
+        self.assertEqual(world["PublicStatusCode"], 0)
+        self.assertEqual(doc["worlds"][0]["publicName"], WORLD["displayName"])
+        self.assertEqual(doc["worlds"][0]["status"], 1)
+        self.assertNotIn("name", doc["worlds"][0])  # extra keys drop the object
+        self.assertEqual(lil["Characters"][0]["WorldId"], world["WorldId"])
+        self.assertEqual(lil["Characters"][0]["Name"], WORLD.get("characterName", "Azoth_Dev"))
 
     def test_getlogininfo_override_file(self):
         override = pathlib.Path(self.tmp.name) / "getlogininfo.json"
@@ -218,13 +224,14 @@ class GatewayTest(unittest.TestCase):
             with urllib.request.urlopen(req) as r:
                 self.assertEqual(r.status, 200)
                 doc = json.loads(r.read().decode())
-            # Fields the live client consumed (client_expect.json).
-            self.assertIn("_", doc["ticket"])
-            self.assertEqual(doc["RepAddress"], "127.0.0.1:9000")
-            self.assertEqual(doc["WorldName"], WORLD["name"])
-            self.assertTrue(doc["WorldId"])
-            self.assertEqual(doc["location"], "")
-            self.assertTrue(doc["CharacterId"])
+            # LoginQueueResponse envelope (first-light RE: FUN_1474e4f20).
+            t = doc["LoginQueueResponse"]
+            self.assertTrue(t["TicketId"])
+            self.assertTrue(t["Signature"])  # handoff gate: must be non-empty
+            self.assertEqual(t["RepAddress"], "127.0.0.1:9000")
+            self.assertEqual(t["WorldName"], WORLD["name"])
+            self.assertTrue(t["WorldId"])
+            self.assertTrue(t["CharacterId"])
 
     def test_characters_list_and_validator(self):
         code, _, body = get(18080, "/characters")
@@ -301,10 +308,10 @@ class GatewayTest(unittest.TestCase):
         )
         try:
             _, _, body = get(18080, "/prod/game/getlogininfo/jwt/omni")
-            info = json.loads(body.decode())["LoginInfoList"][0]
-            self.assertEqual(info["status"], "MAINTENANCE")
-            self.assertFalse(info["isRecommended"])
-            self.assertEqual(info["type"], "OpenWorld")
+            lil = json.loads(body.decode())["LoginInfoList"]
+            self.assertEqual(lil["Worlds"][0]["WorldStatus"], "MAINTENANCE")
+            self.assertFalse(lil["Worlds"][0]["IsRecommended"])
+            self.assertEqual(lil["Worlds"][0]["WorldType"], "OpenWorld")
             _, _, body = get(18080, "/prod/game/worlds/list/jwt/omni")
             self.assertEqual(json.loads(body.decode())["worlds"][0]["status"], "MAINTENANCE")
 
@@ -314,12 +321,16 @@ class GatewayTest(unittest.TestCase):
 
             # Queue keeps serving a parseable ticket off the fallback world.
             _, _, body = get(18080, "/prod/game/login/queue/v2/enqueue")
-            self.assertEqual(json.loads(body.decode())["WorldName"], "azoth-1")
+            self.assertEqual(
+                json.loads(body.decode())["LoginQueueResponse"]["WorldName"], "azoth-1"
+            )
         finally:
             override.unlink()
         # Hot-reload back: packaged registry (ACTIVE) is served again.
         _, _, body = get(18080, "/prod/game/getlogininfo/jwt/omni")
-        self.assertEqual(json.loads(body.decode())["LoginInfoList"][0]["status"], "ACTIVE")
+        self.assertEqual(
+            json.loads(body.decode())["LoginInfoList"]["Worlds"][0]["WorldStatus"], "ACTIVE"
+        )
         _, _, body = get(18080, "/motd/worlds_STEAM_APP_ID.1063730.json")
         self.assertEqual(json.loads(body.decode())["worlds"][WORLD_ID]["announcement"], "")
 

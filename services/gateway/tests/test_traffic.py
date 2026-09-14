@@ -53,6 +53,25 @@ class TestNormalize(unittest.TestCase):
         )
 
 
+class TestTruncation(unittest.TestCase):
+    def test_oversize_json_stays_valid(self):
+        from azoth_gateway.routes.traffic import _body_field
+
+        big = {"token": "x" * 5000, "small": 1}
+        body = json.dumps(big).encode()
+        out = _body_field(body, 1024)
+        self.assertIn("json", out)  # never degrades to padded "text"
+        self.assertTrue(out.get("truncated"))
+        json.dumps(out["json"])  # still serializable
+        self.assertLessEqual(len(json.dumps(out["json"])), 1100)
+
+    def test_small_json_not_flagged(self):
+        from azoth_gateway.routes.traffic import _body_field
+
+        out = _body_field(b'{"a":1}', 1024)
+        self.assertEqual(out, {"json": {"a": 1}})
+
+
 class TestCaptureEndToEnd(unittest.TestCase):
     def test_full_capture_and_openapi(self):
         tmp = pathlib.Path(tempfile.mkdtemp())

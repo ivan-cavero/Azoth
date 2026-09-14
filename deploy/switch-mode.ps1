@@ -13,11 +13,12 @@
 .EXAMPLE
   powershell -File deploy\switch-mode.ps1 private    # UAC prompt, needs admin
   powershell -File deploy\switch-mode.ps1 official
+  powershell -File deploy\switch-mode.ps1 status     # read-only drift check, no admin
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('private', 'official')]
+    [ValidateSet('private', 'official', 'status')]
     [string]$Mode,
     [string]$HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts",
     [string]$AllowlistPath = '',
@@ -40,7 +41,7 @@ function Test-Elevated {
     ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-if (-not $SkipElevationCheck -and -not (Test-Elevated)) {
+if (-not $SkipElevationCheck -and $Mode -ne 'status' -and -not (Test-Elevated)) {
     throw 'switch-mode needs admin (right-click PowerShell > Run as administrator)'
 }
 
@@ -60,6 +61,37 @@ foreach ($line in $hosts) {
     if ($line -eq $endMark) { $inside = $false; continue }
     if (-not $inside) { $clean += $line }
 }
+
+# Read-only drift check: compare the allowlist against the live block.
+# Exits 1 when the block is missing or stale (CI-friendly), 0 when in sync.
+if ($Mode -eq 'status') {
+    $have = @{}
+    $inBlock = $false
+    foreach ($line in $hosts) {
+        if ($line -eq $beginMark) { $inBlock = $true; continue }
+        if ($line -eq $endMark) { $inBlock = $false; continue }
+        if ($inBlock -and $line -match '^\s*(127\.0\.0\.1|::1)\s+(\S+)') {
+            $have[$Matches[2]] = $true
+        }
+    }
+    $want = @($allow.redirect | ForEach-Object { $_.host })
+    $missing = @($want | Where-Object { -not $have.ContainsKey($_) })
+    $stale = @($have.Keys | Where-Object { $_ -notin $want })
+    Write-Output "mode=status allowlist=$($want.Count) blocked=$($have.Count)"
+    if ($missing.Count -gt 0) {
+        Write-Output "missing: $($missing -join ', ')"
+    }
+    if ($stale.Count -gt 0) {
+        Write-Output "stale: $($stale -join ', ')"
+    }
+    if ($missing.Count -eq 0 -and $stale.Count -eq 0) {
+        Write-Output 'in-sync'
+        exit 0
+    }
+    Write-Output 'drift: run switch-mode.ps1 private'
+    exit 1
+}
+
 if ($clean.Count -lt 3) { throw "refusing: surviving hosts content suspiciously small ($($clean.Count) lines)" }
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -74,6 +106,9 @@ if ($Mode -eq 'official') {
     $block = @($beginMark)
     foreach ($entry in $allow.redirect) {
         $block += "127.0.0.1`t$($entry.host)"
+        # ::1 is NOT optional: the client opens AF_INET6 sockets, so an AAAA
+        # lookup that returns the real CloudFront IPv6 bypasses the 127.0.0.1
+        # line entirely (first-light Frida traces 2026-04-26).
         $block += "::1`t$($entry.host)"
     }
     $block += $endMark

@@ -35,6 +35,7 @@ NOW, not "for later").
 
 | Lever | Where seen | What it promises |
 | --- | --- | --- |
+| DTLS verify bypass (REP trust) | `research/docs/REP-PROTOCOL.md` (external Ghidra trace, re-derive VA on our build with `research/tools/reversing/bytepat.py`) | Force the DTLS driver's permissive verify path (`JZ`→`JMP` at the `CMP [RDI+0x288],0` site) so the handshake against our REP server succeeds. In-memory only, via `scripts/frida-trust-patch.py`, against the private runtime (no EAC). The embedded `CN=New World` cert means our own CA can never validate — this patch is the only viable trust path. |
 | `ui_dumpDataLayer` | cvar string in the exe ("Dumps debug info of UiDataLayer to log") | Dump the UI data-layer state: which worlds are loaded and why they don't paint. |
 | In-process local-dev mode | `client-connection.enable-local-dev` (documented, requires PAK repack) | The game's own stub services persisting to `_persistence/*.json` — reveals the EXACT shapes the client expects without a gateway. |
 | `auth-testing` fault injection | `client-connection.auth-testing.*` (same repack requirement) | Controlled auth failure injection. |

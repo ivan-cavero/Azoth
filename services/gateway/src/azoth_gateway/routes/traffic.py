@@ -32,6 +32,56 @@ MAX_EXAMPLE_BYTES = 4 * 1024  # per body example in the atlas summary
 SENSITIVE_HEADERS = {"authorization", "x-nw-auth", "x-amz-security-token"}
 
 
+def _truncate_json(raw: bytes, cap: int) -> tuple[object, bool]:
+    """Parse the FULL body, then shrink the decoded object until it fits.
+
+    Truncating the raw bytes first (the old behavior) produced invalid JSON
+    that fell through to the "text" branch — hence the padded garbage in
+    observed-endpoints.json. Here the body is parsed whole and the resulting
+    object is pruned depth-first (longest strings/lists first) so the example
+    stays valid JSON. Returns (value, truncated).
+    """
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return None, False
+
+    def size(v: object) -> int:
+        return len(json.dumps(v, ensure_ascii=False))
+
+    truncated = False
+    while size(value) > cap:
+        truncated = True
+        if isinstance(value, dict):
+            # Prune the longest string/list child first.
+            key = max(
+                value,
+                key=lambda k: (
+                    len(value[k]) if isinstance(value[k], (str, list, dict)) else 0
+                ),
+            )
+            child = value[key]
+            if isinstance(child, str) and len(child) > 64:
+                value[key] = child[:64] + "…<truncated>"
+            elif isinstance(child, list) and child:
+                value[key] = child[: max(1, len(child) // 2)]
+            elif isinstance(child, dict) and child:
+                sub = next(iter(child))
+                del child[sub]
+            else:
+                del value[key]
+                if not value:
+                    break
+        elif isinstance(value, list) and value:
+            value = value[: max(1, len(value) // 2)]
+        elif isinstance(value, str):
+            value = value[:cap] + "…<truncated>"
+            break
+        else:
+            break
+    return value, truncated
+
+
 def normalize_path(path: str) -> str:
     """Collapse volatile path segments so one atlas entry = one endpoint family."""
     clean = path.split("?")[0]
@@ -52,14 +102,20 @@ def _now() -> str:
 
 
 def _body_field(body: bytes | None, cap: int) -> dict:
-    """Encode a body: JSON inline, text inline, or base64 with length."""
+    """Encode a body: JSON inline, text inline, or base64 with length.
+
+    JSON is parsed from the FULL body and pruned to `cap` (never sliced raw:
+    slicing first yields invalid JSON that degrades to padded "text").
+    """
     if not body:
         return {}
+    value, truncated = _truncate_json(body, cap)
+    if value is not None:
+        out: dict = {"json": value}
+        if truncated:
+            out["truncated"] = True
+        return out
     raw = body[:cap]
-    try:
-        return {"json": json.loads(raw.decode("utf-8"))}
-    except (UnicodeDecodeError, ValueError):
-        pass
     try:
         return {"text": raw.decode("utf-8")[:cap]}
     except UnicodeDecodeError:
@@ -157,7 +213,9 @@ class TrafficLog:
             if method:
                 entry["methods"].add(method)
             entry["last"] = ts or _now()
-            # Keep the first non-empty example per family for the atlas/OpenAPI.
+            # Keep the first GOOD example per family for the atlas/OpenAPI.
+            # A family whose first capture exceeded the cap keeps a truncated
+            # stub; replace it when a later capture fits whole.
             if new_family or "example" not in entry:
                 example: dict = {}
                 if req_body:
@@ -170,6 +228,10 @@ class TrafficLog:
                         example["response"] = ex
                 if example:
                     entry["example"] = example
+            elif entry["example"].get("response", {}).get("truncated") and resp_body:
+                ex = _body_field(resp_body, MAX_EXAMPLE_BYTES)
+                if ex and not ex.get("truncated"):
+                    entry["example"]["response"] = ex
         self._write_atlas()
         if new_family:
             print(f"[gw] TRAFFIC new endpoint family: {method} {norm}")
