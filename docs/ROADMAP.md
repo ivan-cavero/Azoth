@@ -1,9 +1,51 @@
 # Roadmap — Azoth
 
 Performance contract: [services/docs/PERFORMANCE.md](../services/docs/PERFORMANCE.md).  
-Architecture: [ARCHITECTURE (archived, Spanish)](archive/ARQUITECTURA.md).
+Architecture: [ARCHITECTURE (archived, Spanish)](archive/ARQUITECTURA.md).  
+Method lessons: [research/docs/LESSONS.md](../research/docs/LESSONS.md) — read before any RE round.  
+REP wire spec: [research/docs/REP-PROTOCOL.md](../research/docs/REP-PROTOCOL.md).
 
 Amazon’s servers lagged with relatively few people **stacked in one place**. Azoth is built for **density** (many players together) and only then for raw CCU. Capture work stays **in parallel** until 2027-01-31: every session is protocol we cannot get after shutdown.
+
+---
+
+## Language decision (2026-09-14, frozen)
+
+**Python until protocol freeze; Rust after.** The reasoning lives in
+`research/docs/LESSONS.md` (#11 not needed — this entry is the decision).
+
+1. **Now (Phase 2 frontier): Python** stays the protocol lab. We iterate
+   CONNECT_ACK / V3 / first spawn against the live client there — RE work,
+   where iteration speed beats everything. `services/world` (pyOpenSSL
+   DTLS) already proved it holds a real client handshake.
+2. **Freeze point:** the moment Game.log shows `player spawn succeeds, in
+   game`. At that point the protocol stops changing:
+   - `research/docs/REP-PROTOCOL.md` becomes the normative spec (every
+     message, every field, byte order, with capture evidence).
+   - Golden captures: `services/world/rep_traffic.jsonl` dumps from real
+     sessions are stored as fixtures (`research/fixtures/rep/`) and every
+     parser/serializer is locked by round-trip tests against them.
+3. **Port to Rust** (`services/world-rs/`): tokio + openssl crate (DTLS) +
+   hecs/bevy_ecs for the 60Hz simulation. Module-by-module, each validated
+   against the same golden captures: the Rust bitstream must produce byte-
+   identical output to the Python reference on every fixture. The compiler
+   is the first oracle, the golden bytes are the second.
+4. **Gateway stays Python permanently** — stateless login/CMS doorman, no
+   hot path, no reason to port. `services/gateway` is the long-term form.
+
+Not Go, not Bun/JS: Go loses to Rust on the 60Hz no-GC-jitter requirement
+(sub-ms pauses still steal CPU from the tick at scale) and on the ECS
+story (hecs/bevy_ecs is the data-oriented architecture the simulation
+wants); Bun/JS has no serious DTLS. Rust's compile-time-as-oracle suits
+agent-driven development, and the "no hot-reload" concern is moot —
+cargo-watch gives the same save→rebuild→restart loop as our Python watcher
+(~2-5s incremental), and the real iteration bottleneck is the 2-minute
+game restart, identical in every language.
+
+Services/DB (characters, guilds, friends, inventory): they live as RMI
+behind the world server (as the real game's Stubbed*Service architecture
+dictates), NOT in the gateway. Schema design starts after spawn works,
+using the client's gRPC catalog (`research/derived/grpc.json`) as contract.
 
 ---
 
@@ -71,10 +113,18 @@ Network bodies stay TLS/DTLS on official. The win is **Game.log names + timing +
 Channel + CMS (ETag) + Omni + S3 remote-config + characters + queue `RepAddress`.  
 Done when Game.log says `StartREPConnection` to localhost.
 
-### Fase 2 — World stub (spawn frozen)
+### Fase 2 — World stub (spawn frozen) ← CURRENT
 
-DTLS (openssl) + Carrier CONNECT + V3 + `LevelInfoChanged` + `Cmd_NewProxy`.  
+DTLS (pyOpenSSL now, Rust later per the language decision above) + Carrier
+CONNECT + V3 + `LevelInfoChanged` + `Cmd_NewProxy`.  
 Done when `player spawn succeeds, in game`. Character may stand still.
+
+**Current blocker:** the client loops CONNECT_REQUEST (system channel 3,
+msgId last byte, payload `[u32 BE len][cookie]`) and rejects our echo-ACK.
+Live raw-hex capture runs automatically in `services/world/rep_traffic.jsonl`.
+
+**Protocol freeze + Rust port trigger:** `player spawn succeeds, in game`.
+See the language decision at the top of this file.
 
 ### Fase 3 — One player moves
 
