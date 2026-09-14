@@ -36,6 +36,13 @@ validation against the **embedded** self-signed `CN=New World` cert
   OUR private runtime (no EAC there — the EAC ban in `EAC.md` covers the
   official process, not our own exe copy).
 
+**VERIFIED on our build 1.400.6031.6004151 (2026-09-14,
+`bytepat.py dtls-verify`):** the site is byte-identical AND at the same VA —
+CMP at `0x145dce8ad` (`48 83 BF 88 02 00 00 00`), JZ at `0x145dce8b5`
+(`0F 84 19 01 00 00` -> `0x145dce9d4`). Patch bytes:
+`E9 19 01 00 00 90`. Both builds share the `6031` branch and this code did
+not move. Keep re-deriving on every client update anyway.
+
 Lever entry: `research/atlas/levers.md` ("DTLS verify bypass").
 
 ## Carrier envelope (every post-DTLS datagram, 4 bytes)
