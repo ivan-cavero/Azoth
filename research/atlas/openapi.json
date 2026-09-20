@@ -6,6 +6,48 @@
     "description": "Auto-generated from gateway captures (services/gateway/traffic.jsonl). Paths are endpoint families: volatile ids collapsed to {id}. Curated field-level notes live in endpoints.json / models.json."
   },
   "paths": {
+    "/": {
+      "get": {
+        "summary": "",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          404
+        ],
+        "responses": {
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "n": {
+                      "type": "number"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "ok": false,
+                  "error": "unknown-path",
+                  "n": 18,
+                  "path": "/"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/STEAM_APP_ID.json": {
       "get": {
         "summary": "STEAM_APP_ID.json",
@@ -241,6 +283,190 @@
                       }
                     }
                   }
+                },
+                "example": {
+                  "channelName": "Azoth",
+                  "fra-prod": {
+                    "displayName": "EU Central",
+                    "localizedName": "EU Central",
+                    "poolId": "us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93",
+                    "publicApis": [
+                      {
+                        "awsRegion": "us-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "2mfrik7h83.execute-api.us-east-1.amazonaws.com",
+                        "clientTag": "authStack",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "eu-central-1",
+                        "version": "1.0",
+                        "apiEndpoint": "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+                        "clientTag": "loginGateway",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "eu-central-1",
+                        "version": "1.0",
+                        "apiEndpoint": "8otrnl8e8d.execute-api.eu-central-1.amazonaws.com",
+                        "clientTag": "JavelinGatewayServiceV2",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "eu-central-1",
+                        "version": "1.0",
+                        "apiEndpoint": "d1w0bfy6smo4d1.cloudfront.net",
+                        "clientTag": "JavelinGatewayService-CF"
+                      }
+                    ]
+                  },
+                  "gru-prod": {
+                    "displayName": "SA East",
+                    "localizedName": "SA East",
+                    "poolId": "us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9",
+                    "publicApis": [
+                      {
+                        "awsRegion": "us-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "kqqt5twsi7.execute-api.us-east-1.amazonaws.com",
+                        "clientTag": "authStack",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "sa-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "j4n6whncmi.execute-api.sa-east-1.amazonaws.com",
+                        "clientTag": "loginGateway",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "sa-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "ei4rb8pwvd.execute-api.sa-east-1.amazonaws.com",
+                        "clientTag": "JavelinGatewayServiceV2",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "sa-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "d1cjlmzk0xrm0z.cloudfront.net",
+                        "clientTag": "JavelinGatewayService-CF"
+                      }
+                    ]
+                  },
+                  "iad-prod": {
+                    "displayName": "US East",
+                    "localizedName": "US East",
+                    "poolId": "us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09",
+                    "publicApis": [
+                      {
+                        "awsRegion": "us-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "0prplal5u1.execute-api.us-east-1.amazonaws.com",
+                        "clientTag": "loginGateway",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "us-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "eudbjx6mig.execute-api.us-east-1.amazonaws.com",
+                        "clientTag": "authStack",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "us-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "3khxmonavl.execute-api.us-east-1.amazonaws.com",
+                        "clientTag": "JavelinGatewayServiceV2",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "us-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "d2oeuvxi3kfsrw.cloudfront.net",
+                        "clientTag": "JavelinGatewayService-CF"
+                      }
+                    ]
+                  },
+                  "pdx-prod": {
+                    "displayName": "US West",
+                    "localizedName": "US West",
+                    "poolId": "us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f",
+                    "publicApis": [
+                      {
+                        "awsRegion": "us-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "q8hqllbg6k.execute-api.us-east-1.amazonaws.com",
+                        "clientTag": "authStack",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "us-west-2",
+                        "version": "1.0",
+                        "apiEndpoint": "v7irlu1nrl.execute-api.us-west-2.amazonaws.com",
+                        "clientTag": "loginGateway",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "us-west-2",
+                        "version": "1.0",
+                        "apiEndpoint": "mwsyzhfoe5.execute-api.us-west-2.amazonaws.com",
+                        "clientTag": "JavelinGatewayServiceV2",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "us-west-2",
+                        "version": "1.0",
+                        "apiEndpoint": "d3bj4csovi1fe8.cloudfront.net",
+                        "clientTag": "JavelinGatewayService-CF"
+                      }
+                    ]
+                  },
+                  "syd-prod": {
+                    "displayName": "AP Southeast",
+                    "localizedName": "AP Southeast",
+                    "poolId": "us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b",
+                    "publicApis": [
+                      {
+                        "awsRegion": "us-east-1",
+                        "version": "1.0",
+                        "apiEndpoint": "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
+                        "clientTag": "authStack",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "ap-southeast-2",
+                        "version": "1.0",
+                        "apiEndpoint": "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
+                        "clientTag": "loginGateway",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "ap-southeast-2",
+                        "version": "1.0",
+                        "apiEndpoint": "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
+                        "clientTag": "JavelinGatewayServiceV2",
+                        "stage": "prod"
+                      },
+                      {
+                        "awsRegion": "ap-southeast-2",
+                        "version": "1.0",
+                        "apiEndpoint": "de4mfzk9wkelz.cloudfront.net",
+                        "clientTag": "JavelinGatewayService-CF"
+                      }
+                    ]
+                  },
+                  "platformMetadata": {
+                    "ENTITLEMENTS.STEAM_APP_ID.1063730": {
+                      "app": "STEAM_APP_ID.1063730"
+                    },
+                    "OMNI.STEAM_APP_ID.1063730": {
+                      "omniTokenUrl": "https://tokenservice.amazongames.com",
+                      "nwTokenUrl": "https://prod.newworld.com/",
+                      "omniStage": "prod",
+                      "omniGameAlias": "new-world"
+                    }
+                  }
                 }
               }
             }
@@ -268,6 +494,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -295,6 +524,249 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/CognitoId/us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/CognitoId/us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -322,6 +794,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -349,6 +824,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -376,6 +854,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -403,6 +884,309 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/gru-prod/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/gru-prod/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/gru-prod/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/gru-prod/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/iad-prod/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/iad-prod/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/iad-prod/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/iad-prod/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/pdx-prod/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/pdx-prod/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/pdx-prod/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/pdx-prod/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/syd-prod/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/syd-prod/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/syd-prod/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/syd-prod/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/WorldId/{id}/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/WorldId/{id}/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/WorldId/{id}/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/WorldId/{id}/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -430,6 +1214,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -457,6 +1244,326 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/CognitoId/x/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/CognitoId/x/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    },
+                    "game-security": {
+                      "type": "object",
+                      "properties": {
+                        "enable-anticheat": {
+                          "type": "boolean"
+                        },
+                        "enable-anticheat-kicking": {
+                          "type": "boolean"
+                        },
+                        "enable-heat-tracking": {
+                          "type": "boolean"
+                        },
+                        "eos-kick-all": {
+                          "type": "boolean"
+                        },
+                        "eos-enable-gm-ac": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "game-security.enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-anticheat-kicking": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-heat-tracking": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-enable-gm-ac": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true,
+                  "game-security": {
+                    "enable-anticheat": false,
+                    "enable-anticheat-kicking": false,
+                    "enable-heat-tracking": false,
+                    "eos-kick-all": false,
+                    "eos-enable-gm-ac": false
+                  },
+                  "game-security.enable-anticheat": false,
+                  "game-security.enable-anticheat-kicking": false,
+                  "game-security.enable-heat-tracking": false,
+                  "game-security.eos-kick-all": false,
+                  "game-security.eos-enable-gm-ac": false
                 }
               }
             }
@@ -484,6 +1591,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -511,6 +1621,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -538,6 +1651,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -565,6 +1681,386 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/gru-prod/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/gru-prod/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/gru-prod/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/gru-prod/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/iad-prod/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/iad-prod/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/iad-prod/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/iad-prod/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/pdx-prod/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/pdx-prod/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/pdx-prod/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/syd-prod/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/syd-prod/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/syd-prod/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/syd-prod/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/WorldId/x/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/WorldId/x/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    },
+                    "game-security": {
+                      "type": "object",
+                      "properties": {
+                        "enable-anticheat": {
+                          "type": "boolean"
+                        },
+                        "enable-anticheat-kicking": {
+                          "type": "boolean"
+                        },
+                        "enable-heat-tracking": {
+                          "type": "boolean"
+                        },
+                        "eos-kick-all": {
+                          "type": "boolean"
+                        },
+                        "eos-enable-gm-ac": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "game-security.enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-anticheat-kicking": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-heat-tracking": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-enable-gm-ac": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true,
+                  "game-security": {
+                    "enable-anticheat": false,
+                    "enable-anticheat-kicking": false,
+                    "enable-heat-tracking": false,
+                    "eos-kick-all": false,
+                    "eos-enable-gm-ac": false
+                  },
+                  "game-security.enable-anticheat": false,
+                  "game-security.enable-anticheat-kicking": false,
+                  "game-security.enable-heat-tracking": false,
+                  "game-security.eos-kick-all": false,
+                  "game-security.eos-enable-gm-ac": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/WorldId/{id}/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/WorldId/{id}/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/WorldId/{id}/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/WorldId/{id}/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
                 }
               }
             }
@@ -594,6 +2090,10 @@
                     "type": "string"
                   }
                 }
+              },
+              "example": {
+                "token": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwiaXNzIjoiaHR0cHM6Ly90b2tlbnNlcnZpY2UuYW1hem9uZ2FtZXMuY29tIiwiYXVkIjoibmV3LXdvcmxkIiwiaWF0IjoxNzg5NDA1NzE3ODc5LCJleHAiOjE3ODk0MTI5MTc4Nzl9.",
+                "type": "ags"
               }
             }
           }
@@ -612,6 +2112,10 @@
                       "type": "number"
                     }
                   }
+                },
+                "example": {
+                  "code": "AZOTH-PRIVATE",
+                  "statusCode": 0
                 }
               }
             }
@@ -668,6 +2172,20 @@
                       }
                     }
                   }
+                }
+              },
+              "example": {
+                "platformIdentityType": "steam",
+                "platformAuth": {
+                  "ticket": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+                },
+                "fallbackToken": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwicmVmcmVzaCI6dHJ1ZSwiaWF0IjoxNzg4OTc5MjM0NDI4LCJleHAiOjE3ODkwNjU2MzQ0Mjh9.",
+                "attributionData": {
+                  "os": "Windows 11",
+                  "resolution": "2560x1440",
+                  "language": "es-ES",
+                  "platform": "Windows",
+                  "created": 1789405717
                 }
               }
             }
@@ -736,6 +2254,57 @@
                       }
                     }
                   }
+                },
+                "example": {
+                  "accessToken": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwiaXNzIjoiaHR0cHM6Ly90b2tlbnNlcnZpY2UuYW1hem9uZ2FtZXMuY29tIiwiYXVkIjoibmV3LXdvcmxkIiwiaWF0IjoxNzg5NDA1NzE3ODc5LCJleHAiOjE3ODk0MTI5MTc4Nzl9.",
+                  "expiresIn": 7200,
+                  "fallbackToken": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwicmVmcmVzaCI6dHJ1ZSwiaWF0IjoxNzg5NDA1NzE3ODc5LCJleHAiOjE3ODk0OTIxMTc4Nzl9.",
+                  "limitedUseToken": "",
+                  "isNewAccount": false,
+                  "region": "us-east-1",
+                  "platformAccount": {
+                    "ageGroup": 1,
+                    "identityType": "steam",
+                    "platform": "steam",
+                    "identityId": "76561197960287930",
+                    "personaId": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c"
+                  },
+                  "account": {
+                    "type": "shadow",
+                    "ageGroup": 1,
+                    "identityId": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c",
+                    "personaId": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "health",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "ok": true
                 }
               }
             }
@@ -763,6 +2332,9 @@
                       "type": "boolean"
                     }
                   }
+                },
+                "example": {
+                  "ok": true
                 }
               }
             }
@@ -987,6 +2559,110 @@
                       }
                     }
                   }
+                },
+                "example": {
+                  "tileData": [
+                    {
+                      "de-DE-description": "Lest mehr \u00fcber die Zukunft von New World: Aeternum.",
+                      "de-DE-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+                      "de-DE-internalName": "Main Tile - Sunset",
+                      "de-DE-isVideoUrl": false,
+                      "de-DE-title": "Die Zukunft von New World: Was euch erwartet",
+                      "de-DE-urlToOpen": "https://www.newworld.com/forward-link?id=future-of-new-word",
+                      "description": "Read more about the future of New World: Aeternum.",
+                      "es-ES-description": "Lee m\u00e1s sobre el futuro de New World: Aeternum.",
+                      "es-ES-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+                      "es-ES-internalName": "Main Tile - Sunset",
+                      "es-ES-isVideoUrl": false,
+                      "es-ES-title": "El futuro de New World: qu\u00e9 pod\u00e9is esperar",
+                      "es-ES-urlToOpen": "https://www.newworld.com/forward-link?id=future-of-new-word",
+                      "es-MX-description": "Lee m\u00e1s sobre el futuro de New World: Aeternum.",
+                      "es-MX-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+                      "es-MX-internalName": "Main Tile - Sunset",
+                      "es-MX-isVideoUrl": false,
+                      "es-MX-title": "El futuro de New World: qu\u00e9 esperar",
+                      "es-MX-urlToOpen": "https://www.newworld.com/forward-link?id=future-of-new-word",
+                      "fr-FR-description": "Obtenez plus d'informations sur l\u2019avenir de New World: Aeternum.",
+                      "fr-FR-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+                      "fr-FR-internalName": "Main Tile - Sunset",
+                      "fr-FR-isVideoUrl": false,
+                      "fr-FR-title": "L'avenir de New World : \u00e0 quoi s'attendre",
+                      "fr-FR-urlToOpen": "https://www.newworld.com/forward-link?id=future-of-new-word",
+                      "imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+                      "internalName": "Main Tile - Sunset",
+                      "isVideoUrl": false,
+                      "it-IT-description": "Scopri di pi\u00f9 sul futuro di New World: Aeternum.",
+                      "it-IT-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+                      "it-IT-internalName": "Main Tile - Sunset",
+                      "it-IT-isVideoUrl": false,
+                      "it-IT-title": "Il futuro di New World: cosa aspettarsi",
+                      "it-IT-urlToOpen": "https://www.newworld.com/forward-link?id=future-of-new-word",
+                      "pl-PL-description": "Dowiedz si\u0119 wi\u0119cej o przysz\u0142o\u015bci New World: Aeternum",
+                      "pl-PL-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+                      "pl-PL-internalName": "Main Tile - Sunset",
+                      "pl-PL-isVideoUrl": false,
+                      "pl-PL-title": "Przysz\u0142o\u015b\u0107 New World: czego si\u0119 spodziewa\u0107",
+                      "pl-PL-urlToOpen": "https://www.newworld.com/forward-link?id=future-of-new-word",
+                      "pt-BR-description": "Leia mais sobre o futuro do New World: Aeternum.",
+                      "pt-BR-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/NYt1ufO3MzAZQBiGk5bov/545b5d71ef228db0b20f979d14f68b91/nw_maintenance_tile_final_652x360_ct-000022652.dds",
+                      "pt-BR-internalName": "Main Tile - Sunset",
+                      "pt-BR-isVideoUrl": false,
+                      "pt-BR-title": "O que esperar para o futuro do New World",
+                      "pt-BR-urlToOpen": "https://www.newworld.com/forward-link?id=future-of-new-word",
+                      "title": "The Future of New World: What to Expect",
+                      "urlToOpen": "https://www.newworld.com/forward-link?id=future-of-new-word"
+                    },
+                    {
+                      "de-DE-description": "Erfahre hier mehr \u00fcber unsere Community und beteilige dich.",
+                      "de-DE-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+                      "de-DE-internalName": "Community Spaces - Top Right Tile",
+                      "de-DE-isVideoUrl": false,
+                      "de-DE-title": "Tritt der Community bei",
+                      "de-DE-urlToOpen": "https://www.newworld.com/forward-link?id=community-spaces",
+                      "description": "Learn about our community spaces and get involved here",
+                      "es-ES-description": "Descubre nuestros espacios de comunidad e invol\u00facrate aqu\u00ed",
+                      "es-ES-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+                      "es-ES-internalName": "Community Spaces - Top Right Tile",
+                      "es-ES-isVideoUrl": false,
+                      "es-ES-title": "\u00a1\u00danete a la comunidad NW!",
+                      "es-ES-urlToOpen": "https://www.newworld.com/forward-link?id=community-spaces",
+                      "es-MX-description": "Descubre nuestra comunidad y participa aqu\u00ed",
+                      "es-MX-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+                      "es-MX-internalName": "Community Spaces - Top Right Tile",
+                      "es-MX-isVideoUrl": false,
+                      "es-MX-title": "\u00danete a la comunidad de NW",
+                      "es-MX-urlToOpen": "https://www.newworld.com/forward-link?id=community-spaces",
+                      "fr-FR-description": "Renseignez-vous sur nos espaces communautaires et participez-y ici",
+                      "fr-FR-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+                      "fr-FR-internalName": "Community Spaces - Top Right Tile",
+                      "fr-FR-isVideoUrl": false,
+                      "fr-FR-title": "Rejoignez la communaut\u00e9\u00a0!",
+                      "fr-FR-urlToOpen": "https://www.newworld.com/forward-link?id=community-spaces",
+                      "imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+                      "internalName": "Community Spaces - Top Right Tile",
+                      "isVideoUrl": false,
+                      "it-IT-description": "Scopri i nostri spazi dedicati alla community e unisciti qui",
+                      "it-IT-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+                      "it-IT-internalName": "Community Spaces - Top Right Tile",
+                      "it-IT-isVideoUrl": false,
+                      "it-IT-title": "Unisciti alla comunit\u00e0 NW",
+                      "it-IT-urlToOpen": "https://www.newworld.com/forward-link?id=community-spaces",
+                      "pl-PL-description": "Dowiedz si\u0119 wi\u0119cej o miejscach w naszej spo\u0142eczno\u015bci i zaanga\u017cuj si\u0119",
+                      "pl-PL-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+                      "pl-PL-internalName": "Community Spaces - Top Right Tile",
+                      "pl-PL-isVideoUrl": false,
+                      "pl-PL-title": "Do\u0142\u0105cz do spo\u0142eczno\u015bci NW!",
+                      "pl-PL-urlToOpen": "https://www.newworld.com/forward-link?id=community-spaces",
+                      "pt-BR-description": "Saiba mais sobre nossos espa\u00e7os comunit\u00e1rios e envolva-se aqui",
+                      "pt-BR-imgKey": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/LZ3B0x365eV1Yk3AMGeiW/48378a30400e1bd8efbe5b09306b36ae/newstile2.dds",
+                      "pt-BR-internalName": "Community Spaces - Top Right Tile",
+                      "pt-BR-isVideoUrl": false,
+                      "pt-BR-title": "Junte-se a Comunidade NW!",
+                      "pt-BR-urlToOpen": "https://www.newworld.com/forward-link?id=community-spaces",
+                      "title": "Join the NW Community!",
+                      "urlToOpen": "https://www.newworld.com/forward-link?id=community-spaces"
+                    }
+                  ]
                 }
               }
             }
@@ -1380,6 +3056,135 @@
                       }
                     }
                   }
+                },
+                "example": {
+                  "worlds": {
+                    "00000000-0000-4000-8000-000000000001": {
+                      "announcement": "",
+                      "es-ES-announcement": "",
+                      "es-MX-announcement": "",
+                      "fr-FR-announcement": "",
+                      "de-DE-announcement": "",
+                      "pl-PL-announcement": "",
+                      "it-IT-announcement": "",
+                      "pt-BR-announcement": "",
+                      "warning": "",
+                      "es-ES-warning": "",
+                      "es-MX-warning": "",
+                      "fr-FR-warning": "",
+                      "de-DE-warning": "",
+                      "pl-PL-warning": "",
+                      "it-IT-warning": "",
+                      "pt-BR-warning": ""
+                    },
+                    "00000000-0000-4000-8000-000000000002": {
+                      "announcement": "",
+                      "es-ES-announcement": "",
+                      "es-MX-announcement": "",
+                      "fr-FR-announcement": "",
+                      "de-DE-announcement": "",
+                      "pl-PL-announcement": "",
+                      "it-IT-announcement": "",
+                      "pt-BR-announcement": "",
+                      "warning": "",
+                      "es-ES-warning": "",
+                      "es-MX-warning": "",
+                      "fr-FR-warning": "",
+                      "de-DE-warning": "",
+                      "pl-PL-warning": "",
+                      "it-IT-warning": "",
+                      "pt-BR-warning": ""
+                    },
+                    "00000000-0000-4000-8000-000000000003": {
+                      "announcement": "",
+                      "es-ES-announcement": "",
+                      "es-MX-announcement": "",
+                      "fr-FR-announcement": "",
+                      "de-DE-announcement": "",
+                      "pl-PL-announcement": "",
+                      "it-IT-announcement": "",
+                      "pt-BR-announcement": "",
+                      "warning": "",
+                      "es-ES-warning": "",
+                      "es-MX-warning": "",
+                      "fr-FR-warning": "",
+                      "de-DE-warning": "",
+                      "pl-PL-warning": "",
+                      "it-IT-warning": "",
+                      "pt-BR-warning": ""
+                    },
+                    "00000000-0000-4000-8000-000000000004": {
+                      "announcement": "",
+                      "es-ES-announcement": "",
+                      "es-MX-announcement": "",
+                      "fr-FR-announcement": "",
+                      "de-DE-announcement": "",
+                      "pl-PL-announcement": "",
+                      "it-IT-announcement": "",
+                      "pt-BR-announcement": "",
+                      "warning": "",
+                      "es-ES-warning": "",
+                      "es-MX-warning": "",
+                      "fr-FR-warning": "",
+                      "de-DE-warning": "",
+                      "pl-PL-warning": "",
+                      "it-IT-warning": "",
+                      "pt-BR-warning": ""
+                    },
+                    "00000000-0000-4000-8000-000000000005": {
+                      "announcement": "",
+                      "es-ES-announcement": "",
+                      "es-MX-announcement": "",
+                      "fr-FR-announcement": "",
+                      "de-DE-announcement": "",
+                      "pl-PL-announcement": "",
+                      "it-IT-announcement": "",
+                      "pt-BR-announcement": "",
+                      "warning": "",
+                      "es-ES-warning": "",
+                      "es-MX-warning": "",
+                      "fr-FR-warning": "",
+                      "de-DE-warning": "",
+                      "pl-PL-warning": "",
+                      "it-IT-warning": "",
+                      "pt-BR-warning": ""
+                    }
+                  },
+                  "worldSets": {
+                    "fra-prod": {
+                      "setName": "Azoth EU Central"
+                    },
+                    "gru-prod": {
+                      "setName": "Azoth SA East"
+                    },
+                    "iad-prod": {
+                      "setName": "Azoth US East"
+                    },
+                    "pdx-prod": {
+                      "setName": "Azoth US West"
+                    },
+                    "syd-prod": {
+                      "setName": "Azoth AP Southeast"
+                    }
+                  },
+                  "globalAnnouncement": {
+                    "title": "",
+                    "es-ES-title": "",
+                    "es-MX-title": "",
+                    "fr-FR-title": "",
+                    "de-DE-title": "",
+                    "pl-PL-title": "",
+                    "it-IT-title": "",
+                    "pt-BR-title": "",
+                    "description": "",
+                    "es-ES-description": "",
+                    "es-MX-description": "",
+                    "fr-FR-description": "",
+                    "de-DE-description": "",
+                    "pl-PL-description": "",
+                    "it-IT-description": "",
+                    "pt-BR-description": ""
+                  }
                 }
               }
             }
@@ -1677,6 +3482,122 @@
                       }
                     }
                   }
+                },
+                "example": {
+                  "newsStories": [
+                    {
+                      "backgroundImage": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+                      "buttonText": "The Future of New World: What to Expect",
+                      "content": "New World: Aeternum will officially be taken offline from all platforms on January 31, 2027. On January 15, 2026, the title will be delisted and no longer available for purchase. Players will still be able to play New World: Aeternum on their purchased platform, and we are extending the Nighthaven season until the servers are taken offline on January 31, 2027.\n\nWe want to thank the players for your dedication and passion. We are grateful for the time spent crafting the world of Aeternum with you. Together we built something special. While we are saddened to say goodbye, we\u2019re honored that we were able to share so much with the community.\n\nIt has been our pleasure to work on New World: Aeternum and evolve this unforgettable adventure with you all. We look forward to one more year together, and giving this fantastic adventure a sendoff worthy of a legendary hero. From the bottom of all our hearts, thank you for sharing this world with us.",
+                      "convertToLocalTimeZone": false,
+                      "de-DE-backgroundImage": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+                      "de-DE-buttonText": "Die Zukunft von New World: Was euch erwartet",
+                      "de-DE-content": "New World: Aeternum wird am 31. Januar 2027 auf allen Plattformen eingestellt. Am 15. Januar 2026 wird der Titel aus dem Handel genommen und wird damit nicht mehr zum Kauf erh\u00e4ltlich sein. Spieler k\u00f6nnen New World: Aeternum weiterhin auf der Plattform spielen, auf der sie das Sipel gekauft haben. Au\u00dferdem verl\u00e4ngern wir die Nachtoase-Saison, bis die Server am 31. Januar 2027 offline genommen werden.\n\nWir m\u00f6chten den Spielern f\u00fcr ihre Hingabe und Leidenschaft danken. Wir sind dankbar f\u00fcr die Zeit, die wir mit euch beim Kreieren der Welt von Aeternum verbracht haben. Gemeinsam haben wir etwas wahrlich Besonderes erschaffen. Auch wenn wir traurig dar\u00fcber sind, Abschied zu nehmen, war es uns eine riesige Ehre, so viel mit der Community teilen zu k\u00f6nnen.\n\nEs war uns eine Freude, an New World: Aeternum zu arbeiten und gemeinsam mit euch dieses unvergessliche Abenteuer zu erschaffen. Wir freuen uns auf ein weiteres Jahr zusammen und darauf, dieses fantastische Abenteuer mit einem Abschied zu w\u00fcrdigen, der einem legend\u00e4ren Helden gerecht wird. Von ganzem Herzen danken wir euch daf\u00fcr, dass ihr diese Welt mit uns teilt.",
+                      "de-DE-convertToLocalTimeZone": false,
+                      "de-DE-internalName": "Sunset Modal",
+                      "de-DE-popUpOnReturnToMenu": false,
+                      "de-DE-popupCount": 1,
+                      "de-DE-popupMode": "UsePopUpCount",
+                      "de-DE-tabTitle": "Die Zukunft von New World: Was euch erwartet",
+                      "de-DE-timeDisplayMode": "None",
+                      "de-DE-title": "Die Zukunft von New World: Was euch erwartet",
+                      "es-ES-backgroundImage": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+                      "es-ES-buttonText": "El futuro de New World: qu\u00e9 pod\u00e9is esperar",
+                      "es-ES-content": "New World: Aeternum se retirar\u00e1 oficialmente de todas las plataformas el 31 de enero de 2027. El 15 de enero de 2026, el t\u00edtulo se descatalogar\u00e1 y ya no estar\u00e1 disponible para comprarlo. Los jugadores podr\u00e1n seguir jugando a New World: Aeternum en la plataforma donde lo hayan adquirido, y vamos a extender la temporada de Refugio Nocturno hasta que los servidores se desconecten el 31 de enero de 2027.\n\nQueremos agradecerles a los jugadores su dedicaci\u00f3n y pasi\u00f3n. Nos sentimos afortunados por el tiempo que hemos pasado dando forma al mundo de Aet\u00e9rnum con vosotros. Juntos hemos creado algo especial. Aunque nos entristece deciros adi\u00f3s, nos sentimos orgullosos de haber podido compartir tanto con la comunidad.\n\nHa sido un placer trabajar en New World: Aeternum y hacer evolucionar esta inolvidable aventura con todos vosotros. Nos alegra que a\u00fan nos quede un a\u00f1o m\u00e1s juntos y esperamos darle a esta fant\u00e1stica aventura una despedida digna de un h\u00e9roe legendario. Desde lo m\u00e1s profundo de nuestros corazones, gracias por compartir este mundo con nosotros.",
+                      "es-ES-convertToLocalTimeZone": false,
+                      "es-ES-internalName": "Sunset Modal",
+                      "es-ES-popUpOnReturnToMenu": false,
+                      "es-ES-popupCount": 1,
+                      "es-ES-popupMode": "UsePopUpCount",
+                      "es-ES-tabTitle": "El futuro de New World: qu\u00e9 pod\u00e9is esperar",
+                      "es-ES-timeDisplayMode": "None",
+                      "es-ES-title": "El futuro de New World: qu\u00e9 pod\u00e9is esperar",
+                      "es-MX-backgroundImage": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+                      "es-MX-buttonText": "El futuro de New World: qu\u00e9 esperar",
+                      "es-MX-content": "New World: Aeternum dejar\u00e1 de estar disponible oficialmente en todas las plataformas el 31 de enero de 2027. El 15 de enero de 2026, el t\u00edtulo ser\u00e1 eliminado de la lista y ya no estar\u00e1 disponible para su compra. Los jugadores a\u00fan podr\u00e1n jugar New World: Aeternum en su plataforma adquirida, y estamos extendiendo la temporada de Refugio Nocturno hasta que los servidores se desconecten el 31 de enero de 2027.\n\nQueremos agradecer a los jugadores por su dedicaci\u00f3n y pasi\u00f3n. Agradecemos el tiempo dedicado a la crear el mundo de Aeternum con ustedes. Juntos construimos algo especial. Aunque nos entristece decir adi\u00f3s, nos sentimos honrados de haber podido compartir tanto con la comunidad.\n\nHa sido nuestro placer trabajar en New World: Aeternum y evolucionar esta inolvidable aventura con todos ustedes. Esperamos con ilusi\u00f3n pasar un a\u00f1o m\u00e1s juntos y dar a esta fant\u00e1stica aventura una despedida digna de un h\u00e9roe legendario. Desde el fondo de nuestros corazones, gracias por compartir este mundo con nosotros.",
+                      "es-MX-convertToLocalTimeZone": false,
+                      "es-MX-internalName": "Sunset Modal",
+                      "es-MX-popUpOnReturnToMenu": false,
+                      "es-MX-popupCount": 1,
+                      "es-MX-popupMode": "UsePopUpCount",
+                      "es-MX-tabTitle": "El futuro de New World: qu\u00e9 esperar",
+                      "es-MX-timeDisplayMode": "None",
+                      "es-MX-title": "El futuro de New World: qu\u00e9 esperar",
+                      "fr-FR-backgroundImage": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+                      "fr-FR-buttonText": "L'avenir de New World : \u00e0 quoi s'attendre",
+                      "fr-FR-content": "New World: Aeternum sera officiellement retir\u00e9 de toutes les plateformes le 31 janvier 2027. Le 15 janvier 2026, le titre sera retir\u00e9 des ventes. Les joueurs pourront continuer \u00e0 jouer \u00e0 New World: Aeternum sur la plateforme de leur achat, et nous prolongeons la saison Havrenuit jusqu'\u00e0 ce que les serveurs soient mis hors ligne le 31 janvier 2027.\n\nNous souhaitons vous remercier, vous, les joueurs, pour votre d\u00e9vouement et votre passion. Nous vous remercions pour le temps pass\u00e9 \u00e0 construire le monde d'Aeternum \u00e0 nos c\u00f4t\u00e9s. Ensemble, nous avons construit quelque chose de v\u00e9ritablement unique. Bien que nous soyons tristes de cet au revoir, nous sommes honor\u00e9s d'avoir pu partager tant de choses avec la communaut\u00e9.\n\nNous avons pris beaucoup de plaisir \u00e0 travailler sur New World: Aeternum et \u00e0 faire \u00e9voluer cette aventure inoubliable avec vous tous. Nous avons h\u00e2te de passer une ann\u00e9e de plus ensemble et de donner \u00e0 cette fantastique aventure un d\u00e9part digne d'un h\u00e9ros l\u00e9gendaire. Du fond du c\u0153ur, merci d\u2019avoir partag\u00e9 ce monde avec nous.",
+                      "fr-FR-convertToLocalTimeZone": false,
+                      "fr-FR-internalName": "Sunset Modal",
+                      "fr-FR-popUpOnReturnToMenu": false,
+                      "fr-FR-popupCount": 1,
+                      "fr-FR-popupMode": "UsePopUpCount",
+                      "fr-FR-tabTitle": "L'avenir de New World : \u00e0 quoi s'attendre",
+                      "fr-FR-timeDisplayMode": "None",
+                      "fr-FR-title": "L'avenir de New World : \u00e0 quoi s'attendre",
+                      "internalName": "Sunset Modal",
+                      "it-IT-backgroundImage": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+                      "it-IT-buttonText": "Il futuro di New World: cosa aspettarsi",
+                      "it-IT-content": "New World: Aeternum sar\u00e0 ufficialmente portato offline da tutte le piattaforme il 31 gennaio 2027. Il 15 gennaio 2026, il titolo sar\u00e0 rimosso e non sar\u00e0 pi\u00f9 disponibile per l'acquisto. I giocatori potranno ancora giocare a New World: Aeternum sulla piattaforma di acquisto; estenderemo anche la stagione di Portoscuro fino a quando i server non verranno portati offline il 31 gennaio 2027.\n\nVogliamo ringraziare tutti i giocatori per la loro dedizione e passione. Siamo grati per il tempo trascorso nella produzione del mondo di Aeternum insieme a voi. Insieme abbiamo costruito qualcosa di speciale. Anche se il fatto di dovervi salutare ci rattrista, siamo onorati di aver potuto condividere cos\u00ec tanto con la community.\n\n\u00c8 stato un piacere lavorare a New World: Aeternum e far evolvere quest\u2019avventura indimenticabile con tutti voi. Non vediamo l'ora di vivere un altro anno insieme e di regalare a questa fantastica avventura una conclusione degna di un eroe leggendario. Dal profondo dei nostri cuori, grazie per aver vissuto questo mondo insieme a noi.",
+                      "it-IT-convertToLocalTimeZone": false,
+                      "it-IT-internalName": "Sunset Modal",
+                      "it-IT-popUpOnReturnToMenu": false,
+                      "it-IT-popupCount": 1,
+                      "it-IT-popupMode": "UsePopUpCount",
+                      "it-IT-tabTitle": "Il futuro di New World: cosa aspettarsi",
+                      "it-IT-timeDisplayMode": "None",
+                      "it-IT-title": "Il futuro di New World: cosa aspettarsi",
+                      "pl-PL-backgroundImage": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+                      "pl-PL-buttonText": "Przysz\u0142o\u015b\u0107 New World: czego si\u0119 spodziewa\u0107",
+                      "pl-PL-content": "New World: Aeternum oficjalnie zniknie z wszystkich platform online 31 stycznia 2027 r. 15 stycznia 2026 roku tytu\u0142 zostanie usuni\u0119ty z ofert i nie b\u0119dzie mo\u017cna go ju\u017c kupi\u0107. Gracze wci\u0105\u017c b\u0119d\u0105 mogli gra\u0107 w New World: Aeternum na platformach, na kt\u00f3rych zakupili gr\u0119, a my przed\u0142u\u017camy sezon Nocnej Przystani do momentu wy\u0142\u0105czenia serwer\u00f3w 31 stycznia 2027 roku.\n\nChcemy podzi\u0119kowa\u0107 graczom za ich zaanga\u017cowanie i pasj\u0119. Jeste\u015bmy wdzi\u0119czni za czas sp\u0119dzony na wsp\u00f3lnym tworzeniu \u015bwiata Aeternum. Razem stworzyli\u015bmy co\u015b szczeg\u00f3lnego. Chocia\u017c \u017cegnamy si\u0119 z \u017calem, jeste\u015bmy zaszczyceni, \u017ce mogli\u015bmy podzieli\u0107 si\u0119 tak wieloma rzeczami z spo\u0142eczno\u015bci\u0105.\n\nZ przyjemno\u015bci\u0105 pracowali\u015bmy nad New World: Aeternum i rozwijali\u015bmy t\u0119 niezapomnian\u0105 przygod\u0119 z Wami wszystkimi. Czekamy na kolejny rok razem i na godne po\u017cegnanie tej fantastycznej przygody w stylu legendarnych bohater\u00f3w. Z g\u0142\u0119bi naszych serc dzi\u0119kujemy za dzielenie si\u0119 tym \u015bwiatem z nami.",
+                      "pl-PL-convertToLocalTimeZone": false,
+                      "pl-PL-internalName": "Sunset Modal",
+                      "pl-PL-popUpOnReturnToMenu": false,
+                      "pl-PL-popupCount": 1,
+                      "pl-PL-popupMode": "UsePopUpCount",
+                      "pl-PL-tabTitle": "Przysz\u0142o\u015b\u0107 New World: czego si\u0119 spodziewa\u0107",
+                      "pl-PL-timeDisplayMode": "None",
+                      "pl-PL-title": "Przysz\u0142o\u015b\u0107 New World: czego si\u0119 spodziewa\u0107",
+                      "popUpOnReturnToMenu": false,
+                      "popupCount": 1,
+                      "popupMode": "UsePopUpCount",
+                      "pt-BR-backgroundImage": "https://client.content-service.amazongames.com/images/j95d1p8hsuun/4VpdqDs4Vihl2MdcxL1DEW/3e69856f1ccde95ea55fec154ada317b/nw_maintenance__modal_ct-000022652.dds",
+                      "pt-BR-buttonText": "O que esperar para o futuro do New World",
+                      "pt-BR-content": "O New World: Aeternum ser\u00e1 oficialmente removido de todas as plataformas em 31 de janeiro de 2027. Em 15 de janeiro de 2026, o t\u00edtulo ser\u00e1 removido do cat\u00e1logo e n\u00e3o estar\u00e1 mais dispon\u00edvel para compra. Os jogadores ainda poder\u00e3o jogar New World: Aeternum na plataforma onde o adquiriram, e estenderemos a temporada do Ref\u00fagio Noturno at\u00e9 que os servidores sejam desligados em 31 de janeiro de 2027.\n\nQueremos agradecer aos jogadores por toda dedica\u00e7\u00e3o e paix\u00e3o. Agradecemos pelo tempo dedicado na cria\u00e7\u00e3o do mundo de Aeternum com voc\u00eas. Juntos criamos algo muito especial. Embora seja triste nos despedirmos, \u00e9 uma honra termos compartilhado tantos momentos com a comunidade.\n\nFoi um prazer trabalhar no New World: Aeternum e evoluir esta aventura inesquec\u00edvel com todos voc\u00eas. Estamos ansiosos por mais um ano juntos e por dar a esta fant\u00e1stica aventura uma despedida digna de um her\u00f3i lend\u00e1rio. Do fundo de nossos cora\u00e7\u00f5es, obrigado por compartilhar este mundo conosco.",
+                      "pt-BR-convertToLocalTimeZone": false,
+                      "pt-BR-internalName": "Sunset Modal",
+                      "pt-BR-popUpOnReturnToMenu": false,
+                      "pt-BR-popupCount": 1,
+                      "pt-BR-popupMode": "UsePopUpCount",
+                      "pt-BR-tabTitle": "O que esperar para o futuro do New World",
+                      "pt-BR-timeDisplayMode": "None",
+                      "pt-BR-title": "O que esperar para o futuro do New World",
+                      "tabTitle": "The Future of New World: What to Expect",
+                      "timeDisplayMode": "None",
+                      "title": "The Future of New World: What to Expect"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ping": {
+      "get": {
+        "summary": "ping",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -1704,6 +3625,9 @@
                       "type": "array"
                     }
                   }
+                },
+                "example": {
+                  "entitlements": []
                 }
               }
             }
@@ -1733,6 +3657,15 @@
                     }
                   }
                 }
+              },
+              "example": {
+                "syncTypes": [
+                  "FirstTimeLogin",
+                  "PrimeGamingSync",
+                  "CodeRedemptionSync",
+                  "TwitchDropsSync",
+                  "SteamRetailSync"
+                ]
               }
             }
           }
@@ -1744,7 +3677,8 @@
                 "schema": {
                   "type": "object",
                   "properties": {}
-                }
+                },
+                "example": {}
               }
             }
           }
@@ -1810,6 +3744,22 @@
                       "type": "string"
                     }
                   }
+                },
+                "example": {
+                  "accessKeyId": "ASIAfzpnlAnFQPcGEx7z",
+                  "secretAccessKey": "GnpvPhmKebrAvuRRpN8DK044gFliVH0iwPnUkPW7",
+                  "sessionToken": "U5hHSjv09f3CyHcTUmrkx9SG6TlxsBfS0nCQX1Sj01YFIGhghhvvzMGf4E5AUVal3IaXGd3BA18F2OMjgxckOCfpcDe50HtxHfIXxYlUCyos7kNjZFOu9LkAor5TbCjS",
+                  "expiration": 1789409017,
+                  "region": "us-east-1",
+                  "AccessKeyId": "ASIAfzpnlAnFQPcGEx7z",
+                  "SecretKey": "GnpvPhmKebrAvuRRpN8DK044gFliVH0iwPnUkPW7",
+                  "SecretAccessKey": "GnpvPhmKebrAvuRRpN8DK044gFliVH0iwPnUkPW7",
+                  "SessionToken": "U5hHSjv09f3CyHcTUmrkx9SG6TlxsBfS0nCQX1Sj01YFIGhghhvvzMGf4E5AUVal3IaXGd3BA18F2OMjgxckOCfpcDe50HtxHfIXxYlUCyos7kNjZFOu9LkAor5TbCjS",
+                  "Expiration": 1789409017,
+                  "type": "Full",
+                  "accountType": "Full",
+                  "ownership": "permanent",
+                  "personaId": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c"
                 }
               }
             }
@@ -1931,6 +3881,696 @@
                       "type": "string"
                     }
                   }
+                },
+                "example": {
+                  "LoginInfoList": [
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000001",
+                      "name": "azoth-01",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth EU Central",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "fra-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "fra-prod",
+                      "characters": [],
+                      "RepAddress": "127.0.0.1:9000",
+                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
+                      "GenerateTime": 1789406412,
+                      "IssueTime": 1789406412,
+                      "TokenVersion": 1
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000002",
+                      "name": "azoth-02",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth SA East",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "gru-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "gru-prod",
+                      "characters": [],
+                      "RepAddress": "127.0.0.1:9001",
+                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
+                      "GenerateTime": 1789406412,
+                      "IssueTime": 1789406412,
+                      "TokenVersion": 1
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000003",
+                      "name": "azoth-03",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth US East",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "iad-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "iad-prod",
+                      "characters": [],
+                      "RepAddress": "127.0.0.1:9002",
+                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
+                      "GenerateTime": 1789406412,
+                      "IssueTime": 1789406412,
+                      "TokenVersion": 1
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000004",
+                      "name": "azoth-04",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth US West",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "pdx-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "pdx-prod",
+                      "characters": [],
+                      "RepAddress": "127.0.0.1:9003",
+                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDQiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
+                      "GenerateTime": 1789406412,
+                      "IssueTime": 1789406412,
+                      "TokenVersion": 1
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000005",
+                      "name": "azoth-05",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth AP Southeast",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "syd-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "syd-prod",
+                      "characters": [],
+                      "RepAddress": "127.0.0.1:9004",
+                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDUiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
+                      "GenerateTime": 1789406412,
+                      "IssueTime": 1789406412,
+                      "TokenVersion": 1
+                    }
+                  ],
+                  "RecommendedWorlds": [],
+                  "PendingWorldMerges": [],
+                  "AccountIsLocked": false,
+                  "AllowQueueTransfer": false,
+                  "QueueName": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prod/game/login/queue/v2/enqueue": {
+      "post": {
+        "summary": "prod/game/login/queue/v2/enqueue",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "LoginQueueResponse": {
+                      "type": "object",
+                      "properties": {
+                        "AccountAge": {
+                          "type": "number"
+                        },
+                        "AccountIsLocked": {
+                          "type": "boolean"
+                        },
+                        "CharacterId": {
+                          "type": "string"
+                        },
+                        "ClientCapabilities": {
+                          "type": "string"
+                        },
+                        "GenerateTime": {
+                          "type": "number"
+                        },
+                        "HostHash": {
+                          "type": "string"
+                        },
+                        "IsPermanentAppOwner": {
+                          "type": "boolean"
+                        },
+                        "IsTrialOwner": {
+                          "type": "boolean"
+                        },
+                        "IssueTime": {
+                          "type": "number"
+                        },
+                        "Location": {
+                          "type": "string"
+                        },
+                        "LocationGroupId": {
+                          "type": "string"
+                        },
+                        "LocationId": {
+                          "type": "string"
+                        },
+                        "PersonaId": {
+                          "type": "string"
+                        },
+                        "RepAddress": {
+                          "type": "string"
+                        },
+                        "Signature": {
+                          "type": "string"
+                        },
+                        "SteamAppId": {
+                          "type": "number"
+                        },
+                        "SteamUserId": {
+                          "type": "string"
+                        },
+                        "TicketId": {
+                          "type": "string"
+                        },
+                        "TokenVersion": {
+                          "type": "number"
+                        },
+                        "WorldId": {
+                          "type": "string"
+                        },
+                        "WorldName": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "LoginQueueResponse": {
+                    "AccountAge": 0,
+                    "AccountIsLocked": false,
+                    "CharacterId": "00000000-0000-4000-8000-00000000c0de",
+                    "ClientCapabilities": "",
+                    "GenerateTime": 1789595241,
+                    "HostHash": "",
+                    "IsPermanentAppOwner": true,
+                    "IsTrialOwner": false,
+                    "IssueTime": 1789595241,
+                    "Location": "",
+                    "LocationGroupId": "",
+                    "LocationId": "",
+                    "PersonaId": "",
+                    "RepAddress": "127.0.0.1:9000",
+                    "Signature": "sig:0bd63fea-d854-42d3-9aec-abb380bf1f78",
+                    "SteamAppId": 1063730,
+                    "SteamUserId": "",
+                    "TicketId": "0bd63fea-d854-42d3-9aec-abb380bf1f78",
+                    "TokenVersion": 10,
+                    "WorldId": "00000000-0000-4000-8000-000000000001",
+                    "WorldName": "everfall"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prod/game/login/queue/v2/jwt/omni": {
+      "post": {
+        "summary": "prod/game/login/queue/v2/jwt/omni",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "LoginQueueRequest": {
+                    "type": "object",
+                    "properties": {
+                      "CharacterId": {
+                        "type": "string"
+                      },
+                      "ClientCapabilities": {
+                        "type": "array"
+                      },
+                      "IsTrialOwner": {
+                        "type": "boolean"
+                      },
+                      "SteamAppId": {
+                        "type": "number"
+                      },
+                      "SteamAuthTicket": {
+                        "type": "string"
+                      },
+                      "WorldId": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "LoginQueueRequest": {
+                  "CharacterId": "11111111-1111-1111-1111-111111111111",
+                  "ClientCapabilities": [],
+                  "IsTrialOwner": false,
+                  "SteamAppId": 1063730,
+                  "SteamAuthTicket": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+                  "WorldId": ""
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ticket": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "RepAddress": {
+                      "type": "string"
+                    },
+                    "WorldId": {
+                      "type": "string"
+                    },
+                    "WorldName": {
+                      "type": "string"
+                    },
+                    "CharacterId": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "ticket": "00000000-0000-4000-8000-000000000001_4e6704b3-733d-4185-9209-343642f9a3e7",
+                  "location": "",
+                  "RepAddress": "127.0.0.1:9000",
+                  "WorldId": "00000000-0000-4000-8000-000000000001",
+                  "WorldName": "azoth-01",
+                  "CharacterId": "00000000-0000-4000-8000-00000000c0de"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prod/game/login/queue/v2/{id}/jwt/omni": {
+      "post": {
+        "summary": "prod/game/login/queue/v2/{id}/jwt/omni",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ClientCapabilities": {
+                    "type": "array"
+                  }
+                }
+              },
+              "example": {
+                "ClientCapabilities": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "LoginQueueResponse": {
+                      "type": "object",
+                      "properties": {
+                        "AccountAge": {
+                          "type": "number"
+                        },
+                        "AccountIsLocked": {
+                          "type": "boolean"
+                        },
+                        "CharacterId": {
+                          "type": "string"
+                        },
+                        "ClientCapabilities": {
+                          "type": "string"
+                        },
+                        "GenerateTime": {
+                          "type": "number"
+                        },
+                        "HostHash": {
+                          "type": "string"
+                        },
+                        "IsPermanentAppOwner": {
+                          "type": "boolean"
+                        },
+                        "IsTrialOwner": {
+                          "type": "boolean"
+                        },
+                        "IssueTime": {
+                          "type": "number"
+                        },
+                        "Location": {
+                          "type": "string"
+                        },
+                        "LocationGroupId": {
+                          "type": "string"
+                        },
+                        "LocationId": {
+                          "type": "string"
+                        },
+                        "PersonaId": {
+                          "type": "string"
+                        },
+                        "RepAddress": {
+                          "type": "string"
+                        },
+                        "Signature": {
+                          "type": "string"
+                        },
+                        "SteamAppId": {
+                          "type": "number"
+                        },
+                        "SteamUserId": {
+                          "type": "string"
+                        },
+                        "TicketId": {
+                          "type": "string"
+                        },
+                        "TokenVersion": {
+                          "type": "number"
+                        },
+                        "WorldId": {
+                          "type": "string"
+                        },
+                        "WorldName": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "LoginQueueResponse": {
+                    "AccountAge": 0,
+                    "AccountIsLocked": false,
+                    "CharacterId": "00000000-0000-4000-8000-00000000c0de",
+                    "ClientCapabilities": "",
+                    "GenerateTime": 1789408035,
+                    "HostHash": "",
+                    "IsPermanentAppOwner": true,
+                    "IsTrialOwner": false,
+                    "IssueTime": 1789408035,
+                    "Location": "",
+                    "LocationGroupId": "",
+                    "LocationId": "",
+                    "PersonaId": "",
+                    "RepAddress": "127.0.0.1:9000",
+                    "Signature": "sig:7fd13f27-e4aa-4bf8-82d0-d2b669078c4d",
+                    "SteamAppId": 1063730,
+                    "SteamUserId": "",
+                    "TicketId": "7fd13f27-e4aa-4bf8-82d0-d2b669078c4d",
+                    "TokenVersion": 10,
+                    "WorldId": "00000000-0000-4000-8000-000000000001",
+                    "WorldName": "azoth-01"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prod/game/worlds/list/jwt/omni": {
+      "get": {
+        "summary": "prod/game/worlds/list/jwt/omni",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "worlds": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "worldId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "publicStatusCode": {
+                            "type": "number"
+                          },
+                          "publicName": {
+                            "type": "string"
+                          },
+                          "maxAccountCharacters": {
+                            "type": "number"
+                          },
+                          "worldSet": {
+                            "type": "string"
+                          },
+                          "worldMetrics": {
+                            "type": "object",
+                            "properties": {
+                              "worldAgeDays": {
+                                "type": "number"
+                              },
+                              "queueSize": {
+                                "type": "number"
+                              },
+                              "queueWaitTimeSec": {
+                                "type": "number"
+                              },
+                              "worldPopulationStatus": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "transferToRegion": {
+                            "type": "string"
+                          },
+                          "isFull": {
+                            "type": "boolean"
+                          },
+                          "isRecommended": {
+                            "type": "boolean"
+                          },
+                          "regionId": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "recommendedWorlds": {
+                      "type": "array"
+                    }
+                  }
+                },
+                "example": {
+                  "worlds": [
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000001",
+                      "name": "everfall",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Everfall",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "fra-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "fra-prod"
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000002",
+                      "name": "windsward",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Windsward",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "gru-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "gru-prod"
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000003",
+                      "name": "first-light",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "First Light",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "iad-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "iad-prod"
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000004",
+                      "name": "monarchs-bluffs",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Monarch's Bluffs",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "pdx-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "pdx-prod"
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000005",
+                      "name": "cutlass-keys",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Cutlass Keys",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "syd-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "syd-prod"
+                    }
+                  ],
+                  "recommendedWorlds": []
                 }
               }
             }

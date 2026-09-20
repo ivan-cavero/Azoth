@@ -114,6 +114,20 @@ latency probes hit real AWS (2s pings) while everything "worked".
 exits non-zero on drift. Any environment-dependent behavior (hosts, certs,
 services up) gets a status command, not a memory.
 
+## 11. The game UI ignores PostMessage — only real SendInput lands
+
+**Incident (2026-09-19):** `scripts/post-input.py` (WM_KEYDOWN/WM_CHAR/
+WM_MOUSEMOVE+WM_LBUTTONDOWN posted to the window) did nothing: the OK
+modal never closed. The engine reads Raw Input; window-message input is
+not consumed anywhere.
+
+**Rule:** background input without stealing the user's mouse is NOT
+possible via window messages. The only channel is SendInput
+(`click-window.py`/`send-input.py`), which steals mouse+focus — ask the
+user before firing. For UI iteration, restarting the game (`az.py game`)
+is the no-steal alternative. Screenshot channel: `python az.py shot`
+(GDI PrintWindow → `%TEMP%\azoth_shot.png`) + `shrink-image.py`.
+
 ## Quick pre-flight for any new session
 
 1. `switch-mode.ps1 status` → in-sync?

@@ -189,7 +189,7 @@ class TestV3(unittest.TestCase):
         self.assertEqual(wire[0x0F], 0x20)
         self.assertEqual(wire[0x30], 0x23)
         self.assertEqual(wire[0x31:0x31 + 35].decode(), resp.server_version)
-        self.assertEqual(wire[0x54:], bytes.fromhex("01000001"))
+        self.assertEqual(wire[0x54:], bytes.fromhex("00000000"))
 
     def test_response_rejects_bad_token(self):
         with self.assertRaises(ValueError):

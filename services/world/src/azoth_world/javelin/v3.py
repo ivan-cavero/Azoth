@@ -19,8 +19,15 @@ TRAILER = bytes.fromhex("00430280" + "00" * 8)
 EXPECTED_BODY_LEN = 832
 
 RESPONSE_TYPE_BYTE = 0x03
-DEFAULT_SERVER_VERSION = "[RETAIL].Javelin.1.365.6031.6004151"
-DEFAULT_TRAILER = bytes.fromhex("01000001")
+DEFAULT_SERVER_VERSION = "[RETAIL].Javelin.1.400.6031.6004151"
+# Official Mixed-Nuts capture is `01 00 00 01`. On 1.400 that trailer
+# plus a live RegistrationResponse still yields
+# @mm_csdkerr_server_requires_anticheat 24ms after the socket
+# (Game.log 2026-09-18 19:18:04) even with enable-anticheat stored 0.
+# First byte / last byte are the only non-zero flags; clear them so the
+# client does not treat this private world as an AC-required official
+# server. Revert if the client then rejects the response entirely.
+DEFAULT_TRAILER = bytes.fromhex("00000000")
 
 _UUID_RE = re.compile(
     rb"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -163,7 +170,13 @@ def parse_v3_request_lenient(body: bytes) -> V3RegistrationRequest | None:
         if b"sig:" in pre or b"naId." in pre:
             continue
         if m.start() > 0 and body[m.start() - 1] == 0x24:
-            session_uuid = m.group(0).decode("ascii")
+            candidate = m.group(0).decode("ascii")
+            # Seeded world/character ids are also 0x24-prefixed UUIDs and
+            # sit earlier in the V3 blob than the ticket uuid. Skip them
+            # or we echo the worldId as the session token.
+            if candidate.startswith("00000000-"):
+                continue
+            session_uuid = candidate
             break
     persona = ""
     if m := _PERSONA_RE.search(body):

@@ -28,8 +28,53 @@ Full method lessons: `research/docs/LESSONS.md` — the 10 rules behind every st
 
 ## Exact frontier
 
-- **REP Carrier handshake**: real client completes DTLS (`dtls-established` in `services/world/rep_traffic.jsonl`) and loops CONNECT_REQUEST (system ch3, msgId LAST byte, payload `[u32 BE len][cookie]`, raw hex logged) ~1/s for ~30s, then "ERROR DE CONEXIÓN". Our echo-ACK is not yet accepted — next: compare against a real-login capture reference or hook the client's cookie-compare function.
-- Post-V3 ladder after the handshake: SelfIdent → LevelInfoChanged → replica-creation (state 10→14 map: `research/docs/REP-PROTOCOL.md`).
+- **InGame reached (first ever, 2026-09-19 19:09):** the 4th gate 13->14 is
+  NOPed at the call site (`0x14644a8ed`: `test rax,rax; je` -> 9x NOP,
+  `scripts/patch-spawn-gate.py`, stdlib WriteProcessMemory — NO Frida: the
+  Interceptor crashed frida-agent.dll at startup). The FSM virtual returns
+  `[mgr+8]` (local player entity, `0x146800d10`) which is NULL because the
+  replica stream never created it; NOPing the branch forces the transition.
+  v1 lesson: patching the getter BODY (600+ callers) crashes at startup
+  (c0000005 @ NewWorld+0x104285d) — always patch the call site.
+- **Transport SOLVED (2026-09-20 15:53):** replay chunks bundled into ~4KB
+  datagrams (REPLAY_DGRAM_TARGET) + reliable retransmission with per-dg
+  cap (REPLAY_RESEND_LIMIT=6). Client CT_ACKS now continuous ([42..44],
+  [38..41]) — zero loss. The old 12.7KB StateBundle datagram was never
+  acked (4229 resends did nothing); at 1100B/chunk bundled to 4KB it goes
+  through. `scripts/ack-coverage.py` + `scripts/trace-session.py` are the
+  analysis tools for this layer.
+- **Current blocker: replica layer never creates the local player (30s
+  `connection_ingame_timeout`, stable).** Everything wire-level works:
+  InGame reached every attempt, replay r2..r176 (46KB bundle incl.)
+  delivered with continuous client acks, V3 response in the VLQ-prefixed
+  form the registration parser requires, eos-stub alive. Experiments that
+  FAILED and must not repeat: raw Cmd_Greetings on ch0 (`Failed to
+  unmarshal num_bytes=1/90` — Javelin does not use stock GM Greetings),
+  re-sending r2/r4/r5 after replay (duplicates + seq collisions →
+  `csdkerr_registration_unmarshal_error`), 4KB chunk bundling
+  (BAD_PACKETS), unprefixed V3 body (`registration_unmarshal_error`
+  before InGame — registration REQUIRES the VLQ prefix). The 89B V3
+  record also logs a cosmetic `Failed to unmarshal num_bytes=90` from the
+  replica reader (both consumers share ch0 0x21; official channel layout
+  not preserved in the capture) — harmless, game proceeds.
+- **Next session's single task: Ghidra RE of the Javelin replica
+  dispatcher.** Entry points already derived: `FUN_1461ac8d0` (envelope
+  unmarshal, decompiled at `research/derived/decomp/unmarshal-
+  envelope.txt`, callers 0x146a6ec17/0x146b086f2/0x146b6ec5f), the FSM
+  state-14 case is a no-op (switch has no case 0xe), and the manager
+  gate the spawn-NOP bypasses returns `[mgr+8]` (local player entity,
+  `0x146800d10`). Question to answer: which typed-stream message(s)
+  after r176 trigger local-player replica creation (candidates: a
+  Cmd_NewProxy carrying the player actor, or a Javelin-specific
+  post-bundle message missing from the 1.365 capture).
+- Client auto-retries every ~20s (58 V3 registrations in 15 min; each
+  re-arms the replay from r2 — fine, the client re-requests everything).
+- Dev workflow: `python az.py dev` = ONE console, hot-reload for gateway
+  + world, caddy if :443 free, `dev stop` kills all (game untouched).
+  Launch it DETACHED (Start-Process) so it survives agent restarts — as a
+  child of the agent shell it died with the session (2026-09-20 morning).
+  Game input without stealing the mouse is impossible (Raw Input, see
+  LESSONS #11); screenshots via `python az.py shot`.
 - Known cosmetic: seeded `Azoth_Dev` exists in every world (mock-level, not per-world persistence).
 - Ops gotcha: duplicated service processes after restarts — kill by command line before diagnosing (LESSONS.md #9).
 

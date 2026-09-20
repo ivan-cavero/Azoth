@@ -90,6 +90,36 @@ payload, not the first. Known ids: 1 = CONNECT_REQUEST, 2 = CONNECT_ACK,
 3 = DISCONNECT, 4 = CLOCK_SYNC, 5 = CT_FIRST, 6 = CT_ACKS,
 7 = CT_CONN_CONTROL, 8 = CT_BANDWIDTH.
 
+### CONNECT_REQUEST resend signature (observed 2026-09-15, build 1.400.6031)
+
+Post-DTLS (Frida bypass active, `dtls-established` in ~0ms), the client
+streams datagrams on channel 3 with MULTIPLE records each, ~1/s for ~15-30s,
+then aborts with "No se puede conectar al servidor" (the "(2) conexión segura"
+variant only appears WITHOUT the DTLS bypass = cert reject):
+
+```
+seq 2 : sys1/a0/5B  + sys1/88/6B  + sys6/88/2B     <- first datagram
+seq 3 : sys1/a0/6B  + sys6/88/2B
+seq 4 : sys1/a0/7B  + sys6/88/6B
+...        sys1/a0 grows EXACTLY +1 byte per resend (5B -> 27B over 15s)
+seq 143: sys1/a0/27B + sys6/88/2B                  <- last, then disconnect
+```
+
+Interpretation (working hypothesis, verify by decompiling the ACK path):
+the client never sees its CONNECT_REQUEST reliably acked, so the reliable
+resend buffer accumulates one byte per cycle. Our current reply
+(`connect_ack_datagram`: single sys2/0xa0 record echoing
+`[u32 len][cookie]` verbatim, envelope seq of the request) is NOT accepted.
+Candidate defects, in order to test:
+1. We answer only the FIRST sys1 in the datagram — the parallel
+   `sys1/0x88/6B` record may be the real request (flag 0x88 vs 0xa0).
+2. We never emit CT_ACKS (sys6) ourselves; client may require them.
+3. The ACK may need to reference the client's relSeq (per-record), not the
+   envelope seq, or carry the MF_CONNECTING flag cleared.
+Next lever: hook/decompile the client's CONNECT_ACK handler (cookie-compare)
+to read the exact expected shape.
+
+
 ## RegistrationRequestV3Msg (client -> server, 832 bytes body)
 
 AzCore-serialized. Visible `AZStd::string` elements are u8-length-prefixed

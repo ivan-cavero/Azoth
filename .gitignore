@@ -31,3 +31,4 @@ __pycache__/
 private-client/
 # --- keep tracked exceptions ---
 !launcher/steam_stub/steam_api64.dll
+services/world/replay/

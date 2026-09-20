@@ -132,8 +132,25 @@ class GatewayTest(unittest.TestCase):
             with urllib.request.urlopen(f"http://127.0.0.1:18080{path}") as r:
                 self.assertEqual(r.status, 200)
                 body = r.read()
-            self.assertEqual(len(body), size)
-            json.loads(body.decode())  # still valid JSON
+            doc = json.loads(body.decode())
+            self.assertIs(doc["enable-anticheat"], False)
+            # Official captured sizes are a floor: game-security keys may
+            # grow the body past the capture (ProductId 190 -> ~500).
+            self.assertGreaterEqual(len(body), size)
+
+    def test_s3_worldid_nests_game_security(self):
+        path = (
+            "/applications/publicGameplay/configuration-sets/WorldId/"
+            f"{WORLD_ID}/6031%3B6004151"
+        )
+        with urllib.request.urlopen(f"http://127.0.0.1:18080{path}") as r:
+            self.assertEqual(r.status, 200)
+            doc = json.loads(r.read().decode())
+        self.assertIn("game-security", doc)
+        self.assertIs(doc["game-security"]["enable-anticheat"], False)
+        # FUN_146193620 looks up the bare key on the layer document.
+        self.assertIs(doc["enable-anticheat"], False)
+        self.assertIs(doc["game-security.enable-anticheat"], False)
 
     def test_post_goes_to_discovery(self):
         req = urllib.request.Request(

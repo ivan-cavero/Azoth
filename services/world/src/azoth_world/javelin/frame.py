@@ -231,7 +231,7 @@ def marshal_record(writer, rec: MessageRecord, state: MarshalState) -> None:
             writer.write_u8(0)
     if channel_changed:
         writer.write_u8(c)
-    if rec.num_chunks > 1:
+    if flags & MessageFlags.MF_CHUNKS:
         writer.write_u16_be(rec.num_chunks)
     if not seq_seq:
         writer.write_u16_be(rec.sequence & 0xFFFF)
