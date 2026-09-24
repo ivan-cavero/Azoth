@@ -70,13 +70,27 @@ python research/tools/reversing/decomp.py --target 0x144f54d63
 # every function calling a helper (to climb from a leaf)
 python research/tools/reversing/decomp.py --callers-of 0x1417c40a0
 
-# explicit range (when .pdata is not enough)
+# explicit range (when .pdata is not enough). A sloppy window is snapped
+# onto the real .pdata functions so Ghidra is not asked to decompile
+# mid-instruction (that produced a 1-byte halt_baddata stub).
 python research/tools/reversing/decomp.py --range 144f40780-144f555e0
 ```
 
 Default output: `derived/decomp/<start>-<end>.c` (gitignored; regenerable).
-First run imports the exe into a Ghidra project (~4 min); later runs reuse the
-project (`-process`) and take ~1-2 min of startup + decompilation.
+First run imports the exe into a Ghidra project (~4 min). Later one-shot runs
+reuse the project (`-process -readOnly`) and do **not** rewrite the ~480 MB
+project database — that rewrite was most of the per-call wait.
+
+Keep one JVM up and the later calls are a queue round-trip:
+
+```bash
+python research/tools/reversing/decomp.py --serve    # blocks; leave it running
+python research/tools/reversing/decomp.py --target 0x144f54d63
+python research/tools/reversing/decomp.py --stop
+```
+
+`--serve` only `-process`es an existing project. The first open is still the
+slow part; each function after `ready` should be seconds, not a new JVM.
 
 ### 3. Record the finding
 

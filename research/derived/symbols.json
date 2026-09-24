@@ -51,5 +51,22 @@
     "va": "0x147fc3d08",
     "what": "Concatenated login error tokens: login_no_worlds, login_no_worlds_unknown, login_world_list_failed, login_character_list_failed, login_failed_to_create_character, login_create_character_rate_limited, TOO_MANY_CHARACTERS_ERROR, TOO_MANY_CHARACTERS_FOR_WORLD, MAINTENANCE_MODE, ... The 'no active worlds in your region' panel string maps here.",
     "found_by": "string search for 'login_no_worlds'"
+  },
+  "state_record_bundle_parser": {
+    "va": "0x146af20d0",
+    "end": "0x146af2340",
+    "what": "Walks a type-0x08 StateBundle body: [record_id VLQ][u8 fragment_count], then per-fragment FUN_146af2340 which reads [fragment_key VLQ] + [fragment_type_index VLQ] and dispatches the type object (vtable +0x90) to consume the payload. Record id 1 reaches the local-player branch in FUN_141717fc0.",
+    "found_by": "decompiled from the FUN_14643e7b0 -> FUN_146455e90 -> FUN_14175ccc0 call chain"
+  },
+  "local_player_metadata_branch": {
+    "va": "0x141717fc0",
+    "end": "0x141719d86",
+    "what": "StateBundle record handler. Indexes state + 0x608 + record_id*0x10; record_id == 1 logs 'Received new local player metadata, updating m_localPlayersServerGDERef' and writes slot+0x850/+0x870/+0x880. This is the local-player/gde metadata path; the actor itself still comes from the fragment payloads.",
+    "found_by": "static call chain from the StateBundle parser"
+  },
+  "fragment_type_972_descriptor": {
+    "va": "0x1416fcb20",
+    "what": "GUID getter for nested fragment type index 972 (old registry index 144): GUID DE1A18A9-CE9E-4336-8DF8-698A73C579D4 at 0x14800eae8, registration wrapper FUN_1414ecbd0, vtable 0x14801b088. First fragment of the captured record-1 init bundle decodes to this index (VLQ 8e 4c = 972).",
+    "found_by": "GUID string search + xrefmap + decompile"
   }
 }
