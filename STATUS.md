@@ -4,82 +4,97 @@
 > RE findings: `research/atlas/` (endpoints, models, errors, levers, observed traffic + OpenAPI).
 > A new finding goes to the atlas, not here.
 
-## Where we are
+## Where we are (2026-09-24)
 
-- **Character select renders** (2026-09-14): dual-schema `getlogininfo` (lowercase `worlds` for the dropdown + `LoginInfoList` OBJECT with PascalCase `Worlds`/`Characters` for the gate; external-verified shapes) → panel shows 1/1 + seeded character; VER MUNDOS table populated; queue ticket accepted (`LoginQueueResponse` envelope, non-empty `Signature`) → UI reaches "POSICIÓN EN LA COLA: 1" and polls the refresh path.
-- **Current frontier: the REP/DTLS connection.** The client now wants to connect to `RepAddress` (`127.0.0.1:9000`). `services/world` (Javelin REP server) is BUILT: Carrier framing lib + V3 registration round-trip + DTLS 1.2 via pyOpenSSL; tests include a real DTLS handshake. The client pins an embedded `CN=New World` cert → handshake only completes with the in-memory verify-bypass (`scripts/frida-trust-patch.py`; site VERIFIED byte-identical on our build: `0x145dce8b5`, see `research/docs/REP-PROTOCOL.md`).
-- Stack up: gateway `:8080` (TCP_NODELAY: region ping 40-70ms → ~10ms), Caddy `:443`, hosts private (34/34, `switch-mode.ps1 status` checks drift), world `:9000`, game via `az.py game` + Frida patch.
-- One lore-named world per region (Everfall/Windsward/First Light/Monarch's Bluffs/Cutlass Keys); all `repAddress` → the single REP at `:9000`.
+- **The client enters the world.** After character select → queue → V3 → REP replay, the client
+  loads `NewWorld_VitaeEterna`, starts `streamingGDEManager` and `GDERenderManager`, processes the
+  state bundles and reaches `WaitingForPlayerSpawn`.
+- **Single blocker: the local player actor is never possessed.** Black screen (no camera/actor),
+  `connection_player_timeout` fires at 120 s → `Popup_OnConnectionFail_InWorld`. Everything below
+  the world is proven working.
+- **Exact static cause of the black screen:** in `LoadContextAndLevel` (`FUN_146448cd0`) the client
+  calls `clientContext->Initialize()` (`0x146448ee8`) and 1 ms later `Cleanup()`, because the
+  virtual predicate at `0x146448f67` — `(**[*(pGame+0x60)+0x28+0x88])(...)` — returns non-zero and
+  jumps to `0x1464490e1` (`[ctx+0x1a2]=1; FUN_146455e90(ctx)`). Live log: `[ClientContext]
+  Initialize()` → `[ClientContext] Cleanup()`.
+- **Next single task:** identify the `+0x88` vtable slot (object `*(pGame+0x60)+0x28`, the level
+  streaming manager) and the state/message that makes it return 0. That is what unblocks the local
+  actor + movement; no more blind A/B will move it.
 
-## What NOT to repeat (read before iterating shapes)
+## METHOD: one A/B = one fresh game process (learned the hard way)
 
-Full method lessons: `research/docs/LESSONS.md` — the 10 rules behind every stall we hit. Highlights:
+- After a failed world attempt the client **destroys its `ClientContext`** and never re-creates it
+  in the same process. Every later attempt logs
+  `HandleUnexpectedMessage skipping ReceiveStateBundle ... clientContext == nullptr` for every
+  bundle and falls back to the menu. **Restart `NewWorld.exe` for every A/B** or the result is garbage.
+- This invalidates every negative measured on a reused process. Re-tested fresh: `0x65c` IDs,
+  `interest=91` IDs, 36-byte text UUID remap, broad `mixed` — all still negative.
+- The world loads on the first attempt **regardless of the substitution**; the earlier
+  "persona loads the world" claim was conflated with the fresh-process effect. The persona rewrite
+  is still the safest default (it feeds the live identity) but is not proven to be load-bearing.
+
+## Replay A/B levers (world env, all default off, see `research/atlas/levers.md`)
+
+| Env | What it does |
+| --- | --- |
+| `AZOTH_REPLAY_SPAN_SUBSTITUTION=character\|session\|persona\|mixed` | fills redacted spans of length 16/18/19/20/36/61 in the replay with live identity values |
+| `AZOTH_REPLAY_SPAN_SEQS` / `AZOTH_REPLAY_SPAN_LENGTHS` | scope the substitution (e.g. `0x25,0x29,0x2a` + `16,61`) |
+| `AZOTH_REPLAY_SPAN_SUBSTITUTION2` / `_SEQS2` / `_LENGTHS2` | second pass with a different selector (e.g. `session` on `0x6`) |
+| `AZOTH_REPLAY_SPLIT_SEQ` / `AZOTH_REPLAY_SPLIT_DELAY_S` | hold everything from `seq >= SPLIT` until the client has loaded the level |
+| `AZOTH_REPLAY_FRESH_LEVELINFO=session` | fresh key for the duplicate `0x663` at seq `0x4d` (produces a second `Initialize`) |
+| `AZOTH_REPLAY_IDENTITY_REMAP=session\|character` | the six 36-byte dashed-UUID slots only |
+
+Validated live on 2026-09-24 (fresh process each): first `Initialize` cleans up; a delayed second
+`Initialize` after the map is loaded also cleans up; `0x65c` IDs = session UUID does not change it;
+`interest=91` IDs are not the key. See the atlas for the full matrix.
+
+## State-bundle wire (static, build 1.400)
+
+- Type-`0x08` body: `[record_id VLQ][u8 fragment_count]`, then per fragment
+  `[fragment_key VLQ][fragment_type_index VLQ][payload]` (`FUN_146af20d0` → `FUN_146af2340`).
+- First record of the 46 KB init bundle: **id 1, 48 fragments**; id 1 is the local-player slot in
+  `FUN_141717fc0` (`state + 0x608 + id*0x10`; log `Received new local player metadata, updating
+  m_localPlayersServerGDERef`). The 13 world actors are other records of the same bundle.
+- First fragment: key `0x47`, type index **972** (VLQ `8e 4c`, not `0x8e`=142), GUID
+  `DE1A18A9-CE9E-4336-8DF8-698A73C579D4` (old index 144 / typeIndex 972); current getter
+  `FUN_1416fcb20`, vtable `0x14801b088`.
+- **No type-index shift 1.365 → 1.400:** the installed `typeindex.json` (7052 entries) maps index
+  972 / 0x65c / 0x663 / 0x16a0 to the same GUIDs as the 1.365 registry. Do not chase a remap.
+- `0x65c` is the **WORLD DATA** blob (first-light codec `world_data_blob_65c.py`, 12706 B) with two
+  redacted 16-byte IDs at `+0x05` and `+12690`.
+
+## What NOT to repeat (condensed)
 
 1. **HTTP/1.1 only** — aws-sdk-cpp discards HTTP/1.0 bodies.
-2. **getlogininfo is TWO schemas in one body**: lowercase `worlds` (INT enums, exactly the reflection keys — **extra keys DROP the object**) for the dropdown; `LoginInfoList` OBJECT with PascalCase `Worlds`/`Characters`/`PublicStatusCode=0`/`WorldStatus="ACTIVE"` for the gate. One casing alone = empty panel (both failure modes proven).
-3. **`Characters: []` empties the whole panel** — seed a character entry; UI paths are gated by list contents.
-4. **Queue**: envelope key `LoginQueueResponse`, PascalCase fields, `Signature` non-empty (handoff gate); refresh path (`/queue/v2/<id>/jwt`) wants `Position: 0` + nested `Token`.
-5. **Entitlements** is `{hasMoreResults, lineItems[]}` — `{entitlements: []}` was invented and wrong.
-6. Without ETag on CMS the client crashes. Credentials `expiration` is a **double epoch**.
-7. Hot-swapping overrides does NOT count: **restart the game** (panel does not re-render on re-poll).
-8. **Region scope**: the client reads getlogininfo via ITS region's gateway-CF host; scope world lists per region or every world repeats under every region.
-9. **TCP_NODELAY** on server responses: without it, delayed-ACK/Nagle adds ~40ms the client reports as "ping".
-10. External reference: nw-private-server/first-light (defunct, moved to Discord). Their VAs are build 1.365 — re-derive with `research/tools/reversing/bytepat.py`, never trust archived displacements (their archived patch rel32 was off by one).
+2. **getlogininfo is TWO schemas in one body**: lowercase `worlds` (exact reflection keys, extra
+   keys DROP the object) + `LoginInfoList` OBJECT with PascalCase `Worlds`/`Characters`.
+3. **`Characters: []` empties the panel**; seed a character (canonical: `Azoth` / `11111111-…`).
+4. **Queue**: envelope `LoginQueueResponse`, PascalCase, non-empty `Signature`; refresh wants
+   `Position: 0` + nested `Token`.
+5. **Entitlements** is `{hasMoreResults, lineItems[]}`.
+6. Without ETag on CMS the client crashes; credentials `expiration` is a **double epoch**.
+7. **Restart the game to re-render** (and now: to get a valid A/B attempt).
+8. **Region scope**: scope world lists per region host.
+9. **TCP_NODELAY** on responses.
+10. first-light VAs are build 1.365 — re-derive with `bytepat.py`; never trust archived displacements.
+11. Raw `Cmd_Greetings`, re-sending r2/r4/r5 after replay, 4KB chunk bundling and unprefixed V3
+    bodies all failed — do not retry (details in `research/atlas/levers.md`).
 
-## Exact frontier
+## Ops / environment notes
 
-- **InGame reached (first ever, 2026-09-19 19:09):** the 4th gate 13->14 is
-  NOPed at the call site (`0x14644a8ed`: `test rax,rax; je` -> 9x NOP,
-  `scripts/patch-spawn-gate.py`, stdlib WriteProcessMemory — NO Frida: the
-  Interceptor crashed frida-agent.dll at startup). The FSM virtual returns
-  `[mgr+8]` (local player entity, `0x146800d10`) which is NULL because the
-  replica stream never created it; NOPing the branch forces the transition.
-  v1 lesson: patching the getter BODY (600+ callers) crashes at startup
-  (c0000005 @ NewWorld+0x104285d) — always patch the call site.
-- **Transport SOLVED (2026-09-20 15:53):** replay chunks bundled into ~4KB
-  datagrams (REPLAY_DGRAM_TARGET) + reliable retransmission with per-dg
-  cap (REPLAY_RESEND_LIMIT=6). Client CT_ACKS now continuous ([42..44],
-  [38..41]) — zero loss. The old 12.7KB StateBundle datagram was never
-  acked (4229 resends did nothing); at 1100B/chunk bundled to 4KB it goes
-  through. `scripts/ack-coverage.py` + `scripts/trace-session.py` are the
-  analysis tools for this layer.
-- **Current blocker: replica layer never creates the local player (30s
-  `connection_ingame_timeout`, stable).** Everything wire-level works:
-  InGame reached every attempt, replay r2..r176 (46KB bundle incl.)
-  delivered with continuous client acks, V3 response in the VLQ-prefixed
-  form the registration parser requires, eos-stub alive. Experiments that
-  FAILED and must not repeat: raw Cmd_Greetings on ch0 (`Failed to
-  unmarshal num_bytes=1/90` — Javelin does not use stock GM Greetings),
-  re-sending r2/r4/r5 after replay (duplicates + seq collisions →
-  `csdkerr_registration_unmarshal_error`), 4KB chunk bundling
-  (BAD_PACKETS), unprefixed V3 body (`registration_unmarshal_error`
-  before InGame — registration REQUIRES the VLQ prefix). The 89B V3
-  record also logs a cosmetic `Failed to unmarshal num_bytes=90` from the
-  replica reader (both consumers share ch0 0x21; official channel layout
-  not preserved in the capture) — harmless, game proceeds.
-- **Next session's single task: Ghidra RE of the Javelin replica
-  dispatcher.** Entry points already derived: `FUN_1461ac8d0` (envelope
-  unmarshal, decompiled at `research/derived/decomp/unmarshal-
-  envelope.txt`, callers 0x146a6ec17/0x146b086f2/0x146b6ec5f), the FSM
-  state-14 case is a no-op (switch has no case 0xe), and the manager
-  gate the spawn-NOP bypasses returns `[mgr+8]` (local player entity,
-  `0x146800d10`). Question to answer: which typed-stream message(s)
-  after r176 trigger local-player replica creation (candidates: a
-  Cmd_NewProxy carrying the player actor, or a Javelin-specific
-  post-bundle message missing from the 1.365 capture).
-- Client auto-retries every ~20s (58 V3 registrations in 15 min; each
-  re-arms the replay from r2 — fine, the client re-requests everything).
-- Dev workflow: `python az.py dev` = ONE console, hot-reload for gateway
-  + world, caddy if :443 free, `dev stop` kills all (game untouched).
-  Launch it DETACHED (Start-Process) so it survives agent restarts — as a
-  child of the agent shell it died with the session (2026-09-20 morning).
-  Game input without stealing the mouse is impossible (Raw Input, see
-  LESSONS #11); screenshots via `python az.py shot`.
-- Known cosmetic: seeded `Azoth_Dev` exists in every world (mock-level, not per-world persistence).
-- Ops gotcha: duplicated service processes after restarts — kill by command line before diagnosing (LESSONS.md #9).
+- Stack: gateway `:8080`, Caddy `:443`, world `:9000`, hosts private. `python az.py dev` for
+  gateway+world (hot reload); launch it detached. `python az.py shot` + `scripts/shrink-image.py`
+  for screenshots (never Read the raw PNG).
+- Caddy can hang on some hosts after a restart; verify
+  `https://d1w0bfy6smo4d1.cloudfront.net/prod/game/getlogininfo/jwt/omni` through `:443` (200)
+  before blaming the world server.
+- The private runtime copy currently has the DTLS disk patch applied
+  (`scripts/patch-dtls-disk.py`, sha256 `537403d4…`); restore it with
+  `python scripts/patch-dtls-disk.py restore` when finished. The official Steam exe is untouched.
+- EAC memory ban is SCOPED: official process = never; our private runtime = allowed (but this
+  session deliberately stayed static/server-side).
 
 ## Minor debt
 
 - `services/world` needs `pyOpenSSL` (the one deliberate non-stdlib dep — stdlib ssl has no DTLS).
-- The EAC memory ban is SCOPED: official process = never; our private runtime = OK (Frida patch proves it).
-- After a session: `python az.py doc`, commit atlas.
+- After a session: `python az.py doc` (regenerate `research/atlas/openapi.json`) and commit the atlas.
