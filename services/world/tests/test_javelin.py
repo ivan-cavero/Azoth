@@ -8,11 +8,71 @@ research/docs/REP-PROTOCOL.md (gap sizes follow from the fixed offsets).
 from __future__ import annotations
 
 import pathlib
+import struct
 import sys
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+from azoth_world.javelin.wire import encode_vlq32  # noqa: E402
+
+
+def _client_vlq_decode(buf: bytes) -> int:
+    """Decode the way NewWorld 1.400 does (1s-prefix, see wire.encode_vlq32).
+
+    Kept independent of the encoder so the test pins the WIRE contract, not
+    an encoder/decoder pair that could agree while both being wrong.
+    """
+    b0 = buf[0]
+    if b0 < 0x80:
+        return b0 & 0x7F
+    if b0 < 0xC0:
+        n, bits = 2, 6
+    elif b0 < 0xE0:
+        n, bits = 3, 5
+    elif b0 < 0xF0:
+        n, bits = 4, 4
+    else:
+        n, bits = 5, 3
+    value = b0 & ((1 << bits) - 1)
+    shift = bits
+    for i in range(1, n):
+        value |= buf[i] << shift
+        shift += 8
+    return value
+
+
+class TestVlq32(unittest.TestCase):
+    """The length prefix before every replayed typed-stream body.
+
+    Regression 2026-09-24: the old encoder was LSB-first/7-bit. Both
+    schemes agree below 64, so the small replay messages worked and the
+    client silently truncated the 12706-byte one to 6370 -- a magic number
+    that is exactly (0x63 << 6) | 0x22, the old `a2 63` read with the
+    client's rule. Fixing the encoder unblocked the whole stream.
+    """
+
+    def test_roundtrip_against_client_decoder(self) -> None:
+        for value in (
+            0, 1, 12, 63, 64, 76, 88, 127, 128, 255, 1000, 4095, 4096,
+            6370, 8803, 12706, 46423, 99819, 2640000, 50_000_000,
+        ):
+            with self.subTest(value=value):
+                encoded = encode_vlq32(value)
+                self.assertEqual(_client_vlq_decode(encoded), value)
+
+    def test_known_encodings(self) -> None:
+        # Pinned so a future "simplification" back to 7-bit LSB-first fails.
+        self.assertEqual(encode_vlq32(12), b"\x0c")
+        self.assertEqual(encode_vlq32(6370), b"\xa2\x63")
+        self.assertEqual(encode_vlq32(12706), b"\xa2\xc6")
+
+    def test_rejects_out_of_range(self) -> None:
+        with self.assertRaises(ValueError):
+            encode_vlq32(-1)
+        with self.assertRaises(ValueError):
+            encode_vlq32(1 << 35)
 
 from azoth_world.javelin import (
     BitStream,
@@ -32,6 +92,13 @@ from azoth_world.javelin import (
     parse_v3_request_or_lenient,
     serialize_v3_request,
     v3,
+)
+from azoth_world.javelin.replay_store import (  # noqa: E402
+    ReplayMessage,
+    apply_span_substitution,
+    remap_fresh_levelinfo_key,
+    remap_replay_identity,
+    remap_selfident_guid,
 )
 
 
@@ -59,6 +126,331 @@ def make_v3_body() -> bytes:
     body = serialize_v3_request(msg)
     assert len(body) == 832, f"builder broken: {len(body)}B"
     return body
+
+
+def make_retry_v3_body(
+    *,
+    ticket: str = "29d426a8-a792-4fbc-bbb8-b4d666c01081",
+    world: str = "00000000-0000-4000-8000-000000000001",
+    character: str = "11111111-1111-1111-1111-111111111111",
+    persona_uuid: str = "fc906c07-42a2-2dd1-f59f-9c56cf4f212c",
+    persona_field: str | None = None,
+    include_session: bool = True,
+) -> bytes:
+    records = ((0, "[RETAIL]"), (1, "Javelin"), (2, "1"), (3, "400"), (4, "6031"), (5, "6004151"))
+    out = bytearray(b"\x00" * 32)
+    for type_id, text in records:
+        raw = text.encode("ascii")
+        out += struct.pack(">I", type_id) + bytes((len(raw),)) + raw
+    out.append(0)
+    identity = [
+        f"sig:{ticket}",
+        "127.0.0.1:9000",
+        world,
+        character,
+        persona_field or persona_uuid,
+    ]
+    if include_session:
+        identity.append(ticket)
+    identity.extend(("76561197960287930", "steam|14"))
+    for text in identity:
+        raw = text.encode("ascii")
+        out += bytes((len(raw),)) + raw
+    out += b"\xff\xfb\x00\x11"  # opaque auth tail; parser must stop safely
+    return bytes(out)
+
+
+class TestReplayIdentityRemap(unittest.TestCase):
+    def setUp(self):
+        self.message = ReplayMessage(
+            seq=0x28,
+            type_id=0x16A0,
+            direction="R",
+            body=bytes(153),
+            has_redaction=True,
+            redacted_spans=[(0x5C, 36)],
+        )
+
+    def test_disabled_is_identity(self):
+        out = remap_replay_identity(
+            self.message,
+            selector="off",
+            character_id="11111111-1111-1111-1111-111111111111",
+        )
+        self.assertIs(out, self.message)
+
+    def test_character_remap_is_same_length_and_copies_source(self):
+        out = remap_replay_identity(
+            self.message,
+            selector="character",
+            character_id="11111111-1111-1111-1111-111111111111",
+        )
+        self.assertIsNot(out, self.message)
+        self.assertEqual(len(out.body), len(self.message.body))
+        self.assertEqual(
+            out.body[0x5C:0x5C + 36],
+            b"11111111-1111-1111-1111-111111111111",
+        )
+        self.assertEqual(self.message.body[0x5C:0x5C + 36], bytes(36))
+        self.assertEqual(out.redacted_spans, self.message.redacted_spans)
+
+    def test_session_selector_and_unknown_fail_closed(self):
+        out = remap_replay_identity(
+            self.message,
+            selector="session",
+            session_uuid="974b84a5-c736-42ab-a292-db6f21bdd4da",
+        )
+        self.assertEqual(
+            out.body[0x5C:0x5C + 36],
+            b"974b84a5-c736-42ab-a292-db6f21bdd4da",
+        )
+        self.assertIs(
+            remap_replay_identity(
+                self.message,
+                selector="persona",
+                character_id="11111111-1111-1111-1111-111111111111",
+            ),
+            self.message,
+        )
+
+    def test_nonzero_slot_is_never_overwritten(self):
+        source = ReplayMessage(
+            seq=0x28,
+            type_id=0x16A0,
+            direction="R",
+            body=b"X" * 153,
+            has_redaction=False,
+        )
+        self.assertIs(
+            remap_replay_identity(
+                source,
+                selector="character",
+                character_id="11111111-1111-1111-1111-111111111111",
+            ),
+            source,
+        )
+
+
+class TestSelfIdentGuidRemap(unittest.TestCase):
+    def setUp(self):
+        self.message = ReplayMessage(
+            seq=0x06,
+            type_id=0x065C,
+            direction="R",
+            body=bytes(0x06 + 0x10 + 8),
+            has_redaction=True,
+            redacted_spans=[(0x05, 16)],
+        )
+
+    def test_session_guid_is_same_length_and_copies_source(self):
+        out = remap_selfident_guid(
+            self.message,
+            selector="session",
+            session_uuid="974b84a5-c736-42ab-a292-db6f21bdd4da",
+        )
+        self.assertIsNot(out, self.message)
+        self.assertEqual(len(out.body), len(self.message.body))
+        self.assertEqual(
+            out.body[0x05:0x15],
+            bytes.fromhex("974b84a5c73642aba292db6f21bdd4da"),
+        )
+        self.assertEqual(self.message.body[0x05:0x15], bytes(16))
+
+    def test_invalid_or_disabled_selector_fails_closed(self):
+        self.assertIs(
+            remap_selfident_guid(
+                self.message,
+                selector="off",
+                session_uuid="974b84a5-c736-42ab-a292-db6f21bdd4da",
+            ),
+            self.message,
+        )
+        self.assertIs(
+            remap_selfident_guid(
+                self.message,
+                selector="session",
+                session_uuid="not-a-uuid",
+            ),
+            self.message,
+        )
+
+    def test_nonzero_slot_is_never_overwritten(self):
+        source = ReplayMessage(
+            seq=0x06,
+            type_id=0x065C,
+            direction="R",
+            body=b"X" * (0x06 + 0x10 + 8),
+            has_redaction=False,
+        )
+        self.assertIs(
+            remap_selfident_guid(
+                source,
+                selector="character",
+                character_id="11111111-1111-1111-1111-111111111111",
+            ),
+            source,
+        )
+
+
+class TestSpanSubstitution(unittest.TestCase):
+    CHARACTER = "11111111-1111-1111-1111-111111111111"
+    SESSION = "974b84a5-c736-42ab-a292-db6f21bdd4da"
+    PERSONA = "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c"
+
+    def setUp(self):
+        self.message = ReplayMessage(
+            seq=0x2A,
+            type_id=0x0008,
+            direction="R",
+            body=bytes(0x100),
+            has_redaction=True,
+            redacted_spans=[
+                (0x04, 16),
+                (0x20, 36),
+                (0x50, 20),
+                (0x70, 61),
+                (0xC0, 8),
+            ],
+        )
+
+    def test_character_fills_binary_text_name_and_persona(self):
+        out = apply_span_substitution(
+            self.message,
+            selector="character",
+            character_id=self.CHARACTER,
+            persona_id=self.PERSONA,
+            display_name="Tester",
+        )
+        self.assertIsNot(out, self.message)
+        self.assertEqual(len(out.body), 0x100)
+        self.assertEqual(
+            out.body[0x04:0x14],
+            bytes.fromhex("11111111111111111111111111111111"),
+        )
+        self.assertEqual(
+            out.body[0x20:0x44],
+            self.CHARACTER.encode("ascii"),
+        )
+        self.assertEqual(out.body[0x50:0x64], b"Tester" + b"0" * 14)
+        self.assertEqual(
+            out.body[0x70:0xAD],
+            self.PERSONA.encode("ascii"),
+        )
+        self.assertEqual(out.body[0xC0:0xC8], bytes(8))  # CRC stays zero
+
+    def test_session_selector_uses_session_uuid(self):
+        out = apply_span_substitution(
+            self.message,
+            selector="session",
+            session_uuid=self.SESSION,
+            persona_id=self.PERSONA,
+        )
+        self.assertEqual(
+            out.body[0x04:0x14],
+            bytes.fromhex("974b84a5c73642aba292db6f21bdd4da"),
+        )
+        self.assertEqual(
+            out.body[0x20:0x44],
+            self.SESSION.encode("ascii"),
+        )
+
+    def test_seq_scope_limits_changes(self):
+        out = apply_span_substitution(
+            self.message,
+            selector="character",
+            character_id=self.CHARACTER,
+            seqs={0x8C},
+        )
+        self.assertIs(out, self.message)
+        out = apply_span_substitution(
+            self.message,
+            selector="character",
+            character_id=self.CHARACTER,
+            seqs={0x2A},
+        )
+        self.assertIsNot(out, self.message)
+
+    def test_length_filter_limits_changes(self):
+        out = apply_span_substitution(
+            self.message,
+            selector="character",
+            character_id=self.CHARACTER,
+            persona_id=self.PERSONA,
+            lengths={16},
+        )
+        self.assertIsNot(out, self.message)
+        self.assertNotEqual(out.body[0x04:0x14], bytes(16))
+        self.assertEqual(out.body[0x20:0x44], bytes(36))
+        self.assertEqual(out.body[0x50:0x64], bytes(20))
+
+    def test_disabled_and_invalid_selector_fail_closed(self):
+        self.assertIs(
+            apply_span_substitution(self.message, selector="off"),
+            self.message,
+        )
+        self.assertIs(
+            apply_span_substitution(
+                self.message,
+                selector="not-a-real-selector",
+                character_id=self.CHARACTER,
+            ),
+            self.message,
+        )
+        self.assertIs(
+            apply_span_substitution(
+                self.message,
+                selector="character",
+                character_id="not-a-uuid",
+            ),
+            self.message,
+        )
+
+
+class TestFreshLevelInfoRemap(unittest.TestCase):
+    def setUp(self):
+        body = bytearray(110)
+        body[0x66:0x6E] = bytes.fromhex("000000c17f9be48f")
+        self.message = ReplayMessage(
+            seq=0x4D,
+            type_id=0x0663,
+            direction="R",
+            body=bytes(body),
+            has_redaction=False,
+        )
+
+    def test_session_key_is_replaced_only_on_duplicate_record(self):
+        out = remap_fresh_levelinfo_key(
+            self.message,
+            selector="session",
+            session_uuid="974b84a5-c736-42ab-a292-db6f21bdd4da",
+        )
+        self.assertIsNot(out, self.message)
+        self.assertEqual(
+            out.body[0x66:0x6E],
+            bytes.fromhex("974b84a5c73642ab"),
+        )
+        self.assertEqual(self.message.body[0x66:0x6E], bytes.fromhex("000000c17f9be48f"))
+
+    def test_wrong_sequence_and_invalid_selector_fail_closed(self):
+        source = ReplayMessage(
+            seq=0x10,
+            type_id=0x0663,
+            direction="R",
+            body=self.message.body,
+            has_redaction=False,
+        )
+        self.assertIs(
+            remap_fresh_levelinfo_key(
+                source,
+                selector="session",
+                session_uuid="974b84a5-c736-42ab-a292-db6f21bdd4da",
+            ),
+            source,
+        )
+        self.assertIs(
+            remap_fresh_levelinfo_key(self.message, selector="off"),
+            self.message,
+        )
 
 
 class TestBitStream(unittest.TestCase):
@@ -168,6 +560,35 @@ class TestV3(unittest.TestCase):
         self.assertIn("sig:", msg.client_signature)
         # The rule: a parser that cannot reproduce its input is wrong.
         self.assertEqual(serialize_v3_request(msg), body)
+
+    def test_retry_identity_fields_and_roundtrip(self):
+        body = make_retry_v3_body()
+        msg = v3.parse_v3_request_retry(body)
+        self.assertIsNotNone(msg)
+        self.assertEqual(msg.client_signature, "sig:29d426a8-a792-4fbc-bbb8-b4d666c01081")
+        self.assertEqual(msg.client_endpoint, "127.0.0.1:9000")
+        self.assertEqual(msg.world_id, "00000000-0000-4000-8000-000000000001")
+        self.assertEqual(msg.character_id, "11111111-1111-1111-1111-111111111111")
+        self.assertEqual(msg.session_uuid, "29d426a8-a792-4fbc-bbb8-b4d666c01081")
+        self.assertEqual(
+            msg.persona_id,
+            "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c",
+        )
+        self.assertEqual(msg.platform_user_id, "76561197960287930")
+        self.assertEqual(msg.platform_name_blob, "steam|14")
+        self.assertEqual(msg.sdk_version, "600415")
+        self.assertEqual(msg.sdk_version_tail, ord("1"))
+        self.assertEqual(v3.serialize_v3_request(msg), body)
+
+    def test_retry_1400_uses_ticket_uuid_as_session(self):
+        persona = "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c"
+        body = make_retry_v3_body(persona_field=persona, include_session=False)
+        msg = v3.parse_v3_request_retry(body)
+        self.assertIsNotNone(msg)
+        self.assertEqual(msg.session_uuid, "29d426a8-a792-4fbc-bbb8-b4d666c01081")
+        self.assertEqual(msg.character_id, "11111111-1111-1111-1111-111111111111")
+        self.assertEqual(msg.persona_id, persona)
+        self.assertEqual(v3.serialize_v3_request(msg), body)
 
     def test_lenient_identity_extraction(self):
         body = make_v3_body()

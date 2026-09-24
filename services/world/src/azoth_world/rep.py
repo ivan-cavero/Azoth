@@ -77,12 +77,104 @@ REPLAY_CHUNK_SIZE = 1100
 # chunks into ~4KB datagrams instead of one giant datagram: a lost
 # datagram then costs 3 chunks, not 12.
 REPLAY_DGRAM_TARGET = 4000
-REPLAY_SINGLE_LIMIT = 14000  # DTLS plaintext cap ~16 KB minus overhead
+# 2026-09-24 (live probe, scripts/frida-reader-capture.py): the client
+# consumed replay seq 2/4/5 (12B, 76B, 76B) and then the typed-stream reader
+# stopped receiving forever -- seq 6 (0x65c, 12706B) never arrived. The
+# messages that DO arrive are <= 76B; the first one past that is 12.7KB and
+# it is delivered as a SINGLE datagram because it fits under the old limit.
+# That single oversized record is what breaks the client's stream: it acks
+# the datagram (so the transport looks perfect, 1306/1306 acked) and then
+# never delivers the message upward. So cap the single-datagram path well
+# below the observed failure point: anything above a few hundred bytes gets
+# MF_CHUNKS-split to REPLAY_CHUNK_SIZE, which the client has always
+# reassembled correctly.
+REPLAY_SINGLE_LIMIT = 256
 REPLAY_RESEND_LIMIT = 6      # max resends per reliable datagram (2026-09-20:
 # seq 12 (12.7KB StateBundle) was resent 4229x and never acked — the client
 # drops oversized datagrams during load and re-bombing it made everything
 # worse. After the cap, split-retransmit or drop: the 30s InGame timeout
 # clears the session anyway.)
+# 2026-09-24: with the limit above, 12 chunked datagrams of the 12.7 KB
+# message (type 0x65c) reach the client but it only reassembles 6370 of
+# 12706 bytes, then the stream turns to garbage (`num_bytes=0`). The client
+# acks every datagram, so nothing is lost on the wire: the chunks arrive
+# back-to-back faster than the client's Carrier drains them. Pace them.
+# AZOTH_CHUNK_GAP_MS tunes the delay; 0 restores the burst form.
+REPLAY_CHUNK_GAP_MS = float(os.environ.get("AZOTH_CHUNK_GAP_MS", "4"))
+# 2026-09-24: with pacing the stream flows (4 -> 176 messages reach the CSDK
+# reader) but the 12.7 KB message is still reassembled to exactly 6370 bytes,
+# every attempt, so it is a protocol convention and not a race. Two readings
+# of the MF_CHUNKS `numChunks` u16 are possible: a countdown (12,11,...,1) or
+# the constant total (12,12,...,12). This knob selects which one we emit.
+#   countdown (default) = the binary's chunk-reassembly path per the old guess
+#   total               = every record carries the same count
+REPLAY_CHUNK_COUNT_TOTAL = os.environ.get("AZOTH_CHUNK_COUNT", "total") == "total"
+# Controlled replay A/B for the six explicitly redacted 36-byte UUID slots.
+# off preserves the capture; character|session fills only the allowlisted
+# offsets in javelin.replay_store. Never inferred from arbitrary body text.
+REPLAY_IDENTITY_REMAP = os.environ.get(
+    "AZOTH_REPLAY_IDENTITY_REMAP", "off"
+).lower()
+# Controlled A/B for the redacted binary GUID at the head of 0x65c.
+# off|session|character; the UUID is encoded in network byte order.
+REPLAY_SELFIDENT_GUID = os.environ.get(
+    "AZOTH_REPLAY_SELFIDENT_GUID", "off"
+).lower()
+# Controlled A/B for the duplicate LevelInfo record at replay seq 0x4d.
+# off|session|character; only its serialized 8-byte context key is changed.
+REPLAY_FRESH_LEVELINFO = os.environ.get(
+    "AZOTH_REPLAY_FRESH_LEVELINFO", "off"
+).lower()
+# Controlled A/B for every redacted span in the captured StateBundle burst.
+# off|character|session|persona|mixed: fills the 16-byte binary GUIDs (the
+# local-player record lives in the first large bundle), the 36-byte text
+# UUIDs, the 18/19/20-byte display names and the 61-byte persona string.
+# The 8-byte AzCore hashes stay zero-filled; unknown lengths stay untouched.
+REPLAY_SPAN_SUBSTITUTION = os.environ.get(
+    "AZOTH_REPLAY_SPAN_SUBSTITUTION", "off"
+).lower()
+REPLAY_SPAN_DISPLAY_NAME = os.environ.get(
+    "AZOTH_REPLAY_SPAN_DISPLAY_NAME", "Azoth"
+)
+
+
+def _parse_seq_set(raw: str) -> set[int] | None:
+    """Parse '0x8c,0xae' or '0x80-0x8c' into a set of replay seqs."""
+    items = [item.strip() for item in raw.replace(";", ",").split(",") if item.strip()]
+    if not items:
+        return None
+    out: set[int] = set()
+    for item in items:
+        if "-" in item:
+            lo, hi = item.split("-", 1)
+            out.update(range(int(lo, 0), int(hi, 0) + 1))
+        else:
+            out.add(int(item, 0))
+    return out
+
+
+# Optional surgical scope: only these replay seqs get span substitution.
+# Empty = every message with redactions (broad A/B).
+REPLAY_SPAN_SEQS = _parse_seq_set(os.environ.get("AZOTH_REPLAY_SPAN_SEQS", ""))
+# Optional length filter, e.g. '16' fills only the binary GUID slots.
+# Empty = every known redaction length (16/18/19/20/36/61).
+REPLAY_SPAN_LENGTHS = _parse_seq_set(os.environ.get("AZOTH_REPLAY_SPAN_LENGTHS", ""))
+# Optional second pass for a different identity per seq group (the init
+# burst needs the persona UUID while the interest=91 owner record needs the
+# character UUID). Pass 2 never overwrites a span pass 1 already filled.
+REPLAY_SPAN_SUBSTITUTION2 = os.environ.get(
+    "AZOTH_REPLAY_SPAN_SUBSTITUTION2", "off"
+).lower()
+REPLAY_SPAN_SEQS2 = _parse_seq_set(os.environ.get("AZOTH_REPLAY_SPAN_SEQS2", ""))
+REPLAY_SPAN_LENGTHS2 = _parse_seq_set(
+    os.environ.get("AZOTH_REPLAY_SPAN_LENGTHS2", "")
+)
+# Optional replay split: hold every message with seq >= SPLIT_SEQ until the
+# client has had time to load the world (the capture's server streamed them
+# over seconds, not in one burst; bundles that arrive before the client's
+# context/level exist get queued or dropped).
+REPLAY_SPLIT_SEQ = int(os.environ.get("AZOTH_REPLAY_SPLIT_SEQ", "0"), 0)
+REPLAY_SPLIT_DELAY_S = float(os.environ.get("AZOTH_REPLAY_SPLIT_DELAY_S", "12"))
 
 _REPLAY = None
 
@@ -143,6 +235,8 @@ def describe_datagram(data: bytes) -> dict:
                     req = parse_v3_request_or_lenient(r.payload)
                     event["v3"] = {
                         "session_uuid": req.session_uuid,
+                        "world_id": req.world_id,
+                        "character_id": req.character_id,
                         "persona_id": req.persona_id,
                         "endpoint": req.client_endpoint,
                         "build": req.build_flavor,
@@ -563,6 +657,9 @@ class PeerSession:
         self.carrier_connected = False  # our acceptance flight has been sent
         self.inbound_first: int | None = None  # first inbound envelope seq
         self.v3_responded = False  # V3 response has been sent at least once
+        self.v3_session_uuid = ""
+        self.v3_character_id = ""
+        self.v3_persona_id = ""
         self.v3_first_time = 0.0  # monotonic timestamp of first V3 response
         self.v3_last_time = 0.0  # monotonic timestamp of the LAST V3 response
         self.next_out_seq = 1  # envelope seq for unsolicited server datagrams
@@ -570,6 +667,7 @@ class PeerSession:
         self.last_keepalive = 0.0
         # Captured-official-login replay state (see REPLAY_* above).
         self.replay_queue: list = []
+        self.replay_split_done = False
         self.replay_next_at = 0.0
         self.out_msg_seq = 0
         self.out_rel_seq = 0
@@ -634,6 +732,25 @@ class PeerSession:
         # "Mixed Nuts" finding) instead of using an independent counter.
         inbound_recs = parse_datagram(inbound_body).messages
         self._process_acks(inbound_recs)
+        # describe_datagram() already transparently decompresses envelope
+        # 0x81, which the raw Carrier parse above cannot do. Use its decoded
+        # identity so compressed live V3 retries can key replay remapping.
+        v3_event = event.get("v3")
+        if isinstance(v3_event, dict) and v3_event.get("session_uuid"):
+            session_uuid = str(v3_event["session_uuid"])
+            if self.v3_session_uuid and session_uuid != self.v3_session_uuid:
+                log_event(
+                    {
+                        "event": "v3-session-conflict",
+                        "peer": f"{self.peer[0]}:{self.peer[1]}",
+                        "kept": self.v3_session_uuid,
+                        "ignored": session_uuid,
+                    }
+                )
+            else:
+                self.v3_session_uuid = session_uuid
+                self.v3_character_id = str(v3_event.get("character_id") or "")
+                self.v3_persona_id = str(v3_event.get("persona_id") or "")
         if any(
             rec.is_system and rec.system_msg_id == SystemMessageId.SM_DISCONNECT
             for rec in inbound_recs
@@ -704,7 +821,132 @@ class PeerSession:
         now = time.monotonic()
         if now < self.replay_next_at:
             return
+        if (
+            REPLAY_SPLIT_SEQ
+            and not self.replay_split_done
+            and self.replay_queue
+            and self.replay_queue[0].seq >= REPLAY_SPLIT_SEQ
+        ):
+            self.replay_split_done = True
+            self.replay_next_at = now + REPLAY_SPLIT_DELAY_S
+            log_event(
+                {
+                    "event": "replay-split-wait",
+                    "next_seq": self.replay_queue[0].seq,
+                    "delay_s": REPLAY_SPLIT_DELAY_S,
+                }
+            )
+            return
         msg = self.replay_queue.pop(0)
+        if REPLAY_IDENTITY_REMAP != "off":
+            from .javelin.replay_store import remap_replay_identity
+
+            remapped = remap_replay_identity(
+                msg,
+                selector=REPLAY_IDENTITY_REMAP,
+                session_uuid=self.v3_session_uuid,
+                character_id=self.v3_character_id,
+            )
+            if remapped is not msg:
+                log_event(
+                    {
+                        "event": "replay-identity-remap",
+                        "seq": msg.seq,
+                        "type": hex(msg.type_id),
+                        "selector": REPLAY_IDENTITY_REMAP,
+                    }
+                )
+                msg = remapped
+        if REPLAY_SELFIDENT_GUID != "off":
+            from .javelin.replay_store import remap_selfident_guid
+
+            remapped = remap_selfident_guid(
+                msg,
+                selector=REPLAY_SELFIDENT_GUID,
+                session_uuid=self.v3_session_uuid,
+                character_id=self.v3_character_id,
+            )
+            if remapped is not msg:
+                log_event(
+                    {
+                        "event": "replay-selfident-guid-remap",
+                        "seq": msg.seq,
+                        "type": hex(msg.type_id),
+                        "selector": REPLAY_SELFIDENT_GUID,
+                    }
+                )
+                msg = remapped
+        if REPLAY_FRESH_LEVELINFO != "off":
+            from .javelin.replay_store import remap_fresh_levelinfo_key
+
+            remapped = remap_fresh_levelinfo_key(
+                msg,
+                selector=REPLAY_FRESH_LEVELINFO,
+                session_uuid=self.v3_session_uuid,
+                character_id=self.v3_character_id,
+            )
+            if remapped is not msg:
+                log_event(
+                    {
+                        "event": "replay-fresh-levelinfo-remap",
+                        "seq": msg.seq,
+                        "type": hex(msg.type_id),
+                        "selector": REPLAY_FRESH_LEVELINFO,
+                    }
+                )
+                msg = remapped
+        if REPLAY_SPAN_SUBSTITUTION != "off":
+            from .javelin.replay_store import apply_span_substitution
+
+            remapped = apply_span_substitution(
+                msg,
+                selector=REPLAY_SPAN_SUBSTITUTION,
+                session_uuid=self.v3_session_uuid,
+                character_id=self.v3_character_id,
+                persona_id=self.v3_persona_id,
+                display_name=REPLAY_SPAN_DISPLAY_NAME,
+                seqs=REPLAY_SPAN_SEQS,
+                lengths=REPLAY_SPAN_LENGTHS,
+            )
+            if remapped is not msg:
+                log_event(
+                    {
+                        "event": "replay-span-substitution",
+                        "seq": msg.seq,
+                        "type": hex(msg.type_id),
+                        "selector": REPLAY_SPAN_SUBSTITUTION,
+                        "spans": remapped.substituted_spans,
+                        "spans_total": len(msg.redacted_spans),
+                        "pass": 1,
+                    }
+                )
+                msg = remapped
+        if REPLAY_SPAN_SUBSTITUTION2 != "off":
+            from .javelin.replay_store import apply_span_substitution
+
+            remapped = apply_span_substitution(
+                msg,
+                selector=REPLAY_SPAN_SUBSTITUTION2,
+                session_uuid=self.v3_session_uuid,
+                character_id=self.v3_character_id,
+                persona_id=self.v3_persona_id,
+                display_name=REPLAY_SPAN_DISPLAY_NAME,
+                seqs=REPLAY_SPAN_SEQS2,
+                lengths=REPLAY_SPAN_LENGTHS2,
+            )
+            if remapped is not msg:
+                log_event(
+                    {
+                        "event": "replay-span-substitution",
+                        "seq": msg.seq,
+                        "type": hex(msg.type_id),
+                        "selector": REPLAY_SPAN_SUBSTITUTION2,
+                        "spans": remapped.substituted_spans,
+                        "spans_total": len(msg.redacted_spans),
+                        "pass": 2,
+                    }
+                )
+                msg = remapped
         self._send_replay_message(server, msg)
         if not self.replay_queue and not self.greetings_after_replay:
             # Replay fully streamed. 2026-09-20 19:11 lesson: re-sending
@@ -781,10 +1023,14 @@ class PeerSession:
                 reliable_sequence=c_rel,
                 reliable=True,
                 connecting=False,
-                num_chunks=remaining,
+                num_chunks=(len(chunks) if REPLAY_CHUNK_COUNT_TOTAL else remaining),
                 flags_override=0x25,  # RELIABLE | CHUNKS | DATA_CHANNEL
             )
             self._send_datagram(server, [rec])
+            if REPLAY_CHUNK_GAP_MS > 0 and i + 1 < len(chunks):
+                # The client's Carrier queue drains on its own tick; a burst
+                # of N chunks overruns it and the reassembly truncates.
+                time.sleep(REPLAY_CHUNK_GAP_MS / 1000.0)
         log_event(
             {
                 "event": "replay",
@@ -986,6 +1232,31 @@ class RepServer:
         self.host, self.port = host, port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((host, port))
+        log_event(
+            {
+                "event": "config",
+                "replay_identity_remap": REPLAY_IDENTITY_REMAP,
+                "replay_selfident_guid": REPLAY_SELFIDENT_GUID,
+                "replay_fresh_levelinfo": REPLAY_FRESH_LEVELINFO,
+                "replay_span_substitution": REPLAY_SPAN_SUBSTITUTION,
+                "replay_span_seqs": (
+                    sorted(REPLAY_SPAN_SEQS) if REPLAY_SPAN_SEQS else "all"
+                ),
+                "replay_span_lengths": (
+                    sorted(REPLAY_SPAN_LENGTHS) if REPLAY_SPAN_LENGTHS else "all"
+                ),
+                "replay_span_substitution2": REPLAY_SPAN_SUBSTITUTION2,
+                "replay_span_seqs2": (
+                    sorted(REPLAY_SPAN_SEQS2) if REPLAY_SPAN_SEQS2 else "all"
+                ),
+                "replay_span_lengths2": (
+                    sorted(REPLAY_SPAN_LENGTHS2) if REPLAY_SPAN_LENGTHS2 else "all"
+                ),
+                "replay_split_seq": hex(REPLAY_SPLIT_SEQ) if REPLAY_SPLIT_SEQ else "off",
+                "replay_split_delay_s": REPLAY_SPLIT_DELAY_S,
+                "chunk_gap_ms": REPLAY_CHUNK_GAP_MS,
+            }
+        )
         # Windows: a sendto() to a client that already closed is answered
         # with ICMP port-unreachable; the NEXT recvfrom() then raises
         # WSAECONNRESET (10054) and we used to treat that as fatal —

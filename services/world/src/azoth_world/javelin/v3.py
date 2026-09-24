@@ -8,6 +8,7 @@ wrong — the tests enforce it).
 
 from __future__ import annotations
 
+import os
 import re
 import struct
 from dataclasses import dataclass, field
@@ -28,6 +29,16 @@ DEFAULT_SERVER_VERSION = "[RETAIL].Javelin.1.400.6031.6004151"
 # client does not treat this private world as an AC-required official
 # server. Revert if the client then rejects the response entirely.
 DEFAULT_TRAILER = bytes.fromhex("00000000")
+# A/B knob: AZOTH_V3_TRAILER=official restores the captured `01 00 00 01`.
+# The official trailer sets two non-zero flags. They were cleared to dodge
+# `@mm_csdkerr_server_requires_anticheat` (2026-09-18), but that error is
+# handled by the eos-stub + the private build's anticheat patch, and the
+# cleared trailer is now the leading suspect for the local player never
+# binding: the snapshot arrives complete yet [mgr+8] (the local player
+# entity id) is never written.
+OFFICIAL_TRAILER = bytes.fromhex("01000001")
+if os.environ.get("AZOTH_V3_TRAILER", "").lower() == "official":
+    DEFAULT_TRAILER = OFFICIAL_TRAILER
 
 _UUID_RE = re.compile(
     rb"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -53,6 +64,8 @@ class V3RegistrationRequest:
     client_signature: str = ""  # "sig:<ticket-uuid>"
     client_endpoint: str = ""  # "127.0.0.1:<port>"
     session_uuid: str = ""
+    world_id: str = ""
+    character_id: str = ""
     persona_id: str = ""
     platform_app_tag: str = ""  # "STEAM_APP_ID.1063730"
     platform_user_id: str = ""  # SteamID64
@@ -153,12 +166,57 @@ def parse_v3_request_retry(body: bytes) -> V3RegistrationRequest | None:
             msg.unknown_400 = text
         elif tid == 1:
             msg.sdk_name = text
+        elif tid == 5 and text:
+            msg.sdk_version = text[:-1]
+            msg.sdk_version_tail = ord(text[-1])
         elif tid == 0:
             msg.build_flavor = text
-    lenient = parse_v3_request_lenient(msg.retry_tail)
-    if lenient is not None:
-        msg.session_uuid = lenient.session_uuid or msg.session_uuid
-        msg.persona_id = lenient.persona_id or msg.persona_id
+    # Retry requests put identity in a sequence of AZStd::string values after
+    # one separator byte. The live client may insert a bare persona UUID
+    # between character_id and session_uuid, so fixed offsets are not stable.
+    # Walk the length-prefixed fields and identify the session by its proven
+    # equality with the ticket UUID instead of taking the first non-zero UUID.
+    tail = msg.retry_tail
+    off = 1
+    for attr in ("client_signature", "client_endpoint", "world_id", "character_id"):
+        if off >= len(tail):
+            return None
+        length = tail[off]
+        end = off + 1 + length
+        if end > len(tail):
+            return None
+        setattr(msg, attr, tail[off + 1 : end].decode("latin-1"))
+        off = end
+
+    ticket_uuid = msg.client_signature.removeprefix("sig:")
+    # All 883 captured 1.400 retry bodies carry the session UUID in the
+    # ticket signature. Newer builds omit the second copy as a string field,
+    # so this equality is the authoritative session identity.
+    msg.session_uuid = ticket_uuid
+    while off < len(tail):
+        length = tail[off]
+        end = off + 1 + length
+        if length == 0 or end > len(tail):
+            break
+        try:
+            text = tail[off + 1 : end].decode("ascii")
+        except UnicodeDecodeError:
+            break
+        off = end
+        if text.startswith("amzn1.developerPersonaId."):
+            msg.persona_id = text
+        elif _UUID_RE.fullmatch(text.encode("ascii")) and text == ticket_uuid:
+            msg.session_uuid = text
+        elif _UUID_RE.fullmatch(text.encode("ascii")) and not msg.persona_id and text not in {
+            msg.world_id,
+            msg.character_id,
+        }:
+            # Retry serialization carries the UUID without the Omni prefix.
+            msg.persona_id = f"amzn1.developerPersonaId.{text}"
+        elif text.isdigit() and len(text) >= 10:
+            msg.platform_user_id = text
+        elif text.startswith("steam|"):
+            msg.platform_name_blob = text
     return msg
 
 

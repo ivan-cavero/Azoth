@@ -18,25 +18,51 @@ import zlib
 
 
 def encode_vlq32(value: int) -> bytes:
-    """AzCore VLQ32: 7 bits per byte, top bit set means more bytes follow.
+    """AzCore/GridMate VLQ32 ("1s-prefix" variable-length uint).
 
-    Handles values 0..2**32-1 in 1..5 bytes. The decoder in the binary
-    accepts the canonical (shortest) form for any given value.
+    The leading bits of the FIRST byte say how many bytes follow; every
+    following byte contributes all 8 of its bits:
+
+        0xxxxxxx                                      1 byte  (0..127)
+        10xxxxxx  xxxxxxxx                            2 bytes (0..16383)
+        110xxxxx  xxxxxxxx xxxxxxxx                   3 bytes (0..2097151)
+        1110xxxx  xxxxxxxx xxxxxxxx xxxxxxxx          4 bytes
+        11110xxx  xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx 5 bytes
+
+    The first byte supplies `8 - prefix_bits` low bits, so the shifts are
+    0, then 6 (n=2), 5 (n=3), 4 (n=4), 3 (n=5).
+
+    Verified live 2026-09-24 against build 1.400: the client decoded our
+    old LSB-first/7-bit `a2 63` (meant for 12706) as 6370, i.e. it read
+    `(0x63 << 6) | (0xa2 & 0x3F)` -- prefix `10` with 6 low bits in byte 0
+    and all 8 bits of byte 1 shifted up by 6. Our encoder wrote the two
+    halves in the wrong order, so every VLQ over 63 bits was wrong. That
+    is why only the messages over ~76 bytes broke: replay seq 6
+    (type 0x65c, 12706 B) arrived truncated at 6370 and desynchronised
+    every message after it.
     """
     if value < 0:
         raise ValueError(f"VLQ32 cannot encode negative value {value}")
-    if value > 0xFFFFFFFF:
-        raise ValueError(f"VLQ32 cannot encode value > 2**32-1: {value}")
+    if value >= (1 << 35):
+        raise ValueError(f"VLQ32 cannot encode value >= 2**35: {value}")
+    # Number of trailing bytes: 7 / 14 / 21 / 28 / 35 data bits.
+    if value < (1 << 7):
+        n, prefix, first_bits = 1, 0x00, 7
+    elif value < (1 << 14):
+        n, prefix, first_bits = 2, 0x80, 6
+    elif value < (1 << 21):
+        n, prefix, first_bits = 3, 0xC0, 5
+    elif value < (1 << 28):
+        n, prefix, first_bits = 4, 0xE0, 4
+    else:
+        n, prefix, first_bits = 5, 0xF0, 3
     out = bytearray()
-    remaining = value
-    while True:
-        chunk = remaining & 0x7F
-        remaining >>= 7
-        if remaining:
-            out.append(chunk | 0x80)
-        else:
-            out.append(chunk)
-            return bytes(out)
+    out.append(prefix | (value & ((1 << first_bits) - 1)))
+    shift = first_bits
+    for _ in range(n - 1):
+        out.append((value >> shift) & 0xFF)
+        shift += 8
+    return bytes(out)
 
 
 def chunk_replay_payload(
