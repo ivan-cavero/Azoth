@@ -30,8 +30,7 @@ import json
 import time
 from pathlib import Path
 
-AZOTH_PERSONA = "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c"
-AZOTH_STEAM_ID = "76561197960287930"
+from .identity import AZOTH_PERSONA, AZOTH_STEAM_ID  # re-exported for callers
 
 # Rapid-iteration override: if <discovery_dir>/tokens.json exists, serve its
 # bytes verbatim (no gateway restart needed between game retries). The dir is

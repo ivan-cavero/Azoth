@@ -24,9 +24,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .identity import AZOTH_CHARACTER_ID
 from .registry import AZOTH_WORLD_ID
 
-PLACEHOLDER_CHARACTER_ID = "00000000-0000-4000-8000-00000000c0de"
+# Compatibility name retained for tools that imported the old placeholder.
+PLACEHOLDER_CHARACTER_ID = AZOTH_CHARACTER_ID
 
 LIST_OVERRIDE_NAME = "characters.json"
 VALIDATOR_OVERRIDE_NAME = "characters_validator.json"

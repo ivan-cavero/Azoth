@@ -2,7 +2,7 @@
     "logging": {
         "logs": {
             "default": {
-                "level": "DEBUG"
+                "level": "INFO"
             }
         }
     },
@@ -23,7 +23,13 @@
                                         {
                                             "dial": "127.0.0.1:8080"
                                         }
-                                    ]
+                                    ],
+                                    "transport": {
+                                        "protocol": "http",
+                                        "keep_alive": {
+                                            "enabled": false
+                                        }
+                                    }
                                 }
                             ]
                         }

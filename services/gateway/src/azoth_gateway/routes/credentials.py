@@ -24,7 +24,7 @@ import os
 import time
 from pathlib import Path
 
-AZOTH_PERSONA = "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c"
+from .identity import AZOTH_PERSONA  # re-exported for existing callers
 
 
 def _alnum(nchars: int) -> str:

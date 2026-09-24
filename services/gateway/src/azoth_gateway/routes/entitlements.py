@@ -22,7 +22,7 @@ import json
 import time
 from pathlib import Path
 
-from .omni import AZOTH_PERSONA
+from .identity import AZOTH_PERSONA
 
 LIST_OVERRIDE_NAME = "entitlements.json"
 SYNC_OVERRIDE_NAME = "entitlements_sync.json"

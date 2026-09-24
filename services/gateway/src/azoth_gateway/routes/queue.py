@@ -21,7 +21,12 @@ import time
 import uuid
 from pathlib import Path
 
-from .characters import PLACEHOLDER_CHARACTER_ID
+from .identity import (
+    AZOTH_CHARACTER_ID,
+    AZOTH_PERSONA,
+    AZOTH_STEAM_APP_ID,
+    AZOTH_STEAM_ID,
+)
 from .registry import load, queue_fields
 
 OVERRIDE_NAME = "queue.json"
@@ -36,7 +41,7 @@ def _ticket(rep: str, world_id: str, world_name: str) -> dict:
     return {
         "AccountAge": 0,
         "AccountIsLocked": False,
-        "CharacterId": PLACEHOLDER_CHARACTER_ID,
+        "CharacterId": AZOTH_CHARACTER_ID,
         "ClientCapabilities": "",
         "GenerateTime": now,
         "HostHash": "",
@@ -46,11 +51,11 @@ def _ticket(rep: str, world_id: str, world_name: str) -> dict:
         "Location": "",
         "LocationGroupId": "",
         "LocationId": "",
-        "PersonaId": "",
+        "PersonaId": AZOTH_PERSONA,
         "RepAddress": rep,
         "Signature": f"sig:{ticket_id}",  # handoff gate: must be non-empty
-        "SteamAppId": 1063730,
-        "SteamUserId": "",
+        "SteamAppId": AZOTH_STEAM_APP_ID,
+        "SteamUserId": AZOTH_STEAM_ID,
         "TicketId": ticket_id,
         "TokenVersion": 10,
         "WorldId": world_id,

@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from .omni import AZOTH_PERSONA
+from .identity import AZOTH_CHARACTER_ID, AZOTH_PERSONA
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DEFAULT_PATH = DATA_DIR / "worlds.json"
@@ -261,9 +261,6 @@ def _login_world_gate(w: dict) -> dict:
     }
 
 
-_SEED_CHARACTER_ID = "11111111-1111-1111-1111-111111111111"
-
-
 def _seed_character(w: dict) -> dict:
     """PascalCase CharacterMetadata (FUN_1474e1f60) so the character panel
     has something to render; the client then proceeds to validate/queue
@@ -271,7 +268,7 @@ def _seed_character(w: dict) -> dict:
     """
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     return {
-        "CharacterId": _SEED_CHARACTER_ID,
+        "CharacterId": AZOTH_CHARACTER_ID,
         "Name": w.get("characterName", "Azoth_Dev"),
         "PersonaId": AZOTH_PERSONA,
         "WorldId": w.get("id", AZOTH_WORLD_ID),

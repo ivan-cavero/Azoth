@@ -100,16 +100,20 @@ if ($Watch) {
     Write-Host '  Anticheat gate byte-patch...'
     & python -u (Join-Path $repo 'scripts\frida-anticheat-patch.py')
     if ($LASTEXITCODE -ne 0) { Write-Host '  anticheat-patch FAILED' }
-    Write-Host '  Force actor/spawn ladder (skip 2min timeout)...'
-    & python -u (Join-Path $repo 'scripts\frida-rep-force-ladder.py')
-    if ($LASTEXITCODE -ne 0) { Write-Host '  ladder-force FAILED' }
-    # v1 (patching the getter BODY 0x146800d10 -> mov eax,1;ret) CRASHED the
-    # client (c0000005 @ NewWorld+0x104285d). v2 NOPs the FSM call-site
-    # check instead (0x14644a8ed, 9B: test rax,rax + je) — VERIFIED
-    # 2026-09-19 19:09: client reached InGame for the first time ever.
-    Write-Host '  Force 4th spawn gate (13->14 call-site NOP)...'
-    & python -u (Join-Path $repo 'scripts\patch-spawn-gate.py')
-    if ($LASTEXITCODE -ne 0) { Write-Host '  spawn-gate-force FAILED' }
+    if ($env:AZOTH_NATURAL_SPAWN -eq '1') {
+        Write-Host '  Natural spawn ladder enabled (state patches skipped)'
+    } else {
+        Write-Host '  Force actor/spawn ladder (skip 2min timeout)...'
+        & python -u (Join-Path $repo 'scripts\frida-rep-force-ladder.py')
+        if ($LASTEXITCODE -ne 0) { Write-Host '  ladder-force FAILED' }
+        # v1 (patching the getter BODY 0x146800d10 -> mov eax,1;ret) CRASHED the
+        # client (c0000005 @ NewWorld+0x104285d). v2 NOPs the FSM call-site
+        # check instead (0x14644a8ed, 9B: test rax,rax + je) — VERIFIED
+        # 2026-09-19 19:09: client reached InGame for the first time ever.
+        Write-Host '  Force 4th spawn gate (13->14 call-site NOP)...'
+        & python -u (Join-Path $repo 'scripts\patch-spawn-gate.py')
+        if ($LASTEXITCODE -ne 0) { Write-Host '  spawn-gate-force FAILED' }
+    }
     Write-Host '  EOS ClientSDK stubs (window must stay open)...'
     # MUST be a detached, persistent process: the stub holds live Frida
     # NativeCallbacks, and it silently dying = @mm_csdkerr_disconnect (2)

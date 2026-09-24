@@ -17,6 +17,11 @@ SCHEMAS = ROOT.parents[1] / "research" / "schemas" / "live"
 
 from azoth_gateway.app import run_in_thread
 from azoth_gateway.config import Config
+from azoth_gateway.routes.identity import (
+    AZOTH_CHARACTER_ID,
+    AZOTH_PERSONA,
+    AZOTH_STEAM_ID,
+)
 
 WORLD_ID = "00000000-0000-4000-8000-000000000001"
 
@@ -117,6 +122,7 @@ class GatewayTest(unittest.TestCase):
         self.assertIsInstance(doc["expiration"], int)
         self.assertGreater(doc["expiration"], 1_600_000_000)
         self.assertIn("region", doc)
+        self.assertEqual(doc["personaId"], AZOTH_PERSONA)
         # Legacy flat copies kept for tooling.
         self.assertTrue(doc["AccessKeyId"].startswith("ASIA"))
         self.assertIn("SecretKey", doc)
@@ -194,7 +200,9 @@ class GatewayTest(unittest.TestCase):
         acc = doc["account"]
         self.assertIn(acc["type"], ("shadow", "full"))
         self.assertIn("ageGroup", acc)
-        self.assertTrue(acc["personaId"].startswith("amzn1."))
+        self.assertEqual(acc["personaId"], AZOTH_PERSONA)
+        self.assertEqual(pa["personaId"], AZOTH_PERSONA)
+        self.assertEqual(pa["identityId"], AZOTH_STEAM_ID)
 
     def test_getlogininfo_mock(self):
         code, _, body = get(18080, "/prod/game/getlogininfo/jwt/omni")
@@ -218,6 +226,8 @@ class GatewayTest(unittest.TestCase):
         self.assertNotIn("name", doc["worlds"][0])  # extra keys drop the object
         self.assertEqual(lil["Characters"][0]["WorldId"], world["WorldId"])
         self.assertEqual(lil["Characters"][0]["Name"], WORLD.get("characterName", "Azoth_Dev"))
+        self.assertEqual(lil["Characters"][0]["CharacterId"], AZOTH_CHARACTER_ID)
+        self.assertEqual(lil["Characters"][0]["PersonaId"], AZOTH_PERSONA)
 
     def test_getlogininfo_region_scoped(self):
         # The client talks to the gateway-CF of ITS region; the world list is
@@ -261,11 +271,13 @@ class GatewayTest(unittest.TestCase):
         # LoginQueueResponse envelope (first-light RE: FUN_1474e4f20).
         t = doc["LoginQueueResponse"]
         self.assertTrue(t["TicketId"])
-        self.assertTrue(t["Signature"])  # handoff gate: must be non-empty
+        self.assertEqual(t["Signature"], f"sig:{t['TicketId']}")
         self.assertEqual(t["RepAddress"], "127.0.0.1:9000")
         self.assertEqual(t["WorldName"], WORLD["name"])
-        self.assertTrue(t["WorldId"])
-        self.assertTrue(t["CharacterId"])
+        self.assertEqual(t["WorldId"], WORLD["id"])
+        self.assertEqual(t["CharacterId"], AZOTH_CHARACTER_ID)
+        self.assertEqual(t["PersonaId"], AZOTH_PERSONA)
+        self.assertEqual(t["SteamUserId"], AZOTH_STEAM_ID)
 
         # Refresh path (with ticket id) returns the READY envelope whose
         # Token carries the ticket — this moves the client to the REP.
@@ -285,8 +297,9 @@ class GatewayTest(unittest.TestCase):
         self.assertEqual(code, 200)
         doc = json.loads(body.decode())
         self.assertIsInstance(doc, list)
-        self.assertTrue(doc[0]["characterId"])
+        self.assertEqual(doc[0]["characterId"], AZOTH_CHARACTER_ID)
         self.assertTrue(doc[0]["name"])
+        self.assertEqual(doc[0]["worldId"], WORLD_ID)
 
         code, _, body = get(18080, "/characters/validator")
         self.assertEqual(code, 200)
