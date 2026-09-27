@@ -25,11 +25,28 @@
      server went quiet, and the per-state watchdog (`FUN_146445E10`) forced
      `connection_ingame_timeout`. The heartbeat continues the exchange (stretched the window
      44 s → 58 s) and the watchdog patch (`0x146445EFB B001→B000`) stops it from reporting a timeout.
+  4. `rep.py` DTLS **stale-session reset** — see "The REP flakiness was a server bug" below. Without
+     it, most world attempts never got past `WaitingForREPConnection`.
+- **The player still cannot move: the local-player actor is never built.** The world area renders
+  black because there is no camera, and there is no camera because entity `id 13` (the local player)
+  exists in the entity table with a **corrupt actor vtable** (`nw+ffff800964c60001`, a kernel pointer)
+  while the other 13 nodes carry a valid one (`nw+8033f90`). Measured with
+  `scripts/frida-node-actors.py`. The exact guard chain is in `research/atlas/levers.md`; the short
+  version: the actor is built only for records whose parsed `interestId` is 1 (that passes 25 times),
+  and the build is then blocked by `[obj+0x18] >= 3` where the value is **2**. Forcing that branch
+  (`scripts/patch-actor-guard.py`) does **not** build the actor, so the record is genuinely missing
+  the third element. Next: find what `[obj+0x18]` is (the object comes from `0x146161960` with
+  `StateReplication` descriptors; `rdi` from `0x14615e0c0`).
+- **The REP flakiness was a server bug, not the client.** After a world attempt the client reuses its
+  source port; the server fed the new ClientHello into the DTLS session it still held for that port,
+  the old state machine swallowed it, the handshake never completed and the server logged **nothing**,
+  so the client gave up after 15 s with `@mm_csdkerr_connection_failed (0)`. Measured: 12 ClientHello
+  retries from `127.0.0.1:27000` with no `dtls-established`, while a freshly started server handshook
+  the same client fine. Fixed by `_is_client_hello()` + session reset in `serve_forever`.
 - **Remaining frontier: the replica layer.** `[ERROR] RMIDispatch: The facet target ID couldn't be
   found when trying to dispatch the RMI message` ×25 (almost all
   `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`) — the client receives RMIs for
-  entities/facets it never created. That is why the world area still renders black (no local player
-  actor / camera); what is visible is the HUD and the network overlay. Dispatcher `FUN_1461ac8d0`.
+  entities/facets it never created. Dispatcher `FUN_1416bcba0` (the string's xref).
 - **EAC is live in the private runtime** (kernel hook `e9` at `LoadContextAndLevel` `0x146448CD0`
   and at the CSDK reader `0x146b6eb70`). Patches land past those hooks and persist. Never unhook it.
 
@@ -109,6 +126,16 @@ value that makes `Initialize` clean up the context it was just given.
     `@mm_csdkerr_connection_failed` on reconnect. It must be flags `0x20` (unreliable).
 14. **`clientContext == nullptr` on every bundle is a symptom, not the cause.** Before blaming the
     bundle path, check whether `[ClientContext] Cleanup()` follows `Initialize()` in the same ms.
+15. **A failed REP handshake is invisible server-side unless `AZOTH_LOG_RAW=1`.** The server logs
+    nothing when a ClientHello lands in a stale session, so "packets never arrived" and "DTLS
+    rejected them" look identical. Turn the raw log on before theorising about the client.
+16. **Do not conclude a Frida hook failed because its counter is 0.** Hook the world attempt's own
+    progress first (`ProcessPendingReliableMsgQueue processing 26 messages`): if the attempt never
+    happened, every mid-function counter reads 0 and the hook looks broken. This cost several
+    cycles before the fix in item 15 made the real cause visible.
+17. **Do not force the `[obj+0x18] >= 3` actor guard.** NOPing the branch at `0x1417182d5` does not
+    build the local-player actor (the entity table keeps `id 13` with the corrupt vtable), because
+    the record really is missing the third element. Understand the count, do not bypass it.
 
 ## Ops / environment notes
 

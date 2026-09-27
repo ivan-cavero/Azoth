@@ -46,6 +46,10 @@ If it still 413s: `python scripts/shrink-image.py <capture.png> "" 640`. The
    to regenerate `research/atlas/openapi.json` and commit it. New endpoint family
    the client requests but we don't mock → gateway 404s it and logs it; that is
    the next work item.
+   **Never truncate `traffic.jsonl` while the gateway is running** (e.g. rewriting
+   it with Python to drop test lines): the gateway holds the file open in append
+   mode and keeps writing at its old offset, so the capture silently stops. Stop
+   the gateway, edit, restart it.
 
 ## RE method (what works, in order of value)
 
@@ -80,11 +84,27 @@ See `research/docs/DECOMPILATION.md` for the full workflow. Summary:
 - **Dev mode**: `python az.py gateway reload` runs the gateway with hot-reload —
   edit any file under `services/gateway/src/` and it restarts automatically.
 
+### World attempts (the expensive loop)
+
+- **One A/B = one fresh `NewWorld.exe`.** After a failed attempt the client destroys its
+  `ClientContext` and never re-creates it in that process, so every later bundle is dropped with
+  `clientContext == nullptr`. Restart the game for every measurement.
+- The launcher's `-Watch` flow applies the in-memory patches automatically
+  (`patch-predicate-flag.py`, `patch-timeout-watchdog.py`, spawn gate, anticheat, DTLS trust).
+- **Verify the attempt happened before trusting any counter.** A world attempt is real when
+  `Game.log` shows `ProcessPendingReliableMsgQueue processing 26 messages`. If it is absent, every
+  Frida counter reads 0 and a working hook looks broken.
+- **`AZOTH_LOG_RAW=1` on the world server** logs every inbound datagram before DTLS. Without it a
+  failed handshake is invisible server-side, so "packets never arrived" and "DTLS rejected them"
+  look identical.
+- Restart the world server when its peer table has stale sessions; a client that reuses its source
+  port is handled by the stale-session reset, but a long-lived server still accumulates dead peers.
+
 ## Python
 
 - **stdlib only** in services/ and scripts/ (no pip, no pytest — `unittest`).
-- Tests: `python az.py gateway test` (17) + `python services/gateway/tests/test_traffic.py` (3).
-  Gateway change → tests before commit.
+- Tests: `python az.py gateway test` (19) + `python -m unittest discover -s services/world/tests`
+  (52) + `python services/gateway/tests/test_traffic.py` (3). Change → tests before commit.
 - `src/` layout inside each service; entry: `python -m azoth_gateway`.
 - Paths: **never hard-code** `C:\Users\...` or `F:\Azoth`. Everything relative to
   `__file__` / `%LOCALAPPDATA%`. The CLI (`az.py`) resolves from the repo root.
