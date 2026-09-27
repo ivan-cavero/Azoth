@@ -39,6 +39,7 @@ from .routes.getlogininfo import (
 from .routes.health import Metrics
 from .routes.images import images_response, is_images_path
 from .routes.omni import is_tokens_path, tokens_response
+from .routes.privacy import is_privacy_path, privacy_response
 from .routes.queue import is_queue_path, queue_response
 from .routes.registry import motd_body
 from .routes.s3 import is_s3_path, s3_body
@@ -215,6 +216,8 @@ class Handler(BaseHTTPRequestHandler):
             )
         elif is_characters_path(path):
             key, payload = "characters", characters_response(st.cfg.discovery_dir)
+        elif is_privacy_path(path):
+            key, payload = "privacy", privacy_response(st.cfg.discovery_dir)
         elif is_queue_path(path):
             key, payload = "queue", queue_response(st.cfg.discovery_dir, path)
         elif is_entitlements_sync_path(path):

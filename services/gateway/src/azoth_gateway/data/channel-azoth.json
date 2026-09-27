@@ -32,7 +32,11 @@
         "apiEndpoint": "d1w0bfy6smo4d1.cloudfront.net",
         "clientTag": "JavelinGatewayService-CF"
       }
-    ]
+    ],
+    "omni.privacy-settings.region": "us-west-2",
+    "omni.privacy-settings.client-endpoint": "https://client.agsprivacysettingsservice.amazongames.com",
+    "omni.privacy-settings.client-mode": "online",
+    "omni.privacy-settings.server-endpoint": "https://client.agsprivacysettingsservice.amazongames.com"
   },
   "gru-prod": {
     "displayName": "SA East",
@@ -66,7 +70,11 @@
         "apiEndpoint": "d1cjlmzk0xrm0z.cloudfront.net",
         "clientTag": "JavelinGatewayService-CF"
       }
-    ]
+    ],
+    "omni.privacy-settings.region": "us-west-2",
+    "omni.privacy-settings.client-endpoint": "https://client.agsprivacysettingsservice.amazongames.com",
+    "omni.privacy-settings.client-mode": "online",
+    "omni.privacy-settings.server-endpoint": "https://client.agsprivacysettingsservice.amazongames.com"
   },
   "iad-prod": {
     "displayName": "US East",
@@ -100,7 +108,11 @@
         "apiEndpoint": "d2oeuvxi3kfsrw.cloudfront.net",
         "clientTag": "JavelinGatewayService-CF"
       }
-    ]
+    ],
+    "omni.privacy-settings.region": "us-west-2",
+    "omni.privacy-settings.client-endpoint": "https://client.agsprivacysettingsservice.amazongames.com",
+    "omni.privacy-settings.client-mode": "online",
+    "omni.privacy-settings.server-endpoint": "https://client.agsprivacysettingsservice.amazongames.com"
   },
   "pdx-prod": {
     "displayName": "US West",
@@ -134,7 +146,11 @@
         "apiEndpoint": "d3bj4csovi1fe8.cloudfront.net",
         "clientTag": "JavelinGatewayService-CF"
       }
-    ]
+    ],
+    "omni.privacy-settings.region": "us-west-2",
+    "omni.privacy-settings.client-endpoint": "https://client.agsprivacysettingsservice.amazongames.com",
+    "omni.privacy-settings.client-mode": "online",
+    "omni.privacy-settings.server-endpoint": "https://client.agsprivacysettingsservice.amazongames.com"
   },
   "syd-prod": {
     "displayName": "AP Southeast",
@@ -168,7 +184,11 @@
         "apiEndpoint": "de4mfzk9wkelz.cloudfront.net",
         "clientTag": "JavelinGatewayService-CF"
       }
-    ]
+    ],
+    "omni.privacy-settings.region": "us-west-2",
+    "omni.privacy-settings.client-endpoint": "https://client.agsprivacysettingsservice.amazongames.com",
+    "omni.privacy-settings.client-mode": "online",
+    "omni.privacy-settings.server-endpoint": "https://client.agsprivacysettingsservice.amazongames.com"
   },
   "platformMetadata": {
     "ENTITLEMENTS.STEAM_APP_ID.1063730": {
@@ -180,5 +200,19 @@
       "omniStage": "prod",
       "omniGameAlias": "new-world"
     }
-  }
+  },
+  "omni": {
+    "privacy-settings": {
+      "region": "us-west-2",
+      "client-endpoint": "https://client.agsprivacysettingsservice.amazongames.com",
+      "client-mode": "online",
+      "server-endpoint": "https://client.agsprivacysettingsservice.amazongames.com"
+    }
+  },
+  "omni.privacy-settings.region": "us-west-2",
+  "omni.privacy-settings.client-endpoint": "https://client.agsprivacysettingsservice.amazongames.com",
+  "omni.privacy-settings.client-mode": "online",
+  "omni.privacy-settings.server-endpoint": "https://client.agsprivacysettingsservice.amazongames.com",
+  "omni.privacy-settings.assume-role": "arn:aws:iam::azoth:role/privacy",
+  "omni.privacy-settings.allow-dev-assume-role": "true"
 }
