@@ -97,6 +97,28 @@ if ($Watch) {
     Write-Host '  DTLS verify bypass...'
     & python -u (Join-Path $repo 'scripts\frida-trust-patch.py')
     if ($LASTEXITCODE -ne 0) { Write-Host '  trust-patch FAILED' }
+    Write-Host '  Force 4th spawn gate (13->14 call-site NOP)...'
+    & python -u (Join-Path $repo 'scripts\patch-spawn-gate.py')
+    if ($LASTEXITCODE -ne 0) { Write-Host '  spawn-gate-force FAILED' }
+    # ClientContext gate. CORRECTED 2026-09-27: the archived notion of this
+    # patch was INVERTED. LoadContextAndLevel passes the virtual predicate's
+    # result ([pGame+0x28]->vtable[0x88]) to clientContext->Initialize as its
+    # 7th argument, and Initialize SELF-CLEANS when that value is 0
+    # (0x14171ba31 cmp byte [rsp+0x110],0 / jne skip / call 0x1416835B0 =
+    # the '[ClientContext] Cleanup()' log). The predicate returns 0, so the
+    # context died in the same millisecond and every state bundle was dropped
+    # with 'clientContext == nullptr'. Forcing the flag to 0 (the old
+    # scripts/patch-context-gate.py wrote 31 DB 90 = xor ebx, ebx) made it
+    # WORSE. The correct patch sets it to 1 and NOPs the failure branch.
+    # VERIFIED: the Initialize -> Cleanup pair disappears from Game.log.
+    Write-Host '  ClientContext predicate flag -> ok (not cleanup)...'
+    & python -u (Join-Path $repo 'scripts\patch-predicate-flag.py')
+    if ($LASTEXITCODE -ne 0) { Write-Host '  predicate-flag FAILED' }
+    # Per-state watchdog: without it the client forces connection_ingame_timeout
+    # even when the world is loaded and the replay heartbeat is flowing.
+    Write-Host '  InGame watchdog (no forced disconnect)...'
+    & python -u (Join-Path $repo 'scripts\patch-timeout-watchdog.py')
+    if ($LASTEXITCODE -ne 0) { Write-Host '  timeout-watchdog FAILED' }
     Write-Host '  Anticheat gate byte-patch...'
     & python -u (Join-Path $repo 'scripts\frida-anticheat-patch.py')
     if ($LASTEXITCODE -ne 0) { Write-Host '  anticheat-patch FAILED' }
@@ -106,13 +128,6 @@ if ($Watch) {
         Write-Host '  Force actor/spawn ladder (skip 2min timeout)...'
         & python -u (Join-Path $repo 'scripts\frida-rep-force-ladder.py')
         if ($LASTEXITCODE -ne 0) { Write-Host '  ladder-force FAILED' }
-        # v1 (patching the getter BODY 0x146800d10 -> mov eax,1;ret) CRASHED the
-        # client (c0000005 @ NewWorld+0x104285d). v2 NOPs the FSM call-site
-        # check instead (0x14644a8ed, 9B: test rax,rax + je) — VERIFIED
-        # 2026-09-19 19:09: client reached InGame for the first time ever.
-        Write-Host '  Force 4th spawn gate (13->14 call-site NOP)...'
-        & python -u (Join-Path $repo 'scripts\patch-spawn-gate.py')
-        if ($LASTEXITCODE -ne 0) { Write-Host '  spawn-gate-force FAILED' }
     }
     Write-Host '  EOS ClientSDK stubs (window must stay open)...'
     # MUST be a detached, persistent process: the stub holds live Frida
