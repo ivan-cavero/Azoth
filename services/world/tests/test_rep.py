@@ -264,6 +264,44 @@ class TestHeartbeat(unittest.TestCase):
 
 
 
+class TestClientHelloDetection(unittest.TestCase):
+    """A reused source port must reset the DTLS session (2026-09-27).
+
+    The client retries its ClientHello from the same port after a previous
+    session ended; feeding that into the stale DTLS state machine left the
+    handshake stuck with no reply and no error, which the client reported as
+    `@mm_csdkerr_connection_failed`. These are the exact captured bytes.
+    """
+
+    def test_client_hello_is_detected(self):
+        from azoth_world.rep import _is_client_hello
+
+        self.assertTrue(
+            _is_client_hello(bytes.fromhex("16fefd00000000000000000092010000"))
+        )
+
+    def test_client_hello_retry_is_detected(self):
+        from azoth_world.rep import _is_client_hello
+
+        # same record, sequence number incremented by the retry
+        self.assertTrue(
+            _is_client_hello(bytes.fromhex("16fefd00000000000000010092010000"))
+        )
+
+    def test_application_data_is_not_a_client_hello(self):
+        from azoth_world.rep import _is_client_hello
+
+        self.assertFalse(
+            _is_client_hello(bytes.fromhex("17fefd0001000000000189002aa3a507"))
+        )
+
+    def test_short_datagram_is_not_a_client_hello(self):
+        from azoth_world.rep import _is_client_hello
+
+        self.assertFalse(_is_client_hello(b""))
+        self.assertFalse(_is_client_hello(bytes.fromhex("16fefd00000000")))
+
+
 class TestResponseDatagram(unittest.TestCase):
     def test_v3_response_is_parseable(self):
         wire = v3_response_datagram(7)

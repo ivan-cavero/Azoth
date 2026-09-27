@@ -129,6 +129,11 @@ REPLAY_CHUNK_COUNT_TOTAL = os.environ.get("AZOTH_CHUNK_COUNT", "total") == "tota
 # exchange alive. The tick never has to match the client's own clock — the
 # client only echoes it — so we continue the captured series.
 HEARTBEAT_ENABLED = os.environ.get("AZOTH_REPLAY_HEARTBEAT", "1") != "0"
+# Diagnostic: log every inbound UDP datagram (size + head) before DTLS. A
+# failed REP handshake is otherwise invisible server-side: the client times
+# out in WaitingForREPConnection while this process logs nothing, so we cannot
+# tell "packets never arrived" from "DTLS rejected them". Off by default.
+RAW_LOG = os.environ.get("AZOTH_LOG_RAW", "0") != "0"
 HEARTBEAT_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_HEARTBEAT_PERIOD_S", "1.0"))
 # Captured tick of the LAST 0x15d the replay streamed (seq 0x8e).
 HEARTBEAT_TICK_START = int(
@@ -212,6 +217,17 @@ def replay_store():
 
         _REPLAY = ReplayStore(REPLAY_PATH)
     return _REPLAY
+
+
+def _is_client_hello(data: bytes) -> bool:
+    """True for a DTLS ClientHello record.
+
+    Record layout: [content_type:1][version:2][epoch:2][seq:6][length:2]
+    followed by the handshake message, whose first byte is the handshake type
+    (1 = ClientHello). The client retries this record with an increasing
+    sequence number, so only the type byte matters here.
+    """
+    return len(data) > 13 and data[0] == 0x16 and data[13] == 0x01
 
 
 def log_event(event: dict) -> None:
@@ -1383,6 +1399,20 @@ class RepServer:
         while True:
             try:
                 data, peer = self.sock.recvfrom(65536)
+                if RAW_LOG:
+                    # Diagnostic: prove whether a client datagram reached the
+                    # socket at all, before any DTLS handling. Needed because a
+                    # failed REP handshake is otherwise invisible here (the
+                    # client times out in WaitingForREPConnection while the
+                    # server logs nothing).
+                    log_event(
+                        {
+                            "event": "raw-datagram",
+                            "peer": f"{peer[0]}:{peer[1]}",
+                            "size": len(data),
+                            "head": data[:16].hex(),
+                        }
+                    )
             except TimeoutError:
                 for session in list(self.peers.values()):
                     try:
@@ -1409,6 +1439,25 @@ class RepServer:
                     return
                 continue
             session = self.peers.get(peer)
+            if session is not None and _is_client_hello(data):
+                # A fresh ClientHello from a peer we already hold a session for:
+                # the client reused its source port after a previous session
+                # ended. Feeding the new handshake into the old DTLS state
+                # machine leaves it stuck — observed live 2026-09-27: the client
+                # retried its ClientHello 12 times from 127.0.0.1:27000, the
+                # server never replied and logged NO error, and the client gave
+                # up with `@mm_csdkerr_connection_failed` after 15 s in
+                # WaitingForREPConnection. That is the whole "flaky REP" story:
+                # the second and later world attempts in a session reuse a port
+                # the server still had a dead session for. Drop and rebuild.
+                log_event(
+                    {
+                        "event": "dtls-session-reset",
+                        "peer": f"{peer[0]}:{peer[1]}",
+                    }
+                )
+                self.drop(peer)
+                session = None
             if session is None:
                 try:
                     session = PeerSession(self.ctx, peer)
