@@ -109,6 +109,32 @@ REPLAY_CHUNK_GAP_MS = float(os.environ.get("AZOTH_CHUNK_GAP_MS", "4"))
 #   countdown (default) = the binary's chunk-reassembly path per the old guess
 #   total               = every record carries the same count
 REPLAY_CHUNK_COUNT_TOTAL = os.environ.get("AZOTH_CHUNK_COUNT", "total") == "total"
+# Post-replay heartbeat (type 0x15d). The capture shows the official server
+# pinging the client with a 12-byte ch0 message every ~1s:
+#
+#     body = 00 01 9d 05 00 03 <6-byte LE-ish tick>
+#
+# and the client answering with a 36-byte 0x15d that ECHOES our tick verbatim
+# (plus a 4-byte value and 16 zero bytes it fills in itself). The tick is a
+# monotonic nanosecond counter: consecutive captured values differ by ~1e9
+# (exactly one second), e.g. 6ef6af912d74 -> 6ef6eb43dd6b -> 6ef726e74673.
+#
+# Why this matters: the client's state watchdog (FUN_146445e10) counts ticks
+# in which NO expected message for the current state arrived, and tears the
+# connection down when the counter reaches the state's budget. Measured
+# 2026-09-27: once the replay stream ends the server goes quiet, the client
+# sits in InGame for ~44 s and then reports
+# `State(InGame) is timeout : frames 10, currentTimeoutIntervalTimeoutCount 1`
+# followed by `connection_ingame_timeout`. Continuing the ping keeps the
+# exchange alive. The tick never has to match the client's own clock — the
+# client only echoes it — so we continue the captured series.
+HEARTBEAT_ENABLED = os.environ.get("AZOTH_REPLAY_HEARTBEAT", "1") != "0"
+HEARTBEAT_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_HEARTBEAT_PERIOD_S", "1.0"))
+# Captured tick of the LAST 0x15d the replay streamed (seq 0x8e).
+HEARTBEAT_TICK_START = int(
+    os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK", "0x6ef8c888af44"), 0
+)
+HEARTBEAT_TICK_STEP = int(os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK_STEP", "1000000000"), 0)
 # Controlled replay A/B for the six explicitly redacted 36-byte UUID slots.
 # off preserves the capture; character|session fills only the allowlisted
 # offsets in javelin.replay_store. Never inferred from arbitrary body text.
@@ -280,6 +306,20 @@ def _az_string(s: str) -> bytes:
     """AzCore wire form for AZStd::string: [u32 length_LE][raw bytes]."""
     raw = s.encode("utf-8")
     return len(raw).to_bytes(4, "little") + raw
+
+
+def heartbeat_body(tick: int) -> bytes:
+    """Server 0x15d ping body: the 12 bytes the capture shows.
+
+    `00 01 9d 05` is the typed-stream preamble for type 0x15d, `00 03` is a
+    constant the capture repeats verbatim, and the trailing 6 bytes are the
+    monotonic tick in BIG-endian (verified against the capture: consecutive
+    values differ by ~1e9, i.e. one second in nanoseconds). The client echoes
+    the whole body back in its pong.
+    """
+    return bytes((0x00, 0x01, 0x9D, 0x05, 0x00, 0x03)) + (
+        tick & 0xFFFFFFFFFFFF
+    ).to_bytes(6, "big")
 
 
 def self_ident_body() -> bytes:
@@ -679,6 +719,9 @@ class PeerSession:
         self.resend_tries: dict[int, int] = {}
         self.acked_seqs: set[int] = set()
         self.greetings_after_replay = False
+        # Post-replay 0x15d ping/pong (see HEARTBEAT_* above).
+        self.heartbeat_next_at = 0.0
+        self.heartbeat_tick = HEARTBEAT_TICK_START
 
     def feed(self, server, data: bytes) -> None:
         """Feed one datagram in; send everything OpenSSL produced."""
@@ -796,6 +839,7 @@ class PeerSession:
         self.maybe_send_post_v3(server)
         self.maybe_inject(server)
         self.maybe_pump_replay(server)
+        self.maybe_heartbeat(server)
         self.maybe_resend(server)
 
     def _arm_replay(self) -> None:
@@ -961,7 +1005,59 @@ class PeerSession:
             # quiet and rely on keepalives until that is RE'd.
             self.greetings_after_replay = True
             log_event({"event": "replay-complete-quiet"})
+            # The capture stops here, but the official server did not: it kept
+            # pinging 0x15d every ~1 s. Start the continuation so the client's
+            # state watchdog sees progress instead of silence.
+            self.heartbeat_next_at = time.monotonic()
         self.replay_next_at = now + REPLAY_INTERVAL_S
+
+    def maybe_heartbeat(self, server) -> None:
+        """Continue the captured 0x15d ping/pong once the replay is drained.
+
+        The official stream ends at seq 0xb0 and the server then goes quiet;
+        the client's state watchdog (FUN_146445e10) counts intervals with no
+        expected message and tears the connection down with
+        `State(InGame) is timeout` -> `connection_ingame_timeout` after ~44 s.
+        The capture shows the real server pinging 0x15d every ~1 s and the
+        client echoing it, so we keep that exchange going.
+        """
+        if not HEARTBEAT_ENABLED or self.gone or not self.v3_responded:
+            return
+        if self.replay_queue or not self.greetings_after_replay:
+            return  # the replay itself still carries the captured pings
+        now = time.monotonic()
+        if now < self.heartbeat_next_at:
+            return
+        self.heartbeat_next_at = now + HEARTBEAT_PERIOD_S
+        self.heartbeat_tick += HEARTBEAT_TICK_STEP
+        from .javelin.wire import encode_vlq32
+
+        body = heartbeat_body(self.heartbeat_tick)
+        inner = encode_vlq32(len(body)) + body
+        seq = self.out_msg_seq
+        self.out_msg_seq = (seq + 1) & 0xFFFF
+        rel = self.out_rel_seq
+        self.out_rel_seq = (rel + 1) & 0xFFFF
+        rec = MessageRecord(
+            channel=0,
+            payload=inner,
+            sequence=seq,
+            reliable_sequence=rel,
+            reliable=False,  # a heartbeat must never enter the resend table:
+            # tracking ~1/s of unacked reliable datagrams grew sent_reliable
+            # unbounded and the resend storm starved new DTLS handshakes
+            # (`@mm_csdkerr_connection_failed` on reconnect, 2026-09-27 02:34).
+            connecting=False,
+            flags_override=0x20,  # DATA_CHANNEL only (unreliable)
+        )
+        self._send_datagram(server, [rec])
+        log_event(
+            {
+                "event": "heartbeat",
+                "tick": hex(self.heartbeat_tick),
+                "out_seq": seq,
+            }
+        )
 
     def _send_replay_message(self, server, msg) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.
@@ -1095,6 +1191,13 @@ class PeerSession:
         while loading and re-bombing starves the rest of the stream."""
         if self.gone or not self.sent_reliable:
             return
+        # Safety valve: a long-lived session that never receives acks (or whose
+        # ack bitmaps lag) must not grow this table without bound — iterating a
+        # huge dict every tick starves the UDP loop. Drop the oldest entries.
+        if len(self.sent_reliable) > 4096:
+            for stale in sorted(self.sent_reliable)[: len(self.sent_reliable) - 2048]:
+                del self.sent_reliable[stale]
+                self.resend_tries.pop(stale, None)
         now = time.monotonic()
         sent = 0
         for seq in sorted(self.sent_reliable):
@@ -1255,6 +1358,8 @@ class RepServer:
                 "replay_split_seq": hex(REPLAY_SPLIT_SEQ) if REPLAY_SPLIT_SEQ else "off",
                 "replay_split_delay_s": REPLAY_SPLIT_DELAY_S,
                 "chunk_gap_ms": REPLAY_CHUNK_GAP_MS,
+                "heartbeat": HEARTBEAT_ENABLED,
+                "heartbeat_period_s": HEARTBEAT_PERIOD_S,
             }
         )
         # Windows: a sendto() to a client that already closed is answered
@@ -1283,6 +1388,7 @@ class RepServer:
                     try:
                         session.maybe_keepalive(self)
                         session.maybe_send_post_v3(self)
+                        session.maybe_heartbeat(self)
                         session.maybe_resend(self)
                     except Exception as exc:  # noqa: BLE001
                         log_event(

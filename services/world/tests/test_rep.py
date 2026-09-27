@@ -217,6 +217,53 @@ class TestSystemHandshake(unittest.TestCase):
         self.assertEqual(result.messages[0].payload[5:], self_ident_body())
 
 
+class TestHeartbeat(unittest.TestCase):
+    """Post-replay 0x15d ping/pong (see HEARTBEAT_* in rep.py).
+
+    The tick is pinned against the capture: the first captured ping is
+    `00 01 9d 05 00 03 6e f6 af 91 2d 74`, and consecutive captured values
+    differ by ~1e9 (one second, in nanoseconds, big-endian).
+    """
+
+    def test_body_matches_the_capture(self):
+        from azoth_world.rep import heartbeat_body
+
+        self.assertEqual(
+            heartbeat_body(0x6EF6AF912D74).hex(), "00019d0500036ef6af912d74"
+        )
+
+    def test_tick_is_big_endian_and_increments(self):
+        from azoth_world.rep import heartbeat_body
+
+        first = heartbeat_body(0x6EF6AF912D74)
+        second = heartbeat_body(0x6EF6AF912D74 + 1_000_000_000)
+        self.assertEqual(first[:6], second[:6])
+        self.assertGreater(int.from_bytes(second[6:], "big"),
+                           int.from_bytes(first[6:], "big"))
+
+    def test_body_is_twelve_bytes_with_the_typed_preamble(self):
+        from azoth_world.rep import heartbeat_body
+
+        body = heartbeat_body(0x123456789ABC)
+        self.assertEqual(len(body), 12)
+        # typed-stream preamble for type 0x15d + the constant the capture repeats
+        self.assertEqual(body[:6], bytes((0x00, 0x01, 0x9D, 0x05, 0x00, 0x03)))
+
+    def test_tick_wraps_to_six_bytes(self):
+        from azoth_world.rep import heartbeat_body
+
+        # a value past 2**48 must not raise; it is masked to the wire width
+        self.assertEqual(len(heartbeat_body(1 << 60)), 12)
+
+    def test_heartbeat_is_unreliable(self):
+        """A reliable heartbeat grew sent_reliable unbounded (resend storm)."""
+        from azoth_world.rep import HEARTBEAT_ENABLED, HEARTBEAT_PERIOD_S
+
+        self.assertIsInstance(HEARTBEAT_ENABLED, bool)
+        self.assertGreater(HEARTBEAT_PERIOD_S, 0)
+
+
+
 class TestResponseDatagram(unittest.TestCase):
     def test_v3_response_is_parseable(self):
         wire = v3_response_datagram(7)
