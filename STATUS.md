@@ -4,22 +4,34 @@
 > RE findings: `research/atlas/` (endpoints, models, errors, levers, observed traffic + OpenAPI).
 > A new finding goes to the atlas, not here.
 
-## Where we are (2026-09-24)
+## Where we are (2026-09-27)
 
-- **The client enters the world.** After character select → queue → V3 → REP replay, the client
-  loads `NewWorld_VitaeEterna`, starts `streamingGDEManager` and `GDERenderManager`, processes the
-  state bundles and reaches `WaitingForPlayerSpawn`.
-- **Single blocker: the local player actor is never possessed.** Black screen (no camera/actor),
-  `connection_player_timeout` fires at 120 s → `Popup_OnConnectionFail_InWorld`. Everything below
-  the world is proven working.
-- **Exact static cause of the black screen:** in `LoadContextAndLevel` (`FUN_146448cd0`) the client
-  calls `clientContext->Initialize()` (`0x146448ee8`) and 1 ms later `Cleanup()`, because the
-  virtual predicate at `0x146448f67` — `(**[*(pGame+0x60)+0x28+0x88])(...)` — returns non-zero and
-  jumps to `0x1464490e1` (`[ctx+0x1a2]=1; FUN_146455e90(ctx)`). Live log: `[ClientContext]
-  Initialize()` → `[ClientContext] Cleanup()`.
-- **Next single task:** identify the `+0x88` vtable slot (object `*(pGame+0x60)+0x28`, the level
-  streaming manager) and the state/message that makes it return 0. That is what unblocks the local
-  actor + movement; no more blind A/B will move it.
+- **The client is in the world and STAYS there.** After character select → queue → V3 → REP replay
+  the client loads `NewWorld_VitaeEterna`, reaches `Lumberyard Connection State: "InGame"`, processes
+  the state bundles (`ProcessPendingReliableMsgQueue processing 26 messages`) and holds the session
+  for minutes instead of dropping after 44-58 s.
+- **Three fixes got it there** (all measured live, none guessed):
+  1. `scripts/patch-predicate-flag.py` — `LoadContextAndLevel` hands the virtual predicate's result
+     to `ClientContext::Initialize` as its 7th argument, and `Initialize` **self-cleans when that
+     value is 0** (`14171ba31 cmp byte [rsp+0x110],0 / jne skip / call 0x1416835B0`). The predicate
+     returns 0, so the context died in the same millisecond. The archived `patch-context-gate.py`
+     forced `31DB90` (`xor ebx,ebx`) — **exactly the value that triggers the cleanup**. Corrected to
+     `B30190` (`mov bl,1`) + NOP the `jne` at `0x146448F72`.
+  2. `AZOTH_REPLAY_SPLIT_SEQ=0x25` + `AZOTH_REPLAY_SPLIT_DELAY_S=10` — the 46 KB local-player bundle
+     used to arrive 17 ms after `Initialize`, before the level existed, and was dropped. Only 1
+     bundle is skipped now; the other 26 are queued and replayed once the context is up.
+  3. `rep.py` post-replay heartbeat (type `0x15d`) + `scripts/patch-timeout-watchdog.py` — the
+     official server pinged `0x15d` every ~1 s and the client echoed it; the capture ends, the
+     server went quiet, and the per-state watchdog (`FUN_146445E10`) forced
+     `connection_ingame_timeout`. The heartbeat continues the exchange (stretched the window
+     44 s → 58 s) and the watchdog patch (`0x146445EFB B001→B000`) stops it from reporting a timeout.
+- **Remaining frontier: the replica layer.** `[ERROR] RMIDispatch: The facet target ID couldn't be
+  found when trying to dispatch the RMI message` ×25 (almost all
+  `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`) — the client receives RMIs for
+  entities/facets it never created. That is why the world area still renders black (no local player
+  actor / camera); what is visible is the HUD and the network overlay. Dispatcher `FUN_1461ac8d0`.
+- **EAC is live in the private runtime** (kernel hook `e9` at `LoadContextAndLevel` `0x146448CD0`
+  and at the CSDK reader `0x146b6eb70`). Patches land past those hooks and persist. Never unhook it.
 
 ## METHOD: one A/B = one fresh game process (learned the hard way)
 
@@ -43,10 +55,20 @@
 | `AZOTH_REPLAY_SPLIT_SEQ` / `AZOTH_REPLAY_SPLIT_DELAY_S` | hold everything from `seq >= SPLIT` until the client has loaded the level |
 | `AZOTH_REPLAY_FRESH_LEVELINFO=session` | fresh key for the duplicate `0x663` at seq `0x4d` (produces a second `Initialize`) |
 | `AZOTH_REPLAY_IDENTITY_REMAP=session\|character` | the six 36-byte dashed-UUID slots only |
+| `AZOTH_REPLAY_HEARTBEAT` (default `1`) | continue the captured `0x15d` ping/pong after the replay drains (the real server pinged every ~1 s; without it the client's state watchdog forces `connection_ingame_timeout`). Body `00 01 9d 05 00 03 <tick>` |
+| `AZOTH_REPLAY_HEARTBEAT_PERIOD_S` (default `1.0`) | seconds between pings |
+| `AZOTH_REPLAY_HEARTBEAT_TICK` / `_TICK_STEP` | starting tick (default the last captured one, `0x6ef8c888af44`) and per-ping increment (default `1e9` = 1 s in ns) |
 
 Validated live on 2026-09-24 (fresh process each): first `Initialize` cleans up; a delayed second
 `Initialize` after the map is loaded also cleans up; `0x65c` IDs = session UUID does not change it;
 `interest=91` IDs are not the key. See the atlas for the full matrix.
+
+Validated live on 2026-09-27 (fresh process each): with the predicate flag forced to **1** the
+`[ClientContext] Initialize()` → `Cleanup()` pair disappears from Game.log, the level loads and the
+client reaches `Lumberyard Connection State: "InGame"`; with the split at `0x25` only one bundle is
+dropped and 26 are queued; with the heartbeat + watchdog patch the session holds for minutes.
+**Do not force the flag to 0** — that is what the archived `patch-context-gate.py` did, and 0 is the
+value that makes `Initialize` clean up the context it was just given.
 
 ## State-bundle wire (static, build 1.400)
 
@@ -79,6 +101,14 @@ Validated live on 2026-09-24 (fresh process each): first `Initialize` cleans up;
 10. first-light VAs are build 1.365 — re-derive with `bytepat.py`; never trust archived displacements.
 11. Raw `Cmd_Greetings`, re-sending r2/r4/r5 after replay, 4KB chunk bundling and unprefixed V3
     bodies all failed — do not retry (details in `research/atlas/levers.md`).
+12. **Never force the `Initialize` predicate flag to 0** — `cmp byte [rsp+0x110],0 / jne skip` means
+    ZERO runs the cleanup path. The archived `patch-context-gate.py` had this inverted; forcing 0
+    destroys the context it was meant to protect. Force **1** and NOP the `jne` at `0x146448F72`.
+13. **Do not send the `0x15d` heartbeat as reliable** — ~1/s of unacked reliable datagrams grew
+    `sent_reliable` unbounded and the resend storm starved new DTLS handshakes, producing
+    `@mm_csdkerr_connection_failed` on reconnect. It must be flags `0x20` (unreliable).
+14. **`clientContext == nullptr` on every bundle is a symptom, not the cause.** Before blaming the
+    bundle path, check whether `[ClientContext] Cleanup()` follows `Initialize()` in the same ms.
 
 ## Ops / environment notes
 

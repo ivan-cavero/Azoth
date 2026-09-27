@@ -6,48 +6,6 @@
     "description": "Auto-generated from gateway captures (services/gateway/traffic.jsonl). Paths are endpoint families: volatile ids collapsed to {id}. Curated field-level notes live in endpoints.json / models.json."
   },
   "paths": {
-    "/": {
-      "get": {
-        "summary": "",
-        "tags": [
-          "observed"
-        ],
-        "x-observed-status": [
-          404
-        ],
-        "responses": {
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "n": {
-                      "type": "number"
-                    },
-                    "path": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "example": {
-                  "ok": false,
-                  "error": "unknown-path",
-                  "n": 18,
-                  "path": "/"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/STEAM_APP_ID.json": {
       "get": {
         "summary": "STEAM_APP_ID.json",
@@ -67,155 +25,7 @@
                     "channelName": {
                       "type": "string"
                     },
-                    "fra-prod": {
-                      "type": "object",
-                      "properties": {
-                        "displayName": {
-                          "type": "string"
-                        },
-                        "localizedName": {
-                          "type": "string"
-                        },
-                        "poolId": {
-                          "type": "string"
-                        },
-                        "publicApis": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "awsRegion": {
-                                "type": "string"
-                              },
-                              "version": {
-                                "type": "string"
-                              },
-                              "apiEndpoint": {
-                                "type": "string"
-                              },
-                              "clientTag": {
-                                "type": "string"
-                              },
-                              "stage": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "gru-prod": {
-                      "type": "object",
-                      "properties": {
-                        "displayName": {
-                          "type": "string"
-                        },
-                        "localizedName": {
-                          "type": "string"
-                        },
-                        "poolId": {
-                          "type": "string"
-                        },
-                        "publicApis": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "awsRegion": {
-                                "type": "string"
-                              },
-                              "version": {
-                                "type": "string"
-                              },
-                              "apiEndpoint": {
-                                "type": "string"
-                              },
-                              "clientTag": {
-                                "type": "string"
-                              },
-                              "stage": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "iad-prod": {
-                      "type": "object",
-                      "properties": {
-                        "displayName": {
-                          "type": "string"
-                        },
-                        "localizedName": {
-                          "type": "string"
-                        },
-                        "poolId": {
-                          "type": "string"
-                        },
-                        "publicApis": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "awsRegion": {
-                                "type": "string"
-                              },
-                              "version": {
-                                "type": "string"
-                              },
-                              "apiEndpoint": {
-                                "type": "string"
-                              },
-                              "clientTag": {
-                                "type": "string"
-                              },
-                              "stage": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "pdx-prod": {
-                      "type": "object",
-                      "properties": {
-                        "displayName": {
-                          "type": "string"
-                        },
-                        "localizedName": {
-                          "type": "string"
-                        },
-                        "poolId": {
-                          "type": "string"
-                        },
-                        "publicApis": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "awsRegion": {
-                                "type": "string"
-                              },
-                              "version": {
-                                "type": "string"
-                              },
-                              "apiEndpoint": {
-                                "type": "string"
-                              },
-                              "clientTag": {
-                                "type": "string"
-                              },
-                              "stage": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "syd-prod": {
+                    "azoth-1": {
                       "type": "object",
                       "properties": {
                         "displayName": {
@@ -286,9 +96,9 @@
                 },
                 "example": {
                   "channelName": "Azoth",
-                  "fra-prod": {
-                    "displayName": "EU Central",
-                    "localizedName": "EU Central",
+                  "azoth-1": {
+                    "displayName": "Azoth EU",
+                    "localizedName": "Azoth EU",
                     "poolId": "us-east-1:0de93f7c-814e-4d48-a8fd-b6efc2f9ed93",
                     "publicApis": [
                       {
@@ -316,142 +126,6 @@
                         "awsRegion": "eu-central-1",
                         "version": "1.0",
                         "apiEndpoint": "d1w0bfy6smo4d1.cloudfront.net",
-                        "clientTag": "JavelinGatewayService-CF"
-                      }
-                    ]
-                  },
-                  "gru-prod": {
-                    "displayName": "SA East",
-                    "localizedName": "SA East",
-                    "poolId": "us-east-1:e0f84314-5d2e-4ea8-9ae7-aab377d12da9",
-                    "publicApis": [
-                      {
-                        "awsRegion": "us-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "kqqt5twsi7.execute-api.us-east-1.amazonaws.com",
-                        "clientTag": "authStack",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "sa-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "j4n6whncmi.execute-api.sa-east-1.amazonaws.com",
-                        "clientTag": "loginGateway",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "sa-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "ei4rb8pwvd.execute-api.sa-east-1.amazonaws.com",
-                        "clientTag": "JavelinGatewayServiceV2",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "sa-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "d1cjlmzk0xrm0z.cloudfront.net",
-                        "clientTag": "JavelinGatewayService-CF"
-                      }
-                    ]
-                  },
-                  "iad-prod": {
-                    "displayName": "US East",
-                    "localizedName": "US East",
-                    "poolId": "us-east-1:6ddd6498-c7d2-4df5-9ac6-855f140a3f09",
-                    "publicApis": [
-                      {
-                        "awsRegion": "us-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "0prplal5u1.execute-api.us-east-1.amazonaws.com",
-                        "clientTag": "loginGateway",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "us-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "eudbjx6mig.execute-api.us-east-1.amazonaws.com",
-                        "clientTag": "authStack",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "us-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "3khxmonavl.execute-api.us-east-1.amazonaws.com",
-                        "clientTag": "JavelinGatewayServiceV2",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "us-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "d2oeuvxi3kfsrw.cloudfront.net",
-                        "clientTag": "JavelinGatewayService-CF"
-                      }
-                    ]
-                  },
-                  "pdx-prod": {
-                    "displayName": "US West",
-                    "localizedName": "US West",
-                    "poolId": "us-east-1:3be8c78b-1be2-43b6-bfab-515cc6cfcc3f",
-                    "publicApis": [
-                      {
-                        "awsRegion": "us-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "q8hqllbg6k.execute-api.us-east-1.amazonaws.com",
-                        "clientTag": "authStack",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "us-west-2",
-                        "version": "1.0",
-                        "apiEndpoint": "v7irlu1nrl.execute-api.us-west-2.amazonaws.com",
-                        "clientTag": "loginGateway",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "us-west-2",
-                        "version": "1.0",
-                        "apiEndpoint": "mwsyzhfoe5.execute-api.us-west-2.amazonaws.com",
-                        "clientTag": "JavelinGatewayServiceV2",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "us-west-2",
-                        "version": "1.0",
-                        "apiEndpoint": "d3bj4csovi1fe8.cloudfront.net",
-                        "clientTag": "JavelinGatewayService-CF"
-                      }
-                    ]
-                  },
-                  "syd-prod": {
-                    "displayName": "AP Southeast",
-                    "localizedName": "AP Southeast",
-                    "poolId": "us-east-1:b218b3f3-2d38-469f-92b7-a8414369d22b",
-                    "publicApis": [
-                      {
-                        "awsRegion": "us-east-1",
-                        "version": "1.0",
-                        "apiEndpoint": "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
-                        "clientTag": "authStack",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "ap-southeast-2",
-                        "version": "1.0",
-                        "apiEndpoint": "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
-                        "clientTag": "loginGateway",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "ap-southeast-2",
-                        "version": "1.0",
-                        "apiEndpoint": "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
-                        "clientTag": "JavelinGatewayServiceV2",
-                        "stage": "prod"
-                      },
-                      {
-                        "awsRegion": "ap-southeast-2",
-                        "version": "1.0",
-                        "apiEndpoint": "de4mfzk9wkelz.cloudfront.net",
                         "clientTag": "JavelinGatewayService-CF"
                       }
                     ]
@@ -834,6 +508,66 @@
         }
       }
     },
+    "/applications/public/configuration-sets/RegionId/azoth-1/6031%3B6004151": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/azoth-1/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/public/configuration-sets/RegionId/azoth-1/versionless": {
+      "get": {
+        "summary": "applications/public/configuration-sets/RegionId/azoth-1/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/applications/public/configuration-sets/RegionId/fra-prod/6031%3B6004151": {
       "get": {
         "summary": "applications/public/configuration-sets/RegionId/fra-prod/6031%3B6004151",
@@ -1152,11 +886,78 @@
                   "properties": {
                     "azoth": {
                       "type": "boolean"
+                    },
+                    "game-security": {
+                      "type": "object",
+                      "properties": {
+                        "enable-anticheat": {
+                          "type": "boolean"
+                        },
+                        "enable-anticheat-kicking": {
+                          "type": "boolean"
+                        },
+                        "enable-heat-tracking": {
+                          "type": "boolean"
+                        },
+                        "eos-kick-all": {
+                          "type": "boolean"
+                        },
+                        "eos-enable-gm-ac": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "enable-anticheat-kicking": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-anticheat-kicking": {
+                      "type": "boolean"
+                    },
+                    "enable-heat-tracking": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-heat-tracking": {
+                      "type": "boolean"
+                    },
+                    "eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "eos-enable-gm-ac": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-enable-gm-ac": {
+                      "type": "boolean"
                     }
                   }
                 },
                 "example": {
-                  "azoth": true
+                  "azoth": true,
+                  "game-security": {
+                    "enable-anticheat": false,
+                    "enable-anticheat-kicking": false,
+                    "enable-heat-tracking": false,
+                    "eos-kick-all": false,
+                    "eos-enable-gm-ac": false
+                  },
+                  "enable-anticheat": false,
+                  "game-security.enable-anticheat": false,
+                  "enable-anticheat-kicking": false,
+                  "game-security.enable-anticheat-kicking": false,
+                  "enable-heat-tracking": false,
+                  "game-security.enable-heat-tracking": false,
+                  "eos-kick-all": false,
+                  "game-security.eos-kick-all": false,
+                  "eos-enable-gm-ac": false,
+                  "game-security.eos-enable-gm-ac": false
                 }
               }
             }
@@ -1182,11 +983,78 @@
                   "properties": {
                     "azoth": {
                       "type": "boolean"
+                    },
+                    "game-security": {
+                      "type": "object",
+                      "properties": {
+                        "enable-anticheat": {
+                          "type": "boolean"
+                        },
+                        "enable-anticheat-kicking": {
+                          "type": "boolean"
+                        },
+                        "enable-heat-tracking": {
+                          "type": "boolean"
+                        },
+                        "eos-kick-all": {
+                          "type": "boolean"
+                        },
+                        "eos-enable-gm-ac": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "enable-anticheat-kicking": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-anticheat-kicking": {
+                      "type": "boolean"
+                    },
+                    "enable-heat-tracking": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-heat-tracking": {
+                      "type": "boolean"
+                    },
+                    "eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "eos-enable-gm-ac": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-enable-gm-ac": {
+                      "type": "boolean"
                     }
                   }
                 },
                 "example": {
-                  "azoth": true
+                  "azoth": true,
+                  "game-security": {
+                    "enable-anticheat": false,
+                    "enable-anticheat-kicking": false,
+                    "enable-heat-tracking": false,
+                    "eos-kick-all": false,
+                    "eos-enable-gm-ac": false
+                  },
+                  "enable-anticheat": false,
+                  "game-security.enable-anticheat": false,
+                  "enable-anticheat-kicking": false,
+                  "game-security.enable-anticheat-kicking": false,
+                  "enable-heat-tracking": false,
+                  "game-security.enable-heat-tracking": false,
+                  "eos-kick-all": false,
+                  "game-security.eos-kick-all": false,
+                  "eos-enable-gm-ac": false,
+                  "game-security.eos-enable-gm-ac": false
                 }
               }
             }
@@ -1494,83 +1362,6 @@
         }
       }
     },
-    "/applications/publicGameplay/configuration-sets/CognitoId/x/versionless": {
-      "get": {
-        "summary": "applications/publicGameplay/configuration-sets/CognitoId/x/versionless",
-        "tags": [
-          "observed"
-        ],
-        "x-observed-status": [
-          200
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "azoth": {
-                      "type": "boolean"
-                    },
-                    "game-security": {
-                      "type": "object",
-                      "properties": {
-                        "enable-anticheat": {
-                          "type": "boolean"
-                        },
-                        "enable-anticheat-kicking": {
-                          "type": "boolean"
-                        },
-                        "enable-heat-tracking": {
-                          "type": "boolean"
-                        },
-                        "eos-kick-all": {
-                          "type": "boolean"
-                        },
-                        "eos-enable-gm-ac": {
-                          "type": "boolean"
-                        }
-                      }
-                    },
-                    "game-security.enable-anticheat": {
-                      "type": "boolean"
-                    },
-                    "game-security.enable-anticheat-kicking": {
-                      "type": "boolean"
-                    },
-                    "game-security.enable-heat-tracking": {
-                      "type": "boolean"
-                    },
-                    "game-security.eos-kick-all": {
-                      "type": "boolean"
-                    },
-                    "game-security.eos-enable-gm-ac": {
-                      "type": "boolean"
-                    }
-                  }
-                },
-                "example": {
-                  "azoth": true,
-                  "game-security": {
-                    "enable-anticheat": false,
-                    "enable-anticheat-kicking": false,
-                    "enable-heat-tracking": false,
-                    "eos-kick-all": false,
-                    "eos-enable-gm-ac": false
-                  },
-                  "game-security.enable-anticheat": false,
-                  "game-security.enable-anticheat-kicking": false,
-                  "game-security.enable-heat-tracking": false,
-                  "game-security.eos-kick-all": false,
-                  "game-security.eos-enable-gm-ac": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID/6031%3B6004151": {
       "get": {
         "summary": "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID/6031%3B6004151",
@@ -1604,6 +1395,66 @@
     "/applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID/versionless": {
       "get": {
         "summary": "applications/publicGameplay/configuration-sets/ProductId/STEAM_APP_ID/versionless",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/azoth-1/6031%3B6004151": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/azoth-1/6031%3B6004151",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "azoth": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "azoth": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/publicGameplay/configuration-sets/RegionId/azoth-1/versionless": {
+      "get": {
+        "summary": "applications/publicGameplay/configuration-sets/RegionId/azoth-1/versionless",
         "tags": [
           "observed"
         ],
@@ -1931,9 +1782,9 @@
         }
       }
     },
-    "/applications/publicGameplay/configuration-sets/WorldId/x/versionless": {
+    "/applications/publicGameplay/configuration-sets/WorldId/{id}/6031%3B6004151": {
       "get": {
-        "summary": "applications/publicGameplay/configuration-sets/WorldId/x/versionless",
+        "summary": "applications/publicGameplay/configuration-sets/WorldId/{id}/6031%3B6004151",
         "tags": [
           "observed"
         ],
@@ -1970,16 +1821,31 @@
                         }
                       }
                     },
+                    "enable-anticheat": {
+                      "type": "boolean"
+                    },
                     "game-security.enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "enable-anticheat-kicking": {
                       "type": "boolean"
                     },
                     "game-security.enable-anticheat-kicking": {
                       "type": "boolean"
                     },
+                    "enable-heat-tracking": {
+                      "type": "boolean"
+                    },
                     "game-security.enable-heat-tracking": {
                       "type": "boolean"
                     },
+                    "eos-kick-all": {
+                      "type": "boolean"
+                    },
                     "game-security.eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "eos-enable-gm-ac": {
                       "type": "boolean"
                     },
                     "game-security.eos-enable-gm-ac": {
@@ -1996,41 +1862,16 @@
                     "eos-kick-all": false,
                     "eos-enable-gm-ac": false
                   },
+                  "enable-anticheat": false,
                   "game-security.enable-anticheat": false,
+                  "enable-anticheat-kicking": false,
                   "game-security.enable-anticheat-kicking": false,
+                  "enable-heat-tracking": false,
                   "game-security.enable-heat-tracking": false,
+                  "eos-kick-all": false,
                   "game-security.eos-kick-all": false,
+                  "eos-enable-gm-ac": false,
                   "game-security.eos-enable-gm-ac": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/applications/publicGameplay/configuration-sets/WorldId/{id}/6031%3B6004151": {
-      "get": {
-        "summary": "applications/publicGameplay/configuration-sets/WorldId/{id}/6031%3B6004151",
-        "tags": [
-          "observed"
-        ],
-        "x-observed-status": [
-          200
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "azoth": {
-                      "type": "boolean"
-                    }
-                  }
-                },
-                "example": {
-                  "azoth": true
                 }
               }
             }
@@ -2056,11 +1897,78 @@
                   "properties": {
                     "azoth": {
                       "type": "boolean"
+                    },
+                    "game-security": {
+                      "type": "object",
+                      "properties": {
+                        "enable-anticheat": {
+                          "type": "boolean"
+                        },
+                        "enable-anticheat-kicking": {
+                          "type": "boolean"
+                        },
+                        "enable-heat-tracking": {
+                          "type": "boolean"
+                        },
+                        "eos-kick-all": {
+                          "type": "boolean"
+                        },
+                        "eos-enable-gm-ac": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-anticheat": {
+                      "type": "boolean"
+                    },
+                    "enable-anticheat-kicking": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-anticheat-kicking": {
+                      "type": "boolean"
+                    },
+                    "enable-heat-tracking": {
+                      "type": "boolean"
+                    },
+                    "game-security.enable-heat-tracking": {
+                      "type": "boolean"
+                    },
+                    "eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-kick-all": {
+                      "type": "boolean"
+                    },
+                    "eos-enable-gm-ac": {
+                      "type": "boolean"
+                    },
+                    "game-security.eos-enable-gm-ac": {
+                      "type": "boolean"
                     }
                   }
                 },
                 "example": {
-                  "azoth": true
+                  "azoth": true,
+                  "game-security": {
+                    "enable-anticheat": false,
+                    "enable-anticheat-kicking": false,
+                    "enable-heat-tracking": false,
+                    "eos-kick-all": false,
+                    "eos-enable-gm-ac": false
+                  },
+                  "enable-anticheat": false,
+                  "game-security.enable-anticheat": false,
+                  "enable-anticheat-kicking": false,
+                  "game-security.enable-anticheat-kicking": false,
+                  "enable-heat-tracking": false,
+                  "game-security.enable-heat-tracking": false,
+                  "eos-kick-all": false,
+                  "game-security.eos-kick-all": false,
+                  "eos-enable-gm-ac": false,
+                  "game-security.eos-enable-gm-ac": false
                 }
               }
             }
@@ -2075,7 +1983,8 @@
           "observed"
         ],
         "x-observed-status": [
-          200
+          200,
+          404
         ],
         "requestBody": {
           "content": {
@@ -2092,7 +2001,7 @@
                 }
               },
               "example": {
-                "token": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwiaXNzIjoiaHR0cHM6Ly90b2tlbnNlcnZpY2UuYW1hem9uZ2FtZXMuY29tIiwiYXVkIjoibmV3LXdvcmxkIiwiaWF0IjoxNzg5NDA1NzE3ODc5LCJleHAiOjE3ODk0MTI5MTc4Nzl9.",
+                "token": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwiaXNzIjoiaHR0cHM6Ly90b2tlbnNlcnZpY2UuYW1hem9uZ2FtZXMuY29tIiwiYXVkIjoibmV3LXdvcmxkIiwiaWF0IjoxNzg5MzE3OTUyMzUxLCJleHAiOjE3ODkzMjUxNTIzNTF9.",
                 "type": "ags"
               }
             }
@@ -2105,17 +2014,25 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "code": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "error": {
                       "type": "string"
                     },
-                    "statusCode": {
+                    "n": {
                       "type": "number"
+                    },
+                    "path": {
+                      "type": "string"
                     }
                   }
                 },
                 "example": {
-                  "code": "AZOTH-PRIVATE",
-                  "statusCode": 0
+                  "ok": false,
+                  "error": "unknown-path",
+                  "n": 134,
+                  "path": "/auth/platform/user/code"
                 }
               }
             }
@@ -2137,57 +2054,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {
-                  "platformIdentityType": {
-                    "type": "string"
-                  },
-                  "platformAuth": {
-                    "type": "object",
-                    "properties": {
-                      "ticket": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "fallbackToken": {
-                    "type": "string"
-                  },
-                  "attributionData": {
-                    "type": "object",
-                    "properties": {
-                      "os": {
-                        "type": "string"
-                      },
-                      "resolution": {
-                        "type": "string"
-                      },
-                      "language": {
-                        "type": "string"
-                      },
-                      "platform": {
-                        "type": "string"
-                      },
-                      "created": {
-                        "type": "number"
-                      }
-                    }
-                  }
-                }
+                "properties": {}
               },
-              "example": {
-                "platformIdentityType": "steam",
-                "platformAuth": {
-                  "ticket": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
-                },
-                "fallbackToken": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwicmVmcmVzaCI6dHJ1ZSwiaWF0IjoxNzg4OTc5MjM0NDI4LCJleHAiOjE3ODkwNjU2MzQ0Mjh9.",
-                "attributionData": {
-                  "os": "Windows 11",
-                  "resolution": "2560x1440",
-                  "language": "es-ES",
-                  "platform": "Windows",
-                  "created": 1789405717
-                }
-              }
+              "example": {}
             }
           }
         },
@@ -2256,9 +2125,9 @@
                   }
                 },
                 "example": {
-                  "accessToken": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwiaXNzIjoiaHR0cHM6Ly90b2tlbnNlcnZpY2UuYW1hem9uZ2FtZXMuY29tIiwiYXVkIjoibmV3LXdvcmxkIiwiaWF0IjoxNzg5NDA1NzE3ODc5LCJleHAiOjE3ODk0MTI5MTc4Nzl9.",
+                  "accessToken": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwiaXNzIjoiaHR0cHM6Ly90b2tlbnNlcnZpY2UuYW1hem9uZ2FtZXMuY29tIiwiYXVkIjoibmV3LXdvcmxkIiwiaWF0IjoxNzg5MzA5NjE0MzM4LCJleHAiOjE3ODkzMTY4MTQzMzh9.",
                   "expiresIn": 7200,
-                  "fallbackToken": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwicmVmcmVzaCI6dHJ1ZSwiaWF0IjoxNzg5NDA1NzE3ODc5LCJleHAiOjE3ODk0OTIxMTc4Nzl9.",
+                  "fallbackToken": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbXpuMS5kZXZlbG9wZXJQZXJzb25hSWQuZmM5MDZjMDctNDJhMi0yZGQxLWY1OWYtOWM1NmNmNGYyMTJjIiwicmVmcmVzaCI6dHJ1ZSwiaWF0IjoxNzg5MzA5NjE0MzM4LCJleHAiOjE3ODkzOTYwMTQzMzh9.",
                   "limitedUseToken": "",
                   "isNewAccount": false,
                   "region": "us-east-1",
@@ -2275,36 +2144,6 @@
                     "identityId": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c",
                     "personaId": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c"
                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/health": {
-      "get": {
-        "summary": "health",
-        "tags": [
-          "observed"
-        ],
-        "x-observed-status": [
-          200
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean"
-                    }
-                  }
-                },
-                "example": {
-                  "ok": true
                 }
               }
             }
@@ -2677,8 +2516,7 @@
           "observed"
         ],
         "x-observed-status": [
-          200,
-          304
+          200
         ],
         "responses": {
           "200": {
@@ -2742,257 +2580,13 @@
                               "type": "string"
                             }
                           }
-                        },
-                        "00000000-0000-4000-8000-000000000002": {
-                          "type": "object",
-                          "properties": {
-                            "announcement": {
-                              "type": "string"
-                            },
-                            "es-ES-announcement": {
-                              "type": "string"
-                            },
-                            "es-MX-announcement": {
-                              "type": "string"
-                            },
-                            "fr-FR-announcement": {
-                              "type": "string"
-                            },
-                            "de-DE-announcement": {
-                              "type": "string"
-                            },
-                            "pl-PL-announcement": {
-                              "type": "string"
-                            },
-                            "it-IT-announcement": {
-                              "type": "string"
-                            },
-                            "pt-BR-announcement": {
-                              "type": "string"
-                            },
-                            "warning": {
-                              "type": "string"
-                            },
-                            "es-ES-warning": {
-                              "type": "string"
-                            },
-                            "es-MX-warning": {
-                              "type": "string"
-                            },
-                            "fr-FR-warning": {
-                              "type": "string"
-                            },
-                            "de-DE-warning": {
-                              "type": "string"
-                            },
-                            "pl-PL-warning": {
-                              "type": "string"
-                            },
-                            "it-IT-warning": {
-                              "type": "string"
-                            },
-                            "pt-BR-warning": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "00000000-0000-4000-8000-000000000003": {
-                          "type": "object",
-                          "properties": {
-                            "announcement": {
-                              "type": "string"
-                            },
-                            "es-ES-announcement": {
-                              "type": "string"
-                            },
-                            "es-MX-announcement": {
-                              "type": "string"
-                            },
-                            "fr-FR-announcement": {
-                              "type": "string"
-                            },
-                            "de-DE-announcement": {
-                              "type": "string"
-                            },
-                            "pl-PL-announcement": {
-                              "type": "string"
-                            },
-                            "it-IT-announcement": {
-                              "type": "string"
-                            },
-                            "pt-BR-announcement": {
-                              "type": "string"
-                            },
-                            "warning": {
-                              "type": "string"
-                            },
-                            "es-ES-warning": {
-                              "type": "string"
-                            },
-                            "es-MX-warning": {
-                              "type": "string"
-                            },
-                            "fr-FR-warning": {
-                              "type": "string"
-                            },
-                            "de-DE-warning": {
-                              "type": "string"
-                            },
-                            "pl-PL-warning": {
-                              "type": "string"
-                            },
-                            "it-IT-warning": {
-                              "type": "string"
-                            },
-                            "pt-BR-warning": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "00000000-0000-4000-8000-000000000004": {
-                          "type": "object",
-                          "properties": {
-                            "announcement": {
-                              "type": "string"
-                            },
-                            "es-ES-announcement": {
-                              "type": "string"
-                            },
-                            "es-MX-announcement": {
-                              "type": "string"
-                            },
-                            "fr-FR-announcement": {
-                              "type": "string"
-                            },
-                            "de-DE-announcement": {
-                              "type": "string"
-                            },
-                            "pl-PL-announcement": {
-                              "type": "string"
-                            },
-                            "it-IT-announcement": {
-                              "type": "string"
-                            },
-                            "pt-BR-announcement": {
-                              "type": "string"
-                            },
-                            "warning": {
-                              "type": "string"
-                            },
-                            "es-ES-warning": {
-                              "type": "string"
-                            },
-                            "es-MX-warning": {
-                              "type": "string"
-                            },
-                            "fr-FR-warning": {
-                              "type": "string"
-                            },
-                            "de-DE-warning": {
-                              "type": "string"
-                            },
-                            "pl-PL-warning": {
-                              "type": "string"
-                            },
-                            "it-IT-warning": {
-                              "type": "string"
-                            },
-                            "pt-BR-warning": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "00000000-0000-4000-8000-000000000005": {
-                          "type": "object",
-                          "properties": {
-                            "announcement": {
-                              "type": "string"
-                            },
-                            "es-ES-announcement": {
-                              "type": "string"
-                            },
-                            "es-MX-announcement": {
-                              "type": "string"
-                            },
-                            "fr-FR-announcement": {
-                              "type": "string"
-                            },
-                            "de-DE-announcement": {
-                              "type": "string"
-                            },
-                            "pl-PL-announcement": {
-                              "type": "string"
-                            },
-                            "it-IT-announcement": {
-                              "type": "string"
-                            },
-                            "pt-BR-announcement": {
-                              "type": "string"
-                            },
-                            "warning": {
-                              "type": "string"
-                            },
-                            "es-ES-warning": {
-                              "type": "string"
-                            },
-                            "es-MX-warning": {
-                              "type": "string"
-                            },
-                            "fr-FR-warning": {
-                              "type": "string"
-                            },
-                            "de-DE-warning": {
-                              "type": "string"
-                            },
-                            "pl-PL-warning": {
-                              "type": "string"
-                            },
-                            "it-IT-warning": {
-                              "type": "string"
-                            },
-                            "pt-BR-warning": {
-                              "type": "string"
-                            }
-                          }
                         }
                       }
                     },
                     "worldSets": {
                       "type": "object",
                       "properties": {
-                        "fra-prod": {
-                          "type": "object",
-                          "properties": {
-                            "setName": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "gru-prod": {
-                          "type": "object",
-                          "properties": {
-                            "setName": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "iad-prod": {
-                          "type": "object",
-                          "properties": {
-                            "setName": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "pdx-prod": {
-                          "type": "object",
-                          "properties": {
-                            "setName": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "syd-prod": {
+                        "azoth-1": {
                           "type": "object",
                           "properties": {
                             "setName": {
@@ -3076,95 +2670,11 @@
                       "pl-PL-warning": "",
                       "it-IT-warning": "",
                       "pt-BR-warning": ""
-                    },
-                    "00000000-0000-4000-8000-000000000002": {
-                      "announcement": "",
-                      "es-ES-announcement": "",
-                      "es-MX-announcement": "",
-                      "fr-FR-announcement": "",
-                      "de-DE-announcement": "",
-                      "pl-PL-announcement": "",
-                      "it-IT-announcement": "",
-                      "pt-BR-announcement": "",
-                      "warning": "",
-                      "es-ES-warning": "",
-                      "es-MX-warning": "",
-                      "fr-FR-warning": "",
-                      "de-DE-warning": "",
-                      "pl-PL-warning": "",
-                      "it-IT-warning": "",
-                      "pt-BR-warning": ""
-                    },
-                    "00000000-0000-4000-8000-000000000003": {
-                      "announcement": "",
-                      "es-ES-announcement": "",
-                      "es-MX-announcement": "",
-                      "fr-FR-announcement": "",
-                      "de-DE-announcement": "",
-                      "pl-PL-announcement": "",
-                      "it-IT-announcement": "",
-                      "pt-BR-announcement": "",
-                      "warning": "",
-                      "es-ES-warning": "",
-                      "es-MX-warning": "",
-                      "fr-FR-warning": "",
-                      "de-DE-warning": "",
-                      "pl-PL-warning": "",
-                      "it-IT-warning": "",
-                      "pt-BR-warning": ""
-                    },
-                    "00000000-0000-4000-8000-000000000004": {
-                      "announcement": "",
-                      "es-ES-announcement": "",
-                      "es-MX-announcement": "",
-                      "fr-FR-announcement": "",
-                      "de-DE-announcement": "",
-                      "pl-PL-announcement": "",
-                      "it-IT-announcement": "",
-                      "pt-BR-announcement": "",
-                      "warning": "",
-                      "es-ES-warning": "",
-                      "es-MX-warning": "",
-                      "fr-FR-warning": "",
-                      "de-DE-warning": "",
-                      "pl-PL-warning": "",
-                      "it-IT-warning": "",
-                      "pt-BR-warning": ""
-                    },
-                    "00000000-0000-4000-8000-000000000005": {
-                      "announcement": "",
-                      "es-ES-announcement": "",
-                      "es-MX-announcement": "",
-                      "fr-FR-announcement": "",
-                      "de-DE-announcement": "",
-                      "pl-PL-announcement": "",
-                      "it-IT-announcement": "",
-                      "pt-BR-announcement": "",
-                      "warning": "",
-                      "es-ES-warning": "",
-                      "es-MX-warning": "",
-                      "fr-FR-warning": "",
-                      "de-DE-warning": "",
-                      "pl-PL-warning": "",
-                      "it-IT-warning": "",
-                      "pt-BR-warning": ""
                     }
                   },
                   "worldSets": {
-                    "fra-prod": {
-                      "setName": "Azoth EU Central"
-                    },
-                    "gru-prod": {
-                      "setName": "Azoth SA East"
-                    },
-                    "iad-prod": {
-                      "setName": "Azoth US East"
-                    },
-                    "pdx-prod": {
-                      "setName": "Azoth US West"
-                    },
-                    "syd-prod": {
-                      "setName": "Azoth AP Southeast"
+                    "azoth-1": {
+                      "setName": "Azoth-1"
                     }
                   },
                   "globalAnnouncement": {
@@ -3746,16 +3256,16 @@
                   }
                 },
                 "example": {
-                  "accessKeyId": "ASIAfzpnlAnFQPcGEx7z",
-                  "secretAccessKey": "GnpvPhmKebrAvuRRpN8DK044gFliVH0iwPnUkPW7",
-                  "sessionToken": "U5hHSjv09f3CyHcTUmrkx9SG6TlxsBfS0nCQX1Sj01YFIGhghhvvzMGf4E5AUVal3IaXGd3BA18F2OMjgxckOCfpcDe50HtxHfIXxYlUCyos7kNjZFOu9LkAor5TbCjS",
-                  "expiration": 1789409017,
+                  "accessKeyId": "ASIAOJuIPl2IHD5Xnqoq",
+                  "secretAccessKey": "5Mj938mFqE3Fe8SM8A57isJXUUUBTKQWSeVoDCOx",
+                  "sessionToken": "eemTZpZSk1KGpCGPPaYGokcftStYpq7uC52gmQvYh79SF8GW44L3T4p9m6hDv70I6SAU0UqYe9pkQLXzBQ4Wn3drDgZ7V3gTquAOAAzz2HmjSe65fJhFoWuSMND29SGO",
+                  "expiration": 1789315607,
                   "region": "us-east-1",
-                  "AccessKeyId": "ASIAfzpnlAnFQPcGEx7z",
-                  "SecretKey": "GnpvPhmKebrAvuRRpN8DK044gFliVH0iwPnUkPW7",
-                  "SecretAccessKey": "GnpvPhmKebrAvuRRpN8DK044gFliVH0iwPnUkPW7",
-                  "SessionToken": "U5hHSjv09f3CyHcTUmrkx9SG6TlxsBfS0nCQX1Sj01YFIGhghhvvzMGf4E5AUVal3IaXGd3BA18F2OMjgxckOCfpcDe50HtxHfIXxYlUCyos7kNjZFOu9LkAor5TbCjS",
-                  "Expiration": 1789409017,
+                  "AccessKeyId": "ASIAOJuIPl2IHD5Xnqoq",
+                  "SecretKey": "5Mj938mFqE3Fe8SM8A57isJXUUUBTKQWSeVoDCOx",
+                  "SecretAccessKey": "5Mj938mFqE3Fe8SM8A57isJXUUUBTKQWSeVoDCOx",
+                  "SessionToken": "eemTZpZSk1KGpCGPPaYGokcftStYpq7uC52gmQvYh79SF8GW44L3T4p9m6hDv70I6SAU0UqYe9pkQLXzBQ4Wn3drDgZ7V3gTquAOAAzz2HmjSe65fJhFoWuSMND29SGO",
+                  "Expiration": 1789315607,
                   "type": "Full",
                   "accountType": "Full",
                   "ownership": "permanent",
@@ -3774,7 +3284,9 @@
           "observed"
         ],
         "x-observed-status": [
-          200
+          200,
+          400,
+          404
         ],
         "responses": {
           "200": {
@@ -3886,14 +3398,14 @@
                   "LoginInfoList": [
                     {
                       "worldId": "00000000-0000-4000-8000-000000000001",
-                      "name": "azoth-01",
+                      "name": "azoth-1-01",
                       "type": "OpenWorld",
                       "status": "ACTIVE",
                       "version": "1.400.6031.6004151",
                       "publicStatusCode": 0,
-                      "publicName": "Azoth EU Central",
+                      "publicName": "Azoth-1",
                       "maxAccountCharacters": 4,
-                      "worldSet": "fra-prod",
+                      "worldSet": "azoth-1",
                       "worldMetrics": {
                         "worldAgeDays": 1,
                         "queueSize": 0,
@@ -3903,120 +3415,12 @@
                       "transferToRegion": "",
                       "isFull": false,
                       "isRecommended": true,
-                      "regionId": "fra-prod",
+                      "regionId": "azoth-1",
                       "characters": [],
                       "RepAddress": "127.0.0.1:9000",
-                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
-                      "GenerateTime": 1789406412,
-                      "IssueTime": 1789406412,
-                      "TokenVersion": 1
-                    },
-                    {
-                      "worldId": "00000000-0000-4000-8000-000000000002",
-                      "name": "azoth-02",
-                      "type": "OpenWorld",
-                      "status": "ACTIVE",
-                      "version": "1.400.6031.6004151",
-                      "publicStatusCode": 0,
-                      "publicName": "Azoth SA East",
-                      "maxAccountCharacters": 4,
-                      "worldSet": "gru-prod",
-                      "worldMetrics": {
-                        "worldAgeDays": 1,
-                        "queueSize": 0,
-                        "queueWaitTimeSec": 0,
-                        "worldPopulationStatus": "LOW"
-                      },
-                      "transferToRegion": "",
-                      "isFull": false,
-                      "isRecommended": true,
-                      "regionId": "gru-prod",
-                      "characters": [],
-                      "RepAddress": "127.0.0.1:9001",
-                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
-                      "GenerateTime": 1789406412,
-                      "IssueTime": 1789406412,
-                      "TokenVersion": 1
-                    },
-                    {
-                      "worldId": "00000000-0000-4000-8000-000000000003",
-                      "name": "azoth-03",
-                      "type": "OpenWorld",
-                      "status": "ACTIVE",
-                      "version": "1.400.6031.6004151",
-                      "publicStatusCode": 0,
-                      "publicName": "Azoth US East",
-                      "maxAccountCharacters": 4,
-                      "worldSet": "iad-prod",
-                      "worldMetrics": {
-                        "worldAgeDays": 1,
-                        "queueSize": 0,
-                        "queueWaitTimeSec": 0,
-                        "worldPopulationStatus": "LOW"
-                      },
-                      "transferToRegion": "",
-                      "isFull": false,
-                      "isRecommended": true,
-                      "regionId": "iad-prod",
-                      "characters": [],
-                      "RepAddress": "127.0.0.1:9002",
-                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
-                      "GenerateTime": 1789406412,
-                      "IssueTime": 1789406412,
-                      "TokenVersion": 1
-                    },
-                    {
-                      "worldId": "00000000-0000-4000-8000-000000000004",
-                      "name": "azoth-04",
-                      "type": "OpenWorld",
-                      "status": "ACTIVE",
-                      "version": "1.400.6031.6004151",
-                      "publicStatusCode": 0,
-                      "publicName": "Azoth US West",
-                      "maxAccountCharacters": 4,
-                      "worldSet": "pdx-prod",
-                      "worldMetrics": {
-                        "worldAgeDays": 1,
-                        "queueSize": 0,
-                        "queueWaitTimeSec": 0,
-                        "worldPopulationStatus": "LOW"
-                      },
-                      "transferToRegion": "",
-                      "isFull": false,
-                      "isRecommended": true,
-                      "regionId": "pdx-prod",
-                      "characters": [],
-                      "RepAddress": "127.0.0.1:9003",
-                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDQiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
-                      "GenerateTime": 1789406412,
-                      "IssueTime": 1789406412,
-                      "TokenVersion": 1
-                    },
-                    {
-                      "worldId": "00000000-0000-4000-8000-000000000005",
-                      "name": "azoth-05",
-                      "type": "OpenWorld",
-                      "status": "ACTIVE",
-                      "version": "1.400.6031.6004151",
-                      "publicStatusCode": 0,
-                      "publicName": "Azoth AP Southeast",
-                      "maxAccountCharacters": 4,
-                      "worldSet": "syd-prod",
-                      "worldMetrics": {
-                        "worldAgeDays": 1,
-                        "queueSize": 0,
-                        "queueWaitTimeSec": 0,
-                        "worldPopulationStatus": "LOW"
-                      },
-                      "transferToRegion": "",
-                      "isFull": false,
-                      "isRecommended": true,
-                      "regionId": "syd-prod",
-                      "characters": [],
-                      "RepAddress": "127.0.0.1:9004",
-                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDUiLCJpYXQiOjE3ODk0MDY0MTIyMDksImV4cCI6MTc4OTQxMzYxMjIwOX0.",
-                      "GenerateTime": 1789406412,
-                      "IssueTime": 1789406412,
+                      "JwtClaims": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpYXQiOjE3ODkzMDk2MTQzMzksImV4cCI6MTc4OTMxNjgxNDMzOX0.",
+                      "GenerateTime": 1789309614,
+                      "IssueTime": 1789309614,
                       "TokenVersion": 1
                     }
                   ],
@@ -4025,123 +3429,6 @@
                   "AccountIsLocked": false,
                   "AllowQueueTransfer": false,
                   "QueueName": ""
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/prod/game/login/queue/v2/enqueue": {
-      "post": {
-        "summary": "prod/game/login/queue/v2/enqueue",
-        "tags": [
-          "observed"
-        ],
-        "x-observed-status": [
-          200
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "LoginQueueResponse": {
-                      "type": "object",
-                      "properties": {
-                        "AccountAge": {
-                          "type": "number"
-                        },
-                        "AccountIsLocked": {
-                          "type": "boolean"
-                        },
-                        "CharacterId": {
-                          "type": "string"
-                        },
-                        "ClientCapabilities": {
-                          "type": "string"
-                        },
-                        "GenerateTime": {
-                          "type": "number"
-                        },
-                        "HostHash": {
-                          "type": "string"
-                        },
-                        "IsPermanentAppOwner": {
-                          "type": "boolean"
-                        },
-                        "IsTrialOwner": {
-                          "type": "boolean"
-                        },
-                        "IssueTime": {
-                          "type": "number"
-                        },
-                        "Location": {
-                          "type": "string"
-                        },
-                        "LocationGroupId": {
-                          "type": "string"
-                        },
-                        "LocationId": {
-                          "type": "string"
-                        },
-                        "PersonaId": {
-                          "type": "string"
-                        },
-                        "RepAddress": {
-                          "type": "string"
-                        },
-                        "Signature": {
-                          "type": "string"
-                        },
-                        "SteamAppId": {
-                          "type": "number"
-                        },
-                        "SteamUserId": {
-                          "type": "string"
-                        },
-                        "TicketId": {
-                          "type": "string"
-                        },
-                        "TokenVersion": {
-                          "type": "number"
-                        },
-                        "WorldId": {
-                          "type": "string"
-                        },
-                        "WorldName": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                },
-                "example": {
-                  "LoginQueueResponse": {
-                    "AccountAge": 0,
-                    "AccountIsLocked": false,
-                    "CharacterId": "00000000-0000-4000-8000-00000000c0de",
-                    "ClientCapabilities": "",
-                    "GenerateTime": 1789595241,
-                    "HostHash": "",
-                    "IsPermanentAppOwner": true,
-                    "IsTrialOwner": false,
-                    "IssueTime": 1789595241,
-                    "Location": "",
-                    "LocationGroupId": "",
-                    "LocationId": "",
-                    "PersonaId": "",
-                    "RepAddress": "127.0.0.1:9000",
-                    "Signature": "sig:0bd63fea-d854-42d3-9aec-abb380bf1f78",
-                    "SteamAppId": 1063730,
-                    "SteamUserId": "",
-                    "TicketId": "0bd63fea-d854-42d3-9aec-abb380bf1f78",
-                    "TokenVersion": 10,
-                    "WorldId": "00000000-0000-4000-8000-000000000001",
-                    "WorldName": "everfall"
-                  }
                 }
               }
             }
@@ -4209,73 +3496,6 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "ticket": {
-                      "type": "string"
-                    },
-                    "location": {
-                      "type": "string"
-                    },
-                    "RepAddress": {
-                      "type": "string"
-                    },
-                    "WorldId": {
-                      "type": "string"
-                    },
-                    "WorldName": {
-                      "type": "string"
-                    },
-                    "CharacterId": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "example": {
-                  "ticket": "00000000-0000-4000-8000-000000000001_4e6704b3-733d-4185-9209-343642f9a3e7",
-                  "location": "",
-                  "RepAddress": "127.0.0.1:9000",
-                  "WorldId": "00000000-0000-4000-8000-000000000001",
-                  "WorldName": "azoth-01",
-                  "CharacterId": "00000000-0000-4000-8000-00000000c0de"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/prod/game/login/queue/v2/{id}/jwt/omni": {
-      "post": {
-        "summary": "prod/game/login/queue/v2/{id}/jwt/omni",
-        "tags": [
-          "observed"
-        ],
-        "x-observed-status": [
-          200
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "ClientCapabilities": {
-                    "type": "array"
-                  }
-                }
-              },
-              "example": {
-                "ClientCapabilities": []
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
                     "LoginQueueResponse": {
                       "type": "object",
                       "properties": {
@@ -4350,25 +3570,194 @@
                   "LoginQueueResponse": {
                     "AccountAge": 0,
                     "AccountIsLocked": false,
-                    "CharacterId": "00000000-0000-4000-8000-00000000c0de",
+                    "CharacterId": "11111111-1111-1111-1111-111111111111",
                     "ClientCapabilities": "",
-                    "GenerateTime": 1789408035,
+                    "GenerateTime": 1790437386,
                     "HostHash": "",
                     "IsPermanentAppOwner": true,
                     "IsTrialOwner": false,
-                    "IssueTime": 1789408035,
+                    "IssueTime": 1790437386,
                     "Location": "",
                     "LocationGroupId": "",
                     "LocationId": "",
-                    "PersonaId": "",
+                    "PersonaId": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c",
                     "RepAddress": "127.0.0.1:9000",
-                    "Signature": "sig:7fd13f27-e4aa-4bf8-82d0-d2b669078c4d",
+                    "Signature": "sig:e11f2be3-0cd1-49fa-8a59-59a032ddc045",
                     "SteamAppId": 1063730,
-                    "SteamUserId": "",
-                    "TicketId": "7fd13f27-e4aa-4bf8-82d0-d2b669078c4d",
+                    "SteamUserId": "76561197960287930",
+                    "TicketId": "e11f2be3-0cd1-49fa-8a59-59a032ddc045",
                     "TokenVersion": 10,
                     "WorldId": "00000000-0000-4000-8000-000000000001",
-                    "WorldName": "azoth-01"
+                    "WorldName": "everfall"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prod/game/login/queue/v2/{id}/jwt/omni": {
+      "post": {
+        "summary": "prod/game/login/queue/v2/{id}/jwt/omni",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          200
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ClientCapabilities": {
+                    "type": "array"
+                  }
+                }
+              },
+              "example": {
+                "ClientCapabilities": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "LoginQueueResponse": {
+                      "type": "object",
+                      "properties": {
+                        "AllowQueueTransfer": {
+                          "type": "boolean"
+                        },
+                        "EstimatedTime": {
+                          "type": "number"
+                        },
+                        "Position": {
+                          "type": "number"
+                        },
+                        "QueueName": {
+                          "type": "string"
+                        },
+                        "RecommendedTransferWorldId": {
+                          "type": "string"
+                        },
+                        "RefreshInterval": {
+                          "type": "number"
+                        },
+                        "TicketId": {
+                          "type": "string"
+                        },
+                        "Token": {
+                          "type": "object",
+                          "properties": {
+                            "AccountAge": {
+                              "type": "number"
+                            },
+                            "AccountIsLocked": {
+                              "type": "boolean"
+                            },
+                            "CharacterId": {
+                              "type": "string"
+                            },
+                            "ClientCapabilities": {
+                              "type": "string"
+                            },
+                            "GenerateTime": {
+                              "type": "number"
+                            },
+                            "HostHash": {
+                              "type": "string"
+                            },
+                            "IsPermanentAppOwner": {
+                              "type": "boolean"
+                            },
+                            "IsTrialOwner": {
+                              "type": "boolean"
+                            },
+                            "IssueTime": {
+                              "type": "number"
+                            },
+                            "Location": {
+                              "type": "string"
+                            },
+                            "LocationGroupId": {
+                              "type": "string"
+                            },
+                            "LocationId": {
+                              "type": "string"
+                            },
+                            "PersonaId": {
+                              "type": "string"
+                            },
+                            "RepAddress": {
+                              "type": "string"
+                            },
+                            "Signature": {
+                              "type": "string"
+                            },
+                            "SteamAppId": {
+                              "type": "number"
+                            },
+                            "SteamUserId": {
+                              "type": "string"
+                            },
+                            "TicketId": {
+                              "type": "string"
+                            },
+                            "TokenVersion": {
+                              "type": "number"
+                            },
+                            "WorldId": {
+                              "type": "string"
+                            },
+                            "WorldName": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "LoginQueueResponse": {
+                    "AllowQueueTransfer": false,
+                    "EstimatedTime": 0,
+                    "Position": 0,
+                    "QueueName": "eu-central-1",
+                    "RecommendedTransferWorldId": "",
+                    "RefreshInterval": 15,
+                    "TicketId": "94cc5921-2b8d-4662-8ba8-79f5a312b050",
+                    "Token": {
+                      "AccountAge": 0,
+                      "AccountIsLocked": false,
+                      "CharacterId": "11111111-1111-1111-1111-111111111111",
+                      "ClientCapabilities": "",
+                      "GenerateTime": 1790437401,
+                      "HostHash": "",
+                      "IsPermanentAppOwner": true,
+                      "IsTrialOwner": false,
+                      "IssueTime": 1790437401,
+                      "Location": "",
+                      "LocationGroupId": "",
+                      "LocationId": "",
+                      "PersonaId": "amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c",
+                      "RepAddress": "127.0.0.1:9000",
+                      "Signature": "sig:94cc5921-2b8d-4662-8ba8-79f5a312b050",
+                      "SteamAppId": 1063730,
+                      "SteamUserId": "76561197960287930",
+                      "TicketId": "94cc5921-2b8d-4662-8ba8-79f5a312b050",
+                      "TokenVersion": 10,
+                      "WorldId": "00000000-0000-4000-8000-000000000001",
+                      "WorldName": "everfall"
+                    }
                   }
                 }
               }
@@ -4378,7 +3767,7 @@
       }
     },
     "/prod/game/worlds/list/jwt/omni": {
-      "get": {
+      "post": {
         "summary": "prod/game/worlds/list/jwt/omni",
         "tags": [
           "observed"
@@ -4453,11 +3842,156 @@
                           },
                           "regionId": {
                             "type": "string"
+                          },
+                          "WorldName": {
+                            "type": "string"
+                          },
+                          "PublicName": {
+                            "type": "string"
+                          },
+                          "WorldStatus": {
+                            "type": "string"
+                          },
+                          "WorldType": {
+                            "type": "string"
+                          },
+                          "WorldVersion": {
+                            "type": "string"
+                          },
+                          "PublicStatusCode": {
+                            "type": "number"
+                          },
+                          "QueueWaitTimeSec": {
+                            "type": "number"
+                          },
+                          "WorldAgeDays": {
+                            "type": "number"
+                          },
+                          "WorldPopulationStatus": {
+                            "type": "string"
+                          },
+                          "IsFull": {
+                            "type": "boolean"
+                          },
+                          "IsRecommended": {
+                            "type": "boolean"
+                          },
+                          "MaxConnectionCount": {
+                            "type": "number"
+                          },
+                          "TransferToRegion": {
+                            "type": "string"
                           }
                         }
                       }
                     },
                     "recommendedWorlds": {
+                      "type": "array"
+                    },
+                    "Worlds": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "worldId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "publicStatusCode": {
+                            "type": "number"
+                          },
+                          "publicName": {
+                            "type": "string"
+                          },
+                          "maxAccountCharacters": {
+                            "type": "number"
+                          },
+                          "worldSet": {
+                            "type": "string"
+                          },
+                          "worldMetrics": {
+                            "type": "object",
+                            "properties": {
+                              "worldAgeDays": {
+                                "type": "number"
+                              },
+                              "queueSize": {
+                                "type": "number"
+                              },
+                              "queueWaitTimeSec": {
+                                "type": "number"
+                              },
+                              "worldPopulationStatus": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "transferToRegion": {
+                            "type": "string"
+                          },
+                          "isFull": {
+                            "type": "boolean"
+                          },
+                          "isRecommended": {
+                            "type": "boolean"
+                          },
+                          "regionId": {
+                            "type": "string"
+                          },
+                          "WorldName": {
+                            "type": "string"
+                          },
+                          "PublicName": {
+                            "type": "string"
+                          },
+                          "WorldStatus": {
+                            "type": "string"
+                          },
+                          "WorldType": {
+                            "type": "string"
+                          },
+                          "WorldVersion": {
+                            "type": "string"
+                          },
+                          "PublicStatusCode": {
+                            "type": "number"
+                          },
+                          "QueueWaitTimeSec": {
+                            "type": "number"
+                          },
+                          "WorldAgeDays": {
+                            "type": "number"
+                          },
+                          "WorldPopulationStatus": {
+                            "type": "string"
+                          },
+                          "IsFull": {
+                            "type": "boolean"
+                          },
+                          "IsRecommended": {
+                            "type": "boolean"
+                          },
+                          "MaxConnectionCount": {
+                            "type": "number"
+                          },
+                          "TransferToRegion": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "RecommendedWorlds": {
                       "type": "array"
                     }
                   }
@@ -4466,12 +4000,12 @@
                   "worlds": [
                     {
                       "worldId": "00000000-0000-4000-8000-000000000001",
-                      "name": "everfall",
+                      "name": "azoth-01",
                       "type": "OpenWorld",
                       "status": "ACTIVE",
                       "version": "1.400.6031.6004151",
                       "publicStatusCode": 0,
-                      "publicName": "Everfall",
+                      "publicName": "Azoth EU Central",
                       "maxAccountCharacters": 4,
                       "worldSet": "fra-prod",
                       "worldMetrics": {
@@ -4483,16 +4017,29 @@
                       "transferToRegion": "",
                       "isFull": false,
                       "isRecommended": true,
-                      "regionId": "fra-prod"
+                      "regionId": "fra-prod",
+                      "WorldName": "azoth-01",
+                      "PublicName": "Azoth EU Central",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
                     },
                     {
                       "worldId": "00000000-0000-4000-8000-000000000002",
-                      "name": "windsward",
+                      "name": "azoth-02",
                       "type": "OpenWorld",
                       "status": "ACTIVE",
                       "version": "1.400.6031.6004151",
                       "publicStatusCode": 0,
-                      "publicName": "Windsward",
+                      "publicName": "Azoth SA East",
                       "maxAccountCharacters": 4,
                       "worldSet": "gru-prod",
                       "worldMetrics": {
@@ -4504,16 +4051,29 @@
                       "transferToRegion": "",
                       "isFull": false,
                       "isRecommended": true,
-                      "regionId": "gru-prod"
+                      "regionId": "gru-prod",
+                      "WorldName": "azoth-02",
+                      "PublicName": "Azoth SA East",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
                     },
                     {
                       "worldId": "00000000-0000-4000-8000-000000000003",
-                      "name": "first-light",
+                      "name": "azoth-03",
                       "type": "OpenWorld",
                       "status": "ACTIVE",
                       "version": "1.400.6031.6004151",
                       "publicStatusCode": 0,
-                      "publicName": "First Light",
+                      "publicName": "Azoth US East",
                       "maxAccountCharacters": 4,
                       "worldSet": "iad-prod",
                       "worldMetrics": {
@@ -4525,16 +4085,29 @@
                       "transferToRegion": "",
                       "isFull": false,
                       "isRecommended": true,
-                      "regionId": "iad-prod"
+                      "regionId": "iad-prod",
+                      "WorldName": "azoth-03",
+                      "PublicName": "Azoth US East",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
                     },
                     {
                       "worldId": "00000000-0000-4000-8000-000000000004",
-                      "name": "monarchs-bluffs",
+                      "name": "azoth-04",
                       "type": "OpenWorld",
                       "status": "ACTIVE",
                       "version": "1.400.6031.6004151",
                       "publicStatusCode": 0,
-                      "publicName": "Monarch's Bluffs",
+                      "publicName": "Azoth US West",
                       "maxAccountCharacters": 4,
                       "worldSet": "pdx-prod",
                       "worldMetrics": {
@@ -4546,16 +4119,29 @@
                       "transferToRegion": "",
                       "isFull": false,
                       "isRecommended": true,
-                      "regionId": "pdx-prod"
+                      "regionId": "pdx-prod",
+                      "WorldName": "azoth-04",
+                      "PublicName": "Azoth US West",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
                     },
                     {
                       "worldId": "00000000-0000-4000-8000-000000000005",
-                      "name": "cutlass-keys",
+                      "name": "azoth-05",
                       "type": "OpenWorld",
                       "status": "ACTIVE",
                       "version": "1.400.6031.6004151",
                       "publicStatusCode": 0,
-                      "publicName": "Cutlass Keys",
+                      "publicName": "Azoth AP Southeast",
                       "maxAccountCharacters": 4,
                       "worldSet": "syd-prod",
                       "worldMetrics": {
@@ -4567,10 +4153,238 @@
                       "transferToRegion": "",
                       "isFull": false,
                       "isRecommended": true,
-                      "regionId": "syd-prod"
+                      "regionId": "syd-prod",
+                      "WorldName": "azoth-05",
+                      "PublicName": "Azoth AP Southeast",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
                     }
                   ],
-                  "recommendedWorlds": []
+                  "recommendedWorlds": [],
+                  "Worlds": [
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000001",
+                      "name": "azoth-01",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth EU Central",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "fra-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "fra-prod",
+                      "WorldName": "azoth-01",
+                      "PublicName": "Azoth EU Central",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000002",
+                      "name": "azoth-02",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth SA East",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "gru-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "gru-prod",
+                      "WorldName": "azoth-02",
+                      "PublicName": "Azoth SA East",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000003",
+                      "name": "azoth-03",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth US East",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "iad-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "iad-prod",
+                      "WorldName": "azoth-03",
+                      "PublicName": "Azoth US East",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000004",
+                      "name": "azoth-04",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth US West",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "pdx-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "pdx-prod",
+                      "WorldName": "azoth-04",
+                      "PublicName": "Azoth US West",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
+                    },
+                    {
+                      "worldId": "00000000-0000-4000-8000-000000000005",
+                      "name": "azoth-05",
+                      "type": "OpenWorld",
+                      "status": "ACTIVE",
+                      "version": "1.400.6031.6004151",
+                      "publicStatusCode": 0,
+                      "publicName": "Azoth AP Southeast",
+                      "maxAccountCharacters": 4,
+                      "worldSet": "syd-prod",
+                      "worldMetrics": {
+                        "worldAgeDays": 1,
+                        "queueSize": 0,
+                        "queueWaitTimeSec": 0,
+                        "worldPopulationStatus": "LOW"
+                      },
+                      "transferToRegion": "",
+                      "isFull": false,
+                      "isRecommended": true,
+                      "regionId": "syd-prod",
+                      "WorldName": "azoth-05",
+                      "PublicName": "Azoth AP Southeast",
+                      "WorldStatus": "ACTIVE",
+                      "WorldType": "OpenWorld",
+                      "WorldVersion": "1.400.6031.6004151",
+                      "PublicStatusCode": 1,
+                      "QueueWaitTimeSec": 0,
+                      "WorldAgeDays": 1,
+                      "WorldPopulationStatus": "LOW",
+                      "IsFull": false,
+                      "IsRecommended": true,
+                      "MaxConnectionCount": 2500,
+                      "TransferToRegion": ""
+                    }
+                  ],
+                  "RecommendedWorlds": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "summary": "v1/models",
+        "tags": [
+          "observed"
+        ],
+        "x-observed-status": [
+          404
+        ],
+        "responses": {
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "n": {
+                      "type": "number"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "ok": false,
+                  "error": "unknown-path",
+                  "n": 1,
+                  "path": "/v1/models"
                 }
               }
             }
