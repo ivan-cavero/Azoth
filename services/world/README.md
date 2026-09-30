@@ -22,6 +22,16 @@ certs/              rep.crt/rep.key, auto-generated (gitignored)
 rep_traffic.jsonl   live capture: every datagram, decoded (gitignored)
 ```
 
+The world log stores complete decrypted client payloads as `raw_full`, and
+complete plaintext server sends as `outbound-app-data.raw_full`. Set
+`AZOTH_LOG_OUTBOUND_PAYLOADS=0` to disable server plaintext capture. For full
+encrypted UDP datagrams in both directions, set `AZOTH_LOG_RAW=1`; those rows
+are tagged `raw-datagram` / `raw-datagram-out`. These local captures can contain
+session IDs and private payloads; keep them under ignored `research/sessions/`
+and never add them to the atlas or Git.
+Set `AZOTH_REP_TRAFFIC_JSONL` to redirect the append-only log for isolated
+tests or a separate capture run.
+
 **The one non-stdlib dependency:** `pyOpenSSL` (`python -m pip install
 pyOpenSSL`). stdlib `ssl` has no DTLS and rustls does not speak DTLS either;
 pyOpenSSL ships a prebuilt OpenSSL so nothing compiles. Gateway stays

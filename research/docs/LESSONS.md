@@ -68,9 +68,10 @@ re-derive, always (`bytepat.py` exists for this).
 **Incident:** the EAC ban (correct for the official process) was read as
 "no Frida ever", costing the single highest-leverage tool.
 
-**Rule:** the ban scope = processes with EAC. Our private runtime (no EAC,
-no Steam) is a lab: Frida attach, in-memory patches, traces — all fair
-game there, all forbidden on the official client. Recorded in
+**Rule:** the ban applies to any process with EAC active. A private launch is
+not proof EAC is absent: confirm the actual target process before any Frida,
+memory read, or debugger session. If EAC is active or its state is uncertain,
+use static analysis, Game.log, and server-side traces. Recorded in
 `atlas/levers.md`.
 
 ## 7. The client measures FULL request time, not network RTT

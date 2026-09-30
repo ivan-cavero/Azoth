@@ -32,9 +32,10 @@ validation against the **embedded** self-signed `CN=New World` cert
 - Verify callback returns constant `1` (always trust)
 - Branch site: `CMP qword ptr [RDI + 0x288], 0x0` / `JZ <permissive path>`
 - Runtime patch: force the jump unconditionally (`JZ rel32` -> `JMP rel32`,
-  same target). In-memory only, via `scripts/frida-trust-patch.py`, against
-  OUR private runtime (no EAC there — the EAC ban in `EAC.md` covers the
-  official process, not our own exe copy).
+  same target). The historical probe used `scripts/frida-trust-patch.py`. Only
+  run it against a private process after confirming EAC is inactive; private
+  mode by itself does not establish that. Current EAC restrictions are in
+  `EAC.md` and the live process status is in `STATUS.md`.
 
 **VERIFIED on our build 1.400.6031.6004151 (2026-09-14,
 `bytepat.py dtls-verify`):** the site is byte-identical AND at the same VA —

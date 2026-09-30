@@ -61,12 +61,118 @@
   "local_player_metadata_branch": {
     "va": "0x141717fc0",
     "end": "0x141719d86",
-    "what": "StateBundle record handler. Indexes state + 0x608 + record_id*0x10; record_id == 1 logs 'Received new local player metadata, updating m_localPlayersServerGDERef' and writes slot+0x850/+0x870/+0x880. This is the local-player/gde metadata path; the actor itself still comes from the fragment payloads.",
+    "what": "StateBundle record handler. Indexes state + 0x608 + record_id*0x10; record_id == 1 logs 'Received new local player metadata, updating m_localPlayersServerGDERef' and writes slot+0x850/+0x870/+0x880. In fresh PID 39284, the record-1 slot at state+0x618 changed from null to non-null across handler calls, while the separate possession-manager fields stayed null. This is the local-player/GDE metadata path; it does not itself establish possession.",
     "found_by": "static call chain from the StateBundle parser"
+  },
+  "local_player_actor_prototype_builder": {
+    "va": "0x1416957c0",
+    "end": "0x141695826",
+    "what": "Builds a 0x210-byte temporary prototype through FUN_14161b9b0 and passes it to the only known direct caller of FUN_141563e20, the generic actor factory. It remains a candidate actor-construction path, not proven to be the missing local-player path. Read-only burst captures on PIDs 45592 and 54936 counted zero calls to FUN_141563e20, so this candidate was not reached in either replay burst. Game.log's category-3 local-player metadata trace is suppressed at the current level; its absence is not diagnostic.",
+    "found_by": "Ghidra decompile of the actor-factory caller, build 1.400.6031.6004151"
+  },
+  "local_player_holder_getter": {
+    "va": "0x146800d10",
+    "what": "Manager context/local-player getter at vtable slot +0x30. Read-only captures on fresh PIDs 39284, 45592, and 39172 observed manager+0x08 and manager+0x10 as NULL after record-1 metadata produced non-null state-slot objects. Static vtable analysis identifies an indirect manager-context setter at slot +0x10 (FUN_146928d80); its caller gate was not satisfied during PID 39172's replay. The precise pointee type and StateBundle input that should activate the setter remain unresolved.",
+    "found_by": "Ghidra vtable analysis + scripts/frida-player-holder-snapshot.py after checking the exact private process had no EAC service/module"
+  },
+  "local_player_context_manager_dispatch": {
+    "va": "0x146764cd0",
+    "what": "Common state gate that can call the manager vtable slot +0x10. Manager vtable 0x148559dc0 resolves that slot to FUN_146928d80, which stores its second argument at manager+0x08, copies a shared reference from context+0x48/+0x50 into manager+0x10/+0x18, then calls slot +0x20. The dispatch calls the setter only when state+0x318 == 1, state+0x31c != 0, and state+0x31d == 0. Fresh PID 39172/REP session 1059 observed 39 dispatch entries, each with status 2, zero setter calls, zero local-player prototype-builder calls, and zero known actor-factory calls. These state objects are generic; their status-2 readings do not yet identify the missing local-player state.",
+    "found_by": "Ghidra decompile of FUN_146764cd0 and the manager vtable, then read-only burst hooks in scripts/frida-burst-capture.py"
+  },
+  "replica_portrayal_update": {
+    "va": "0x14178db00",
+    "end": "0x14178de57",
+    "what": "Processes a replica portrayal/update. It tests FUN_146165f20 on the entity key, then either builds/updates through FUN_141570190 or inserts into the portrayal table with FUN_1415e68b0. Its conditional call to FUN_14178ec80 is the removal path, not actor construction. Burst probe on PID 54936 observed 94 calls during the initial state replay.",
+    "found_by": "Ghidra decompile + read-only burst hook, build 1.400.6031.6004151"
+  },
+  "replica_portrayal_table_insert": {
+    "va": "0x1415e68b0",
+    "end": "0x1415e6a7d",
+    "what": "Looks up or inserts a portrayal entry keyed by the entity key; updates the bucket/list and returns the entry. This is not the generic actor factory. Burst probe on PID 54936 counted 116 calls during the initial state replay.",
+    "found_by": "Ghidra decompile of caller FUN_14178db00 + read-only burst hook"
+  },
+  "replica_portrayal_remove": {
+    "va": "0x14178ec80",
+    "end": "0x14178f118",
+    "what": "Removes/destroys portrayal state for an entity, including table and notification cleanup. It is not an actor create function; counting it as create was an earlier probe-label error.",
+    "found_by": "Ghidra decompile + caller FUN_14178db00 control flow"
+  },
+  "replica_rmi_target_lookup": {
+    "va": "0x1416bcba0",
+    "end": "0x1416bcdf4",
+    "what": "Looks up an incoming replica RMI target in the per-context table and returns the target object. On lookup miss it logs 'The facet target ID couldn't be found' and returns null. Fresh run 2026-09-30 13:01Z, PID 54936, produced 25 such dispatch errors after the initial state drain.",
+    "found_by": "Ghidra decompile of the 'The facet target ID...' string xref, build 1.400.6031.6004151"
   },
   "fragment_type_972_descriptor": {
     "va": "0x1416fcb20",
     "what": "GUID getter for nested fragment type index 972 (old registry index 144): GUID DE1A18A9-CE9E-4336-8DF8-698A73C579D4 at 0x14800eae8, registration wrapper FUN_1414ecbd0, vtable 0x14801b088. First fragment of the captured record-1 init bundle decodes to this index (VLQ 8e 4c = 972).",
     "found_by": "GUID string search + xrefmap + decompile"
+  },
+  "javelin_stream_processor": {
+    "va": "0x146b69ad0",
+    "what": "Ctor of the 0x770-byte Javelin stream/codec processor (vtable 0x148590ab8, 35 slots, 2nd vptr 0x148590bb0 at +0x08). param_2 lands at +0x50 (the main-thread drain ring). +0x118 = the 0x168 outbound/codec object, +0x120/+0x128 = a refcounted ring-queue pair installed by FUN_146b6d600. Factory FUN_146b6c490.",
+    "found_by": "vtable dump at 0x148590ab8 + callers of 0x146b6c490"
+  },
+  "game_connection_stream_processor_slot": {
+    "va": "0x146425cb0",
+    "what": "Creates the stream processor (FUN_146b6c490) and stores it at connection+0x1000; wraps it in an 0x18 handle at +0x1048 (vtable 0x14844c9a8); starts via FUN_146466650(conn, 1|3). Also calls processor vtable +0x18 (FUN_146b6d600, the reset that installs the +0x120 ring) and slot +0x08 (FUN_146b70af0, installs the three connection listener cells at processor+0x58/+0x98/+0xd8). Log channel string 'GameConnection' at 0x1484fc8f0.",
+    "found_by": "callers of 0x146b6c490 + windowed scan for disp 0x1000 in 0x146400000-0x146480000"
+  },
+  "javelin_iface_v6_inbound": {
+    "va": "0x1485915b8",
+    "what": "6-slot interface sub-vtable (V6) of the stream-processor family. Slot +0x10 = 0x146b71590 = 'mov rcx,[rcx+8]; jmp FUN_146b6eb70'. Handles are the 16-byte pair {sub_vtable, impl}; FUN_146b6d600 builds {0x1485915b8, proc} and hands it to FUN_146b6a270, so the transport calls slot +0x10 to push inbound bytes. Siblings: V4 0x148591558 -> FUN_146b6e190, V5 0x148591588 -> FUN_146b6e7c0.",
+    "found_by": "ptrscan of .rdata for the thunks in 0x146b71280-0x146b71800 + disasm"
+  },
+  "javelin_inbound_decode_entry": {
+    "va": "0x146b6eb70",
+    "end": "0x146b6f02e",
+    "what": "Inbound packet entry (V6 slot +0x10). Accumulates the byte count at proc+0x710, builds a reader over the payload, inits a decode context with FUN_146154030, then deserializes with FUN_1461ac8d0; on failure it logs through FUN_146b6c500. On success it reaches javelin_inbound_type_dispatch at 0x146b6ed39. Reached only through the thunk 0x146b71594 (jmp), which is why a direct-call xref scan finds nothing.",
+    "found_by": "E9 thunk scan (rel32.py) on 0x146b6eb70 + decompile"
+  },
+  "javelin_inbound_type_dispatch": {
+    "va": "0x146b6f190",
+    "end": "0x146b6fe1b",
+    "what": "Compares the decoded object type against ten known GUID branches. Known hits are handled inline (several call FUN_146b6c500 for a diagnostic). Everything else - including fragment type 8A40 (GUID 8a40aec2-ae07-4f92-9bf3-78fc0cc94fdf, payload vtable 0x1484ff1d8) and index 972 (DE1A18A9-...) - takes the fallback at 0x146b6fde3 and pushes the exact {object, owner} pair into the ring at proc+0x120.",
+    "found_by": "decompile; branch GUIDs resolved via their getters"
+  },
+  "javelin_fallback_ring_queue": {
+    "va": "0x146b6d090",
+    "what": "Getter for the proc+0x120 ring: returns {out[0]=proc+0x120, out[1]=proc+0x128} and bumps the strong refcount at [proc+0x128]+8. It is vtable slot 8 (+0x40) of the stream processor (stored at 0x148590af8) and has ZERO direct callers, so its only call sites are virtual 'call qword ptr [reg+0x40]'. Ring layout relative to proc+0x120: +0x00 owner thread id, +0x04 recursion, +0x08 SRW lock, +0x18 slot-pointer array, +0x20 capacity (power of two), +0x28 head, +0x30 count; each slot is a 16-byte {object, owner} pair.",
+    "found_by": "ptrscan + .pdata lookup of the vtable slot"
+  },
+  "javelin_ring_queue_owner": {
+    "va": "0x146b6d7a4",
+    "what": "Allocates the 0x48 refcounted ring-queue owner for proc+0x120/+0x128 (vtable 0x148591498, 42 slots = 12 own + 5 embedded 6-slot interface sub-vftables at 0x1485914f8/0x148591528/0x148591558/0x148591588/0x1485915b8). Layout: vptr+0x00, strong=1 at +0x08, weak=1 at +0x0C, queue at +0x10, SRW at +0x18, intrusive-list sentinel at +0x20. The pair stored at proc+0x120 is {owner+0x10, owner}. Dtor slot 0 = 0x146b713c0 (jmp FUN_146b6ac50(this+0x20)), scalar-deleting slot 2 = 0x146b6bd40 (frees 0x48).",
+    "found_by": "disasm of the alloc block in FUN_146b6d600 + vtable dump"
+  },
+  "javelin_fallback_ring_push": {
+    "va": "0x146b6bf50",
+    "end": "0x146b6c08b",
+    "what": "Pushes one {object, owner} pair into a ring queue. Same-thread fast path (gs:[0x48] == queue+0x00) bumps a recursion counter; otherwise AcquireSRWLockExclusive (IAT 0x147EC9350). Index = (capacity-1) & (count + head), head = (capacity-1) & head. Zeros the caller's pair and releases the owner refcount. Sole caller: the 0x146b6f190 fallback at 0x146b6fde3.",
+    "found_by": "disasm; single call site from callers_of"
+  },
+  "javelin_drain_ring_dispatch": {
+    "va": "0x146b6d180",
+    "end": "0x146b6d3d3",
+    "what": "THE inbound message dispatch. Pops {object, owner} LIFO from the ring at proc+0x50 (SRW lock, index = (capacity-1) & head), then per object: proc+0x48 = tick arg; call object->vtable[+0x30] (the type-GUID getter); FUN_140a174c0 turns the result into a 16-byte key; hash = FUN_14087cc20(key.lo ^ key.hi); bucket = proc+0x20[(hash & proc+0x38)] walked as 0x20-byte nodes with the key at +0x10/+0x18. On a hit it calls ((*(void**)node+0x20))[+0x08](node+0x28); on a miss it calls proc->vtable[+0x08]. Finally proc->vtable[+0x10] once per drain. Stops when proc+0x60 is set or the r8 budget is exhausted.",
+    "found_by": "field-set + SRW-IAT scan, then disasm; single caller is the frame tick"
+  },
+  "javelin_frame_tick_driver": {
+    "va": "0x145aa23f0",
+    "end": "0x145aa25c7",
+    "what": "Per-frame tick of the connection wrapper, which embeds the stream processor at +0xb0. Probes it with FUN_146b6d010 and, if live, calls FUN_146b6d180(processor+0xb0, tick_arg, 0) - i.e. this is the main-thread pump for the inbound object queue. Then FUN_145aa2f40 / FUN_145a99360 and the region/zone bookkeeping.",
+    "found_by": "callers_of 0x146b6d180"
+  },
+  "deferred_action_queue_drain": {
+    "va": "0x1416adce0",
+    "end": "0x1416ae46d",
+    "what": "Called once per frame by FUN_141733f70; drains main/staging queues at object+0x1b8/+0x1d8 in 0x50-byte batches. The limit is cvar javelin.deferred-actions-max-depth at _DAT_14a321a4c; runtime default was 0, clamped to one batch. Fresh PIDs 39284 and 39172 emitted the recursion warning, but read-only sampling found both queues empty at every drain entry and no target lookups. A fresh-process value-16 experiment on PID 45476/session 1058 did not stop warnings or restore the black view. The warning alone does not identify a persistent queued action or explain the missing actor.",
+    "found_by": "xref of 0x148041fd0 + decompile"
+  },
+  "deferred_action_target_resolver": {
+    "va": "0x1416aecc0",
+    "what": "Resolves a queued action's target entity ID; queue entry target ID is at +0x48 and its vtable is at +0x00. Read-only probe on fresh PID 39284 observed no resolver calls while the frame was black.",
+    "found_by": "xrefmap + decompile of deferred-action queue consumer"
   }
 }

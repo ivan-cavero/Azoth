@@ -23,6 +23,16 @@ Single monorepo (no git submodules). Pre-monorepo history lives in the archived 
 
 **Private** (Azoth): our launcher → `Bin64\NewWorld.exe` directly. Talks only to `services/gateway`. No exe patches.
 
+## Development loop
+
+Start from [`STATUS.md`](STATUS.md) for the current frontier. Use
+[`research/docs/DEVELOPMENT-LOOP.md`](research/docs/DEVELOPMENT-LOOP.md) to
+reproduce bugs, capture evidence, choose the fastest decisive test, and keep a
+regression for each fix. Current world-entry case:
+[`WORLD-DEBUGGING.md`](research/docs/WORLD-DEBUGGING.md) and
+[`WORLD-INVESTIGATION.md`](research/docs/WORLD-INVESTIGATION.md). The script
+entry points are indexed in [`scripts/README.md`](scripts/README.md).
+
 ## State
 
 `STATUS.md` (lean) + `research/atlas/` (RE memory). Historical sessions in `docs/sessions/`.

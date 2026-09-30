@@ -58,7 +58,10 @@ except ImportError:  # pragma: no cover — only without the dependency
 POST_V3_ENABLED = False
 
 REPO_ROOT = Path(__file__).resolve().parents[4]  # .../Azoth (src/azoth_world/ -> up 4)
-LOG_PATH = REPO_ROOT / "services" / "world" / "rep_traffic.jsonl"
+LOG_PATH = Path(
+    os.environ.get("AZOTH_REP_TRAFFIC_JSONL")
+    or REPO_ROOT / "services" / "world" / "rep_traffic.jsonl"
+)
 CERT_DIR = Path(__file__).resolve().parents[2] / "certs"  # services/world/certs
 
 # Captured official login replay (first-light, build 1.365). Replaying the
@@ -106,8 +109,8 @@ REPLAY_CHUNK_GAP_MS = float(os.environ.get("AZOTH_CHUNK_GAP_MS", "4"))
 # every attempt, so it is a protocol convention and not a race. Two readings
 # of the MF_CHUNKS `numChunks` u16 are possible: a countdown (12,11,...,1) or
 # the constant total (12,12,...,12). This knob selects which one we emit.
-#   countdown (default) = the binary's chunk-reassembly path per the old guess
-#   total               = every record carries the same count
+#   total (default) = every record carries the same count
+#   downcount       = each record carries the remaining chunk count
 REPLAY_CHUNK_COUNT_TOTAL = os.environ.get("AZOTH_CHUNK_COUNT", "total") == "total"
 # Post-replay heartbeat (type 0x15d). The capture shows the official server
 # pinging the client with a 12-byte ch0 message every ~1s:
@@ -134,6 +137,7 @@ HEARTBEAT_ENABLED = os.environ.get("AZOTH_REPLAY_HEARTBEAT", "1") != "0"
 # out in WaitingForREPConnection while this process logs nothing, so we cannot
 # tell "packets never arrived" from "DTLS rejected them". Off by default.
 RAW_LOG = os.environ.get("AZOTH_LOG_RAW", "0") != "0"
+OUTBOUND_PAYLOAD_LOG = os.environ.get("AZOTH_LOG_OUTBOUND_PAYLOADS", "1") != "0"
 HEARTBEAT_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_HEARTBEAT_PERIOD_S", "1.0"))
 # Captured tick of the LAST 0x15d the replay streamed (seq 0x8e).
 HEARTBEAT_TICK_START = int(
@@ -1081,7 +1085,7 @@ class PeerSession:
         Mirrors the V3 response wrap (ch=0, flag=0x21, VLQ32 length-prefixed
         body). The replay body already carries the [00 01 <type>] preamble,
         so it is forwarded verbatim. Bodies above the DTLS plaintext cap are
-        split with MF_CHUNKS (chunks-countdown convention).
+        split with MF_CHUNKS (total-count by default; countdown is selectable).
         """
         from .javelin.wire import chunk_replay_payload, encode_vlq32
 
@@ -1149,7 +1153,15 @@ class PeerSession:
                 num_chunks=(len(chunks) if REPLAY_CHUNK_COUNT_TOTAL else remaining),
                 flags_override=0x25,  # RELIABLE | CHUNKS | DATA_CHANNEL
             )
-            self._send_datagram(server, [rec])
+            self._send_datagram(
+                server,
+                [rec],
+                replay_chunk={
+                    "replay_seq": msg.seq,
+                    "chunk_index": i,
+                    "chunk_count": len(chunks),
+                },
+            )
             if REPLAY_CHUNK_GAP_MS > 0 and i + 1 < len(chunks):
                 # The client's Carrier queue drains on its own tick; a burst
                 # of N chunks overruns it and the reassembly truncates.
@@ -1165,19 +1177,31 @@ class PeerSession:
             }
         )
 
-    def _send_datagram(self, server, records: list[MessageRecord]) -> None:
+    def _send_datagram(
+        self,
+        server,
+        records: list[MessageRecord],
+        *,
+        replay_chunk: dict | None = None,
+    ) -> None:
+        carrier_seq = self.next_out_seq & 0xFFFF
         datagram = (
             b"\x80\x01"
-            + (self.next_out_seq & 0xFFFF).to_bytes(2, "big")
+            + carrier_seq.to_bytes(2, "big")
             + marshal_datagram(records)
         )
+        if replay_chunk is not None:
+            log_event(
+                {
+                    "event": "replay-chunk",
+                    "carrier_seq": carrier_seq,
+                    **replay_chunk,
+                }
+            )
         # Reliable records ride this datagram: keep it for retransmission
         # until the client's CT_ACKS bitmap covers it (GridMate WriteAckData).
         if any(rec.reliable for rec in records):
-            self.sent_reliable[self.next_out_seq & 0xFFFF] = (
-                time.monotonic(),
-                datagram,
-            )
+            self.sent_reliable[carrier_seq] = (time.monotonic(), datagram)
         self.next_out_seq += 1
         self.send(server, datagram)
 
@@ -1324,6 +1348,15 @@ class PeerSession:
             self.post_v3_sent = True
 
     def send(self, server, datagram: bytes) -> None:
+        if OUTBOUND_PAYLOAD_LOG:
+            event = describe_datagram(datagram)
+            event.pop("raw", None)
+            event.update(
+                event="outbound-app-data",
+                peer=f"{self.peer[0]}:{self.peer[1]}",
+                raw_full=datagram.hex(),
+            )
+            log_event(event)
         try:
             self.conn.send(datagram)
         except (SSL.WantReadError, SSL.WantWriteError):
@@ -1340,6 +1373,15 @@ class PeerSession:
                 return
             if not out:
                 return
+            if RAW_LOG:
+                log_event(
+                    {
+                        "event": "raw-datagram-out",
+                        "peer": f"{self.peer[0]}:{self.peer[1]}",
+                        "size": len(out),
+                        "raw_full": out.hex(),
+                    }
+                )
             server.sock.sendto(out, self.peer)
 
     def next_seq(self) -> int:  # legacy counter (kept for PlainRepServer)
@@ -1421,7 +1463,7 @@ class RepServer:
                             "event": "raw-datagram",
                             "peer": f"{peer[0]}:{peer[1]}",
                             "size": len(data),
-                            "head": data[:16].hex(),
+                            "raw_full": data.hex(),
                         }
                     )
             except TimeoutError:

@@ -13,6 +13,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import struct
 import sys
 from pathlib import Path
@@ -43,6 +45,44 @@ def build_map(pe: PE) -> dict[int, list[int]]:
     return out
 
 
+def cached_map(
+    exe: Path, pe: PE, cache: Path, *, rebuild: bool
+) -> dict[int, list[int]]:
+    """Persist the one-pass map per executable so later queries are O(1) loads."""
+    stat = exe.stat()
+    identity = {
+        "path": str(exe.resolve()),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }
+    if not rebuild and cache.is_file():
+        try:
+            saved = json.loads(cache.read_text(encoding="utf-8"))
+            if saved.get("exe") == identity:
+                print(
+                    f"reusing {len(saved['map'])} xref targets from {cache}",
+                    file=sys.stderr,
+                )
+                return {int(va, 16): offsets for va, offsets in saved["map"].items()}
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+
+    print("building xref map (one pass)...", file=sys.stderr)
+    result = build_map(pe)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "exe": identity,
+        "map": {f"{va:x}": offsets for va, offsets in result.items()},
+    }
+    temporary = cache.with_suffix(cache.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, separators=(",", ":")), encoding="utf-8"
+    )
+    temporary.replace(cache)
+    print(f"saved {len(result)} xref targets to {cache}", file=sys.stderr)
+    return result
+
+
 def dump_window(pe: PE, xmap: dict[int, list[int]], lo: int, hi: int) -> None:
     """Strings loaded by code whose VA falls in [lo, hi]."""
     text = pe.section(".text")
@@ -66,16 +106,19 @@ def dump_window(pe: PE, xmap: dict[int, list[int]], lo: int, hi: int) -> None:
 
 def xrefs_for(pe: PE, xmap: dict[int, list[int]], needles: list[str]) -> None:
     for n in needles:
-        offs = pe.find_all(n.encode() + b"\0")
+        needle = n.encode()
+        offs = pe.find_all(needle + b"\0") or pe.find_all(needle)
         if not offs:
-            print(f"{n!r}: not NUL-terminated anywhere")
+            print(f"{n!r}: not found in the executable")
             continue
         for fo in offs[:4]:
             va = pe.foff_to_va(fo)
             if va is None:
                 continue
             sites = xmap.get(va, [])
-            print(f"{n!r} @{hex(va)} xrefs={len(sites)} {[hex(s) for s in sites[:6]]}")
+            site_vas = [pe.foff_to_va(site) for site in sites[:6]]
+            rendered = [hex(site) if site is not None else "?" for site in site_vas]
+            print(f"{n!r} @{hex(va)} xrefs={len(sites)} {rendered}")
 
 
 def main() -> int:
@@ -85,12 +128,20 @@ def main() -> int:
     ap.add_argument("--hi")
     ap.add_argument("--needle", action="append", default=[])
     ap.add_argument("--exe")
+    ap.add_argument(
+        "--cache",
+        help="xref-map cache (default: %%LOCALAPPDATA%%/Azoth/decomp/xrefmap.json)",
+    )
+    ap.add_argument(
+        "--rebuild", action="store_true", help="discard and rebuild the cached map"
+    )
     args = ap.parse_args()
     p = default_paths()
-    pe = PE(Path(args.exe) if args.exe else p["exe"])
-    print("building xref map (one pass)...", file=sys.stderr)
-    xmap = build_map(pe)
-    print(f"map entries: {len(xmap)}", file=sys.stderr)
+    exe = Path(args.exe) if args.exe else p["exe"]
+    pe = PE(exe)
+    local = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Azoth" / "decomp"
+    cache = Path(args.cache) if args.cache else local / "xrefmap.json"
+    xmap = cached_map(exe, pe, cache, rebuild=args.rebuild)
     if args.mode == "dump":
         dump_window(pe, xmap, int(args.lo, 16), int(args.hi, 16))
     else:

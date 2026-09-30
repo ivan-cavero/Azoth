@@ -55,12 +55,24 @@ SYMBOLS_FILE = HERE.parents[1] / "derived" / "symbols.json"
 JAVA_SRC = GHIDRA_DIR / "DecompileTargets.java"
 CLASS_NAME = "DecompileTargets.class"
 
-# Where Ghidra lives / where its project goes. Overridable by env so another
-# machine (or a different Ghidra build) works without editing this file.
-GHIDRA_HOME = Path(
-    os.environ.get("GHIDRA_HOME", r"C:\Users\ivang\tools\ghidra_12.1.3_PUBLIC")
-)
-WORK = Path(os.environ.get("AZOTH_DECOMP_WORK", r"C:\Users\ivang\tools"))
+def resolve_ghidra_home() -> Path:
+    """Honor GHIDRA_HOME, otherwise discover an installed user tools copy."""
+    configured = os.environ.get("GHIDRA_HOME")
+    if configured:
+        return Path(configured)
+    tools_dir = Path(os.environ.get("USERPROFILE", Path.home())) / "tools"
+    candidates = sorted(
+        path
+        for path in tools_dir.glob("ghidra_*")
+        if (path / "support" / "analyzeHeadless.bat").is_file()
+    )
+    return candidates[-1] if candidates else Path()
+
+
+# Caches and queues default to the per-user application-data directory.
+GHIDRA_HOME = resolve_ghidra_home()
+LOCAL_DATA = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Azoth"
+WORK = Path(os.environ.get("AZOTH_DECOMP_WORK", str(LOCAL_DATA / "decomp")))
 PROJECT_DIR = WORK / "ghproj"
 PROJECT_NAME = "azoth"
 PROGRAM_NAME = "NewWorld.exe"
@@ -74,28 +86,14 @@ SERVER_LOG = WORK / "decomp-server.log"
 
 
 def resolve_jdk() -> Path:
-    """JDK 21 that actually exists. JAVA_HOME wins when its javac is real.
-
-    The old hardcoded 21.0.11 path is not installed on this machine; a missing
-    fallback made headless fail closed instead of using jdk-21.* under Adoptium.
-    """
+    """Return a configured JDK or the JDK containing javac on PATH."""
     env = os.environ.get("JAVA_HOME")
     if env and (Path(env) / "bin" / "javac.exe").is_file():
         return Path(env)
-    adoptium = Path(r"C:\Program Files\Eclipse Adoptium")
-    if adoptium.is_dir():
-        found = sorted(
-            (
-                p
-                for p in adoptium.glob("jdk-21*")
-                if (p / "bin" / "javac.exe").is_file()
-            ),
-            key=lambda p: p.name,
-            reverse=True,
-        )
-        if found:
-            return found[0]
-    return Path(env or str(adoptium / "jdk-21"))
+    javac = shutil.which("javac") or shutil.which("javac.exe")
+    if javac:
+        return Path(javac).resolve().parent.parent
+    return Path(env or "")
 
 
 def ghidra_paths() -> dict:
@@ -103,6 +101,34 @@ def ghidra_paths() -> dict:
         "headless": GHIDRA_HOME / "support" / "analyzeHeadless.bat",
         "jdk": resolve_jdk(),
     }
+
+
+def cmd_safe_args(args: list[str]) -> list[str]:
+    """Shorten existing paths containing parentheses before passing to cmd.exe.
+
+    Ghidra's launcher is a .bat file, so it must run through cmd.exe. The
+    Steam install path contains ``(x86)``; cmd parses those parentheses as
+    syntax unless the path is converted to its 8.3 alias first.
+    """
+    if sys.platform != "win32":
+        return args
+    import ctypes
+
+    get_short = ctypes.windll.kernel32.GetShortPathNameW
+    get_short.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint]
+    get_short.restype = ctypes.c_uint
+    safe: list[str] = []
+    for arg in args:
+        if "(" not in arg and ")" not in arg:
+            safe.append(arg)
+            continue
+        if not Path(arg).exists():
+            safe.append(arg)
+            continue
+        buf = ctypes.create_unicode_buffer(32768)
+        length = get_short(arg, buf, len(buf))
+        safe.append(buf.value if length and length < len(buf) else arg)
+    return safe
 
 
 def check_install() -> list[str]:
@@ -292,7 +318,7 @@ def run_ghidra(
         f"{len(ranges)} range(s) -> {out_file}"
     )
     res = subprocess.run(
-        ["cmd.exe", "/c", str(args[0]), *args[1:]],
+        ["cmd.exe", "/c", *cmd_safe_args([str(args[0]), *args[1:]])],
         env=env,
         capture_output=True,
         text=True,
@@ -390,7 +416,7 @@ def serve() -> int:
     log = SERVER_LOG.open("w", encoding="utf-8")
     print(f"[decomp] server starting; log {SERVER_LOG}")
     proc = subprocess.Popen(
-        ["cmd.exe", "/c", str(args[0]), *args[1:]],
+        ["cmd.exe", "/c", *cmd_safe_args([str(args[0]), *args[1:]])],
         env=env,
         stdout=log,
         stderr=subprocess.STDOUT,

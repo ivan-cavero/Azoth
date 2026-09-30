@@ -9,6 +9,9 @@
 | [SESSIONS.md](SESSIONS.md) | What came out of the 2026-09-06 captures |
 | [PROTOCOL.md](PROTOCOL.md) | DTLS, Carrier, RMI, spawn |
 | [DECOMPILATION.md](DECOMPILATION.md) | Decompilation workflow: tools, method, findings, tooling landscape |
+| [DEVELOPMENT-LOOP.md](DEVELOPMENT-LOOP.md) | Evidence-first workflow from reproducible bug to regression; test ladder for future features |
+| [WORLD-DEBUGGING.md](WORLD-DEBUGGING.md) | Repeatable fresh-process checklist for the black-screen/world-entry investigation |
+| [WORLD-INVESTIGATION.md](WORLD-INVESTIGATION.md) | Detailed measured findings and the current replica/bundle frontier |
 | [LESSONS.md](LESSONS.md) | Method errors that cost days (guessing vs decompiling, strict models, seed data, process hygiene) — read before any RE round |
 | [REP-PROTOCOL.md](REP-PROTOCOL.md) | Javelin REP wire: DTLS trust bypass, Carrier framing, V3 registration, post-V3 ladder |
 

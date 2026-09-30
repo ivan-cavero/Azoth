@@ -2,8 +2,10 @@
 summarized into the atlas.
 
 Outputs:
-- services/gateway/traffic.jsonl  one JSON line per request: method, path,
-  status, request headers/body, response body (gitignored, local only).
+- services/gateway/traffic.jsonl  readable request/response records with
+  compact body projections (gitignored, local only).
+- services/gateway/traffic-payloads/*.bin  exact request/response body bytes,
+  indexed by length and SHA-256 in the JSONL record (gitignored, local only).
 - research/atlas/observed-endpoints.json  tracked summary that grows as the
   client hits new endpoint families; includes one captured request/response
   example per family. Feed for scripts/gen_openapi.py.
@@ -14,10 +16,12 @@ Paths can be overridden with AZOTH_TRAFFIC_JSONL / AZOTH_ATLAS_JSONL (tests).
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import re
 import threading
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -26,7 +30,7 @@ _UUID_RE = re.compile(
 )
 _TOKEN_RE = re.compile(r"^(?:[0-9a-fA-F]{16,}|[A-Za-z0-9_-]{40,}|\d{6,})$")
 STEAM_APP_ID = "1063730"
-MAX_RAW_BYTES = 64 * 1024  # per body in traffic.jsonl
+MAX_RAW_BYTES = 64 * 1024  # readable inline projection; raw sidecars are exact
 MAX_EXAMPLE_BYTES = 4 * 1024  # per body example in the atlas summary
 
 SENSITIVE_HEADERS = {"authorization", "x-nw-auth", "x-amz-security-token"}
@@ -135,6 +139,10 @@ class TrafficLog:
     def __init__(self, jsonl_path: Path, atlas_path: Path) -> None:
         self.jsonl_path = Path(os.environ.get("AZOTH_TRAFFIC_JSONL") or jsonl_path)
         self.atlas_path = Path(os.environ.get("AZOTH_ATLAS_JSONL") or atlas_path)
+        self.payload_dir = Path(
+            os.environ.get("AZOTH_TRAFFIC_PAYLOAD_DIR")
+            or self.jsonl_path.with_name("traffic-payloads")
+        )
         self._lock = threading.Lock()
         self._hits: dict[str, dict] = {}
         self._seq = 0
@@ -184,11 +192,37 @@ class TrafficLog:
                 rec["req_body"] = _body_field(req_body, MAX_RAW_BYTES)
             if resp_body:
                 rec["resp_body"] = _body_field(resp_body, MAX_RAW_BYTES)
+            raw_payloads = self._write_raw_payloads(n, req_body, resp_body)
+            if raw_payloads:
+                rec["raw_payloads"] = raw_payloads
             with self.jsonl_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
             self._bump(norm, method, ts, req_body, resp_body)
         except OSError:
             pass
+
+    def _write_raw_payloads(
+        self, sequence: int, req_body: bytes, resp_body: bytes
+    ) -> dict[str, dict[str, object]]:
+        """Keep exact HTTP bodies in ignored local sidecars; inline JSON stays readable."""
+        capture_id = f"{sequence:08d}_{uuid.uuid4().hex}"
+        out: dict[str, dict[str, object]] = {}
+        try:
+            self.payload_dir.mkdir(parents=True, exist_ok=True)
+            for role, body in (("request", req_body), ("response", resp_body)):
+                if not body:
+                    continue
+                name = f"{capture_id}_{role}.bin"
+                (self.payload_dir / name).write_bytes(body)
+                out[role] = {
+                    "file": name,
+                    "length": len(body),
+                    "sha256": hashlib.sha256(body).hexdigest(),
+                }
+        except OSError:
+            # Preserve the traffic record even if local sidecar storage fails.
+            return {}
+        return out
 
     def _bump(
         self,

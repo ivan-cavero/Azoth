@@ -24,6 +24,9 @@
 | [SESSIONS.md](../research/docs/SESSIONS.md) | Live 2026-09-06 findings |
 | [PROTOCOL.md](../research/docs/PROTOCOL.md) | DTLS, Carrier, RMI |
 | [DECOMPILATION.md](../research/docs/DECOMPILATION.md) | Decompilation workflow (tools, method, findings) |
+| [DEVELOPMENT-LOOP.md](../research/docs/DEVELOPMENT-LOOP.md) | Reproducible evidence, fast test ladder, and regression workflow for all future features |
+| [WORLD-DEBUGGING.md](../research/docs/WORLD-DEBUGGING.md) | Fresh-process checklist for the current black-screen investigation |
+| [WORLD-INVESTIGATION.md](../research/docs/WORLD-INVESTIGATION.md) | Detailed world-entry evidence and current frontier |
 
 **Atlas (live RE memory):** [`research/atlas/`](../research/atlas/README.md) — endpoints, wire models, errors, debug levers, observed traffic + OpenAPI.
 Live schemas: `research/schemas/live/`. Fixtures: `research/fixtures/`. Working RE notes: `research/notes/`.

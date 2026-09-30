@@ -4,9 +4,9 @@ The client is the source of truth. When a string is not enough (which JSON key i
 reads, which predicate discards a world, what an error code means), you read the
 code. This document is the procedure and the tooling already installed.
 
-Target client: `[RETAIL].Javelin.1.400.6031.6004151`
-(`C:\Program Files (x86)\Steam\steamapps\common\New World\Bin64\NewWorld.exe`,
-179 MB, image base `0x140000000`).
+Target client: `[RETAIL].Javelin.1.400.6031.6004151` (179 MB, image base
+`0x140000000`). The executable location is resolved by `common.py` from the
+local game install; do not add machine-specific paths to scripts or docs.
 
 **Discipline (non-negotiable):** every confirmed finding goes into the atlas
 (`research/atlas/`) **at the moment of discovery** — key names, types, required/
@@ -20,17 +20,18 @@ the conversation, it does not exist. This is what makes the work cumulative.
 | --- | --- |
 | `peutil.py` | PE + function table (`.pdata`), callers (`call rel32`), strings by VA. **Start here.** |
 | `decomp.py` | Decompiles specific functions with Ghidra headless, caches the project. |
-| `xrefmap.py` | One-pass xref map (per-query scans timeout on 179 MB). |
+| `xrefmap.py` | One-pass xref map (per-query scans timeout on 179 MB); persists by executable size/mtime under `%LOCALAPPDATA%\Azoth\decomp\xrefmap.json`. |
 | `catalog.py` | Bulk dump: routes, models, enums, gRPC, config keys, hosts → `derived/*.json`. |
 | `ghidra/DecompileTargets.java` | Helper compiled and run inside Ghidra by `decomp.py`. |
 
 One-time install:
 
 ```powershell
-# Ghidra 12.1.3 + JDK 21 (already at C:\Users\ivang\tools\ghidra_12.1.3_PUBLIC)
-$env:GHIDRA_HOME = "C:\Users\ivang\tools\ghidra_12.1.3_PUBLIC"
-$env:JAVA_HOME   = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
-$env:AZOTH_DECOMP_WORK = "C:\Users\ivang\tools"   # Ghidra project + classes + logs
+# Ghidra is auto-discovered under %USERPROFILE%\tools\ghidra_*; set this only
+# when it is installed elsewhere. JDK resolves from JAVA_HOME or javac on PATH.
+$env:GHIDRA_HOME = "<path-to-ghidra-install>"
+# Optional override for the Ghidra project, classes, queue, and logs:
+$env:AZOTH_DECOMP_WORK = "$env:LOCALAPPDATA\Azoth\decomp"
 ```
 
 Verify (must print `OK`; otherwise trust nothing below):
@@ -90,7 +91,11 @@ python research/tools/reversing/decomp.py --stop
 ```
 
 `--serve` only `-process`es an existing project. The first open is still the
-slow part; each function after `ready` should be seconds, not a new JVM.
+slow part; each function after `ready` should be seconds, not a new JVM. For a
+focused RE session: import once with the first `--target`, start `--serve`, then
+batch symbols/targets/callers through that one server. `xrefmap.py` persists its
+map outside the repo, so later xref queries do not rescan the 179 MB executable.
+Pass `--rebuild` after replacing the executable or when debugging cache validity.
 
 ### 3. Record the finding
 
@@ -112,7 +117,7 @@ slow part; each function after `ready` should be seconds, not a new JVM.
 | **Binary Ninja** | Best-in-class HLIL API and decompiler UX, but paid. Not needed: our targets are JSON parsers and reflection tables, well within Ghidra's reach. |
 | **IDA Pro** | Industry king, priced for studios. Same verdict as Binary Ninja. |
 | **angr** | Symbolic execution. Overkill for wire-format RE; potentially useful later for finding predicate inputs (e.g. the world-filter check) if decompilation stalls. |
-| **x64dbg / Cheat Engine** | Live debugging only — forbidden while EAC is active (see `EAC.md`); valid against our own private build. |
+| **x64dbg / Cheat Engine** | Live debugging only — forbidden while EAC is active (see `EAC.md`); use only after confirming the private target process has EAC inactive. |
 
 ## Traffic capture: why our gateway beats a MITM proxy
 
@@ -122,15 +127,50 @@ then fights TLS and certificate pinning. We do not need any of that:
 1. **The client talks to OUR gateway** (hosts + local CA, private mode). We see every
    request and response **in plaintext** at the server — no pinning to defeat, no
    proxy certs, no baneable interception of Amazon traffic.
-2. **Full capture is built in** (`routes/traffic.py`): every request/response
-   (headers + bodies, auth redacted) lands in `services/gateway/traffic.jsonl`, and
-   `research/atlas/observed-endpoints.json` grows one entry per endpoint family with
-   a captured example.
+2. **Full body capture is built in** (`routes/traffic.py`): readable records and
+   redacted headers land in `services/gateway/traffic.jsonl`; exact request and
+   response body bytes are stored in ignored `services/gateway/traffic-payloads/`
+   sidecars with lengths and SHA-256 references. The atlas keeps compact examples.
+   For a world run, use `scripts/capture-world-run.py` to snapshot the Game.log,
+   one complete REP session, matching gateway traffic plus exact HTTP body
+   sidecars, ACK analysis, process hash, and optional probe log/reduced shot.
+   Raw payloads remain local because they can contain live identity/session data.
 3. **`python az.py doc`** renders `research/atlas/openapi.json` (OpenAPI 3.1) from
    that traffic — our equivalent of mitmproxy2swagger, but sourced from the server
    itself, so it is always exact.
 4. External capture (pktmon via `research/tools/capture/`) stays useful ONLY for
    official sessions (encrypted: gives IPs, ports, sizes, timing — never bodies).
+
+### Capture every boundary we own
+
+For a local test, server-side application logs are the authoritative payload
+capture: gateway request/response bodies are exact `.bin` sidecars, REP inbound
+records are post-DTLS plaintext, server sends are recorded before DTLS wrapping,
+and `AZOTH_LOG_RAW=1` keeps the matching encrypted UDP datagrams. This lets one
+attempt correlate encrypted carrier packet → decrypted stream → replay record
+without asking a packet dissector to guess the application protocol.
+
+Keep raw captures local: “full capture” can include login tokens, persona and
+character IDs, and binary account state. For long external packet captures, use
+bounded ring files and preserve the handshake/context packets that explain later
+traffic; ring rollover can split protocol context ([Wireshark capture-file
+guide](https://www.wireshark.org/docs/wsug_html_chunked/ChCapCaptureFiles.html)).
+
+Memory evidence should be boundary-scoped: capture function entry/exit,
+arguments, return value, and only the object fields needed to decide one
+hypothesis. Whole-process dumps or continuous high-volume hooks are slower,
+harder to correlate, and more sensitive than targeted snapshots. Revalidate the
+exact build and EAC state before every live probe.
+
+For this black frame, graphics profiling is a later branch. If the player-holder
+gets populated and the frame remains black, use Windows Performance Recorder
+with GPUView/WPA to separate CPU submission from GPU work ([Microsoft DirectX
+profiling guide](https://learn.microsoft.com/en-us/windows/win32/direct2d/profiling-directx-applications)).
+Current evidence instead has a null local-player holder, so first follow
+application dispatch and possession. Time Travel Debugging can record and replay
+a process backward, which may help if a specific field writer remains elusive,
+but recording adds overhead and stopping it terminates the process; reserve it
+for a focused private, EAC-free attempt ([TTD recording guide](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/time-travel-debugging-record)).
 
 Reference for the generic approach if ever needed offline: mitmproxy2swagger
 (converts mitmproxy flows to OpenAPI). We already have the better source.
