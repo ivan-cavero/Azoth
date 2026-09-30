@@ -30,12 +30,10 @@ DEFAULT_SERVER_VERSION = "[RETAIL].Javelin.1.400.6031.6004151"
 # server. Revert if the client then rejects the response entirely.
 DEFAULT_TRAILER = bytes.fromhex("00000000")
 # A/B knob: AZOTH_V3_TRAILER=official restores the captured `01 00 00 01`.
-# The official trailer sets two non-zero flags. They were cleared to dodge
-# `@mm_csdkerr_server_requires_anticheat` (2026-09-18), but that error is
-# handled by the eos-stub + the private build's anticheat patch, and the
-# cleared trailer is now the leading suspect for the local player never
-# binding: the snapshot arrives complete yet [mgr+8] (the local player
-# entity id) is never written.
+# Do not use it. Live 2026-09-27 18:40 the official trailer fails
+# registration outright (`@mm_csdkerr_registration_failed` /
+# `@eos_unknown_error`) and pops the main menu. It is not why [mgr+8]
+# stays empty. Keep 00 00 00 00.
 OFFICIAL_TRAILER = bytes.fromhex("01000001")
 if os.environ.get("AZOTH_V3_TRAILER", "").lower() == "official":
     DEFAULT_TRAILER = OFFICIAL_TRAILER

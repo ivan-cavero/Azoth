@@ -45,6 +45,23 @@ GAME_SECURITY: dict = {
     "eos-enable-gm-ac": False,
 }
 
+# Javelin portrayal gates (Ghidra, build 1.400, measured live 2026-09-28).
+# FUN_14178db00 (portrayal) calls the predicate FUN_146165f20 FIRST with the
+# entity key; on 0 it only logs and returns, so no GameSystemData is ever
+# inserted and the local-player actor is never built (94 portrayals, 0
+# creates). The predicate reads:
+#   javelin.offline-id-version == 1 -> pass iff key high32 == 0
+#   javelin.offline-id-version == 2 -> pass iff key odd (capitals on)
+#                                      or key % 8 == 1 (capitals off)
+#   anything else -> always 0.
+# Live keys are u64 (high32 != 0), so version 1 fails them all; version 2 +
+# capitals passes the odd ones (~19/30 portrayed). Without these keys the
+# client default leaves the gate closed and the world stays black/sky-only.
+JAVELIN: dict = {
+    "javelin.offline-id-version": 2,
+    "javelin.enable-offline-capitals": True,
+}
+
 
 def is_s3_path(path: str) -> bool:
     p = path.split("?", 1)[0]
@@ -67,11 +84,13 @@ def _game_security_doc() -> dict:
     # `game-security.enable-anticheat` and dotted copies are invisible
     # to that lookup → it JE-skips the store and the runtime default
     # stays true. Serve bare + nested + dotted on EVERY layer so a
-    # ProductId-first merge cannot keep the default.
+    # ProductId-first merge cannot keep the default. The javelin
+    # portrayal gates ride the same document (see JAVELIN above).
     doc = {"azoth": True, "game-security": GAME_SECURITY}
     for k, v in GAME_SECURITY.items():
         doc[k] = v
         doc[f"game-security.{k}"] = v
+    doc.update(JAVELIN)
     return doc
 
 

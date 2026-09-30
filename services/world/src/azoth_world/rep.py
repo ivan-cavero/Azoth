@@ -1059,12 +1059,12 @@ class PeerSession:
             payload=inner,
             sequence=seq,
             reliable_sequence=rel,
-            reliable=False,  # a heartbeat must never enter the resend table:
-            # tracking ~1/s of unacked reliable datagrams grew sent_reliable
-            # unbounded and the resend storm starved new DTLS handshakes
-            # (`@mm_csdkerr_connection_failed` on reconnect, 2026-09-27 02:34).
+            reliable=True,  # the official 0x15d stream is RELIABLE (the
+            # capture's R-direction pings arrive in order and the client
+            # advances its state on them; flags 0x20 made the client drop
+            # every post-replay heartbeat silently, 2026-09-30).
             connecting=False,
-            flags_override=0x20,  # DATA_CHANNEL only (unreliable)
+            flags_override=0x21,  # RELIABLE | DATA_CHANNEL, like the replay
         )
         self._send_datagram(server, [rec])
         log_event(
@@ -1084,6 +1084,17 @@ class PeerSession:
         split with MF_CHUNKS (chunks-countdown convention).
         """
         from .javelin.wire import chunk_replay_payload, encode_vlq32
+
+        # 2026-09-30: the duplicate LevelInfo (type 0x663) at replay seq 0x4d
+        # fires a SECOND LevelInfoChanged ~15 s after the first; from then on
+        # the message port reports clientContext == nullptr on EVERY bundle
+        # (no Cleanup() in the log — the duplicate swaps/replaces the context
+        # the port reads). Suppress the duplicate; the first (seq 0x10) stays.
+        # Allowlist env override for A/B: AZOTH_REPLAY_SEND_DUP_LEVELINFO=1.
+        if msg.seq == 0x4D and msg.type_id == 0x663:
+            if os.environ.get("AZOTH_REPLAY_SEND_DUP_LEVELINFO", "") != "1":
+                log_event({"event": "replay-skip-dup-levelinfo", "seq": msg.seq})
+                return
 
         body = msg.body
         inner = encode_vlq32(len(body)) + body
