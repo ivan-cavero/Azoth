@@ -4,7 +4,7 @@
 > RE findings: `research/atlas/` (endpoints, models, errors, levers, observed traffic + OpenAPI).
 > A new finding goes to the atlas, not here.
 
-## Where we are (2026-09-27)
+## Where we are (2026-09-30)
 
 - **The client is in the world and STAYS there.** After character select → queue → V3 → REP replay
   the client loads `NewWorld_VitaeEterna`, reaches `Lumberyard Connection State: "InGame"`, processes
@@ -20,23 +20,61 @@
   2. `AZOTH_REPLAY_SPLIT_SEQ=0x25` + `AZOTH_REPLAY_SPLIT_DELAY_S=10` — the 46 KB local-player bundle
      used to arrive 17 ms after `Initialize`, before the level existed, and was dropped. Only 1
      bundle is skipped now; the other 26 are queued and replayed once the context is up.
-  3. `rep.py` post-replay heartbeat (type `0x15d`) + `scripts/patch-timeout-watchdog.py` — the
-     official server pinged `0x15d` every ~1 s and the client echoed it; the capture ends, the
+  3. `rep.py` post-replay heartbeat (type `0x15d`, RELIABLE flags `0x21` since 2026-09-30 —
+     the old unreliable `0x20` form was ACKed at Carrier level but never processed: 0 pongs in
+     949k traffic lines; now 200/200 pongs match our ticks) + `scripts/patch-timeout-watchdog.py` —
+     the official server pinged `0x15d` every ~1 s and the client echoed it; the capture ends, the
      server went quiet, and the per-state watchdog (`FUN_146445E10`) forced
      `connection_ingame_timeout`. The heartbeat continues the exchange (stretched the window
      44 s → 58 s) and the watchdog patch (`0x146445EFB B001→B000`) stops it from reporting a timeout.
+     NOTE 2026-09-30: the heartbeat exchange works but the client still does not advance past
+     `State(InGame) is timeout` — it was a real bug, not the bug.
   4. `rep.py` DTLS **stale-session reset** — see "The REP flakiness was a server bug" below. Without
      it, most world attempts never got past `WaitingForREPConnection`.
-- **The player still cannot move: the local-player actor is never built.** The world area renders
-  black because there is no camera, and there is no camera because entity `id 13` (the local player)
-  exists in the entity table with a **corrupt actor vtable** (`nw+ffff800964c60001`, a kernel pointer)
-  while the other 13 nodes carry a valid one (`nw+8033f90`). Measured with
-  `scripts/frida-node-actors.py`. The exact guard chain is in `research/atlas/levers.md`; the short
-  version: the actor is built only for records whose parsed `interestId` is 1 (that passes 25 times),
-  and the build is then blocked by `[obj+0x18] >= 3` where the value is **2**. Forcing that branch
-  (`scripts/patch-actor-guard.py`) does **not** build the actor, so the record is genuinely missing
-  the third element. Next: find what `[obj+0x18]` is (the object comes from `0x146161960` with
-  `StateReplication` descriptors; `rdi` from `0x14615e0c0`).
+  5. `rep.py` suppresses the duplicate LevelInfo (type `0x663`) at replay seq `0x4d`
+     (2026-09-30, behind `AZOTH_REPLAY_SEND_DUP_LEVELINFO=1`). The second `LevelInfoChanged`
+     (~15 s after the first) swaps the context the message port reads: `clientContext == nullptr`
+     on every bundle after it, with no `Cleanup()` in the log. With the dup suppressed the context
+     stays alive — but the bundle pipeline stays dead anyway (next row).
+- **The world renders black because the local player is never possessed (not a camera problem).**
+  Measured live 2026-09-30 (fresh processes, all day): the manager table holds 13 real actors
+  (vtable `nw+8033f90`, standing at 9345-9354, 2721-2756, 83-88) + stub id `13`. Writing camera
+  positions (`+0x54/+0x64/+0x74`, world-scale `+0xc8/+0xcc/+0xd0`), orbiting 6 offsets, freezing
+  the view matrix — none of it draws anything: the matrix at `FUN_145f62e80+0x90` and the camera
+  source floats (`+0x78=1.309, +0x84=1.778, +0xb8=0.2, +0xd0=1024.0`) sit at frozen defaults.
+  The client sends ONLY `0x15d` pongs on W (1503x); the official client drives the world
+  (`0x102e/0x102f/0x192c/0x101d/0xf7f/0x66b/0x143d/0x1a59/0x12f6/0x635/0x5b2`). No player
+  controller exists client-side. `[mgr+8]` is a POINTER to the possessed holder object (the
+  per-frame asker `FUN_141042820`, sole gate caller, uses it directly as `rdi+0x38/+0x80` and
+  calls `[rdi+0x98]->+0xd8`), not a table key — stuffing a node id there interprets the id as
+  a pointer (luck-dependent crash/limp). `FUN_146801040` (table lookup, slot `+0x78`) is never
+  called by anyone. Sweeping all 13 ids (`scripts/frida-possess-all.py`) reaches `InGame` but
+  stays black. The actor factory `FUN_141563e20` has 1 caller (`0x1416957c0`) with 0 callers.
+  `Received new local player metadata` appears 0 times in every log.
+- **`[obj+0x18] >= 3` is a StateReplication trace level, not the actor constructor.** The block at
+  `0x1417182db` formats the log line `Received new local player metadata... newActorId=`. The same
+  macro gates every `StateReplication` trace (`edx` 1..4). The live value 2 suppresses categories
+  3 and 4. Forcing the branch does not build an actor because that code only emits a trace.
+  Do not chase a missing third fragment for this check. Next: who writes `[mgr+8]` / `[mgr+0x10]`
+  (the possessed-player holder). Stuffing a world actor into that slot is the wrong shape
+  (`FUN_1416af4b0` then reads `holder+0x60` as another holder) and crashed
+  `NewWorld.exe.17008.dmp` at `0x146800e47`.
+- **The replay does place world actors.** Live 2026-09-27 18:28: 13 actors, transform at
+  `+0x140`, standing together around (9330, 2750, 85). The interior drew during load, then the
+  view cleared. Writing one of those ids into `[mgr+8]` does not attach the camera. Node id 13
+  is not an actor. `AZOTH_V3_TRAILER=official` fails registration (`eos_unknown_error`); leave
+  the trailer at `00 00 00 00`. The actor copy-constructor is `FUN_14161b570`; `FUN_141563e20`
+  skips it when the prototype pointer is null. That is the remaining hole.
+- **The bundle pipeline dies after the first 26 (the live frontier).** Measured 2026-09-30 on
+  fresh processes: the server sends all 137 replay messages (`replay-complete-quiet`), the client
+  processes the first 26 (`ProcessPendingReliableMsgQueue processing 26 messages`, builds the 13
+  ambient actors) and then NOTHING — 0 calls to split `FUN_146af20d0`, visitor `FUN_141717fc0`,
+  portrayal, insert and create over minutes, even with a live context. The 46 KB init bundle
+  (seq `0x25`, 43 chunks) is never fully ACKed (chunk resends at try 1, reassembly stalls), so
+  every later message waits behind the hole: head-of-line blocking. The client reconnects every
+  ~18 min (`@mm_csdkerr_disconnect (4)`, transport death) and each session replays the same
+  shape. Next: why the 46 KB reassembly stalls (pacing? chunk-gap? the duplicate 46407 B
+  repeats at `0x2a+` that the client already has?).
 - **The REP flakiness was a server bug, not the client.** After a world attempt the client reuses its
   source port; the server fed the new ClientHello into the DTLS session it still held for that port,
   the old state machine swallowed it, the handshake never completed and the server logged **nothing**,
@@ -133,9 +171,9 @@ value that makes `Initialize` clean up the context it was just given.
     progress first (`ProcessPendingReliableMsgQueue processing 26 messages`): if the attempt never
     happened, every mid-function counter reads 0 and the hook looks broken. This cost several
     cycles before the fix in item 15 made the real cause visible.
-17. **Do not force the `[obj+0x18] >= 3` actor guard.** NOPing the branch at `0x1417182d5` does not
-    build the local-player actor (the entity table keeps `id 13` with the corrupt vtable), because
-    the record really is missing the third element. Understand the count, do not bypass it.
+17. **Do not force the `[obj+0x18] >= 3` branch.** That compare is the StateReplication trace
+    level (`FUN_146165ff0`). The block it guards only formats a log line. NOPing it does not build
+    an actor. The camera stays black because `[mgr+8]` is never written.
 
 ## Ops / environment notes
 
