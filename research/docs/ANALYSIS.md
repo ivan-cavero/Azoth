@@ -80,7 +80,7 @@ New World/
   engine.json                   # LumberyardVersion 1.12.0.1
 ```
 
-The PAKs are **ZIP** (`PK\x03\x04`). They can be listed and extracted with any ZIP tool. That is the path to custom content, not patching the exe.
+The PAKs are **ZIP** (`PK\x03\x04`). Any ZIP tool lists them; extraction is method-dependent. 93.5% of the 1,413,205 entries use compression method **15**, which stdlib `zipfile` refuses and which is not in public Lumberyard. Measured method table, evidence, and what is still unidentified: [PAK-FORMAT.md](PAK-FORMAT.md).
 
 User data:
 

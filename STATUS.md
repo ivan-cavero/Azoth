@@ -1,6 +1,13 @@
 # Azoth — live status
 
-Last updated: 2026-09-30. This is the short project dashboard; detailed world findings live in [WORLD-INVESTIGATION.md](research/docs/WORLD-INVESTIGATION.md).
+Last updated: 2026-10-01. This is the short project dashboard; detailed world findings live in [WORLD-INVESTIGATION.md](research/docs/WORLD-INVESTIGATION.md).
+
+## Decompilation program (layer 1 running)
+
+- Ghidra 12.1.4 is installed at `%USERPROFILE%\tools\ghidra_12.1.4_PUBLIC`; `decomp.py --selftest` is green and `ghproj` is imported. Progress and resume steps: [DECOMP-PLAN.md](research/docs/DECOMP-PLAN.md).
+- The full code corpus is dumping 423,579 `.pdata` functions to `%LOCALAPPDATA%\Azoth\decomp\corpus\8654f01d324636d9\`. Trust `progress.json` over any prose. **Do not start a second Ghidra on `ghproj`, and do not scan the PAK tree, while it runs.**
+- Layer 2 is measured: the PAKs are standard ZIPs, 1,413,205 entries, but compression method 15 covers 93.5% of them and is still unidentified. Read [PAK-FORMAT.md](research/docs/PAK-FORMAT.md) before planning any content edit.
+- Task tracking for both layers: `odd/tasks/decomp-corpus.md`, `odd/tasks/pak-index.md`.
 
 ## Current blocker
 
