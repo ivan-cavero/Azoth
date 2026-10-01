@@ -11,10 +11,11 @@ Last updated: 2026-09-30. This is the short project dashboard; detailed world fi
 
 ## Start here
 
-1. Read [the world investigation](research/docs/WORLD-INVESTIGATION.md) for the measured frontier and closed hypotheses.
-2. Use [the decompilation workflow](research/docs/DECOMPILATION.md) and keep Ghidra's `decomp.py --serve` running during a RE session.
-3. Keep confirmed wire facts in `research/atlas/`; confirmed function addresses in `research/derived/symbols.json`.
-4. For each live A/B, start from one fresh game process and keep the matching `Game.log` and `services/world/rep_traffic.jsonl`; see [World debugging](research/docs/WORLD-DEBUGGING.md).
+1. Read [the decompilation plan](research/docs/DECOMP-PLAN.md) for the long-term program (code corpus, PAK index, loaders, protocol captures) and how to resume a cut session.
+2. Read [the world investigation](research/docs/WORLD-INVESTIGATION.md) for the measured frontier and closed hypotheses.
+3. Use [the decompilation workflow](research/docs/DECOMPILATION.md) and keep Ghidra's `decomp.py --serve` running during a RE session. While the bulk corpus is running it already holds the Ghidra project; do not start a second one.
+4. Keep confirmed wire facts in `research/atlas/`; confirmed function addresses in `research/derived/symbols.json`.
+5. For each live A/B, start from one fresh game process and keep the matching `Game.log` and `services/world/rep_traffic.jsonl`; see [World debugging](research/docs/WORLD-DEBUGGING.md).
 
 ## Project map
 

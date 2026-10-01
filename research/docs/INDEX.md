@@ -2,6 +2,7 @@
 
 | Doc | What it covers |
 | --- | --- |
+| [DECOMP-PLAN.md](DECOMP-PLAN.md) | Long-term program: code corpus, PAK index, named loaders, protocol captures. Read this first if a session was cut |
 | [ANALYSIS.md](ANALYSIS.md) | How the client is built: Lumberyard, Javelin, login, PAKs, GridMate |
 | [CAPTURE.md](CAPTURE.md) | Passive capture kit: usage and what to record |
 | [EAC.md](EAC.md) | Why there is no ReadProcessMemory while on official |

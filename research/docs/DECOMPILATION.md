@@ -1,5 +1,8 @@
 # Decompilation — how to extract anything from the client
 
+The long-term program (why we are decompiling, the corpus path, and how to
+resume) is [DECOMP-PLAN.md](DECOMP-PLAN.md). This file is the tool procedure.
+
 The client is the source of truth. When a string is not enough (which JSON key it
 reads, which predicate discards a world, what an error code means), you read the
 code. This document is the procedure and the tooling already installed.
