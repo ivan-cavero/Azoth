@@ -7,9 +7,20 @@ measured findings and closed hypotheses are in
 
 ## Current diagnosis
 
-Latest fresh run: PID 39172, REP session 1059 at 2026-09-30 14:29Z. It loaded
+**The world now renders with the local player possessed (2026-10-02, PID 25952 /
+REP session 232).** The black-`InGame` chain ended at one redacted identity in the
+replay: the local-player gate compares the UUID of a `PlayerComponentClientFacet`
+record against the character UUID in the client's local option store, and the
+capture zeroed exactly the author's own facet UUID while every other player's is
+in clear text. Fix: `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`. Evidence:
+`research/sessions/world_20261002T065937Z_pid25952_session232/` (the run without
+the fix is `research/sessions/world_20261001T212843Z_pid28656_session222/`).
+The frontier moved to movement, inventory and the remaining warnings — see
+[WORLD-INVESTIGATION.md](WORLD-INVESTIGATION.md).
+
+Historical (2026-09-30, kept for the method): PID 39172, REP session 1059 loaded
 `NewWorld_VitaeEterna`, drained 26 queued messages, and initialized
-`GDERenderManager`; the captured frame is black, followed by
+`GDERenderManager`; the captured frame was black, followed by
 `State(InGame) is timeout`. The record-1 handler changed `state+0x618` from null
 to non-null pointers, but manager `+0x08/+0x10` stayed null. The burst probe
 counted 283 splits/visits (IDs 1–94), 94 portrayals, 148 table inserts, zero
@@ -44,6 +55,37 @@ The main signals to keep distinct:
 | `rep_traffic.jsonl` replay sends/retries and `Game.log` bundle drain | Whether the server sent the data and whether the client progressed past the reliable-message queue. |
 | `Received new local player metadata` trace / holder writes | The trace is category 3 and suppressed at this run's level; use actual holder evidence, not absence of that log line. PID 45592's one-shot getter probe captured both the holder entity and ready pointer as null. |
 | `clientContext == nullptr` | Check for preceding `Cleanup()` or the delayed duplicate `LevelInfo`; this can be a consequence, not the root cause. |
+
+## Automating the attempt (measured 2026-10-01)
+
+The client enters the world on its own; no human click is required. Launching
+`services/launcher/src/Start-NwPrivate.ps1 -Watch` (what `python az.py game`
+does) is enough. Measured twice on fresh processes: PID 17988 reached
+`WaitingForSpawnPoint -> WaitingForPlayerSpawn` 2 min after launch (saved queue
+ticket) and PID 23200 walked the full
+`QueueGameLogin -> WaitingForQueuedLogin -> QueryForRemoteConfigClass ->
+StartREPConnection -> WaitingForREPConnection -> WaitingForActorGameConnection ->
+WaitingForSpawnPoint -> WaitingForPlayerSpawn -> InGame` ladder 17 min after
+launch. With the launcher patches applied, `WaitingForPlayerSpawn -> InGame`
+takes 33 ms (`scripts/frida-rep-force-ladder.py` forces it).
+
+Consequences for the loop:
+
+1. **Attach every Frida probe within the first seconds of the process.** The
+   probes hook an already-mapped module, so wait for `NewWorld.exe` and a
+   working set above ~200 MB, then attach. PID 17988's first attempt was reached
+   with the probes attached 90 s late and every counter read 0; that is an
+   attach-timing artifact, not a dead pipeline.
+2. **`Game.log` is truncated or rotated at launch.** Saving the file size before
+   launching does not delimit the run; read by content (the last
+   `Executable: NewWorld.exe`) or by timestamp.
+3. **`python az.py dev` does not forward `AZOTH_LOG_RAW`.** Its own environment
+   wins, so the world server logs no `raw-datagram` rows. Start the world server
+   (or the whole dev stack) with the variable already exported if the raw
+   datagrams are needed.
+4. **Kill the game with a verified command.** A `Get-CimInstance … -match`
+   pipeline written with unbalanced PowerShell braces fails silently and the
+   "new" attempt silently reuses the previous process. Confirm the PID changed.
 
 ## One valid A/B attempt
 

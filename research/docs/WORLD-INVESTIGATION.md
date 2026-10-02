@@ -1,4 +1,4 @@
-# World entry investigation — snapshot 2026-09-30
+# World entry investigation — snapshot 2026-10-02
 
 This is the detailed evidence snapshot extracted from the project dashboard.
 For the current short frontier see [`../../STATUS.md`](../../STATUS.md); for the
@@ -8,7 +8,71 @@ repeatable attempt checklist see [`WORLD-DEBUGGING.md`](WORLD-DEBUGGING.md).
 > RE findings: `research/atlas/` (endpoints, models, errors, levers, observed traffic + OpenAPI).
 > A new finding goes to the atlas, not here.
 
-## Where we are (2026-09-30)
+## RESOLVED 2026-10-02: the world renders and the local player is possessed
+
+The black-`InGame` blocker is **solved**. Fresh PID 25952 / REP session 232 rendered
+`NewWorld_VitaeEterna` with the local player in it. The cause was one redacted identity
+in the replayed capture and the fix is one targeted substitution:
+**`AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`**
+(`javelin/replay_store.py::fill_local_player_uuid`). See the table and the new frontier
+right below, and `research/atlas/levers.md` for the lever entry.
+
+## Where we are (2026-10-02)
+
+- **SOLVED: the world renders and the local player is possessed (2026-10-02, fresh PID 25952 /
+  REP session 232).** The whole "black InGame" chain terminated at one redacted identity in the
+  replay. The local-player gate compares the UUID carried by a `PlayerComponentClientFacet` record
+  against the character UUID in the client's local option store; in the capture **every player's
+  facet carries that UUID in clear text except the capture author's own, which is redacted to
+  zeros** — and that record is the one that must be ours. The slot is unambiguous: a redacted
+  16-byte span immediately followed by that record's length-prefixed display name
+  (`<16 zero bytes> <len> <name>`; in the 46 KB bundles the other two 16-byte spans are followed by
+  `0x18`/non-printable bytes instead). Fix: `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`
+  (`javelin/replay_store.py::fill_local_player_uuid`). Measured effect, same probe, same code path:
+
+  | Signal | Before (session 222) | After (session 232) |
+  | --- | --- | --- |
+  | `writerStatus1` / `writerStatus2` | 0 / 26 | 2 / 24 |
+  | `managerSetContext` | 0 | 2 |
+  | manager `+0x08` / `+0x10` | `0x0` / `0x0` | `0x20e4df0a800` / `0x20cd63a8eb9` |
+  | record-1 slot `state+0x618` | null | non-null |
+  | portrayal-table inserts | 148 | 226 |
+
+  Evidence: `research/sessions/world_20261002T065937Z_pid25952_session232/`; the before-run is
+  `research/sessions/world_20261001T212843Z_pid28656_session222/`.
+- **NEW FRONTIER (what is still missing, all measured 2026-10-02 on session 232):**
+  1. **No movement.** The client emits a constant ~21 messages/s regardless of input (measured
+     over 45 s: 105/105/105 idle vs 104/106/105/105 with WASD held), and the game window **does**
+     have keyboard focus (`GetForegroundWindow` = `New World`, pid 25952). So input reaches the
+     client and produces no state change: the player is a replica the client renders, with no
+     input-driven local controller bound.
+  2. **No inventory.** 23 `RMIDispatch` errors, all
+     `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`: the replay addresses storage
+     facets that do not exist locally.
+  3. **26 `slices/remoteplayer.dynamicslice` warnings** ("Couldn't get Transform component on the
+     slice!") — the other players' actors, not the local one.
+  4. **`State(InGame) is timeout` still fires every 30 s**; `scripts/patch-timeout-watchdog.py`
+     patches a different site than the one reporting.
+- **The GATE MECHANISM chain, confirmed by measurement (2026-10-01/02).** `FUN_146929DF0` writes
+  gate status `state+0x318`. It first looks up a value in a **thread-local** option store
+  (`FUN_140FCA4E0` over `FUN_141027E40`); no entry → status 2 with no comparison at all. With an
+  entry it compares (size, then `memcmp`) that value with `entity+0x7d0`; equal → status 1. Two
+  empty strings compare equal, so the requirement is "the store has an entry", not "both sides are
+  non-empty". Measured on the before-run: 26 writer calls, **26 local lookups hit**, 26 status 2 —
+  i.e. the store side was fine and the compared value was the zero-filled (redacted) wire UUID.
+  On status 1 the gate `FUN_146764CD0` sets latch `+0x31d=1` and calls two setters:
+  `FUN_141025F70()` vtable `+0x20` with `FUN_1416BC930(state)+0x20`, and the manager
+  `FUN_141026080()` vtable `+0x10` (the context setter) with `FUN_1406C6A00(state)`. Its only
+  caller `FUN_14683C8D0` (facet vtable `0x148535728` slot `+0xb0`) fires the writer when
+  `*(entity+0x7c0)->vtable[0x60]()` or `*(entity+0x870)->vtable[0x60]()` reports a value, passing
+  `entity+0x7d0` (the wire UUID) and `entity+0x880` (the display name). Pseudocode:
+  `research/derived/decomp/gate-chain.c`; landmarks in `research/derived/symbols.json`.
+- **FIELD SHAPE confirmed on the wire (2026-10-02).** In each player's facet record the UUID is
+  immediately followed by `[u8 len][name]`: other players show
+  `45 29 88 c6 … 45 e6 | 07 | "Unusual"`, the local player shows
+  `<16 zero bytes> | 0a | "Mixed Nuts"`. The same UUID also appears in clear text in the
+  smaller per-player bundles (seqs `0x77/0x79/0x7b/0x80/0x84` and their repeats), which is how the
+  slot was identified.
 
 - **GATE MECHANISM SOLVED (static + live, 2026-09-30 evening).** The manager-context setter
   `FUN_146928D80` runs only when gate `FUN_146764CD0` sees status `+0x318 == 1`. The ONLY writer
@@ -27,6 +91,28 @@ repeatable attempt checklist see [`WORLD-DEBUGGING.md`](WORLD-DEBUGGING.md).
   is the option-presence flag + string** — candidates: a later record of seq `0x25` (records
   2–94) or a fragment of `0x29`/`0x2a`. Next A/B: inject a shaped option fragment into record 1
   and watch `[slot+0xa0]` + gate status.
+- **GATE MECHANISM RE-READ FROM PSEUDOCODE (2026-10-01, corpus complete).** The full-client
+  decompilation finished (`%LOCALAPPDATA%\Azoth\decomp\corpus\8654f01d324636d9`, `status=complete`,
+  423579 functions), so this chain is now read instead of inferred. Corrections to the bullet above:
+  (1) `FUN_146929DF0` writes `+0x318` in two steps — if the local option lookup
+  `FUN_140FCA4E0(out, key)` reports "no value", status is 2 **without ever comparing the wire
+  string**; only when the lookup has a value does it compare (size, then `memcmp`) that value with
+  `entity+0x7d0`. (2) Two empty strings compare **equal**, so the requirement is not "both sides
+  non-empty" but "the local store has an entry". (3) The store is **thread-local**, not a global
+  options document (`FUN_141027E40`, TLS slot `_DAT_14e85384`, vtable `0x147f20210`, provider list at
+  `+0x20`, value map at `+0x58`). (4) On status 1 the gate `FUN_146764CD0` sets latch `+0x31d=1` and
+  calls **two** setters: `FUN_141025F70()` vtable `+0x20` with `FUN_1416BC930(state)+0x20`, and the
+  manager `FUN_141026080()` vtable `+0x10` (context setter) with `FUN_1406C6A00(state)`; on status
+  != 1 it skips both and only raises event `UNK_1468918C0`. (5) The writer's only caller
+  `FUN_14683C8D0` (facet vtable `0x148535728` slot `+0xb0`) fires it only when
+  `*(entity+0x7c0)->vtable[0x60]()` or `*(entity+0x870)->vtable[0x60]()` reports a present value, and
+  passes `entity+0x7d0` (wire string) and `entity+0x880` (value applied on success). The pseudocode
+  is cached at `research/derived/decomp/gate-chain.c` and the landmarks are in
+  `research/derived/symbols.json` (`local_option_gate_status_writer`, `local_option_lookup`,
+  `local_option_store_thread_local`, `facet_option_apply_from_entity`). **Consequence for the next
+  measurement: the 39 status-2 dispatches are ambiguous — they may be the "local store has no
+  entry" path rather than a wire-string mismatch. Watch the two arms of `FUN_146929DF0`
+  separately.**
 - **True AZ wire VLQ (settles the `8e 4c` question).** `FUN_14087B5C0`: `b0<0x80: v=b0`;
   `0x80..0xBF: v=((b0>>1)&0x3f)<<7 | (b1&0x7f)` — the follow byte is the HIGH part
   (`8e 4c -> 972` verified). `0xC0..0xDF: v=((b2<<8|b1)<<5)|(b0&0x1f)`;

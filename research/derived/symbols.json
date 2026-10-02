@@ -75,10 +75,40 @@
     "what": "Manager context/local-player getter at vtable slot +0x30. Read-only captures on fresh PIDs 39284, 45592, and 39172 observed manager+0x08 and manager+0x10 as NULL after record-1 metadata produced non-null state-slot objects. Static vtable analysis identifies an indirect manager-context setter at slot +0x10 (FUN_146928d80); its caller gate was not satisfied during PID 39172's replay. The precise pointee type and StateBundle input that should activate the setter remain unresolved.",
     "found_by": "Ghidra vtable analysis + scripts/frida-player-holder-snapshot.py after checking the exact private process had no EAC service/module"
   },
+  "local_player_facet_uuid_field": {
+    "va": "0x14683c8d0",
+    "what": "The two string fields the possession gate reads on a player's facet entity, confirmed on the wire 2026-10-02: entity+0x7d0 = the player UUID (16 raw bytes formatted as a dashed GUID) and entity+0x880 = the display name. In every player's facet record the UUID is immediately followed by `[u8 len][name]`: other players show `45 29 88 c6 ... 45 e6 | 07 | \"Unusual\"`, the capture author's own record shows `<16 ZERO bytes> | 0a | \"Mixed Nuts\"` - i.e. the capture redacted the author's own UUID. The gate compares entity+0x7d0 with the character UUID in the client's local option store, so a zeroed span means the comparison can never succeed and the player is never possessed. Fix: world env AZOTH_REPLAY_LOCAL_PLAYER_UUID=character (javelin/replay_store.py::fill_local_player_uuid), which selects the redacted 16-byte span that is followed by a length-prefixed printable name. VERIFIED 2026-10-02 PID 25952/session 232: the world renders with the local player in it.",
+    "found_by": "wire analysis of the capture's redacted spans (services/world/replay/messages-redacted.txt) cross-checked with the live Frida samples of FUN_146929df0's two string arguments"
+  },
   "local_player_context_manager_dispatch": {
     "va": "0x146764cd0",
-    "what": "Common state gate that can call the manager vtable slot +0x10. Manager vtable 0x148559dc0 resolves that slot to FUN_146928d80, which stores its second argument at manager+0x08, copies a shared reference from context+0x48/+0x50 into manager+0x10/+0x18, then calls slot +0x20. The dispatch calls the setter only when state+0x318 == 1, state+0x31c != 0, and state+0x31d == 0. Fresh PID 39172/REP session 1059 observed 39 dispatch entries, each with status 2, zero setter calls, zero local-player prototype-builder calls, and zero known actor-factory calls. These state objects are generic; their status-2 readings do not yet identify the missing local-player state.",
-    "found_by": "Ghidra decompile of FUN_146764cd0 and the manager vtable, then read-only burst hooks in scripts/frida-burst-capture.py"
+    "end": "0x146764f8e",
+    "what": "Common state gate that can call the manager vtable slot +0x10. Manager vtable 0x148559dc0 resolves that slot to FUN_146928d80, which stores its second argument at manager+0x08, copies a shared reference from context+0x48/+0x50 into manager+0x10/+0x18, then calls slot +0x20. The dispatch calls the setter only when state+0x318 == 1, state+0x31c != 0, and state+0x31d == 0. Fresh PID 39172/REP session 1059 observed 39 dispatch entries, each with status 2, zero setter calls, zero local-player prototype-builder calls, and zero known actor-factory calls. These state objects are generic; their status-2 readings do not yet identify the missing local-player state. CORRECTED 2026-10-01 from Ghidra pseudocode: on status 1 the gate sets the one-shot latch state+0x31d = 1, then calls TWO setters - FUN_141025f70() vtable+0x20 with FUN_1416bc930(state)+0x20, and the manager FUN_141026080() vtable+0x10 (the context setter) with the context object FUN_1406c6a00(state) - then raises event UNK_1468918c0 via FUN_1466274a0(FUN_1416af450(state)). On status != 1 it skips both setters and only raises that event. So status is written by FUN_146929df0, and 1 means 'the wire option value equals the local option value' (see local_option_gate_status_writer).",
+    "found_by": "Ghidra decompile of FUN_146764cd0 and the manager vtable, then read-only burst hooks in scripts/frida-burst-capture.py; pseudocode re-read 2026-10-01 after the corpus completed"
+  },
+  "local_option_gate_status_writer": {
+    "va": "0x146929df0",
+    "end": "0x14692a1f1",
+    "what": "Sole writer of the gate status at state+0x318, called from FUN_14683c8d0 (PlayerComponentClientFacet vtable 0x148535728 slot +0xb0). Pseudocode: (1) looks up a local option value with FUN_140fca4e0(out_optional_string, &string_view{data=&UNK_1405717f0, size=0}); if the returned 'has value' byte is 0 it writes status 2. (2) Otherwise it compares that value with param_2 (a std::string) by size then memcmp, and writes status = (equal ? 1 : 2) - note that two EMPTY strings compare equal, so the docs' earlier 'both sides must be non-empty' wording is wrong; what is required is that the local store HAS an entry for the key. (3) It then calls the gate FUN_146764cd0(state) itself. (4) When status == 1 it also registers into a list at state+0x270/+0x288/+0x290 and dispatches through FUN_1416af4b0(*(state+8)) + FUN_14664c760(..., param_2, param_3). (5) When status != 1 it only logs via FUN_14664eab0(*(state+8)+0x58, ..., UNK_147f7f620). So: param_1 = the facet/state object whose +0x318 is the status, param_2 = entity+0x7d0 (the wire option string), param_3 = entity+0x880 (the value applied on success).",
+    "found_by": "Ghidra pseudocode 2026-10-01 (corpus 8654f01d324636d9 complete) + capstone disasm of the same range"
+  },
+  "facet_option_apply_from_entity": {
+    "va": "0x14683c8d0",
+    "end": "0x14683d749",
+    "what": "PlayerComponentClientFacet vtable 0x148535728 slot +0xb0, reached once per facet. Reads the raw facet entity (param_2, the 0xb20-byte pool object) and forwards its fields to the client component FUN_1406c6a00(facet). The option branch is the decisive one: it probes *(entity+0x7c0)->vtable[0x60]() and, when that is empty, *(entity+0x870)->vtable[0x60](); if either reports a present value it calls FUN_146929df0(facet, entity+0x7d0, entity+0x880). Everything else in the function copies entity fields into component offsets (+0x4b8, +0x490, +0x4f0, +0x510..+0x520) and drives FUN_1465f2430 / FUN_1402bafb0. So the wire source of both strings is the fragment that fills the facet entity slots +0x7c0/+0x7d0 and +0x870/+0x880.",
+    "found_by": "Ghidra pseudocode 2026-10-01 (corpus complete)"
+  },
+  "local_option_lookup": {
+    "va": "0x140fca4e0",
+    "end": "0x140fca7fb",
+    "what": "Looks up a local option value: gets the per-thread store with FUN_141027e40(), and if a provider exists at store+0x90 it calls FUN_140fdfd00(store+0x58, 0, 0, 0, out, key16) with a 16-byte key copy of its second argument; a hit returns non-zero with the found flag set. Otherwise it walks a list at store+0x20 (0x18-byte entries, guarded by an SRW lock at store+0x48) to build the string. Writing the k-th entry's value into the out std::optional<string>. The key used by FUN_146929df0 is the constant {data = &UNK_1405717f0, size = 0}.",
+    "found_by": "Ghidra pseudocode 2026-10-01 (corpus complete)"
+  },
+  "local_option_store_thread_local": {
+    "va": "0x141027e40",
+    "end": "0x141027eb7",
+    "what": "Getter of the option store that FUN_140fca4e0 reads. NOT a process-global: it is a thread-local holder (_DAT_14a2fb8a8, allocated through FUN_140fcfec0 with the TLS slot _DAT_14e85384), lazily created per thread, with a vtable at 0x147f20210, an SRW lock at +0x48, a provider list at +0x20 and a value map at +0x58. Do not model it as a global options document; anything that fills it is per-thread state.",
+    "found_by": "Ghidra pseudocode 2026-10-01 (corpus complete) + the TLS allocator call shape"
   },
   "replica_portrayal_update": {
     "va": "0x14178db00",

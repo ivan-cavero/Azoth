@@ -1,28 +1,66 @@
 # Azoth — live status
 
-Last updated: 2026-10-01. This is the short project dashboard; detailed world findings live in [WORLD-INVESTIGATION.md](research/docs/WORLD-INVESTIGATION.md).
+Last updated: 2026-10-02. This is the short project dashboard; detailed world findings live in [WORLD-INVESTIGATION.md](research/docs/WORLD-INVESTIGATION.md).
 
-## Decompilation program (layer 1 running)
+## Current state: **the world renders and the player is in it**
 
-- Ghidra 12.1.4 is installed at `%USERPROFILE%\tools\ghidra_12.1.4_PUBLIC`; `decomp.py --selftest` is green and `ghproj` is imported. Progress and resume steps: [DECOMP-PLAN.md](research/docs/DECOMP-PLAN.md).
-- The full code corpus is dumping 423,579 `.pdata` functions to `%LOCALAPPDATA%\Azoth\decomp\corpus\8654f01d324636d9\`. Trust `progress.json` over any prose. **Do not start a second Ghidra on `ghproj`, and do not scan the PAK tree, while it runs.**
-- Layer 2 is measured: the PAKs are standard ZIPs, 1,413,205 entries, but compression method 15 covers 93.5% of them and is still unidentified. Read [PAK-FORMAT.md](research/docs/PAK-FORMAT.md) before planning any content edit.
-- Task tracking for both layers: `odd/tasks/decomp-corpus.md`, `odd/tasks/pak-index.md`.
+On 2026-10-02 the client entered `NewWorld_VitaeEterna` and rendered the world with
+the local player possessed (fresh PID 25952, REP session 232). The blocker that had
+held the project for weeks — the local player was never possessed, so the frame stayed
+black — is **solved**. The cause was a single redacted identity in the replayed
+capture, and the fix is one targeted substitution.
 
-## Current blocker
+| Signal | Before | After |
+| --- | --- | --- |
+| gate status 1 (`writerStatus1`) | 0 | 2 |
+| manager context setter (`managerSetContext`) | 0 | 2 |
+| manager `+0x08` / `+0x10` | null | `0x20e4df0a800` / `0x20cd63a8eb9` |
+| record-1 slot `state+0x618` | null | non-null |
+| portrayal-table inserts | 148 | 226 |
 
-- Latest fresh run PID 39172, REP session 1059 (2026-09-30 14:29Z): loaded `NewWorld_VitaeEterna`, drained 26 messages, initialized `GDERenderManager`, then stayed black and logged `State(InGame) is timeout`. The record-1 state slot changed null→non-null; manager `+0x08/+0x10` stayed null. Read-only hooks counted 39 manager dispatches (all status 2), zero context-setter calls, zero local-player prototype-builder calls, and zero known actor-factory calls. Deferred queues were empty at every sampled drain entry. Evidence: `research/sessions/world_20260930T143111Z_pid39172_session1059/`.
-- Controlled A/B PID 45476/session 1058 set `javelin.deferred-actions-max-depth` from 0 to 16 before world entry. Recursion warnings continued and the frame still went black; that cvar alone does not fix the missing context/actor. Session 1059 has full REP/probe evidence but no HTTP rows, so it is not HTTP-shape evidence.
-- Each world A/B needs a fresh `NewWorld.exe`. A failed attempt destroys `ClientContext`; retrying in the same process produces misleading results.
-- Do not use Frida or ReadProcessMemory while EAC is active. Use static analysis and server-side capture unless a private runtime without EAC is confirmed.
+Evidence: `research/sessions/world_20261002T065937Z_pid25952_session232/`.
+
+## The fix
+
+**`AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`** (default `off`).
+
+The local-player gate compares the UUID carried by a `PlayerComponentClientFacet`
+record against the character UUID in the client's local option store. In the captured
+replay **every player's facet carries that UUID in clear text except the capture
+author's own, which is redacted to zeros** — and that record is the one that has to be
+ours. The slot is unambiguous: it is a redacted 16-byte span immediately followed by
+the length-prefixed display name of the same record (`<16 zero bytes> <len> <name>`).
+
+Implementation: `javelin/replay_store.py::fill_local_player_uuid`, wired in `rep.py`,
+tests in `services/world/tests/test_local_player_uuid.py` (8 unit + capture fixtures).
+It fills exactly one span in each of the 25 large state bundles, nothing in the
+interest=91 bundles and nothing in the other players' bundles.
+
+## What is NOT done yet (the new frontier)
+
+1. **No movement.** `WASD` changes nothing: the client emits a constant ~21 msg/s
+   regardless of input, and the game window does have keyboard focus (measured
+   2026-10-02). The player is a replica the client renders, with no input-driven local
+   controller bound.
+2. **No inventory.** 23 `RMIDispatch` errors: `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`
+   targets facet ids that do not exist locally.
+3. **26 `slices/remoteplayer.dynamicslice` warnings** — "Couldn't get Transform
+   component on the slice!" — for the other players' actors.
+4. **`State(InGame) is timeout` every 30 s** persists (`patch-timeout-watchdog.py`
+   covers a different site than the one reporting).
+5. The **37** `status=fail` rows in the code corpus are still untried with a longer timeout (verified against the `.idx` files; an earlier revision of this file said 25).
+
+Each world A/B needs a fresh `NewWorld.exe`. Do not use Frida or ReadProcessMemory
+while EAC is active.
 
 ## Start here
 
-1. Read [the decompilation plan](research/docs/DECOMP-PLAN.md) for the long-term program (code corpus, PAK index, loaders, protocol captures) and how to resume a cut session.
-2. Read [the world investigation](research/docs/WORLD-INVESTIGATION.md) for the measured frontier and closed hypotheses.
-3. Use [the decompilation workflow](research/docs/DECOMPILATION.md) and keep Ghidra's `decomp.py --serve` running during a RE session. While the bulk corpus is running it already holds the Ghidra project; do not start a second one.
-4. Keep confirmed wire facts in `research/atlas/`; confirmed function addresses in `research/derived/symbols.json`.
-5. For each live A/B, start from one fresh game process and keep the matching `Game.log` and `services/world/rep_traffic.jsonl`; see [World debugging](research/docs/WORLD-DEBUGGING.md).
+1. Read [the decompilation plan](research/docs/DECOMP-PLAN.md) for the long-term program (code corpus, PAK index, loaders, protocol captures).
+2. Read [the decompilation backlog](research/docs/DECOMP-BACKLOG.md) for **everything still open** — code-corpus debt, the PAK method-15 codec, the index tool, the named loaders, the protocol-capture deadline, the world items that need RE — with blockers and a suggested order. Decompilation work is paused as of 2026-10-02; this is where it resumes.
+3. Read [the world investigation](research/docs/WORLD-INVESTIGATION.md) for the measured frontier and closed hypotheses.
+4. Use [the decompilation workflow](research/docs/DECOMPILATION.md) and `decomp.py` (one-shot is fine; the corpus no longer holds the project). Keep confirmed addresses in `research/derived/symbols.json`.
+5. Keep confirmed wire facts in `research/atlas/`; regenerate `research/atlas/openapi.json` with `python az.py doc` after a play session and commit it.
+6. For each live A/B follow [World debugging](research/docs/WORLD-DEBUGGING.md) — it now includes the attach-verification recipe and the instrument-control rule.
 
 ## Project map
 
