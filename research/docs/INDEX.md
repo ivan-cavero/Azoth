@@ -3,6 +3,8 @@
 | Doc | What it covers |
 | --- | --- |
 | [DECOMP-PLAN.md](DECOMP-PLAN.md) | Long-term program: code corpus, PAK index, named loaders, protocol captures. Read this first if a session was cut |
+| [DECOMP-BACKLOG.md](DECOMP-BACKLOG.md) | **Everything still open**, grouped by layer, with blockers and a suggested order. Start here to pick up work |
+| [PAK-FORMAT.md](PAK-FORMAT.md) | Measured PAK container facts: what is a ZIP, what method 15 is, what is ruled out |
 | [ANALYSIS.md](ANALYSIS.md) | How the client is built: Lumberyard, Javelin, login, PAKs, GridMate |
 | [CAPTURE.md](CAPTURE.md) | Passive capture kit: usage and what to record |
 | [EAC.md](EAC.md) | Why there is no ReadProcessMemory while on official |

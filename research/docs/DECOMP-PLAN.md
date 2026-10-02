@@ -5,7 +5,11 @@ here, then follow the resume steps at the bottom. Tool mechanics live in
 [DECOMPILATION.md](DECOMPILATION.md). The world-entry stall is a separate
 track: [WORLD-INVESTIGATION.md](WORLD-INVESTIGATION.md).
 
-Last updated: 2026-10-01.
+**Everything still open — grouped, with blockers and a suggested order — is
+inventoried in [DECOMP-BACKLOG.md](DECOMP-BACKLOG.md).** Read this file for the
+program, that one to pick up work.
+
+Last updated: 2026-10-02.
 
 ## Objective
 
