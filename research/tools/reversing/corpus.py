@@ -174,7 +174,11 @@ def launch(dest: Path, ranges_file: Path, threads: int, limit: int, timeout: int
     ]
     env = dict(os.environ)
     env["JAVA_HOME"] = str(g["jdk"])
-    env["MAXMEM"] = env.get("AZOTH_DECOMP_MAXMEM", "12G")
+    # Ghidra 12.1.4 reads GHIDRA_MAXMEM / GHIDRA_HEADLESS_MAXMEM (default 2G);
+    # it does NOT read MAXMEM, so the old assignment was silently a no-op.
+    heap = env.get("AZOTH_DECOMP_MAXMEM", "12G")
+    env["GHIDRA_MAXMEM"] = heap
+    env["GHIDRA_HEADLESS_MAXMEM"] = heap
     env["DECOMP_CORPUS_DIR"] = str(dest)
     env["DECOMP_CORPUS_RANGES"] = str(ranges_file)
     env["DECOMP_CORPUS_THREADS"] = str(threads)

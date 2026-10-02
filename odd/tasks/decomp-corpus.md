@@ -27,15 +27,15 @@ frozen build; a maintenance exe gets its own corpus directory.
 - [x] T2 — Toolchain preflight: `peutil.py selftest` (6/6), then
       `decomp.py --selftest` which imports the exe into `ghproj` once.
 - [x] T3 — Launch the full corpus run in the background (`corpus.py`).
-- [ ] T4 — Monitor `progress.json` to `status=complete`; retry `status=fail`
+- [x] T4 — Monitor `progress.json` to `status=complete`; retry `status=fail`
       rows later with a higher `--timeout`.
-- [ ] T5 — Commit the layer-1 milestone to docs with evidence.
+- [x] T5 — Record the layer-1 milestone in this file and in `STATUS.md`.
 
 ## Blocked by this feature
 
-Layer 2 (PAK index) must not fight the dump for disk, and layer 3 (naming the
-loaders) needs the corpus to search. Protocol captures (work order step 4) are
-independent and stay on the 2027-01-31 deadline.
+Layer 2 (PAK index) no longer has to wait for disk: the corpus is done. Layer 3
+(naming the loaders) can now search the corpus. Protocol captures (work order
+step 4) are independent and stay on the 2027-01-31 deadline.
 
 ## Evidence log
 
@@ -43,6 +43,6 @@ independent and stay on the 2027-01-31 deadline.
 | --- | --- |
 | 2026-10-01 | exe present, sha256 matches the plan. `peutil.py selftest` OK (6/6). |
 | 2026-10-01 | `decomp.py --selftest` → `MISSING Ghidra headless not found`. No `%USERPROFILE%\tools\ghidra_*`, no `GHIDRA_HOME`, no `%LOCALAPPDATA%\Azoth\decomp\ghproj`. Blocker: no decompiler on this machine. |
-| 2026-10-01 | T1: Ghidra 12.1.4 installed at `C:\Users\ivang\tools\ghidra_12.1.4_PUBLIC` (569,649,598-byte release zip). `check_install()` returns no problems; JDK 25 accepted. |
-| 2026-10-01 | T2: `peutil.py selftest` OK 6/6; `decomp.py --selftest` OK, `ghproj` created (459 MB). |
-| 2026-10-01 | T3: `corpus.py` launched, pid 21212, 423,579 ranges, sha256 re-verified, version string `[RETAIL].Javelin.1.400.6031.6004151`, 8 threads, 12 GB heap. Rate fell 111 → 60 func/s as functions got larger; 24 `status=fail` so far. |
+| 2026-10-01 20:04 CEST | Blocker cleared by another session: Ghidra 12.1.4 landed at `%USERPROFILE%\tools\ghidra_12.1.4_PUBLIC`, the exe was imported into `ghproj`, and `corpus.py` started with 8 threads. |
+| 2026-10-01 22:21 CEST | **Corpus complete**: `status=complete`, `finished=423579`, `ok=423554`, `fail=25`, 60 s per-function timeout. Directory `%LOCALAPPDATA%\Azoth\decomp\corpus\8654f01d324636d9`. The Ghidra JVM exited and the project lock is free, so `decomp.py --symbol/--target` works again. First use: the manager gate chain, cached at `research/derived/decomp/gate-chain.c`. |
+| 2026-10-01 | The 25 `status=fail` rows stay inside their shards; retry them later with `--timeout 180` and a small `--limit`. They do not block layer 2 or the loaders. |

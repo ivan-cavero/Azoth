@@ -310,7 +310,11 @@ def run_ghidra(
 
     env = dict(os.environ)
     env["JAVA_HOME"] = str(g["jdk"])
-    env["MAXMEM"] = env.get("AZOTH_DECOMP_MAXMEM", "12G")
+    # Ghidra 12.1.4 reads GHIDRA_MAXMEM / GHIDRA_HEADLESS_MAXMEM (default 2G);
+    # it does NOT read MAXMEM. Setting MAXMEM here was silently a no-op.
+    heap = env.get("AZOTH_DECOMP_MAXMEM", "12G")
+    env["GHIDRA_MAXMEM"] = heap
+    env["GHIDRA_HEADLESS_MAXMEM"] = heap
     env["DECOMP_OUT"] = str(out_file)
     # cmd.exe mangles (x86) paths in .bat args unless the short name is used.
     print(
@@ -383,7 +387,10 @@ def headless_cmd(script_dir: Path) -> tuple[list[str], dict]:
     ]
     env = dict(os.environ)
     env["JAVA_HOME"] = str(g["jdk"])
-    env["MAXMEM"] = env.get("AZOTH_DECOMP_MAXMEM", "12G")
+    # See the note in run_ghidra: MAXMEM is not the variable Ghidra reads.
+    heap = env.get("AZOTH_DECOMP_MAXMEM", "12G")
+    env["GHIDRA_MAXMEM"] = heap
+    env["GHIDRA_HEADLESS_MAXMEM"] = heap
     return args, env
 
 
