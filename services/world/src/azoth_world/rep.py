@@ -204,6 +204,18 @@ REPLAY_SPAN_SEQS2 = _parse_seq_set(os.environ.get("AZOTH_REPLAY_SPAN_SEQS2", "")
 REPLAY_SPAN_LENGTHS2 = _parse_seq_set(
     os.environ.get("AZOTH_REPLAY_SPAN_LENGTHS2", "")
 )
+# Fill ONLY the redacted UUID of the captured player's own facet record: a
+# 16-byte zero span immediately followed by a length-prefixed display name.
+# Measured 2026-10-01: that UUID is what the local-player gate compares with
+# the character UUID in the client's local option store, and it is the one
+# identity the capture redacted for the author's own player. See
+# replay_store.fill_local_player_uuid for the evidence.
+REPLAY_LOCAL_PLAYER_UUID = os.environ.get(
+    "AZOTH_REPLAY_LOCAL_PLAYER_UUID", "off"
+).lower()
+REPLAY_LOCAL_PLAYER_UUID_SEQS = _parse_seq_set(
+    os.environ.get("AZOTH_REPLAY_LOCAL_PLAYER_UUID_SEQS", "")
+)
 # Optional replay split: hold every message with seq >= SPLIT_SEQ until the
 # client has had time to load the world (the capture's server streamed them
 # over seconds, not in one burst; bundles that arrive before the client's
@@ -1011,6 +1023,28 @@ class PeerSession:
                     }
                 )
                 msg = remapped
+        if REPLAY_LOCAL_PLAYER_UUID != "off":
+            from .javelin.replay_store import fill_local_player_uuid
+
+            remapped = fill_local_player_uuid(
+                msg,
+                selector=REPLAY_LOCAL_PLAYER_UUID,
+                character_id=self.v3_character_id,
+                session_uuid=self.v3_session_uuid,
+                seqs=REPLAY_LOCAL_PLAYER_UUID_SEQS,
+            )
+            if remapped is not msg:
+                log_event(
+                    {
+                        "event": "replay-local-player-uuid",
+                        "seq": msg.seq,
+                        "type": hex(msg.type_id),
+                        "selector": REPLAY_LOCAL_PLAYER_UUID,
+                        "spans": remapped.substituted_spans,
+                        "spans_total": len(msg.redacted_spans),
+                    }
+                )
+                msg = remapped
         self._send_replay_message(server, msg)
         if not self.replay_queue and not self.greetings_after_replay:
             # Replay fully streamed. 2026-09-20 19:11 lesson: re-sending
@@ -1423,6 +1457,12 @@ class RepServer:
                 ),
                 "replay_span_lengths2": (
                     sorted(REPLAY_SPAN_LENGTHS2) if REPLAY_SPAN_LENGTHS2 else "all"
+                ),
+                "replay_local_player_uuid": REPLAY_LOCAL_PLAYER_UUID,
+                "replay_local_player_uuid_seqs": (
+                    sorted(REPLAY_LOCAL_PLAYER_UUID_SEQS)
+                    if REPLAY_LOCAL_PLAYER_UUID_SEQS
+                    else "all"
                 ),
                 "replay_split_seq": hex(REPLAY_SPLIT_SEQ) if REPLAY_SPLIT_SEQ else "off",
                 "replay_split_delay_s": REPLAY_SPLIT_DELAY_S,

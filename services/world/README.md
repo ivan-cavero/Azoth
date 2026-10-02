@@ -32,6 +32,22 @@ and never add them to the atlas or Git.
 Set `AZOTH_REP_TRAFFIC_JSONL` to redirect the append-only log for isolated
 tests or a separate capture run.
 
+## Replay levers (world env, all default off)
+
+The replay is the captured official session replayed into our client. The
+levers that matter for possession:
+
+| Env | Default | What it does |
+| --- | --- | --- |
+| `AZOTH_REPLAY_LOCAL_PLAYER_UUID` | `off` | `character` or `session`. **Fills the ONE redacted 16-byte span that is immediately followed by that record's length-prefixed display name** — the UUID of the capture author's own `PlayerComponentClientFacet`, which the capture zeroed while every other player's facet UUID is in clear text. The local-player gate compares exactly that UUID with the character UUID in the client's local option store, so with the span left zeroed the gate never opens and the player is never possessed. `character` makes it render (verified 2026-10-02). Scope it with `AZOTH_REPLAY_LOCAL_PLAYER_UUID_SEQS`. |
+| `AZOTH_REPLAY_SPAN_SUBSTITUTION` / `_SEQS` / `_LENGTHS` | `off` | Broad, length-based substitution of every redacted span of the listed lengths. Documented negative results in `research/atlas/levers.md`; prefer the targeted lever above. |
+| `AZOTH_REPLAY_SPLIT_SEQ` / `_DELAY_S` | off | Hold every message with `seq >= SPLIT` until the client has loaded the level. |
+| `AZOTH_REPLAY_HEARTBEAT` / `_PERIOD_S` | on / 1.0 | Continue the captured `0x15d` ping/pong after the replay drains. |
+| `AZOTH_LOG_RAW` | `0` | Log every inbound datagram pre-DTLS. `python az.py dev` does **not** forward it (its own environment wins); start the world server directly to use it. |
+
+All of them log a `replay-*` event per applied message, so a run can be audited
+from `rep_traffic.jsonl` alone.
+
 **The one non-stdlib dependency:** `pyOpenSSL` (`python -m pip install
 pyOpenSSL`). stdlib `ssl` has no DTLS and rustls does not speak DTLS either;
 pyOpenSSL ships a prebuilt OpenSSL so nothing compiles. Gateway stays

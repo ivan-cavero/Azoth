@@ -68,3 +68,30 @@ runtime instrumentation is not allowed.
    doc or atlas entry.
 4. Add it to this index only if it is a stable operator entry point. One-off
    experiments can remain discoverable through the investigation log.
+
+## Frida probe rule: a zero needs a live control
+
+**A probe can report `ready`, tick for 23 minutes, and fire no hook at all.**
+Measured twice on 2026-10-01: `frida-burst-capture.py` logged `ready` and its
+5-second ticks while every hook counter stayed 0, which produced a wrong "the
+pipeline never ran" conclusion. The cause is an attach race with the launcher's
+own Frida sequence (`frida-trust-patch`, `patch-spawn-gate`,
+`frida-anticheat-patch`, `frida-rep-force-ladder`, `frida-eos-stub`): Frida can
+answer `ProcessNotRespondingError: ... refused to load frida-agent`, and a
+successful attach during that window can still end up with its inline hooks
+clobbered when the launcher's sessions detach.
+
+Therefore:
+
+1. **Every burst probe carries a control counter** on a function that runs
+   unconditionally. `frida-burst-capture.py` uses `FUN_1416adce0` (deferred-action
+   drain, once per frame) and `FUN_145f62e80` (per-frame view update). Do not use
+   `FUN_145aa23f0` alone as the control: it is the connection-wrapper tick and only
+   runs while a REP connection exists, so a legitimate 0 in the menu would look
+   like a dead probe.
+2. **Wait for the control to go non-zero before trusting any other counter**, and
+   re-attach until it does. The attach helper retries up to 8 times.
+3. **Attach after the image has mapped** (working set above ~500 MB), not the
+   instant the process appears.
+4. The client enters the world by itself 2-17 min after launch, so the probes must
+   be up within the first seconds; a late attach measures an idle process.

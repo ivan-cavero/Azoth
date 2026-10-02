@@ -297,6 +297,86 @@ def apply_span_substitution(
     return replace(message, body=bytes(out), substituted_spans=written)
 
 
+def _looks_like_prefixed_name(body: bytes, offset: int) -> bool:
+    """True when ``body[offset]`` is a length followed by that many ASCII bytes.
+
+    This is the wire shape of the player-name field that follows the player
+    UUID inside a PlayerComponentClientFacet record: ``[u8 len][name]``.
+    """
+    if offset >= len(body):
+        return False
+    length = body[offset]
+    if not 1 <= length <= 40:
+        return False
+    end = offset + 1 + length
+    if end > len(body):
+        return False
+    return all(0x20 <= b < 0x7F for b in body[offset + 1 : end])
+
+
+def fill_local_player_uuid(
+    message: ReplayMessage,
+    *,
+    character_id: str = "",
+    session_uuid: str = "",
+    selector: str = "character",
+    seqs: set[int] | None = None,
+) -> ReplayMessage:
+    """Fill the redacted UUID of the captured player's OWN facet record.
+
+    WHY this exists separately from ``apply_span_substitution``. The client's
+    local-player gate compares the UUID carried by a PlayerComponentClientFacet
+    against the character UUID in its local option store, and only a match
+    lets the manager context be set (measured 2026-10-01: 26/26 comparisons
+    returned status 2, 26/26 of them with a successful local lookup). In the
+    capture EVERY player's facet carries that UUID in clear text except the
+    capture author's own, which is redacted to zeros - and that one is the
+    record that has to be *ours*.
+
+    The slot is unambiguous: it is a redacted 16-byte span immediately
+    followed by the length-prefixed display name of the same record
+    (``<16 zero bytes> <len> <name>``). In the 46 KB state bundles that
+    selects exactly one span per message (verified on seqs 0x25-0x6c: the
+    other two 16-byte spans are not followed by a printable name), so a
+    broad length-based substitution is not needed and the interest=91
+    bundles stay untouched.
+
+    ``character`` writes the live character UUID, ``session`` the V3 session
+    UUID. Unknown selectors and invalid UUIDs fail closed.
+    """
+    mode = selector.lower()
+    if mode == "off" or not message.has_redaction:
+        return message
+    if seqs is not None and message.seq not in seqs:
+        return message
+    if mode == "character":
+        replacement = _span_uuid_bytes(character_id)
+    elif mode == "session":
+        replacement = _span_uuid_bytes(session_uuid)
+    else:
+        return message
+    if len(replacement) != 16:
+        return message
+
+    out = bytearray(message.body)
+    written = 0
+    for offset, length in message.redacted_spans:
+        if length != 16:
+            continue
+        end = offset + length
+        if end > len(out):
+            continue
+        if out[offset:end] != b"\x00" * 16:
+            continue  # only the zero-filled capture form is a valid target
+        if not _looks_like_prefixed_name(bytes(out), end):
+            continue
+        out[offset:end] = replacement
+        written += 1
+    if not written:
+        return message
+    return replace(message, body=bytes(out), substituted_spans=written)
+
+
 _HEADER_RE = re.compile(
     r"^seq:\s*0x([0-9a-fA-F]+)\s*\((\d+)\)\s*$"
 )
