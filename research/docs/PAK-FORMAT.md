@@ -39,7 +39,7 @@ the index is unaffected; reading or editing content is.
 
 Other container facts worth keeping:
 
-- `SharedDataStrm-part12.pak` and `SharedDataStrm-part13.pak` are **0 bytes**.
+- `SharedDataStrm-part12.pak` and `SharedDataStrm-part13.pak` are **22 bytes**: a bare EOCD (`PK\x05\x06` + zero counts) with zero entries. An earlier revision of this file said "0 bytes"; corrected 2026-10-05 from the index build (`pakindex.py`).
 - `SharedDataStrm-part1/2/3/8/9/10.pak` hold exactly 65535 entries: the packer
   rolls a new part at the ZIP 16-bit entry limit.
 - Method 0 and method 8 entries are readable today with stdlib `zipfile`.
@@ -139,6 +139,13 @@ bit-packed `newLZ`, not LZ4's nibble format.
 
 ### 4c. What is still unknown
 
+**Update 2026-10-05: the first two bullets below are now practically answered — see §4f.**
+Method 15 decodes as Oodle **Kraken** with a third-party reader (31/31 exact CRC matches),
+the 8-byte prefix is consumed at offset 0 by the standard Oodle stream reader, and no payload
+from methods 16–19 exists in the install (measured census: only 0, 8, 15 are present). The
+registry mapping in `FUN_147132390` remains [I] informational only — nothing on the extraction
+path needs it anymore.
+
 - **Which Oodle codec is method 15.** `FUN_147132390` resolves it through data at
   `_DAT_1485ee7f0` / `_DAT_1485ee800` / `_UNK_1485ee808` (file offsets `0x85ECFF0`,
   `0x85ED000`, `0x85ED008`), which the pseudocode copies into a local struct. **Read
@@ -222,13 +229,45 @@ Conclusion: method 15 is a change made in Amazon's internal Javelin fork after p
 Lumberyard master froze. It is RAD Oodle (15–19 are one family), and the reader that
 matters is the statically linked one named above.
 
-### 4d-bis. A practical extraction route
+### 4d-bis. Extraction routes (ranked 2026-10-05 after §4f)
 
-Because `OodleLZ_Decompress` is **statically linked inside `NewWorld.exe`** at a known
-VA, extraction does not require reimplementing Oodle. A small local harness that loads
-the client's own image and calls `0x1479f0820` with the right arguments can decode a
-payload. That is a bounded, self-contained route for reading and repacking content,
-and it does not require distributing anything. It has not been attempted yet.
+1. **Third-party pure decoder (VALIDATED).** `kraken-decompressor`
+   (github.com/domdfcoding/kraken-decompressor, a C++ port of the ooz-family Kraken decoder
+   shipped as a Python extension; verify the LICENSE before vendoring) decoded every sampled
+   method-15 payload exactly, header included, from offset 0. Measured 2026-10-05:
+   ground-truth pair + 30 random entries across 5 paks + the `.dds` exception = **31/31 exact
+   CRC matches, 0.7 s total**. Research-tooling use only: pip stays banned in `services/`;
+   vendor or wrap it under `research/tools/reversing/` with a cached wheel, or shell out to
+   `ooz` (powzix, zlib license) / `oozextract` (Rust) if a build without a C extension is
+   preferred. Nothing was executed inside the game process; this is an offline file reader.
+2. **Call the client's own decoder.** `oo2::OodleLZ_Decompress` is statically linked at
+   `0x1479f0820`, so a standalone offline harness can load the image and call it. Keep as
+   fallback in case a future payload family (a maintenance exe, methods 16–19) fails with
+   route 1. Never in a live/protected process ([EAC.md](EAC.md)).
+3. **Reimplementing the Oodle token grammar** — permanently retired as a work item; the
+   grammar is Oodle's bit-packed `newLZ` and working readers exist.
+
+### 4f. Resolved 2026-10-05: method 15 = Oodle Kraken, third-party reader validated
+
+Measured against the frozen install (same ground truth as §4a):
+
+| Check | Result |
+| --- | --- |
+| `Engine.pak:config/game.xml` (1,161 → 7,046) via `kraken_decompressor.decompress(payload, 7046)` | **exact plaintext match at offset 0** (CRC `f8ed6f3c`) |
+| 30 random method-15 entries across Engine/GameData/DataStrm/SharedDataStrm/part1 | **30/30 exact** (`len == usize` and `crc32(out) == central-directory CRC`) |
+| `engineassets/animated/watervolume.dds` — the §4a header "exception" (`8c 06 03 …`) | **exact match** — the varying prefix bytes are part of the Oodle stream, not a container header to strip |
+| Method census (Engine + GameData + DataStrm* + SharedDataStrm* + Vegetation + Coatlicue + `newworld_vitaeeterna/level.pak`) | `{0: 90,707, 8: 21, 15: 1,321,673}` — **no 16–19 exist in the install** |
+| Throughput | 31 payloads in 0.7 s (single-threaded C extension) |
+
+Consequences:
+
+- The §4a header relations (`8c 06 …`, BE16 size fields) describe the Oodle block header
+  itself; a reader does not need to model or strip it.
+- Reading existing content no longer needs the codec-id registry (`FUN_147132390`), the
+  in-exe decoder, or any process access. Extraction is unblocked; the remaining data-layer
+  work is the index (2.2), format readers (2.5) and the edit proof (2.4).
+- The earlier §4b static chain (dispatch VAs, 512 KiB ring) stays valid as evidence; it is
+  simply no longer on the critical path.
 
 ### 4e. What the corpus can and cannot search
 
@@ -304,13 +343,9 @@ simply be decorative (the aws-sdk model table was). Do not build on it.
 
 - **The PAK index is cheap and unblocked.** It reads central directories only;
   it does not need Oodle and it does not need the corpus.
-- **Extraction of content needs an Oodle decoder.** The codec is RAD Oodle, so it
-  cannot be reimplemented from the format notes. Two routes, in order of cost:
-  1. **Call the client's own decoder.** `oo2::OodleLZ_Decompress` is statically linked
-     at `0x1479f0820`, so a local harness can load the image and call it. Bounded,
-     self-contained, nothing to distribute, not yet attempted.
-  2. Name the exact codec from the registry bytes at `0x1485ee7f0` first, since the
-     call needs the right codec id.
+- **Extraction of content is unblocked (2026-10-05, §4f).** Method 15 = Kraken and a
+  third-party reader reproduces the plaintext exactly. The remaining routes in §4d-bis
+  are fallbacks, not prerequisites.
 - **Repacking does not depend on Oodle.** A modified entry can be written back with
   method 8 (raw deflate) or 0, both of which the client already reads.
 - Do not run the index scan while a layer-1 corpus dump is writing (disk contention);

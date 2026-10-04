@@ -1,5 +1,10 @@
 # World entry investigation — snapshot 2026-10-02
 
+The current frontier is movement, attack, inventory, and the in-game activity timer.
+Read [`../../STATUS.md`](../../STATUS.md) (2026-10-03 handoff) and
+`research/derived/symbols.json` key `gametransform_attach_ab` before this file.
+The sections below record the possession fix. They are not the next experiment.
+
 This is the detailed evidence snapshot extracted from the project dashboard.
 For the current short frontier see [`../../STATUS.md`](../../STATUS.md); for the
 repeatable attempt checklist see [`WORLD-DEBUGGING.md`](WORLD-DEBUGGING.md).

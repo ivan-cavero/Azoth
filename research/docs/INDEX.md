@@ -1,5 +1,15 @@
 # Research docs — index
 
+**Entry order for a new session.** Two parallel tracks own the live frontier:
+
+1. **Play and measure** (world entry, movement, reconnection): read [STATUS.md](../../STATUS.md)
+   first, then [WORLD-DEBUGGING.md](WORLD-DEBUGGING.md) and [WORLD-INVESTIGATION.md](WORLD-INVESTIGATION.md).
+2. **Decompile and keep the method** (corpus, PAK/data, protocol corpus, tooling): read
+   [DECOMP-PLAN.md](DECOMP-PLAN.md) (why + layers), then [DECOMP-BACKLOG.md](DECOMP-BACKLOG.md)
+   (what is open, in order), then [DECOMPILATION.md](DECOMPILATION.md) (tool procedure).
+   RE facts land in the atlas (`../atlas/`) and `../derived/symbols.json` at the moment of
+   discovery — chat-only findings do not exist.
+
 | Doc | What it covers |
 | --- | --- |
 | [DECOMP-PLAN.md](DECOMP-PLAN.md) | Long-term program: code corpus, PAK index, named loaders, protocol captures. Read this first if a session was cut |
@@ -11,7 +21,8 @@
 | [CLIENT_CONTRACT.md](CLIENT_CONTRACT.md) | Hosts, JSON and states the client expects |
 | [SESSIONS.md](SESSIONS.md) | What came out of the 2026-09-06 captures |
 | [PROTOCOL.md](PROTOCOL.md) | DTLS, Carrier, RMI, spawn |
-| [DECOMPILATION.md](DECOMPILATION.md) | Decompilation workflow: tools, method, findings, tooling landscape |
+| [JAVELIN-DISPATCH.md](JAVELIN-DISPATCH.md) | Static map of the client's inbound dispatch pipeline (stream processor rings, type-GUID binding, interface handles) |
+| [DECOMPILATION.md](DECOMPILATION.md) | Decompilation workflow: tools, method, findings, tooling landscape, version-to-version survival |
 | [DEVELOPMENT-LOOP.md](DEVELOPMENT-LOOP.md) | Evidence-first workflow from reproducible bug to regression; test ladder for future features |
 | [WORLD-DEBUGGING.md](WORLD-DEBUGGING.md) | Repeatable fresh-process checklist for the black-screen/world-entry investigation |
 | [WORLD-INVESTIGATION.md](WORLD-INVESTIGATION.md) | Detailed measured findings and the current replica/bundle frontier |

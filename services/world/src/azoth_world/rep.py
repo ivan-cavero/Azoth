@@ -32,6 +32,7 @@ import json
 import os
 import socket
 import time
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -97,6 +98,20 @@ REPLAY_RESEND_LIMIT = 6      # max resends per reliable datagram (2026-09-20:
 # drops oversized datagrams during load and re-bombing it made everything
 # worse. After the cap, split-retransmit or drop: the 30s InGame timeout
 # clears the session anyway.)
+# After replay-complete-quiet, maybe_resend runs once per inbound datagram.
+# On 2026-10-03 11:14:39 the type-0x08 tail (seq 888/889/890, try 1, 1114 B)
+# was retransmitted at ~250/s — 4 per call times the inbound rate — and that
+# burst lined up with OnLocalNetworkConnectionWarning. Those seqs sit next
+# to the ack high-water, so "512 behind" does not catch them. Once the
+# replay has finished, transmit at most 2 resends per 200 ms and skip seqs
+# more than 512 below the highest acked seq. Do not apply either gate while
+# the replay queue is still live or before greetings_after_replay:
+# possession needs the in-burst cap of 4. A skipped resend must not consume
+# a try, or the 6-try cap expires a datagram the client was never offered
+# again.
+POST_REPLAY_RESEND_MAX = 2
+POST_REPLAY_RESEND_WINDOW_S = 0.2
+POST_REPLAY_STALE_GAP = 512
 # 2026-09-24: with the limit above, 12 chunked datagrams of the 12.7 KB
 # message (type 0x65c) reach the client but it only reassembles 6370 of
 # 12706 bytes, then the stream turns to garbage (`num_bytes=0`). The client
@@ -144,6 +159,50 @@ HEARTBEAT_TICK_START = int(
     os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK", "0x6ef8c888af44"), 0
 )
 HEARTBEAT_TICK_STEP = int(os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK_STEP", "1000000000"), 0)
+# Post-replay state-bundle stream (type 0x08). The capture's steady state is
+# dominated by R-direction 0x08 bundles: 79 of them, and the last 17
+# (seq 0xa0..0xb0, every one under REPLAY_CHUNK_SIZE so it stays a single
+# datagram) run right up to the end of the capture. Our replay stops at 0xb0
+# and the server then only pings 0x15d, while the real server kept streaming
+# 0x08. Measured consequence: `OnLocalNetworkConnectionWarning` climbs
+# monotonically (1 -> 117 between 21:26 and 21:45 UTC on 2026-10-03) and the
+# client finally logs `disconnected from REP` -> state Disconnected. So
+# continue the real stream instead of inventing bodies: cycle the captured
+# tail bundles in order, each with a fresh outbound seq/rel, exactly as
+# _send_replay_message does. No body is synthesised.
+# MEASURED 2026-10-04: this stream BREAKS THE CONNECTION and is therefore OFF by
+# default. With it on, a fresh client did this: spawn 06:54:49 UTC, ClientContext
+# created 06:54:53, then at 06:55:12 `disconnected from REP` +
+# `@mm_csdkerr_disconnect (4)` + `JavelinGame::OnConnectionFail`, the client
+# reconnected from scratch, and on that second connection `clientContext->Initialize`
+# never ran again, so Game.log filled with 758
+# `HandleUnexpectedMessage skipping ReceiveStateBundle ... clientContext == nullptr`
+# and every world state update was dropped. With the stream OFF (same build, same
+# world): ONE spawn, Initialize ran, exactly ONE skipped bundle, no disconnect, no
+# Connection fail, and `OnLocalNetworkConnectionWarning` stayed at 1. So looping the
+# captured tail bundles re-triggers the client's login/spawn path and costs the
+# ClientContext. Do not re-enable this as a fix; the cable needs a different
+# continuation (see the ClientContext note below).
+STATE_STREAM_ENABLED = os.environ.get("AZOTH_REPLAY_STATE_STREAM", "0") == "1"
+STATE_STREAM_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_STATE_STREAM_PERIOD_S", "2.0"))
+STATE_STREAM_MIN_SEQ = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_MIN_SEQ", "0xA0"), 0)
+# The client deduplicates replication by seq: FUN_14643e7b0 accepts an unreliable
+# replication message only when `msg.clientContextInstanceId == port[+0x80]` AND
+# `*(u64*)(msg+0x28) > port[+0x78]` (m_lastUnreliableReplicationSeq); FUN_1406d97b0
+# is just `return msg+0x28` and FUN_1406c10a0 is `return byte [msg+0x30]`.
+# Measured 2026-10-03: the high-water sat at 53 and every re-sent captured bundle
+# carried its ORIGINAL seq (0xa0 -> 0x25=37 ... 0xb0 -> 0x35=53), so all 255 were
+# rejected as already seen. The seq is a plain byte at body offset 4 of a 0x08
+# bundle (`00 01 08 01 <seq> ...`). Re-sending a captured bundle therefore has to
+# continue the counter above the high-water; that is the same thing the real
+# server did, not a synthesised body. STATE_STREAM_SEQ_BASE is one past the
+# highest captured seq.
+STATE_STREAM_REWRITE_SEQ = os.environ.get("AZOTH_REPLAY_STATE_STREAM_SEQ", "1") != "0"
+STATE_STREAM_SEQ_OFFSET = 4
+# Measured 2026-10-03: the replay itself pushed the client's high-water to 127,
+# so a stream starting at 54 spent ~70 messages being dropped before it passed
+# it. Start above any captured seq instead of just above the armed bundles.
+STATE_STREAM_SEQ_FLOOR = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_SEQ_FLOOR", "0x80"), 0)
 # Controlled replay A/B for the six explicitly redacted 36-byte UUID slots.
 # off preserves the capture; character|session fills only the allowlisted
 # offsets in javelin.replay_store. Never inferred from arbitrary body text.
@@ -749,11 +808,21 @@ class PeerSession:
         # resend lost datagrams. Track them until acked.
         self.sent_reliable: dict[int, tuple[float, bytes]] = {}
         self.resend_tries: dict[int, int] = {}
+        # Counts transmissions in the post-replay window, not skips — a
+        # rate-limit skip must not feed REPLAY_RESEND_LIMIT.
+        self.resend_window_start = 0.0
+        self.resend_window_count = 0
         self.acked_seqs: set[int] = set()
         self.greetings_after_replay = False
         # Post-replay 0x15d ping/pong (see HEARTBEAT_* above).
         self.heartbeat_next_at = 0.0
         self.heartbeat_tick = HEARTBEAT_TICK_START
+        # Post-replay 0x08 state-bundle stream (see STATE_STREAM_* above).
+        self.state_stream_all: list = []
+        self.state_stream_queue: list = []
+        self.state_stream_next_at = 0.0
+        self.state_stream_sent = 0
+        self.state_stream_seq = 0
 
     def feed(self, server, data: bytes) -> None:
         """Feed one datagram in; send everything OpenSSL produced."""
@@ -872,6 +941,7 @@ class PeerSession:
         self.maybe_inject(server)
         self.maybe_pump_replay(server)
         self.maybe_heartbeat(server)
+        self.maybe_state_stream(server)
         self.maybe_resend(server)
 
     def _arm_replay(self) -> None:
@@ -889,6 +959,31 @@ class PeerSession:
         self.out_rel_seq = 1
         self.replay_next_at = time.monotonic()
         log_event({"event": "replay-armed", "count": len(self.replay_queue)})
+        if STATE_STREAM_ENABLED:
+            self.state_stream_all = [
+                m
+                for m in store.replay_messages_after_v3(
+                    REPLAY_MAX_SEQ, include_redacted=True
+                )
+                if m.type_id == 0x08 and m.seq >= STATE_STREAM_MIN_SEQ
+            ]
+            self.state_stream_queue = list(self.state_stream_all)
+            highest = 0
+            for msg in self.state_stream_all:
+                if len(msg.body) > STATE_STREAM_SEQ_OFFSET:
+                    highest = max(highest, msg.body[STATE_STREAM_SEQ_OFFSET])
+            self.state_stream_seq = max(highest + 1, STATE_STREAM_SEQ_FLOOR)
+            log_event(
+                {
+                    "event": "state-stream-armed",
+                    "count": len(self.state_stream_all),
+                    "seqs": [hex(m.seq) for m in self.state_stream_all],
+                    "period_s": STATE_STREAM_PERIOD_S,
+                    "loop": True,
+                    "rewrite_seq": STATE_STREAM_REWRITE_SEQ,
+                    "seq_base": self.state_stream_seq,
+                }
+            )
 
     def maybe_pump_replay(self, server) -> None:
         """Send the next captured R-message (official login replay)."""
@@ -1113,6 +1208,54 @@ class PeerSession:
             }
         )
 
+    def maybe_state_stream(self, server) -> None:
+        """Continue the captured 0x08 state-bundle stream once the replay drains.
+
+        See STATE_STREAM_* above: the real server never stopped sending 0x08
+        and our replay stops at seq 0xb0, after which the client's activity
+        warning counter climbs until it drops the REP connection. The bodies
+        are the captured ones, verbatim; only the outbound envelope seq is new.
+        """
+        if not STATE_STREAM_ENABLED or self.gone or not self.v3_responded:
+            return
+        if self.replay_queue or not self.greetings_after_replay:
+            return  # the replay itself still carries the captured bundles
+        if not self.state_stream_queue:
+            # The real server never stopped sending 0x08, so loop the captured
+            # tail instead of going quiet after one pass.
+            if not self.state_stream_all:
+                return
+            self.state_stream_queue = list(self.state_stream_all)
+        now = time.monotonic()
+        if now < self.state_stream_next_at:
+            return
+        self.state_stream_next_at = now + STATE_STREAM_PERIOD_S
+        msg = self.state_stream_queue.pop(0)
+        self.state_stream_sent += 1
+        sent_seq = None
+        if (
+            STATE_STREAM_REWRITE_SEQ
+            and len(msg.body) > STATE_STREAM_SEQ_OFFSET
+        ):
+            # Continue the GridMate message counter above the client's
+            # high-water, or the bundle is dropped as already seen.
+            body = bytearray(msg.body)
+            body[STATE_STREAM_SEQ_OFFSET] = self.state_stream_seq & 0xFF
+            sent_seq = self.state_stream_seq & 0xFF
+            self.state_stream_seq += 1
+            msg = replace(msg, body=bytes(body))
+        self._send_replay_message(server, msg)
+        log_event(
+            {
+                "event": "state-stream",
+                "seq": hex(msg.seq),
+                "size": len(msg.body),
+                "n": self.state_stream_sent,
+                "wire_seq": sent_seq,
+                "remaining": len(self.state_stream_queue),
+            }
+        )
+
     def _send_replay_message(self, server, msg) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.
 
@@ -1243,7 +1386,16 @@ class PeerSession:
         """Decode the client's SM_CT_ACKS (Carrier.cpp WriteAckData format).
 
         flags 0x20 = keepalive-only; 0x40 = continuous [first..last];
-        0x8n = bitmap of n bytes covering last-1 backwards."""
+        0x8n = bitmap of n bytes covering last-1 backwards.
+
+        2026-10-02 REVERTED: an earlier change also read p[3:5] as an ack
+        of OUR envelope seq. That is correct ONLY for the 0x40 continuous
+        form (where the elif below already covers it) and CORRUPT for the
+        0x8n bitmap forms (p[3:] is the bitmap): bogus seqs got marked
+        acked and maybe_resend suppressed legitimate retransmissions.
+        Live effect: a possession run came up with the manager context
+        setter never called (mgrSet 0 vs 2 in session 232). The resend
+        storm is benign in-flight retransmission, not a decode bug."""
         for rec in recs:
             if not rec.is_system or rec.system_msg_id != SystemMessageId.SM_CT_ACKS:
                 continue
@@ -1285,6 +1437,17 @@ class PeerSession:
                 self.resend_tries.pop(stale, None)
         now = time.monotonic()
         sent = 0
+        # Same "replay finished" predicate as maybe_heartbeat: queue drained
+        # AND the quiet-complete flag. Before that, lost possession chunks
+        # still need this call's burst of 4.
+        replay_done = not self.replay_queue and self.greetings_after_replay
+        ack_hw = max(self.acked_seqs) if replay_done and self.acked_seqs else None
+        if (
+            replay_done
+            and now - self.resend_window_start >= POST_REPLAY_RESEND_WINDOW_S
+        ):
+            self.resend_window_start = now
+            self.resend_window_count = 0
         for seq in sorted(self.sent_reliable):
             if seq in self.acked_seqs:
                 del self.sent_reliable[seq]
@@ -1292,7 +1455,15 @@ class PeerSession:
             t, dgram = self.sent_reliable[seq]
             if now - t < 0.3:
                 continue
-            if sent >= 4:
+            if replay_done:
+                # More than 512 below the ack high-water is stale. The
+                # type-0x08 tail (888 vs ~890) is not — only the window
+                # slows it. Either skip leaves the seq unacked and untried.
+                if ack_hw is not None and ack_hw - seq > POST_REPLAY_STALE_GAP:
+                    continue
+                if self.resend_window_count >= POST_REPLAY_RESEND_MAX:
+                    return
+            elif sent >= 4:
                 return
             # Attempt count: stored in the tuple slot via a dict of counts.
             tries = self.resend_tries.get(seq, 0)
@@ -1302,6 +1473,8 @@ class PeerSession:
             self.sent_reliable[seq] = (now, dgram)
             self.send(server, dgram)
             sent += 1
+            if replay_done:
+                self.resend_window_count += 1
             log_event({"event": "resend", "seq": seq, "try": tries + 1, "size": len(dgram)})
 
     def maybe_inject(self, server) -> None:
@@ -1512,6 +1685,7 @@ class RepServer:
                         session.maybe_keepalive(self)
                         session.maybe_send_post_v3(self)
                         session.maybe_heartbeat(self)
+                        session.maybe_state_stream(self)
                         session.maybe_resend(self)
                     except Exception as exc:  # noqa: BLE001
                         log_event(

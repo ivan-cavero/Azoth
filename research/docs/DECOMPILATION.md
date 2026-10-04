@@ -216,11 +216,15 @@ See `derived/symbols.json` (source of truth, with VA and how each was found). Su
 
 ## Still unresolved
 
-The world panel list stays empty ("no hay mundos activos en tu región" =
-`Errors::login_no_worlds`). The model (`WorldMetadata`) and its schema are RE'd,
-and the client **parses without error** (the failure is semantic). The missing
-piece is either the **root JSON key** of the getlogininfo body that fills the
-worlds vector, or a **predicate** discarding our entry. Open leads, by value:
+**Mostly resolved — kept as the record of that hunt.** The world panel went from empty to a
+working login on 2026-09-14 (the dual-schema answer: one body serves both the lowercase
+`worlds` dropdown and the PascalCase `LoginInfoList` character gate — [LESSONS.md](LESSONS.md)
+§3–4). The world now loads, spawns and renders (2026-10-02); the live frontier is owned by
+[STATUS.md](../../STATUS.md) (as of 2026-10-04: the client self-reconnects ~5 s after spawn and
+destroys its `ClientContext`). What remains from the list below is only item 2's technique
+(RTTI/lambda member extraction), which folds into DECOMP-BACKLOG §7's RTTI recovery note.
+
+<details><summary>The 2026-09-13 open-lead list (historical)</summary>
 
 1. **Decompile the real GetLoginInfo unmarshaller** — done (2026-09-13):
    handler `0x1464154e0` builds the result via `FUN_146456b60` -> `FUN_1464033e0`.
@@ -248,3 +252,22 @@ worlds vector, or a **predicate** discarding our entry. Open leads, by value:
 7. Cvar `g_loginWithWorldTypes` ("Consider available world types before requesting
    login"): if there is an allowed-type list, an out-of-list type is silently
    discarded.
+</details>
+
+## Version-to-version survival of findings (researched 2026-10-05)
+
+Every finding in `symbols.json` is anchored to one exe hash. When (if) a maintenance client
+ships, the first line of defense is **ours, not a new tool**:
+
+1. Hash the new exe, give it its own corpus directory (DECOMP-PLAN's rule).
+2. Re-derive the known anchors with the existing kit: `peutil.py str` for each named string,
+   the cached `xrefmap` (rebuilt with `--rebuild`), and `bytepat.py` for the byte-pattern
+   sites (the DTLS verify site was already byte-identical across 1.365 → 1.400).
+3. Re-validate `symbols.json` entries and record the new VAs beside the old ones.
+
+If whole-build diffing is ever genuinely needed: **BinExport** (first-party Ghidra extension,
+github.com/google/binexport) + **BinDiff** (github.com/google/bindiff, free for non-commercial
+use, Ghidra as backend). **Diaphora** is IDA/radare2-only — not our path. **Ghidra Function ID**
+signature databases work exactly when compiled function bytes are unchanged, which is the
+frozen-build case. Ghidra's Version Tracking is a GUI session workflow — heavy; keep as last
+resort. Detail in [DECOMP-BACKLOG.md](DECOMP-BACKLOG.md) §11.

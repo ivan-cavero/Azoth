@@ -2,8 +2,13 @@
 
 This document lives in **research/** (monorepo). Contract: `../../docs/ARQUITECTURA.md`. Index: [INDEX.md](INDEX.md).
 
-Date: 2026-09-06
+Date: 2026-09-06. **Snapshot document — historical.** The phased plan in §6 is superseded:
+phases 0–2 already happened (gateway live, world entry solved 2026-10-02); the program now
+lives in [DECOMP-PLAN.md](DECOMP-PLAN.md), the open inventory in [DECOMP-BACKLOG.md](DECOMP-BACKLOG.md),
+and the live frontier in [STATUS.md](../../STATUS.md). §1 (what the client is), §2 (login
+replacement), §3 (protocol layers) and §5 (target backend) remain the best single overview.
 Analyzed client: Steam install at `C:\Program Files (x86)\Steam\steamapps\common\New World`
+(build path resolved by `common.py` in scripts — do not hard-code it in new tooling)
 Build: `[RETAIL].Javelin.1.400.6031.6004151` (compiled 21 Mar 2026)
 Steam App ID: `1063730`
 

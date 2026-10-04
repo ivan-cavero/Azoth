@@ -109,6 +109,231 @@ class TestSystemHandshake(unittest.TestCase):
             handle_app_data(wire, 2, handshake_done=False, inbound_first=2), []
         )
 
+    def test_peer_session_acks_continuous_range(self):
+        """The 0x40 continuous form acks the whole [first..last] range:
+        `40 23fc 23f9 06` marks 0x23f9..0x23fc (session 232 live form)."""
+        from unittest import mock
+
+        from azoth_world.rep import PeerSession
+
+        with mock.patch("OpenSSL.SSL.Context"), mock.patch(
+            "OpenSSL.SSL.Connection"
+        ):
+            session = PeerSession.__new__(PeerSession)
+            session.acked_seqs = set()
+            rec = MessageRecord(
+                channel=3,
+                payload=bytes([0x40, 0x23, 0xFC, 0x23, 0xF9, 0x06]),
+                sequence=1,
+                flags_override=0xA0,
+            )
+            session._process_acks([rec])
+            self.assertEqual(session.acked_seqs, {0x23F9, 0x23FA, 0x23FB, 0x23FC})
+
+    def test_peer_session_bitmap_is_not_read_as_our_seq(self):
+        """Regression: in the 0x8n bitmap forms p[3:] IS the bitmap. An
+        earlier change read p[3:5] as an ack of our envelope seq, marking
+        bogus seqs acked and suppressing legitimate resends (mgrSet 0 vs
+        2 in the 21:13Z run). Bitmap bytes must never enter acked_seqs."""
+        from unittest import mock
+
+        from azoth_world.rep import PeerSession
+
+        with mock.patch("OpenSSL.SSL.Context"), mock.patch(
+            "OpenSSL.SSL.Connection"
+        ):
+            session = PeerSession.__new__(PeerSession)
+            session.acked_seqs = set()
+            # flags 0x82: bitmap of 2 bytes `ab cd` covering last-1 backwards
+            rec = MessageRecord(
+                channel=3,
+                payload=bytes([0x82, 0x00, 0x0F, 0xAB, 0xCD, 0x06]),
+                sequence=1,
+                flags_override=0xA0,
+            )
+            session._process_acks([rec])
+            # last=0x0F acked; bitmap bit0 of 0xAB covers 0x0E
+            self.assertIn(0x0F, session.acked_seqs)
+            self.assertIn(0x0E, session.acked_seqs)
+            # 0xABCD interpreted as a seq would be 43981 - must NOT appear
+            self.assertNotIn(0xABCD, session.acked_seqs)
+
+    def test_peer_session_acks_short_form_without_our_seq(self):
+        """The 0xFFFF keepalive form (`40 ffff ffff 06`-shaped, short
+        payloads) carries no ack of our envelope: only the client's own
+        seq is marked."""
+        from unittest import mock
+
+        from azoth_world.rep import PeerSession
+
+        with mock.patch("OpenSSL.SSL.Context"), mock.patch(
+            "OpenSSL.SSL.Connection"
+        ):
+            session = PeerSession.__new__(PeerSession)
+            session.acked_seqs = set()
+            rec = MessageRecord(
+                channel=3,
+                payload=bytes([0x40, 0x00, 0x05, 0x06]),
+                sequence=1,
+                flags_override=0xA0,
+            )
+            session._process_acks([rec])
+            self.assertIn(0x0005, session.acked_seqs)
+            self.assertEqual(len(session.acked_seqs), 1)
+
+    def _pending_resend_session(
+        self,
+        seqs: list[int],
+        *,
+        acked: set[int] | None = None,
+        tries: dict[int, int] | None = None,
+        replay_queue: list | None = None,
+        greetings_after_replay: bool = False,
+        now: float = 1_000.0,
+    ):
+        """PeerSession.__new__ plus the fields maybe_resend actually reads.
+
+        send() is replaced so a resend does not touch OpenSSL. Timestamps
+        are already older than the 0.3 s retry gap.
+        """
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.sent_reliable = {
+            seq: (now - 1.0, seq.to_bytes(2, "big")) for seq in seqs
+        }
+        session.resend_tries = dict(tries or {})
+        session.acked_seqs = set(acked or ())
+        session.replay_queue = [] if replay_queue is None else list(replay_queue)
+        session.greetings_after_replay = greetings_after_replay
+        session.resend_window_start = now
+        session.resend_window_count = 0
+        session.sent: list[bytes] = []
+
+        def _send(_server, dgram, _session=session):
+            _session.sent.append(dgram)
+
+        session.send = _send
+        return session
+
+    def test_post_replay_resend_rate_limit_keeps_try_count(self):
+        """After replay-complete, many maybe_resend calls inside 200 ms
+        transmit at most 2 datagrams. Unsent seqs stay pending with the
+        same try count — a skip must not feed the 6-try cap, and must
+        not be marked acked. Seq 888 vs high-water 890 is in this set:
+        it is only slowed, not dropped."""
+        from unittest import mock
+
+        from azoth_world.rep import POST_REPLAY_RESEND_WINDOW_S
+
+        now = 1_000.0
+        # 886/887 fill the window; 888/889 are the tail that must wait.
+        seqs = [886, 887, 888, 889]
+        session = self._pending_resend_session(
+            seqs,
+            acked={890},
+            tries={seq: 4 for seq in seqs},
+            greetings_after_replay=True,
+            now=now,
+        )
+        clock = {"now": now}
+
+        def _now():
+            return clock["now"]
+
+        with mock.patch("azoth_world.rep.time.monotonic", _now), mock.patch(
+            "azoth_world.rep.log_event"
+        ):
+            for _ in range(20):
+                session.maybe_resend(None)
+            sent = [int.from_bytes(d, "big") for d in session.sent]
+            self.assertEqual(sent, [886, 887])
+            self.assertEqual(session.resend_tries[888], 4)
+            self.assertEqual(session.resend_tries[889], 4)
+            self.assertIn(888, session.sent_reliable)
+            self.assertEqual(session.sent_reliable[888][0], now - 1.0)
+            self.assertNotIn(888, session.acked_seqs)
+            self.assertEqual(session.acked_seqs, {890})
+            # Still inside the 200 ms window: nothing further goes out.
+            clock["now"] = now + (POST_REPLAY_RESEND_WINDOW_S / 2)
+            session.maybe_resend(None)
+            self.assertEqual(len(session.sent), 2)
+            self.assertEqual(session.resend_tries[888], 4)
+            # Next window: 888 is still eligible (not burned, not acked).
+            clock["now"] = now + POST_REPLAY_RESEND_WINDOW_S + 0.05
+            session.maybe_resend(None)
+            sent = [int.from_bytes(d, "big") for d in session.sent]
+            self.assertEqual(sent, [886, 887, 888, 889])
+            self.assertEqual(session.resend_tries[888], 5)
+            self.assertEqual(session.resend_tries[886], 5)
+
+    def test_post_replay_skips_only_seqs_more_than_512_behind(self):
+        """A seq more than 512 below the highest acked seq is not resent
+        once replay is complete. Exactly 512 behind, and the 888-vs-890
+        tail, stay eligible — the tail is only rate-limited."""
+        from unittest import mock
+
+        high = 890
+        stale = high - 513
+        edge = high - 512
+        session = self._pending_resend_session(
+            [stale, edge, 888, 889],
+            acked={high},
+            tries={stale: 1, edge: 1, 888: 1, 889: 1},
+            greetings_after_replay=True,
+        )
+        with mock.patch("azoth_world.rep.time.monotonic", return_value=1_000.0), mock.patch(
+            "azoth_world.rep.log_event"
+        ):
+            session.maybe_resend(None)
+        sent = [int.from_bytes(d, "big") for d in session.sent]
+        self.assertEqual(sent, [edge, 888])
+        self.assertIn(stale, session.sent_reliable)
+        self.assertEqual(session.resend_tries[stale], 1)
+        self.assertNotIn(stale, session.acked_seqs)
+        self.assertEqual(session.resend_tries[889], 1)
+        self.assertIn(889, session.sent_reliable)
+        self.assertEqual(session.acked_seqs, {high})
+
+    def test_resend_burst_unchanged_until_replay_completes(self):
+        """While the replay queue is live, or before the quiet-complete
+        flag, the per-call cap of 4 still applies. The post-replay window
+        (already full here) and the 512-behind skip must not run —
+        possession still needs lost chunks during the burst."""
+        from unittest import mock
+
+        # Every seq is more than 512 below 890. A stale filter would
+        # send nothing; a live rate limit (window already full) would too.
+        seqs = [100, 101, 102, 103, 104, 105, 106, 107]
+        cases = (
+            ([object()], False),
+            ([], False),
+            ([object()], True),
+        )
+        for queue, flag in cases:
+            session = self._pending_resend_session(
+                seqs,
+                acked={890},
+                replay_queue=queue,
+                greetings_after_replay=flag,
+            )
+            session.resend_window_count = 2
+            with mock.patch(
+                "azoth_world.rep.time.monotonic", return_value=1_000.0
+            ), mock.patch("azoth_world.rep.log_event"):
+                session.maybe_resend(None)
+                first = [int.from_bytes(d, "big") for d in session.sent]
+                self.assertEqual(first, seqs[:4], (queue, flag))
+                session.sent.clear()
+                session.maybe_resend(None)
+                second = [int.from_bytes(d, "big") for d in session.sent]
+                self.assertEqual(second, seqs[4:], (queue, flag))
+            self.assertEqual(
+                [session.resend_tries[seq] for seq in seqs],
+                [1, 1, 1, 1, 1, 1, 1, 1],
+            )
+
     def test_v3_still_answered(self):
         from azoth_world.rep import handle_app_data
 
@@ -411,6 +636,231 @@ class TestDtlsHandshake(unittest.TestCase):
         self.assertEqual(len(result.messages[0].payload), 89)
         udp.close()
         srv.sock.close()
+
+
+class TestStateStream(unittest.TestCase):
+    """Post-replay 0x08 state-bundle stream (see STATE_STREAM_* in rep.py).
+
+    The capture's steady state is R-direction type 0x08 bundles right up to
+    seq 0xb0, and the real server never stopped sending them. Our replay does,
+    and the client's activity warning counter climbs until it drops REP
+    (2026-10-03: 1 -> 117 warnings, then `disconnected from REP`).
+    """
+
+    def _session(self, *, now: float = 1_000.0):
+        """PeerSession.__new__ with only the fields the stream reads.
+
+        _send_replay_message is replaced so the test does not touch OpenSSL;
+        the transport wrap is covered elsewhere.
+        """
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.replay_queue = []
+        session.greetings_after_replay = True
+        session.out_msg_seq = 1
+        session.out_rel_seq = 1
+        session.state_stream_all = []
+        session.state_stream_queue = []
+        session.state_stream_next_at = 0.0
+        session.state_stream_sent = 0
+        session.state_stream_seq = 54
+        session.sent: list = []
+
+        def _record(_server, msg, _session=session):
+            _session.sent.append(msg)
+
+        session._send_replay_message = _record
+        return session
+
+    @staticmethod
+    def _bundle(seq: int):
+        """Real ReplayMessage so dataclasses.replace works on it."""
+        from azoth_world.javelin.replay_store import ReplayMessage
+
+        return ReplayMessage(
+            seq=seq,
+            type_id=0x08,
+            direction="R",
+            body=bytes((0x00, 0x01, 0x08, 0x01, 0x25)),
+            has_redaction=False,
+        )
+
+    def test_captured_tail_is_single_datagram_bundles(self):
+        """Every armed bundle must stay under REPLAY_CHUNK_SIZE so the
+        continuation never takes the chunked path (chunking a bundle that the
+        client did not ask for is the untested part)."""
+        from azoth_world.rep import REPLAY_CHUNK_SIZE, STATE_STREAM_MIN_SEQ, replay_store
+
+        store = replay_store()
+        queue = [
+            m
+            for m in store.replay_messages_after_v3(0xB0, include_redacted=True)
+            if m.type_id == 0x08 and m.seq >= STATE_STREAM_MIN_SEQ
+        ]
+        self.assertGreater(len(queue), 0, "no captured tail bundles to continue")
+        for msg in queue:
+            self.assertLessEqual(
+                len(msg.body), REPLAY_CHUNK_SIZE, f"seq {msg.seq:#x} would chunk"
+            )
+        self.assertEqual([m.seq for m in queue], sorted(m.seq for m in queue))
+
+    def test_stream_waits_for_the_replay_and_greetings(self):
+        from unittest import mock
+
+        from azoth_world.rep import PeerSession
+
+        with mock.patch("azoth_world.rep.STATE_STREAM_ENABLED", True):
+            self._waits_for_the_replay_and_greetings(PeerSession)
+
+    def _waits_for_the_replay_and_greetings(self, PeerSession):
+        from unittest import mock
+        session = self._session()
+        first = self._bundle(0xA0)
+        session.state_stream_queue = [first]
+        session.greetings_after_replay = False
+        PeerSession.maybe_state_stream(session, None)
+        self.assertEqual(session.sent, [])
+
+        session.greetings_after_replay = True
+        session.replay_queue = ["still replaying"]
+        PeerSession.maybe_state_stream(session, None)
+        self.assertEqual(session.sent, [])
+
+        session.replay_queue = []
+        PeerSession.maybe_state_stream(session, None)
+        self.assertEqual([m.seq for m in session.sent], [first.seq])
+
+    def test_stream_sends_one_per_period_in_capture_order(self):
+        from unittest import mock
+
+        from azoth_world.rep import PeerSession, STATE_STREAM_PERIOD_S
+
+        with mock.patch("azoth_world.rep.STATE_STREAM_ENABLED", True):
+            self._one_per_period(PeerSession, STATE_STREAM_PERIOD_S)
+
+    def _one_per_period(self, PeerSession, STATE_STREAM_PERIOD_S):
+        from unittest import mock
+        session = self._session()
+        first, second = self._bundle(0xA0), self._bundle(0xA1)
+        session.state_stream_queue = [first, second]
+        clock = {"now": 1_000.0}
+        with mock.patch("azoth_world.rep.time.monotonic", lambda: clock["now"]):
+            PeerSession.maybe_state_stream(session, None)
+            PeerSession.maybe_state_stream(session, None)  # inside the period
+            self.assertEqual([m.seq for m in session.sent], [first.seq])
+            clock["now"] += STATE_STREAM_PERIOD_S
+            PeerSession.maybe_state_stream(session, None)
+        self.assertEqual([m.seq for m in session.sent], [first.seq, second.seq])
+        self.assertEqual(session.state_stream_sent, 2)
+
+    def test_stream_loops_through_the_capture(self):
+        """One pass is not enough: the real server streamed 0x08 forever, so
+        the queue must refill from the armed list instead of going quiet."""
+        from unittest import mock
+
+        from azoth_world.rep import PeerSession, STATE_STREAM_PERIOD_S
+
+        with mock.patch("azoth_world.rep.STATE_STREAM_ENABLED", True):
+            self._loops(PeerSession, STATE_STREAM_PERIOD_S)
+
+    def _loops(self, PeerSession, STATE_STREAM_PERIOD_S):
+        from unittest import mock
+
+        session = self._session()
+        first = self._bundle(0xA0)
+        session.state_stream_all = [first]
+        session.state_stream_queue = [first]
+        clock = {"now": 1_000.0}
+        with mock.patch("azoth_world.rep.time.monotonic", lambda: clock["now"]):
+            PeerSession.maybe_state_stream(session, None)
+            self.assertEqual([m.seq for m in session.sent], [first.seq])
+            self.assertEqual(session.state_stream_queue, [])
+            clock["now"] += STATE_STREAM_PERIOD_S
+            PeerSession.maybe_state_stream(session, None)
+        self.assertEqual([m.seq for m in session.sent], [first.seq, first.seq])
+        self.assertEqual(session.state_stream_sent, 2)
+
+    def test_wire_seq_is_rewritten_above_the_capture(self):
+        """The client drops a replication message whose seq is not strictly
+        greater than m_lastUnreliableReplicationSeq, so a re-sent captured
+        bundle must carry a continued counter (measured: high-water 53 while
+        the bundles carried their original 37..53)."""
+        from unittest import mock
+
+        from azoth_world.rep import (
+            PeerSession,
+            STATE_STREAM_PERIOD_S,
+            STATE_STREAM_SEQ_OFFSET,
+        )
+
+        with mock.patch("azoth_world.rep.STATE_STREAM_ENABLED", True):
+            self._rewrites(PeerSession, STATE_STREAM_PERIOD_S, STATE_STREAM_SEQ_OFFSET)
+
+    def _rewrites(self, PeerSession, STATE_STREAM_PERIOD_S, STATE_STREAM_SEQ_OFFSET):
+        from unittest import mock
+        session = self._session()
+        first, second = self._bundle(0xA0), self._bundle(0xA1)
+        session.state_stream_all = [first, second]
+        session.state_stream_queue = [first, second]
+        session.state_stream_seq = 54
+        clock = {"now": 1_000.0}
+        with mock.patch("azoth_world.rep.time.monotonic", lambda: clock["now"]):
+            PeerSession.maybe_state_stream(session, None)
+            clock["now"] += STATE_STREAM_PERIOD_S
+            PeerSession.maybe_state_stream(session, None)
+        self.assertEqual(session.sent[0].body[STATE_STREAM_SEQ_OFFSET], 54)
+        self.assertEqual(session.sent[1].body[STATE_STREAM_SEQ_OFFSET], 55)
+        # the rest of the body is untouched
+        self.assertEqual(session.sent[0].body[:4], first.body[:4])
+        self.assertEqual(len(session.sent[0].body), len(first.body))
+
+    def test_stream_does_not_loop_an_empty_arm(self):
+        from azoth_world.rep import PeerSession
+
+        session = self._session()
+        PeerSession.maybe_state_stream(session, None)
+        self.assertEqual(session.sent, [])
+
+    def test_stream_is_off_by_default(self):
+        """Measured 2026-10-04: with the stream on, the client dropped REP at
+        +23 s, reconnected, never re-created its ClientContext and then skipped
+        758 state bundles. With it off the same build kept ONE spawn, one skipped
+        bundle and no disconnect. The default must stay off; the env switch is
+        only for a deliberate re-test."""
+        import importlib
+        import os
+
+        from azoth_world import rep as rep_module
+
+        previous = os.environ.pop("AZOTH_REPLAY_STATE_STREAM", None)
+        try:
+            importlib.reload(rep_module)
+            self.assertFalse(rep_module.STATE_STREAM_ENABLED)
+        finally:
+            if previous is not None:
+                os.environ["AZOTH_REPLAY_STATE_STREAM"] = previous
+            importlib.reload(rep_module)
+
+    def test_stream_can_be_forced_on_for_an_ab(self):
+        import importlib
+        import os
+
+        from azoth_world import rep as rep_module
+
+        previous = os.environ.get("AZOTH_REPLAY_STATE_STREAM")
+        os.environ["AZOTH_REPLAY_STATE_STREAM"] = "1"
+        try:
+            importlib.reload(rep_module)
+            self.assertTrue(rep_module.STATE_STREAM_ENABLED)
+        finally:
+            if previous is None:
+                os.environ.pop("AZOTH_REPLAY_STATE_STREAM", None)
+            else:
+                os.environ["AZOTH_REPLAY_STATE_STREAM"] = previous
+            importlib.reload(rep_module)
 
 
 if __name__ == "__main__":

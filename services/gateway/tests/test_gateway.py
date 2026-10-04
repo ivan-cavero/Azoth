@@ -238,6 +238,10 @@ class GatewayTest(unittest.TestCase):
         names = [w["publicName"] for w in doc["worlds"]]
         self.assertEqual(names, ["Everfall"])  # fra-prod has exactly one world
         self.assertEqual(doc["LoginInfoList"]["Worlds"][0]["WorldName"], "everfall")
+        self.assertEqual(
+            doc["LoginInfoList"]["Characters"][0]["WorldId"],
+            doc["LoginInfoList"]["Worlds"][0]["WorldId"],
+        )
         # Another region -> its own world.
         hdrs["X-Forwarded-Host"] = "d2oeuvxi3kfsrw.cloudfront.net"  # iad-prod
         _, _, body = get(18080, "/prod/game/getlogininfo/jwt/omni", hdrs)

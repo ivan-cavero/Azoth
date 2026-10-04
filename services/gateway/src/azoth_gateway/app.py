@@ -219,7 +219,9 @@ class Handler(BaseHTTPRequestHandler):
         elif is_privacy_path(path):
             key, payload = "privacy", privacy_response(st.cfg.discovery_dir)
         elif is_queue_path(path):
-            key, payload = "queue", queue_response(st.cfg.discovery_dir, path)
+            key, payload = "queue", queue_response(
+                st.cfg.discovery_dir, path, region_from_headers(self.headers)
+            )
         elif is_entitlements_sync_path(path):
             key, payload = (
                 "entitlements:sync",

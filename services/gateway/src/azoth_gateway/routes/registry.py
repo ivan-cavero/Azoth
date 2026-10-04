@@ -76,13 +76,29 @@ def active_world(reg: Registry, world_name: str | None = None) -> dict | None:
     return None
 
 
-def queue_fields(reg: Registry, world_name: str | None = None) -> tuple[str, str, str]:
+def queue_fields(
+    reg: Registry, world_name: str | None = None, region_id: str | None = None
+) -> tuple[str, str, str]:
     """(repAddress, worldId, worldName) for the queue ticket.
 
-    First ACTIVE world (optionally by name); falls back to the first world so a
-    MAINTENANCE-only registry still yields a ticket the client can parse.
+    Prefer an ACTIVE world in the client's region so the ticket matches the
+    character getlogininfo just bound to that region. Falls back to the first
+    ACTIVE world, then the first world, so a MAINTENANCE-only registry still
+    yields a ticket the client can parse.
     """
-    w = active_world(reg, world_name) or active_world(reg)
+    w = None
+    if region_id:
+        w = next(
+            (
+                item
+                for item in reg.worlds
+                if item.get("regionId") == region_id
+                and item.get("status") == "ACTIVE"
+                and (world_name is None or item.get("name") == world_name)
+            ),
+            None,
+        )
+    w = w or active_world(reg, world_name) or active_world(reg)
     if w is None:
         w = reg.worlds[0] if reg.worlds else {}
     return (
@@ -320,7 +336,10 @@ def getlogininfo_doc(reg: Registry, region_id: str | None = None) -> dict:
     world under every region.
     """
     worlds = worlds_for_region(reg, region_id)
-    w = active_world(reg) or (worlds[0] if worlds else {})
+    # Bind the character to a world this response lists. active_world() is
+    # the first ACTIVE world globally (EU). A US West login then renders
+    # that character as "world unavailable" and the Play button does nothing.
+    w = worlds[0] if worlds else (active_world(reg) or {})
     return {
         "worlds": [_login_world_dropdown(x) for x in worlds] or [_login_world_dropdown(w)],
         "recommendedWorlds": [],

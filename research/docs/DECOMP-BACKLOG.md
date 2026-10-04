@@ -1,8 +1,8 @@
 # Decompilation backlog — everything still open
 
-Paused 2026-10-02. This is the complete inventory of what remains for the
-decompilation and data work, so any later session can resume without re-deriving
-anything. The program itself (why, layers, rules) stays in
+Updated 2026-10-05 (external research pass + Oodle decode validated; see §2.1 and §11).
+This is the complete inventory of what remains for the decompilation and data work, so any
+later session can resume without re-deriving anything. The program itself (why, layers, rules) stays in
 [DECOMP-PLAN.md](DECOMP-PLAN.md); tool procedure in
 [DECOMPILATION.md](DECOMPILATION.md); measured PAK facts in
 [PAK-FORMAT.md](PAK-FORMAT.md).
@@ -16,7 +16,8 @@ Legend: **[E]** has direct evidence · **[I]** inferred, not yet decisive ·
 
 | Done | Evidence |
 | --- | --- |
-| Code corpus, all 423,579 `.pdata` functions | 1,695 shards, 423,542 `ok` / **37 `fail`**, verified by set equality against `ranges.txt` (0 missing, 0 duplicates). `%LOCALAPPDATA%\Azoth\decomp\corpus\8654f01d324636d9` **[E]** |
+| Code corpus, all 423,579 `.pdata` functions | 1,695 shards; the `.idx` rows carry 423,542 `ok` / 37 cumulative `fail`, while `progress.json` records `fail: 12` for the last resumed run — 25 previously failed functions were recovered on retry (see the trap note in §9). Verified by set equality against `ranges.txt` (0 missing, 0 duplicates). `%LOCALAPPDATA%\Azoth\decomp\corpus\8654f01d324636d9` **[E]** |
+| Method 15 = Oodle **Kraken**, decoded exactly by a third-party reader | 31/31 exact CRC matches (ground-truth pair + 30 random entries across 5 paks + the `.dds` header exception), 0.7 s, no process access. Methods 16–19 do not exist in the install. [PAK-FORMAT.md §4f](PAK-FORMAT.md) **[E] (2026-10-05)** |
 | Toolchain installed and green | Ghidra 12.1.4 at `%USERPROFILE%\tools\ghidra_12.1.4_PUBLIC`; `peutil.py selftest` 6/6; `decomp.py --selftest` OK **[E]** |
 | xref map built and cached | 280,594 targets, `lea r64,[rip+disp32]` only, `%LOCALAPPDATA%\Azoth\decomp\xrefmap.json` **[E]** |
 | PAK container measured | 123 paks, 1,413,205 entries, full central-directory index in **6.1 s**. Method 0 = store (90,949), method 8 = raw deflate (583, verified byte-identical), method 15 = unknown (1,321,673, 93.5%) **[E]** |
@@ -29,7 +30,7 @@ Legend: **[E]** has direct evidence · **[I]** inferred, not yet decisive ·
 
 | # | Item | Notes |
 | --- | --- | --- |
-| 1.1 | **Retry the 37 `fail` rows with a higher `--timeout`** | Grouped in shards 401/402 and a few others; messages are 55–87 bytes. Their `.idx` rows must be removed first or `corpus.py` skips them. Genuinely low value (37 of 423,579) but it is the last untidy edge of a "complete" claim. |
+| 1.1 | **Retry the remaining `fail` rows with a higher `--timeout`** | The `.idx` rows carry **37 cumulative `fail`s**; the last resumed run (2026-10-01, `progress.json`) failed only 12 — 25 were recovered by an earlier retry, proving retries work. Remove the target `.idx` rows first or `corpus.py` skips them. Genuinely low value (37 of 423,579) but it is the last untidy edge of a "complete" claim. |
 | 1.2 | **The corpus has no names, types or strings** | It was imported with `-noanalysis`, so every function is `FUN_<va>` and `.rdata` addresses do not appear. This is the single biggest usability gap: the dump is a search index, not readable source. Naming is the real long-term work, one system at a time. |
 | 1.3 | **No PDB exists** for this build | Confirmed: `failed to locate PDB file`. Names will never come from symbols, only from analysis + the reflection registry. **[E]** |
 | 1.4 | **Verify the corpus pseudocode is correct** | It is decompiler output with no ground truth on any function except the handful that were hand-checked. Treat as a map, not a specification. |
@@ -38,8 +39,9 @@ Legend: **[E]** has direct evidence · **[I]** inferred, not yet decisive ·
 
 | # | Item | Notes |
 | --- | --- | --- |
-| 2.1 | **Decode Oodle (method 15–19)** — the top blocker | Identified 2026-10-02: the codec is **RAD Oodle, statically linked**, and 15–19 are one family. Named API: `oo2::OodleLZ_Decompress` `0x1479f0820`, `oo2::OodleLZ_Compress` `0x1479efea0`. Dispatch: `0x147174570` → `0x147142e50`; codec id from `0x147132390`; **512 KiB** in-place ring (`0x80000`) with 256 KiB Oodle block granularity, not a 64 KiB prefix. Open: (a) which Oodle codec is method 15 — read the 32 registry bytes at `0x1485ee7f0`; (b) the 8-byte header; (c) the token grammar (Oodle's bit-packed `newLZ`). |
-| 2.1b | **Call the client's own decoder** | Cheapest real route to extraction: `OodleLZ_Decompress` is at a known VA inside the exe, so a local harness can load the image and call it. No reimplementation, nothing to distribute. Not attempted. |
+| 2.1 | ~~Decode Oodle (method 15)~~ **RESOLVED 2026-10-05 at the reader level** | Method 15 is Oodle **Kraken** and `kraken-decompressor` decodes it exactly, header included, from offset 0 (31/31 CRC-exact; [PAK-FORMAT.md §4f](PAK-FORMAT.md)). The old open questions are closed or moot: (a) the codec-id registry mapping in `FUN_147132390` is [I] informational only — nothing on the extraction path needs it; (b) the 8-byte prefix is the Oodle block header, consumed by the standard stream reader; (c) the token grammar never needed reimplementing. Static chain (dispatch VAs, 512 KiB ring) remains valid evidence. |
+| 2.1b | ~~Call the client's own decoder~~ **fallback only** | Demoted: keep as the fallback if a future payload family (a maintenance exe, hypothetical methods 16–19) fails with the pure reader. A standalone offline harness loading the image and calling `0x1479f0820` is acceptable; never touch a live/protected process ([EAC.md](EAC.md)). |
+| 2.1c | **Vendor the Oodle reader as a repo tool** | Wrap `kraken-decompressor` (or shell out to `ooz`/`oozextract`) behind a small `research/tools/reversing/pakread.py`-style helper: read entry → Kraken-decode → CRC check against the central directory, with a cached wheel/vendored source under `research/tools/`. pip stays banned in `services/`. First command (with the tool name as implemented): `python research/tools/reversing/pakread.py selftest` — must decode `Engine.pak:config/game.xml` and match CRC `f8ed6f3c`. |
 | 2.2 | **Write the PAK index tool** | Reads central directories only; 6.1 s measured. Writes `{path, pak, ext, csize, usize, crc32, method}`, plus a committed summary of counts per extension and method. Must not run while a corpus dump writes. Unblocked. |
 | 2.3 | **Find the localization packs** | A named DECOMP-PLAN deliverable. Do it from the 2.2 index; no separate scan needed. |
 | 2.4 | **Prove the edit path** | Extract one file, change it, repack with method 8 or 0, launch the private client, see the change. **Not blocked by 2.1** — repacking never needs the method-15 reader. This is the cheapest concrete proof that content mods are possible. |
@@ -67,7 +69,7 @@ first, because the text itself is not typed. See §9.
 ## 4. Protocol corpus — deadline 2027-01-31
 
 The only workstream with a hard deadline: after Amazon's shutdown the plaintext
-source is gone. DECOMP-PLAN lists six themes required from official sessions.
+source is gone. DECOMP-PLAN lists six themes; how they get captured is restated below.
 
 **Status from the 2026-09-06 captures ([SESSIONS.md](SESSIONS.md)):**
 
@@ -80,42 +82,32 @@ source is gone. DECOMP-PLAN lists six themes required from official sessions.
 | Quest accept / advance / complete | **Missing** — not recorded. |
 | Expedition enter (`LevelInfoChanged`, `RepAddress` change) | **Missing** — no dungeon `LevelInfoChanged`, needs a group or a solo instance. |
 
-**A contradiction in the plan that must be resolved by a human decision.** The
-plan asks for these "from live official sessions, one theme each, passive capture
-only while EAC is active". But the capture kit is documented to see only IPs,
-ports, sizes and timing on official traffic — **never bodies** — because official
-HTTPS and DTLS are encrypted and the TLS is pinned. So passive official capture
-**cannot** produce a message-level protocol corpus. **[E]**
-
-Two ways out, both real:
-
-1. **Capture from our own server.** The gateway already stores exact request and
-   response bodies, and the world server sees post-DTLS plaintext (plus
-   `AZOTH_LOG_RAW=1` for the encrypted carrier). Now that the world renders
-   (§0), the client exercises the real paths against Azoth and those bodies are
-   captured in the clear. This is the only route that yields bodies, and it is
-   **now unblocked**.
-2. **Keep official captures only for the metadata they can give** (addresses,
-   ports, timing, and the *existence* of message families), never as a body
-   source.
-
-Recommendation: drop the framing of "six official-theme captures" and restate the
-goal as "drive each system against our own server and capture the bodies". The
-official deadline then applies to the **encrypted carrier metadata** and to the
-Game.log facts, not to bodies.
+**Resolution of the capture-strategy contradiction (restated 2026-10-05, per this section's own
+recommendation).** The framing "six official-theme captures" is dropped. The goal is now:
+**drive each system against our own server and capture the bodies** — the gateway stores exact
+HTTP bodies and the world server sees post-DTLS plaintext (plus `AZOTH_LOG_RAW=1` for the
+encrypted carrier). Since the world renders (§0), this route is live. The 2027-01-31 deadline
+still applies to what only official sessions can give: encrypted-carrier metadata (message
+families, sizes, timing), Game.log facts, and the existence of systems we never exercise
+locally. Official pcap stays a metadata source, never a body source.
 
 ## 5. World / simulation frontier that needs RE
 
-The black frame is solved; this is the measured new frontier (2026-10-02, session
-232). Detail in [WORLD-INVESTIGATION.md](WORLD-INVESTIGATION.md).
+The black frame is solved; the live frontier is owned by the parallel session — read
+[STATUS.md](../../STATUS.md) first (as of 2026-10-04: **the client self-reconnects ~5 s after
+spawn and every reconnect destroys the `ClientContext`**, which explains the missing physics,
+the dead WASD input and the cable growing until the next drop; measured symbols
+`client_self_reconnect_kills_context_20261004`, `local_player_has_no_physics_20261004`,
+`movement_input_ab_20261004`). This section keeps only the RE-shaped items that survive that
+frontier; do not re-derive them from older notes.
 
 | # | Item | Notes |
 | --- | --- | --- |
-| 5.1 | **No movement** — constant ~21 msg/s regardless of input, with the window focused | The player renders as a replica with no input-driven local controller bound. Needs a static + live trace of the local input → controller path. Reuses §7. |
+| 5.1 | **Movement / local input controller** | Owned by the parallel world session. Input arrives (`GetRawInputData` → dispatcher `FUN_1449d5ec0`); the local player replica has 124 components and none of physics. Static + live trace of input → controller only becomes meaningful once the reconnect cuts stop. |
 | 5.2 | **No inventory** — 23 `RMIDispatch` errors, all `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems` | The replay addresses storage facets that do not exist locally. Decide: create the facets in the replay, or teach the server to answer. |
 | 5.3 | **26 remote-player slice warnings** (`Couldn't get Transform component on the slice!`) | Other players' actors, not the local one. A slice-shape problem. |
 | 5.4 | **`State(InGame) is timeout` still fires every 30 s** | `scripts/patch-timeout-watchdog.py` patches a different site than the one reporting. Find the reporting site. |
-| 5.5 | Replay completeness | Once 5.1–5.4 close, the replay still only covers what the capture contains. Systems never exercised in a capture have no data. |
+| 5.5 | Replay completeness | Once the reconnect cut closes, the replay still only covers what the capture contains. Systems never exercised in a capture have no data — this is why §4's own-server captures matter. |
 
 ## 6. Edit pipeline and content mods (the objective)
 
@@ -148,6 +140,21 @@ the first minutes.
 Tooling for it exists: `research/tools/reversing/analyze.py` and
 `ghidra/DisableSlowAnalyzers.java` (disables the decompiler-based analyzers).
 
+**What the analyzed project would additionally buy (researched 2026-10-05; RTTI note
+RETRACTED for game classes):** an early note here hoped Ghidra's PDB-less RTTI recovery
+would hand us vtable-bound classes. Measured on 2026-10-05 by
+`research/tools/reversing/rtti.py` (selftest OK): **this exe is compiled `/GR-` — the game
+code has no vftable RTTI.** All 4,820 TypeDescriptors exist, but all 1,959 COLs (verified
+two independent ways) belong to imported-CRT classes with zero vftable entries in `.text`.
+RTTI recovery can only name STL/exception classes here. Game-class naming comes from the
+AZ reflection registry + string references (DECOMP-BACKLOG 3.x / odd/tasks/corpus-naming.md).
+Other cautions stand: demangler-adjacent analyzers dominate on symbol-rich binaries
+([ghidra#2509](https://github.com/NationalSecurityAgency/ghidra/issues/2509)) and per-analyzer
+timings are printed by headless runs ([ghidra#9298](https://github.com/NationalSecurityAgency/ghidra/discussions/9298)).
+The remaining case for a full analysis is weaker now: call-graph discovery inside regions
+where neither the reflection registry nor strings reach — decide per need, never as a
+background job on a machine running game sessions.
+
 ## 8. Long-term: recompilable modules
 
 Not started, and not a prerequisite for the private server or for mods. A matching
@@ -172,16 +179,35 @@ beginning with the loaders and the platform edge. No build chain exists yet.
 | Caddy can hang after a restart | Verify `https://d1w0bfy6smo4d1.cloudfront.net/prod/game/getlogininfo/jwt/omni` through `:443` returns 200 before blaming the world server. |
 | `observed-endpoints.json` churns | Rewritten live by the gateway, so it is permanently dirty in `git status`. Commit it deliberately after a session (`python az.py doc`), not mid-run. |
 | Concurrent writers | Two writers sharing one worktree make the diff non-atomic and make review targets go stale. Use separate worktrees. |
+| `.idx` rows vs `progress.json` | The `.idx` status fields are the resume gate and accumulate **across** runs (37 cumulative `fail` rows); `progress.json`'s `ok`/`fail` counters describe **only the last run** (`fail: 12` on 2026-10-01). When claiming "the corpus is complete", cite both, and trust the `.idx` for what will actually be skipped. |
+| A pip-decoded finding needs a vendored tool | The 2026-10-05 Oodle validation ran in a disposable venv with `kraken-decompressor` (a C-extension wheel). Until 2.1c vendors it (or an `ooz` binary) under `research/tools/`, the finding reproduces but is not yet a repo tool. Do not add the pip dependency to `services/` — repo rule. |
 
 ---
 
 ## 10. Suggested order
 
-1. **PAK index tool (2.2)** — 6 seconds, unblocked, and it is the prerequisite for 2.3 and everything in 6.
-2. **Prove the edit path (2.4)** — repack with method 8; does not need the codec. Cheapest proof content mods work.
-3. **Resolve the capture-strategy contradiction (§4)** — a human decision, and the only item with a deadline. The world rendering again makes the "capture from our own server" route viable now.
-4. **Movement (5.1)** — the next world frontier, and it is what makes the simulation feel real.
-5. **Oodle decode (2.1b)** — call the client's own `OodleLZ_Decompress` at `0x1479f0820` from a local harness. It is the cheapest real route to reading existing content, and it needs no reimplementation. Do 2.1's registry read first to get the codec id.
-6. **Named loaders (3.x)** — follows from whichever content system we actually edit first.
+1. **Vendor the Oodle reader (2.1c)** — the codec question is answered (§2.1 / [PAK-FORMAT.md §4f](PAK-FORMAT.md)); turn it into `research/tools/reversing/` code with a selftest (decode ground-truth pair → CRC match). First command is written in 2.1c.
+2. **PAK index tool (2.2)** — 6 seconds, unblocked, prerequisite for 2.3 and everything in 6. Can land together with 2.1c in one tool.
+3. **Prove the edit path (2.4)** — extract (Kraken), change, repack with method 8. Cheapest proof content mods work; extraction is no longer a blocker.
+4. **Resolve the §4 capture plan into scheduled sessions** — drive each system against our own server and capture bodies (restated 2026-10-05). The only workstream with a deadline.
+5. **Movement (5.1)** — owned by the parallel world session; unblocks only after the 2026-10-04 reconnect cut closes.
+6. **Named loaders (3.x)** — corpus navigation + RTTI recovery (see §7) once we edit the first content system.
 7. **Inventory (5.2)**, then 5.3/5.4.
-8. **New weapon (6.2)** and the rest of §6 — last, and only once the pipeline is proven.
+8. **Analyzed Ghidra project (§7)** — only on an idle machine; the RTTI payoff makes it more valuable than before, but it never outranks a live session.
+9. **New weapon (6.2)** and the rest of §6 — last, and only once the pipeline is proven.
+
+## 11. External research findings (2026-10-05) — sources and what applies
+
+Primary-source survey of the topics in this backlog, each marked with what applies to a
+~180 MB MSVC x64 binary with no PDB. Items are horizon-tagged: **[A]** unblocks the emulator
+now, **[B]** builds the corpus/protocol base, **[C]** future private-client modification.
+
+| Topic | Finding (source, date) | Applies to Azoth as |
+| --- | --- | --- |
+| Oodle readers | `kraken-decompressor` (github.com/domdfcoding/kraken-decompressor, PyPI, C++ port of the ooz-family Kraken decoder, checked 2026-10-05); `ooz` (github.com/powzix/ooz, zlib license, decodes Kraken/Mermaid/Selkie/Leviathan/BitKnit/LZNA); `oozextract` (lib.rs/crates/oozextract, Rust). RAD's own docs (radgametools.com/oodlecompressors.htm) confirm Kraken/Mermaid/Selkie are one family. | **[A]** Validated 31/31 on this install (§2.1). Vendor one as a research tool. |
+| Diffing builds (when a maintenance exe ships) | **BinExport** is a first-party Ghidra extension (github.com/google/binexport) feeding **BinDiff** (github.com/google/bindiff — free for non-commercial use, Ghidra supported as backend). **Diaphora** (github.com/joxeankoret/diaphora) is IDA/radare2-only — not our path. **Ghidra Function ID** computes full/specific function hashes and matches them against signature databases (ghidradocs.com FunctionID help) — suitable when compiled function bytes are unchanged, exactly our frozen-build case. **Ghidra Version Tracking** exists but is a GUI-heavy session workflow ([Version Tracking Intro](https://ghidradocs.com/9.1.1_PUBLIC/help/VersionTracking/help/topics/VersionTrackingPlugin/Version_Tracking_Intro.html)). | **[B]** First line for us is cheaper than all of these: our own anchors — `peutil.py str` + cached `xrefmap` + `bytepat.py` re-derivation, plus `symbols.json` re-validation on the new hash (the DTLS site was already byte-identical across 1.365→1.400). Adopt BinExport+BinDiff only if whole-build diffing is ever needed; keep `symbols.json` the portability contract. |
+| C++ naming without PDB | Ghidra's RTTI recovery works PDB-less (in-box `RecoverClassesFromRTTIScript` / `RTTIWindowsClassRecoverer`; DeepWiki overview "C++ Class Recovery from RTTI"). MSVC `std::string` layout for struct typing: 32 B SSO (union {char* ptr; char buf[16]}, size, capacity) ([Raymond Chen's comparison](https://devblogs.microsoft.com/oldnewthing/20240510-00/?p=109742)). | **[B]** Run RTTI recovery after any successful full analysis (§7). Typing the reflection-registry strings as MSVC strings in `decomp.py`'s helper is a cheap incremental win — no full analysis needed for that. |
+| Ghidra analysis cost on huge binaries | Demangler-adjacent analyzers dominate on symbol-rich binaries ([ghidra#2509](https://github.com/NationalSecurityAgency/ghidra/issues/2509)); headless prints per-analyzer timings, use them to prune ([ghidra#9298](https://github.com/NationalSecurityAgency/ghidra/discussions/9298)); a stuck analyzer can hang headless timeouts ([ghidra#4296](https://github.com/NationalSecurityAgency/ghidra/issues/4296)) — "Non-Returning Functions - Discovered" is a known offender. | **[B]** Refines §7: when re-running `analyze.py`, log per-analyzer times and disable candidates by measurement, not folklore. |
+| Lumberyard public source | `aws/lumberyard` (archived, full source; `dev/Code/Framework/GridMate/` is the MIT-licensed GridMate reference behind Javelin REP). | **[A/B]** Name map and wire reference. Every borrowed name must be marked "public relative, not verified in this exe" until the VA is confirmed here — same rule as first-light VAs. |
+| Emulator prior art | EQEmu (docs.eqemu.dev) — 20+ years of from-scratch EQ server: opcode maps, zone/authority split, DB-driven content; the general pattern "capture packet families → opcode table → per-system handlers" is the shape §4 wants. L2R (github.com/l2r-dev/l2r) — modern Rust ECS MMO emulator. Generic tick/interest-management/lag-comp guides (generalistprogrammer.com 2025; sourcegame.net #37) match what ANALYSIS.md §5.4 already prescribes. | **[A]** Nothing new architecturally: our ANALYSIS.md §5.4 plan (server authority, fixed tick, cell AOI, unreliable movement) is the same shape as the successful emulators. The transferable lesson is EQEmu's discipline: every packet family documented with opcode + fields + evidence, exactly our atlas rule. |
+| Reusable client modules | Matching-decomp practice (decomp.dev projects; jamesfmackenzie.com 2026 explainer): matching = byte-identical when recompiled with the original compiler; projects proceed per-module and treat the rest as a call-map. | **[C]** Confirms DECOMP-PLAN's "per system, as we need to change it" and §8: no whole-exe recompile goal, no build chain until a named module must change behavior. |

@@ -1,73 +1,85 @@
 # Azoth — live status
 
-Last updated: 2026-10-02. This is the short project dashboard; detailed world findings live in [WORLD-INVESTIGATION.md](research/docs/WORLD-INVESTIGATION.md).
+Last updated: 2026-10-04 ~14:30 local (12:30 UTC). Diagnóstico en
+`research/derived/symbols.json`: `capture_redactions_block_player_state_20261004`,
+`client_self_reconnect_kills_context_20261004`, `local_player_has_no_physics_20261004`.
 
-## Current state: **the world renders and the player is in it**
+## El bloqueo (caden completa, medida)
 
-On 2026-10-02 the client entered `NewWorld_VitaeEterna` and rendered the world with
-the local player possessed (fresh PID 25952, REP session 232). The blocker that had
-held the project for weeks — the local player was never possessed, so the frame stayed
-black — is **solved**. The cause was a single redacted identity in the replayed
-capture, and the fix is one targeted substitution.
+El cliente entra al mundo, espera un mensaje con la identidad correcta, no llega, y a los ~3 s **el
+mismo** arranca una reconexión. En la reconexión el `ClientContext` nunca se recrea, así que el
+cliente descarta **todo** el estado del mundo (`skipping ReceiveStateBundle ... clientContext ==
+nullptr`, cientos de líneas). Sin ese estado, el jugador local **no tiene componentes de física**, y
+por eso WASD no mueve nada y el cable sube hasta cortarse.
 
-| Signal | Before | After |
-| --- | --- | --- |
-| gate status 1 (`writerStatus1`) | 0 | 2 |
-| manager context setter (`managerSetContext`) | 0 | 2 |
-| manager `+0x08` / `+0x10` | null | `0x20e4df0a800` / `0x20cd63a8eb9` |
-| record-1 slot `state+0x618` | null | non-null |
-| portrayal-table inserts | 148 | 226 |
+**Por qué no llega:** el mensaje que el cliente espera es el state bundle `0x08`. En el capture son
+los 5 más grandes (`seq 0x25/0x2a/0x2b/0x2e/0x2f`, 46 407–46 423 bytes cada uno). Cada uno tiene
+**453 redacciones de 36 bytes** (el UUID del jugador/cuenta del capture, puesto a `XX`), más
+**9 420 bytes de huecos por mensaje**. El replay rellena sólo las 6 ranuras del allowlist
+`REPLAY_IDENTITY_TARGETS` y `AZOTH_REPLAY_LOCAL_PLAYER_UUID`; los otros **~24 800 bytes de huecos
+quedan en cero**.
 
-Evidence: `research/sessions/world_20261002T065937Z_pid25952_session232/`.
+Con esos huecos, el cliente no puede reconstruir los componentes del jugador (incluido el rigid
+body/character controller), y sin ellos la identidad que la puerta compara no coincide.
 
-## The fix
+**Y de fondo:** el capture es de build **1.365** y el cliente es **1.400.6031**. Incluso sin
+redacciones, el estado sería el del personaje del capture, no el del jugador de Azoth.
 
-**`AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`** (default `off`).
+**Conclusión de arquitectura:** el cliente no se estabiliza retransmitiendo el capture. El servidor
+tiene que implementar el protocolo de replicación real: crear la entidad del jugador con sus
+componentes (incluido el rigid body/character controller), mandarle el estado con las identidades
+correctas, y responder al input. Eso es lo que hace el servidor real para miles de jugadores
+sincronizados.
 
-The local-player gate compares the UUID carried by a `PlayerComponentClientFacet`
-record against the character UUID in the client's local option store. In the captured
-replay **every player's facet carries that UUID in clear text except the capture
-author's own, which is redacted to zeros** — and that record is the one that has to be
-ours. The slot is unambiguous: it is a redacted 16-byte span immediately followed by
-the length-prefixed display name of the same record (`<16 zero bytes> <len> <name>`).
+## Lo que sí funciona (medido)
 
-Implementation: `javelin/replay_store.py::fill_local_player_uuid`, wired in `rep.py`,
-tests in `services/world/tests/test_local_player_uuid.py` (8 unit + capture fixtures).
-It fills exactly one span in each of the 25 large state bundles, nothing in the
-interest=91 bundles and nothing in the other players' bundles.
+- El gateway, el mundo (UDP :9000) y el ClienteContext en la **primera** sesión.
+- El cliente entra al mundo, renderiza Monarch's Bluffs, manda el estado 0x635 con el actor del
+  jugador, y responde al heartbeat.
+- El input **llega** al cliente (GetRawInputData con makeCode 0x11 / VKey 0x57), y el mouse mueve la
+  cámara.
+- Las teclas UI funcionan (Escape/I/M abren menús).
 
-## What is NOT done yet (the new frontier)
+## Herramientas nuevas
 
-1. **No movement.** `WASD` changes nothing: the client emits a constant ~21 msg/s
-   regardless of input, and the game window does have keyboard focus (measured
-   2026-10-02). The player is a replica the client renders, with no input-driven local
-   controller bound.
-2. **No inventory.** 23 `RMIDispatch` errors: `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`
-   targets facet ids that do not exist locally.
-3. **26 `slices/remoteplayer.dynamicslice` warnings** — "Couldn't get Transform
-   component on the slice!" — for the other players' actors.
-4. **`State(InGame) is timeout` every 30 s** persists (`patch-timeout-watchdog.py`
-   covers a different site than the one reporting).
-5. The **37** `status=fail` rows in the code corpus are still untried with a longer timeout (verified against the `.idx` files; an earlier revision of this file said 25).
+- `focus-window.py` (fuerza y **verifica** el foco; usar en vez de `SetForegroundWindow` a pelo).
+- `hold-key.py`, `bmp-diff.py`, `frida-activity-timer.py`.
 
-Each world A/B needs a fresh `NewWorld.exe`. Do not use Frida or ReadProcessMemory
-while EAC is active.
+## Próximo paso (realista)
 
-## Start here
+Implementar el protocolo de replicación de Javelin/GridMate para la entidad del jugador:
+1. Decodificar el state bundle `0x08` del capture (Oodle) para entender el formato exacto de los
+   fragmentos y qué campos identifican al jugador.
+2. Construir los bundles propios con las identidades de Azoth y el rigid body del jugador.
+3. Mandarlos con el seq/identidad correctos.
 
-1. Read [the decompilation plan](research/docs/DECOMP-PLAN.md) for the long-term program (code corpus, PAK index, loaders, protocol captures).
-2. Read [the decompilation backlog](research/docs/DECOMP-BACKLOG.md) for **everything still open** — code-corpus debt, the PAK method-15 codec, the index tool, the named loaders, the protocol-capture deadline, the world items that need RE — with blockers and a suggested order. Decompilation work is paused as of 2026-10-02; this is where it resumes.
-3. Read [the world investigation](research/docs/WORLD-INVESTIGATION.md) for the measured frontier and closed hypotheses.
-4. Use [the decompilation workflow](research/docs/DECOMPILATION.md) and `decomp.py` (one-shot is fine; the corpus no longer holds the project). Keep confirmed addresses in `research/derived/symbols.json`.
-5. Keep confirmed wire facts in `research/atlas/`; regenerate `research/atlas/openapi.json` with `python az.py doc` after a play session and commit it.
-6. For each live A/B follow [World debugging](research/docs/WORLD-DEBUGGING.md) — it now includes the attach-verification recipe and the instrument-control rule.
+No reactivar el stream 0x08 ni el attach de transforms.
 
-## Project map
+---
 
-- `services/`: gateway, REP/DTLS world server, launcher.
-- `research/atlas/`: source of truth for endpoints, models, errors, levers, and observed traffic.
-- `research/tools/reversing/`: static analysis and Ghidra automation; outputs go under ignored `research/derived/`.
-- `scripts/`: game launch/input helpers and focused instrumentation; see [script index](scripts/README.md).
-- `docs/`: project orientation and archived sessions; `research/docs/INDEX.md` is the RE entry point.
+## Diagnóstico final (2026-10-04, íntegro y verificado)
 
-Historical sessions stay in `docs/sessions/`. Do not commit or overwrite existing user changes without an explicit request.
+**El cliente se desconecta por `transportError 4` del ClientSDK anticheat ~50 s después del spawn, en TODAS las sesiones, siempre.** El stub EOS está vivo (el log lo dice), el watchdog está parcheado (b001→b000), y el servidor no cierra la DTLS. Pero el ClientSDK espera que el servidor le mande mensajes anticheat por el canal REP que el servidor real manda; nuestro servidor no los implementa, así que después de un timeout el SDK reporta `@mm_csdkerr_disconnect (4)` y el cliente corta la conexión REP.
+
+**Consecuencia en cadena (medida, no teoría):**
+1. El cliente se desconecta → reconecta.
+2. En la reconexión, `clientContext->Initialize` **nunca** corre de nuevo (el gate `FUN_14643e7b0` exige que la identidad del mensaje coincida con `port[+0x80]`, y el estado del puerto ya cambió).
+3. Sin ClientContext, el cliente descarta **TODO** el estado del mundo (cientos de `skipping ReceiveStateBundle ... clientContext == nullptr`).
+4. Sin ese estado, el jugador local no recibe sus componentes de física (`GameRigidBodyComponent`, `CharacterPhysicsComponent`, `CharacterControllerComponent`).
+5. Sin física, **WASD no mueve nada** — el input llega (verificado con GetRawInputData) pero no hay cuerpo que mover.
+6. El cable sube hasta el rojo porque el ClientSDK no reporta heartbeat al servidor.
+
+**El capture 1.365 tiene 453 redacciones de 36 bytes por bundle 0x08** (los 5 bundles más grandes son 46 407–46 423 bytes cada uno). El replay rellena solo 6 ranuras del allowlist; los otros ~24 800 bytes de huecos quedan en cero. Con esos huecos el cliente no puede reconstruir los componentes del jugador.
+
+**Y de fondo: el capture es de build 1.365, el cliente es 1.400.6031.** Incluso sin redacciones, el estado sería del personaje del capture, no del jugador de Azoth.
+
+## Qué se necesita de verdad
+
+El servidor tiene que implementar el protocolo de replicación real de Javelin/GridMate:
+1. Crear la entidad del jugador con sus componentes (incluido el rigid body/character controller).
+2. Mandar el estado con las identidades correctas.
+3. Implementar el canal anticheat que el ClientSDK espera.
+4. Responder al input del cliente con posiciones autoritativas.
+
+Eso es lo que hace el servidor real para miles de jugadores sincronizados. Es un proyecto de ingeniería inversa sustancial, no un parche.
+

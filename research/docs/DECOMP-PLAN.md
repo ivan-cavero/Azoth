@@ -9,7 +9,7 @@ track: [WORLD-INVESTIGATION.md](WORLD-INVESTIGATION.md).
 inventoried in [DECOMP-BACKLOG.md](DECOMP-BACKLOG.md).** Read this file for the
 program, that one to pick up work.
 
-Last updated: 2026-10-02.
+Last updated: 2026-10-05.
 
 ## Objective
 
@@ -74,7 +74,7 @@ own corpus directory. Finish or archive the old one. Do not mix shards.
 The C dump is layer 1. It does not, by itself, make the emulator or let us
 edit a quest.
 
-### 1. Code corpus (running)
+### 1. Code corpus (complete)
 
 Ghidra pseudocode of every `.pdata` function, one frozen build, outside the
 repo so 400k files never land in git.
@@ -82,7 +82,9 @@ repo so 400k files never land in git.
 - Directory: `%LOCALAPPDATA%\Azoth\decomp\corpus\8654f01d324636d9\`
 - Launcher: `python research/tools/reversing/corpus.py`
 - Live counter: `progress.json` in that directory (`finished`, `ok`, `fail`,
-  `rate_per_s`, `eta_s`, `status`).
+  `rate_per_s`, `eta_s`, `status`). **Its counters describe the last run only;**
+  the `.idx` files are the cumulative resume gate (see the trap note in
+  [DECOMP-BACKLOG.md](DECOMP-BACKLOG.md) §9).
 - Shards: `shards/shard-NNNNNN.c` plus a sibling `.idx`
   (`start`, `status`, `bytes`, `shard`). A function begins with
   `########## <start>-<end> status=ok name=FUN_... ##########`.
@@ -93,11 +95,10 @@ repo so 400k files never land in git.
 - Resume is the same command. Completed VAs are skipped from the `.idx`
   files. A crash loses at most the open shard (250 functions).
 
-On 2026-10-01 the run was past ~88k functions, 10 threads, a handful of
-`status=fail` rows, ETA on the order of an hour at ~90/s. Trust
-`progress.json` over this paragraph. `status=complete` is the gate for
-layer 2. Failures stay in the shards and can be retried later with a higher
-`--timeout`. They do not block the inventory.
+**STATUS: COMPLETE (2026-10-01).** All 423,579 functions dumped; 1,695 shards;
+the `.idx` rows carry 423,542 `ok` / 37 cumulative `fail` (25 of those were
+recovered by a later retry; the last run failed 12 — see DECOMP-BACKLOG §1.1).
+Layer 2 is the current layer. Do not re-run the dump.
 
 This corpus is the search index. Names are `FUN_<va>` until we rename a
 system on purpose. Readable source is produced only for the loaders and
@@ -116,8 +117,9 @@ Do not unpack every PAK. Build an index: path, pak, extension, uncompressed
 size. Extract a file only when we are about to read or edit it. The install
 is tens of GB (`DataStrm*`, `SharedDataStrm*`, `VegetationStrm*`,
 `shadersbin_d3d12.pak`, `levels\`). Running that index while the corpus is
-still writing will fight it for disk. Wait until `progress.json` says
-`complete`.
+still writing will fight it for disk. **The corpus is complete, so this gate
+is open. Reading method-15 payloads is also solved (Oodle Kraken, 2026-10-05 —
+[PAK-FORMAT.md](PAK-FORMAT.md) §4f), so extraction is unblocked end to end.**
 
 | Change we want | Where it lives | Format |
 | --- | --- | --- |
@@ -159,8 +161,10 @@ The emulator matches official behavior only for messages we have seen in
 plaintext. After shutdown that source is gone. The exe dump is not on this
 deadline. Captures are.
 
-Still required from live official sessions, one theme each, passive capture
-only while EAC is active ([EAC.md](EAC.md), [CAPTURE.md](CAPTURE.md)):
+Still required, one theme each — **driven against our own server and captured in the clear**
+(gateway HTTP bodies + world-server post-DTLS plaintext; restated 2026-10-05, see
+[DECOMP-BACKLOG.md](DECOMP-BACKLOG.md) §4 for why official passive capture can never yield
+bodies):
 
 - Combat and abilities (Slayer Script on the wire)
 - Inventory, equip, storage
@@ -177,21 +181,21 @@ Each captured message lands in the atlas
 
 ## Work order
 
-1. **Finish the code corpus.** Let the current process run. Do not start a
-   second Ghidra on `ghproj`. Do not scan the PAK tree until
-   `status=complete`.
-2. **PAK index.** Classify every entry by extension and top directory.
-   Write the index under `%LOCALAPPDATA%\Azoth\` (or `research/derived/`,
-   gitignored), with a short committed summary of counts per type. Find the
-   localization packs in that index.
+1. ~~**Finish the code corpus.**~~ **DONE (2026-10-01).** Do not re-run the dump; do not
+   start a second Ghidra on `ghproj`.
+2. **PAK index + vendored Oodle reader (DECOMP-BACKLOG 2.2 + 2.1c).** Classify every entry
+   by extension and top directory; write the index under `%LOCALAPPDATA%\Azoth\` (or
+   `research/derived/`, gitignored), with a short committed summary of counts per type.
+   Find the localization packs in that index. Extraction itself is unblocked: method 15
+   decodes as Kraken ([PAK-FORMAT.md](PAK-FORMAT.md) §4f).
 3. **Name the loaders.** From the corpus plus strings and xrefs, record in
    `research/derived/symbols.json` the functions that load DataSheets,
    dynamicslices, LyShine canvases, localization, and Slayer Script. One
    system at a time. Confirmed wire keys go to the atlas the day they are
    confirmed.
-4. **Take the protocol captures** in the list above before 2027-01-31.
-   This can run on days the corpus and the index are not saturating the
-   machine. It cannot wait until the end.
+4. **Take the protocol captures** in the list above before 2027-01-31. These run against
+   our own server and can proceed in parallel with everything else; what official sessions
+   still provide (encrypted-carrier metadata, Game.log facts) is listed in DECOMP-BACKLOG §4.
 5. **Edit pipeline.** Extract, modify, repack, launch the private client,
    confirm the string, the canvas, and the quest. Then a new weapon datasheet
    whose server component uses the same ids.

@@ -63,12 +63,16 @@ def _ticket(rep: str, world_id: str, world_name: str) -> dict:
     }
 
 
-def queue_response(discovery_dir: Path | None = None, path: str = "") -> bytes:
+def queue_response(
+    discovery_dir: Path | None = None,
+    path: str = "",
+    region_id: str | None = None,
+) -> bytes:
     if discovery_dir is not None:
         fp = discovery_dir / OVERRIDE_NAME
         if fp.is_file():
             return fp.read_bytes()
-    rep, world_id, world_name = queue_fields(load(discovery_dir))
+    rep, world_id, world_name = queue_fields(load(discovery_dir), region_id=region_id)
 
     if _REFRESH_RE.search(path):
         # Refresh path (GET /queue/v2/<ticketId>/jwt/omni): the ready

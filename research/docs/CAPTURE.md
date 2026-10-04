@@ -4,7 +4,7 @@ The official servers shut down on January 31, 2027. Every session you play **now
 
 ## What we will NOT do (ban)
 
-Easy Anti-Cheat EOS is active on the live client. These things are exactly what EAC detects and reports to Amazon/Epic:
+Easy Anti-Cheat EOS is active on the live client. These things are exactly what EAC detects and reports to Amazon/Epic **while EAC is active in the target process** — which is always the case for the official launch, and only ever differs for a private launch whose target process was confirmed EAC-free (see [LESSONS.md](LESSONS.md) §6 and the current process status in [STATUS.md](../../STATUS.md)):
 
 | Action | Risk |
 | --- | --- |
