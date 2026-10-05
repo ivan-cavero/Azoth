@@ -31,7 +31,7 @@ Legend: **[E]** has direct evidence · **[I]** inferred, not yet decisive ·
 | # | Item | Notes |
 | --- | --- | --- |
 | 1.1 | **Retry the remaining `fail` rows with a higher `--timeout`** | The `.idx` rows carry **37 cumulative `fail`s**; the last resumed run (2026-10-01, `progress.json`) failed only 12 — 25 were recovered by an earlier retry, proving retries work. Remove the target `.idx` rows first or `corpus.py` skips them. Genuinely low value (37 of 423,579) but it is the last untidy edge of a "complete" claim. |
-| 1.2 | **The corpus has no names, types or strings** | It was imported with `-noanalysis`, so every function is `FUN_<va>` and `.rdata` addresses do not appear. This is the single biggest usability gap: the dump is a search index, not readable source. Naming is the real long-term work, one system at a time. |
+| 1.2 | **The corpus has no names, types or strings** — tooling landed 2026-10-05, naming is iterative | `namer.py` (`index` = one 27 s pass over 1.1 GB of shards → 712,257 `&UNK_` refs in a sqlite index — count matches PAK-FORMAT §4e exactly; `namer` = string seeds → VAs → owning functions → candidates in `research/derived/namer-candidates.json`). First run: `datasheet` → 2 functions, `dynamicslice` → 3, `uicanvas` → 1 (the §3 loader leads). Candidates are confirmed into `symbols.json` BY HAND, one system at a time — the tool never writes that file. |
 | 1.3 | **No PDB exists** for this build | Confirmed: `failed to locate PDB file`. Names will never come from symbols, only from analysis + the reflection registry. **[E]** |
 | 1.4 | **Verify the corpus pseudocode is correct** | It is decompiler output with no ground truth on any function except the handful that were hand-checked. Treat as a map, not a specification. |
 
@@ -39,14 +39,14 @@ Legend: **[E]** has direct evidence · **[I]** inferred, not yet decisive ·
 
 | # | Item | Notes |
 | --- | --- | --- |
-| 2.1 | ~~Decode Oodle (method 15)~~ **RESOLVED 2026-10-05 at the reader level** | Method 15 is Oodle **Kraken** and `kraken-decompressor` decodes it exactly, header included, from offset 0 (31/31 CRC-exact; [PAK-FORMAT.md §4f](PAK-FORMAT.md)). The old open questions are closed or moot: (a) the codec-id registry mapping in `FUN_147132390` is [I] informational only — nothing on the extraction path needs it; (b) the 8-byte prefix is the Oodle block header, consumed by the standard stream reader; (c) the token grammar never needed reimplementing. Static chain (dispatch VAs, 512 KiB ring) remains valid evidence. |
-| 2.1b | ~~Call the client's own decoder~~ **fallback only** | Demoted: keep as the fallback if a future payload family (a maintenance exe, hypothetical methods 16–19) fails with the pure reader. A standalone offline harness loading the image and calling `0x1479f0820` is acceptable; never touch a live/protected process ([EAC.md](EAC.md)). |
-| 2.1c | **Vendor the Oodle reader as a repo tool** | Wrap `kraken-decompressor` (or shell out to `ooz`/`oozextract`) behind a small `research/tools/reversing/pakread.py`-style helper: read entry → Kraken-decode → CRC check against the central directory, with a cached wheel/vendored source under `research/tools/`. pip stays banned in `services/`. First command (with the tool name as implemented): `python research/tools/reversing/pakread.py selftest` — must decode `Engine.pak:config/game.xml` and match CRC `f8ed6f3c`. |
-| 2.2 | **Write the PAK index tool** | Reads central directories only; 6.1 s measured. Writes `{path, pak, ext, csize, usize, crc32, method}`, plus a committed summary of counts per extension and method. Must not run while a corpus dump writes. Unblocked. |
-| 2.3 | **Find the localization packs** | A named DECOMP-PLAN deliverable. Do it from the 2.2 index; no separate scan needed. |
-| 2.4 | **Prove the edit path** | Extract one file, change it, repack with method 8 or 0, launch the private client, see the change. **Not blocked by 2.1** — repacking never needs the method-15 reader. This is the cheapest concrete proof that content mods are possible. |
-| 2.5 | **Format readers for content we intend to edit** | Cry level (`level.pak`), DataSheet (`*.datasheet`), dynamicslice, LyShine `.uicanvas`, localization string tables. Each needs its own format work; extract one file at a time rather than unpacking the tree. |
-| 2.6 | Unverified from ANALYSIS.md | Prior counts (`GameData` 18,034; `DataStrm` 19,331; `SharedDataStrm` 65,491; part1 65,199) were not reproduced in the measured index run. Reconcile when the index tool lands. **[?]** |
+| 2.1 | ~~Decode Oodle (method 15)~~ **RESOLVED 2026-10-05 at the reader level** | Method 15 is Oodle **Kraken** and `pakread.py` decodes it exactly via the vendored ooz DLL (2.1c): 31/31 CRC-exact + the wheel-crasher regression case ([PAK-FORMAT.md §4f](PAK-FORMAT.md)). The codec-id registry mapping in `FUN_147132390` is [I] informational only; the 8-byte prefix is the Oodle stream itself; the token grammar never needed reimplementing. Static chain (dispatch VAs, 512 KiB ring) remains valid evidence. |
+| 2.1b | ~~Call the client's own decoder~~ **superseded by the DLL** | The vendored ooz `kraken.dll` handles every payload family measured, including the multi-quantum 17 MB heightmap and the restart-boundary layouts. Keep only as a last-resort comparison if a future maintenance exe ships payloads ooz rejects. |
+| 2.1c | ~~Vendor the Oodle reader~~ **DONE 2026-10-05 (with a real bug fixed)** | `pakread.py` + `vendor/ooz/` (kraken.cpp/kraken.h from powzix/ooz @ `1d1051ad`, zlib license, vendored unmodified; `ooz_shim.cpp` adds the 64-byte dst padding ooz needs — the pip wheel `kraken-decompressor` allocates exactly dst_len and heap-corrupts, 0xc0000374, on some payloads; first reproduction `SharedDataStrm-part6.pak::javelindata_perks.datasheet`). DLL compiled once by `pakread.py` into `%LOCALAPPDATA%\Azoth\tools\ooz\` using g++/clang++ from PATH (llvm-mingw present); wheel remains a subprocess-isolated fallback. Selftest includes the crasher as a regression. First command: `python research/tools/reversing/pakread.py selftest`. |
+| 2.2 | ~~Write the PAK index tool~~ **DONE 2026-10-05** | `research/tools/reversing/pakindex.py` — sqlite index at `%LOCALAPPDATA%\Azoth\pakindex\pakindex.db` (gitignored) + tracked summary `research/derived/pak-summary.json` (top extensions: meta 317k, dynamicslice 249k, dds 99k, cgf 87k). Build 19.4 s. Selftest pins the 2026-10-01 baseline. |
+| 2.3 | ~~Find the localization packs~~ **DONE 2026-10-05** | Via the 2.2 index: `localization/<lang>/` (en-us, es-es, es-mx, de-de, fr-fr, it-it, pl-pl, pt-br) across `DataStrm*` paks. Format: `<resources><string key=…>text</string>` XML (Cry localization), read end-to-end with `pakread.py`. |
+| 2.4 | **Prove the edit path** — 3 of 4 steps done 2026-10-05 | `research/tools/reversing/pakwrite.py`: extract (Kraken) → edit (string replace, exactly-once asserted) → repack as a one-entry method-8 zip → verify round-trip through the raw-deflate reader. Selftest green; a real demo patch pak (`npcmisc_patch.pak`, `Corsario inglés` → `Corsario de Azoth`) at `research/derived/pak-edit/` (regenerable). **Remaining step is client-owned**: copy the patch pak into `<install>/Assets/`, add `Assets/npcmisc_patch.pak` as the FIRST `PaksList.lst` line (priority claim to verify with that one launch), launch the private client — owned by the world session / Ivan. |
+| 2.5 | **Format readers — localization DONE, datasheet DONE, uicanvas/slice layout measured (2026-10-05)** | Localization: `<resources><string key=…>` XML, end-to-end. **DataSheet DONE**: `research/tools/reversing/datasheet.py` (stdlib, selftest 13/13 green) — header (version 18, string-table-size u32 verified = filelen−st_start), column directory `[CRC32(lowercase(name))][name_off][type 1=str|2=f32|3=bool]`, row grid of 8-byte cells (str: off+0/0; f32: 0/LE float; bool: 0/0|1), NUL-terminated string table. Validated on FOUR files: perks (38 cols/659 rows, PerkIDs unique), perks_deprecated (38/300), perks_infix (38/14), perks_gems (38/442). **uicanvas/dynamicslice container MEASURED** (symbols.json `uicanvas_binary_layout`): AZ ObjectStream binary v3 — `[u32 0][u32 BE 3][element tree]`, root class 75651658-8663-478D-9090-2432DFCAFA44; readable with the public O3DE ObjectStream format. Cry level `.pak`: untouched. |
+| 2.6 | Unverified from ANALYSIS.md — partially reconciled | The 2.2 index (`pak-summary.json`, `entries_per_pak`) is the authoritative source now; compare against ANALYSIS §9's old counts when touching that doc. **[?]** for the specific old numbers. |
 
 ## 3. Named loaders (DECOMP-PLAN work order step 3)
 
@@ -54,10 +54,10 @@ None are named yet. Each is "find the loader function from the corpus + strings 
 
 | # | Loader | Why |
 | --- | --- | --- |
-| 3.1 | DataSheet (`NewWorldDataSheet`) | Quests, NPCs, items, weapons. |
-| 3.2 | dynamicslice | Entities and prefabs. |
-| 3.3 | LyShine canvas | UI. |
-| 3.4 | Localization string table | Text and languages. |
+| 3.1 | DataSheet (`NewWorldDataSheet`) | Quests, NPCs, items, weapons. First lead: `datasheet_path_joiner` `0x145c34dd0` (path normalization; CONFIRMED in symbols.json 2026-10-05). File format probed (see 2.5). |
+| 3.2 | dynamicslice | Entities and prefabs. First leads CONFIRMED 2026-10-05: `dynamicslice_path_suffix_check` `0x140774fe0` (paths stored without extension) and `lc_spawnslice_console_command` `0x14101b4b0` (client console spawn, prepends `slices/characters/`). |
+| 3.3 | LyShine canvas | UI. First lead CONFIRMED 2026-10-05: `uicanvas_type_ctor` `0x14053aaa0` + `uicanvas_dynamicuicanvas_type_getters` (type ids {E48DDAC8…}/{A7A9AAE0…}, handler vtables 0x147f02fa8/0x147f02f18, asset object built by FUN_1406ec3a0). Binary layout measured (see 2.5). |
+| 3.4 | Localization string table | Text and languages. DONE as a format (2.5); packs located via the index. |
 | 3.5 | Slayer Script | Abilities and combat behaviour. |
 | 3.6 | Coatlicue terrain | Terrain streaming, if a zone is ever changed. |
 
@@ -90,6 +90,40 @@ encrypted carrier). Since the world renders (§0), this route is live. The 2027-
 still applies to what only official sessions can give: encrypted-carrier metadata (message
 families, sizes, timing), Game.log facts, and the existence of systems we never exercise
 locally. Official pcap stays a metadata source, never a body source.
+
+### 4b. Entity→component creation path (the next system to name, measured 2026-10-05)
+
+The system the movement agent needs is the one that creates a local entity's components when
+state arrives. Measured facts (all in `symbols.json`, fresh decompiles in `derived/decomp/`):
+
+- `FUN_141763b70` (**transform_spawner_chain_confirmed_20261005**): three queries of
+  `param_1->vtable[+0x20](typeId {83482F97-84DA-4FD4-BF9E-7FE34C8E091F})`; each non-null
+  answer spawns GameTransformComponent (+ m_worldTM/m_localTM/m_onNewParentKeepWorldTM/
+  m_isStatic attached by name at +0x140/+0x180/+0x1b8/+0x201), then the Client facet, then the
+  Server facet. The entity-provider object answering that query is THE missing wire artifact.
+- `player_slice_content_20261005`: the player prefab has NO physics components at all —
+  GameRigidBody*/CharacterPhysics/CharacterController are **absent** from
+  `slices/player.dynamicslice` (all byte orders). The server must create them.
+- The `.rdata` region at 0x1498a0000+ holding RuntimeFunction-format triples that reference the
+  cluster is an **unwind-info copy, not a call table** (correction to the earlier note). No
+  caller of `FUN_141761dd0`/`FUN_141763b70` exists in code or data found so far.
+- `{83482F97…}` is loaded by six functions: `0x1404b5d80` (entity-iteration loop with vtables
+  0x147f20740/0x147f233a8 — best publisher lead), `0x1407fb480`, `0x1425880d0`,
+  `0x143d6e8a0`, `0x144389bb0`, `0x1444043b0`.
+
+**Round 2 (2026-10-05, later):** type-id semantics pinned against public O3DE/Lumberyard
+source — `{6383F1D3…}` = `AZ::EntityId` (AZ_TYPE_INFO in EntityId.h, 933x in the player
+slice), `{75651658…}` = `AZ::Entity` (AZ_RTTI in Entity.h, root class of all slice/canvas
+payloads). Trait descriptor layout in .rdata measured as `[name][~200 B][lowercase guid]`
+(3-way verified: PersistenceSpawner, Aoi::GridActorClient, ClientMessagesTrait), so
+`5ac34998-d340-4948-9cb3-7d5b2d24221d` = **ClientMessagesTrait** whose state object
+`FUN_141542760` reads via `vtable[+0x30]`. The `NetBinding` namer seed landed
+`netbinding_component_creators` (FUN_14628bea0/14628c100) — and the decisive cross-check:
+**NetBindingComponent/NetBindingSystemComponent/NetBindingHandlerInterface are all ABSENT
+from player.dynamicslice**, i.e. the player prefab ships without any net-binding component
+and the server must supply the binding. Next concrete step for this thread: hook
+`FUN_14628bea0`'s family (the NetBinding creators) on a private client to observe when a
+net-bound entity is actually created, and compare against the wire state stream.
 
 ## 5. World / simulation frontier that needs RE
 

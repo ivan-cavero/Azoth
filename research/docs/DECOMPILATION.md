@@ -25,6 +25,11 @@ the conversation, it does not exist. This is what makes the work cumulative.
 | `decomp.py` | Decompiles specific functions with Ghidra headless, caches the project. |
 | `xrefmap.py` | One-pass xref map (per-query scans timeout on 179 MB); persists by executable size/mtime under `%LOCALAPPDATA%\Azoth\decomp\xrefmap.json`. |
 | `catalog.py` | Bulk dump: routes, models, enums, gRPC, config keys, hosts → `derived/*.json`. |
+| `pakindex.py` | PAK central-directory index → sqlite + `derived/pak-summary.json` (19 s, 1.4 M entries). |
+| `pakread.py` | Extract any PAK entry: methods 0/8/15 (Kraken via the vendored ooz DLL, `vendor/ooz/`), CRC-verified. |
+| `pakwrite.py` | Content-edit path: extract → modify → one-entry method-8 patch pak, round-trip verified. |
+| `rtti.py` | Static MSVC RTTI scan (TypeDescriptors, COLs). Measured `/GR-` on this build — name pool only. |
+| `namer.py` | Corpus reference index (`&UNK_` refs, 712k) + string-seed name candidates → `derived/namer-candidates.json`. |
 | `ghidra/DecompileTargets.java` | Helper compiled and run inside Ghidra by `decomp.py`. |
 
 One-time install:

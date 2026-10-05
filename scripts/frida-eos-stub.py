@@ -100,6 +100,13 @@ const registerTransform = new NativeFunction(
 const seenCtx = Object.create(null);
 const seenVt = Object.create(null);
 let vtLogs = 0;
+// H1 (activity_stream follow-up): the world-load clone may pass a
+// SerializeContext with a DIFFERENT vtable than CTX_VT; registering only on
+// CTX_VT could miss the one the slice cloner actually uses. Log EVERY distinct
+// context vtable the cloner sees during load (with the +8 gate byte) so the
+// next symbols entry can name the real one. Registration stays CTX_VT-only:
+// calling FUN_141582430 on a non-SerializeContext object is unvalidated.
+const VT_LOG_CAP = 64;
 Interceptor.attach(base.add(0x13F8CF0), {
     onEnter(args) {
         const ctx = args[0];
@@ -110,10 +117,16 @@ Interceptor.attach(base.add(0x13F8CF0), {
         try { vt = ctx.readPointer(); } catch (e) { return; }
         if (!vt.equals(CTX_VT)) {
             const vs = vt.toString();
-            if (!seenVt[vs] && vtLogs < 8) {
-                seenVt[vs] = true;
+            if (!seenVt[vs]) {
+                seenVt[vs] = 0;
+            }
+            seenVt[vs]++;
+            if (vtLogs < VT_LOG_CAP) {
                 vtLogs++;
-                send('[eos-stub] cloner other vt=' + vt + ' ctx=' + ctx);
+                let flag = 'err';
+                try { flag = ctx.add(8).readU8(); } catch (e) {}
+                send('[eos-stub] cloner other vt=' + vt + ' ctx=' + ctx +
+                     ' flag=' + flag + ' hits=' + seenVt[vs]);
             }
             return;
         }
@@ -568,7 +581,8 @@ setInterval(function () {
          ' playerTransform=' + playerTransform + ' transformWrites=' + transformWrites +
          ' writers=' + JSON.stringify(transformWriters) +
          ' warnSlices=' + JSON.stringify(warnBySlice) +
-         ' askedIds=' + JSON.stringify(lkAsked));
+         ' askedIds=' + JSON.stringify(lkAsked) +
+         ' ctxVts=' + JSON.stringify(seenVt));
 }, 10000);
 send('[eos-stub] transform attach enabled=' + ATTACH_ENABLED);
 send('ready');

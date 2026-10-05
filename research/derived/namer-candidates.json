@@ -1,0 +1,174 @@
+{
+ "generated_from": "corpus-refs.sqlite + peutil string resolution",
+ "note": "CANDIDATES ONLY. Confirm into research/derived/symbols.json by hand, one key at a time, with a second agreeing signal.",
+ "items": [
+  {
+   "seed": "ReplicaChunk",
+   "string_vas": [
+    "0x1484ee539",
+    "0x1484f1f7f"
+   ],
+   "status": "no-corpus-refs",
+   "candidates": []
+  },
+  {
+   "seed": "SpawnPoint",
+   "string_vas": [
+    "0x1481fd513",
+    "0x1483b04cd",
+    "0x1483b04e0",
+    "0x1484ff072"
+   ],
+   "status": "no-corpus-refs",
+   "candidates": []
+  },
+  {
+   "seed": "NetBinding",
+   "string_vas": [
+    "0x1484ec2f8",
+    "0x1484ec4a8",
+    "0x1484ec760",
+    "0x1484ec8f0",
+    "0x1484f1bb0",
+    "0x1484f1bd0",
+    "0x1484f1ce8",
+    "0x1484f1d20"
+   ],
+   "status": "candidates",
+   "candidates": [
+    {
+     "string_va": "0x1484ec4a8",
+     "function_start": "0x14628bea0",
+     "function_end": "0x14628c0f8",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484ec4a8",
+     "function_start": "0x14628bea0",
+     "function_end": "0x14628c0f8",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484ec8f0",
+     "function_start": "0x14628c100",
+     "function_end": "0x14628c358",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484ec8f0",
+     "function_start": "0x14628c100",
+     "function_end": "0x14628c358",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1bb0",
+     "function_start": "0x14631ce80",
+     "function_end": "0x14631d332",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1bb0",
+     "function_start": "0x14631ce80",
+     "function_end": "0x14631d332",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1bb0",
+     "function_start": "0x146392da0",
+     "function_end": "0x146393180",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1bb0",
+     "function_start": "0x146392da0",
+     "function_end": "0x146393180",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1bb0",
+     "function_start": "0x146392da0",
+     "function_end": "0x146393180",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1bd0",
+     "function_start": "0x146392da0",
+     "function_end": "0x146393180",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1ce8",
+     "function_start": "0x146349250",
+     "function_end": "0x1463493d8",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1ce8",
+     "function_start": "0x146383000",
+     "function_end": "0x146383006",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1ce8",
+     "function_start": "0x146383000",
+     "function_end": "0x146383006",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1ce8",
+     "function_start": "0x146383000",
+     "function_end": "0x146383006",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1ce8",
+     "function_start": "0x146383006",
+     "function_end": "0x14638303f",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1ce8",
+     "function_start": "0x146383006",
+     "function_end": "0x14638303f",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1ce8",
+     "function_start": "0x146383006",
+     "function_end": "0x14638303f",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1ce8",
+     "function_start": "0x14638303f",
+     "function_end": "0x1463830b4",
+     "proposal": "netbinding_user"
+    },
+    {
+     "string_va": "0x1484f1d20",
+     "function_start": "0x146349250",
+     "function_end": "0x1463493d8",
+     "proposal": "netbinding_user"
+    }
+   ]
+  },
+  {
+   "seed": "GridMate",
+   "string_vas": [
+    "0x147fbec60"
+   ],
+   "status": "no-corpus-refs",
+   "candidates": []
+  },
+  {
+   "seed": "PlayerInput",
+   "string_vas": [
+    "0x14815b9af",
+    "0x14815c265",
+    "0x14834066d"
+   ],
+   "status": "no-corpus-refs",
+   "candidates": []
+  }
+ ]
+}

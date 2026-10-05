@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read and decode a single entry from a New World PAK, any compression method.
+r"""Read and decode a single entry from a New World PAK, any compression method.
 
 Layer 2 tool (DECOMP-BACKLOG 2.1c/2.2). Stdlib `zipfile` reads the directory
 metadata but raises on method 15, so the payload is read manually from the
@@ -8,11 +8,20 @@ local header and decoded here:
 * method 0  — stored (as-is)
 * method 8  — raw deflate, no zlib wrapper (`zlib.decompressobj(-15)`), the
   Lumberyard `ICryPak.h` convention, verified in PAK-FORMAT.md §3
-* method 15 — RAD Oodle **Kraken**, via the third-party `kraken-decompressor`
-  wheel (a C++ port of the ooz-family Kraken decoder). Validated 2026-10-05:
-  31/31 exact CRC matches against this install (PAK-FORMAT.md §4f). The wheel
-  is bootstrapped ONCE into `%LOCALAPPDATA%\\Azoth\\tools\\krakenv` (gitignored,
-  like the Ghidra install); `services/` stays stdlib-only per repo rules.
+* method 15 � RAD Oodle **Kraken**, via the vendored ooz decoder
+  (`vendor/ooz/kraken.cpp`, zlib license, compiled once into
+  `%LOCALAPPDATA%\Azoth	ools\ooz\kraken.dll` with the g++/clang++ found on
+  PATH). ooz's decompressor may write up to 64 bytes past the destination
+  buffer, so the ctypes shim (`vendor/ooz/ooz_shim.cpp`) allocates the padding
+  itself and we truncate to `usize`. This is the PRIMARY decoder; every decode
+  is still validated against the central-directory CRC. The
+  `kraken-decompressor` wheel is only a fallback run in a SUBPROCESS: it
+  allocates exactly dst_len and heap-corrupts on some payloads (first
+  reproduction: SharedDataStrm-part6.pak::javelindata_perks.datasheet,
+  2026-10-05 � see vendor/ooz/README.md). Validated 2026-10-05: 31/31 exact
+  CRC matches against this install (PAK-FORMAT.md �4f). The wheel bootstrap
+  lives in `%LOCALAPPDATA%\Azoth	ools\krakenv` (gitignored, like the Ghidra
+  install); `services/` stays stdlib-only per repo rules.
 
 Every decode is verified against the ZIP central-directory CRC-32. A mismatch
 is a hard failure, never a warning.
@@ -52,6 +61,53 @@ def _venv_python() -> Path:
     return _krakenv_dir() / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
+def _dll_path() -> Path:
+    return Path(os.environ["LOCALAPPDATA"]) / "Azoth" / "tools" / "ooz" / "kraken.dll"
+
+def _find_cxx() -> str | None:
+    for name in ("g++", "clang++", "c++"):
+        for d in os.environ.get("PATH", "").split(os.pathsep):
+            p = Path(d)
+            if p.joinpath(f"{name}.exe").exists() or p.joinpath(name).exists():
+                return name
+    return None
+
+def _build_dll() -> Path | None:
+    """Compile the vendored ooz decoder once (needs g++/clang++ on PATH)."""
+    cxx = _find_cxx()
+    if not cxx:
+        return None
+    vendor = Path(__file__).resolve().parent / "vendor" / "ooz"
+    out = _dll_path()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run(
+        [cxx, "-shared", "-O2", "-static", "-o", str(out),
+         str(vendor / "kraken.cpp"), str(vendor / "ooz_shim.cpp")],
+        capture_output=True, text=True)
+    if r.returncode != 0 or not out.exists():
+        print(f"ooz build failed: {r.stderr[-400:]}", file=sys.stderr)
+        return None
+    return out
+
+def _decode_dll(payload: bytes, usize: int) -> bytes:
+    path = _dll_path()
+    if not path.exists():
+        path = _build_dll()
+    if not path or not path.exists():
+        raise FileNotFoundError("ooz kraken.dll not built and no g++/clang++ on PATH")
+    import ctypes
+    dll = ctypes.CDLL(str(path))
+    dll.ooz_decompress.restype = ctypes.c_int
+    dll.ooz_decompress.argtypes = [ctypes.c_char_p, ctypes.c_size_t,
+                                   ctypes.c_char_p, ctypes.c_size_t,
+                                   ctypes.POINTER(ctypes.c_size_t)]
+    dst = ctypes.create_string_buffer(usize)
+    written = ctypes.c_size_t(0)
+    rc = dll.ooz_decompress(payload, len(payload), dst, usize, ctypes.byref(written))
+    if rc != 0:
+        raise ValueError(f"ooz decode failed (rc={rc})")
+    return dst.raw[:written.value]
+
 def _ensure_decoder() -> None:
     """Import kraken_decompressor, bootstrapping the LOCALAPPDATA venv if needed."""
     try:
@@ -77,6 +133,27 @@ def _ensure_decoder() -> None:
         os.execv(str(_venv_python()), [str(_venv_python()), __file__, "--reexeced", *sys.argv[1:]])
     raise RuntimeError("kraken-decompressor unavailable after bootstrap")
 
+def _decode_wheel_subprocess(payload: bytes, usize: int) -> bytes:
+    """Fallback: the kraken-decompressor wheel, isolated in a subprocess.
+
+    The wheel allocates exactly dst_len while ooz may write up to 64 bytes
+    past it, so SOME payloads crash the child process (0xc0000374). Isolating
+    the call keeps pakread alive; a crashed child is a failed decode, never a
+    corrupt result. The DLL path above is the fix (vendor/ooz/README.md).
+    """
+    _ensure_decoder()
+    code = (
+        "import sys\n"
+        "from kraken_decompressor import decompress\n"
+        "payload = sys.stdin.buffer.read()\n"
+        f"sys.stdout.buffer.write(decompress(payload, {usize}))\n"
+    )
+    r = subprocess.run([str(_venv_python()), "-c", code], input=payload,
+                       capture_output=True, timeout=300)
+    if r.returncode != 0:
+        raise ValueError(f"wheel decoder crashed (rc={r.returncode})")
+    return r.stdout
+
 
 def decode(payload: bytes, method: int, usize: int, crc: int, label: str) -> bytes:
     if method == 0:
@@ -84,9 +161,12 @@ def decode(payload: bytes, method: int, usize: int, crc: int, label: str) -> byt
     elif method == 8:
         out = zlib.decompressobj(-15).decompress(payload)
     elif method == 15:
-        _ensure_decoder()
-        from kraken_decompressor import decompress
-        out = decompress(payload, usize)
+        try:
+            out = _decode_dll(payload, usize)
+        except (FileNotFoundError, OSError) as e:
+            print(f"ooz DLL unavailable ({e}); falling back to wheel subprocess",
+                  file=sys.stderr)
+            out = _decode_wheel_subprocess(payload, usize)
     else:
         raise NotImplementedError(f"compression method {method} not supported")
     got = zlib.crc32(out)
@@ -141,6 +221,13 @@ def selftest() -> int:
     data, meta = read_entry(*GROUND_TRUTH)
     checks.append(("ground truth decodes (game.xml, method 15)", data[:13] == b"<ObjectStream"))
     checks.append(("ground truth CRC matches", meta["crc"] == f"{GROUND_TRUTH_CRC:08x}"))
+    # the wheel-crasher regression: the ooz DLL must decode it exactly
+    # (first reproduction of the heap corruption, 2026-10-05)
+    perks, pmeta = read_entry(
+        "SharedDataStrm-part6.pak",
+        "sharedassets/springboardentitites/datatables/javelindata_perks.datasheet")
+    checks.append(("perks datasheet decodes (wheel-crasher regression)",
+                   len(perks) == 305638 and pmeta["crc"] == "5c661d7f"))
     # the documented header-exception entry (PAK-FORMAT.md §4a)
     dds, _ = read_entry("Engine.pak", "engineassets/animated/watervolume.dds")
     checks.append(("dds header-exception decodes", len(dds) == 524416))

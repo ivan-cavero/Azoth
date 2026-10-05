@@ -159,6 +159,28 @@ HEARTBEAT_TICK_START = int(
     os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK", "0x6ef8c888af44"), 0
 )
 HEARTBEAT_TICK_STEP = int(os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK_STEP", "1000000000"), 0)
+# Post-replay activity stream (type 0x1b88). The InGame activity clock
+# (FUN_146445e10) reads processor+0x608 and the message dispatcher
+# FUN_146b6f190 only refreshes that clock on its "miss" path: a message
+# whose GUID is NOT one of its ten known singletons. The 0x15d ping hits a
+# singleton that does not stamp and the ch3 keepalive never reaches the
+# dispatcher, so once the replay drains the clock goes stale:
+# OnLocalNetworkConnectionWarning climbs (the red cable icon appears within
+# seconds of spawn, which is what Ivan sees) and the first clean session
+# died with transportError 4 just 19 s after spawn (2026-10-04 19:25 UTC).
+# The capture's only verbatim repeatable bodies are the 23 IDENTICAL
+# type-0x1b88 messages (42 bytes, no redaction, seqs 0x0c..0x24,
+# pre-snapshot). Whether their GUID takes the stamp path is UNPROVEN
+# (ingame_activity_timer in research/derived/symbols.json), so this is an
+# experiment: serve the real captured body with a fresh envelope seq and
+# watch the warning counter. Do NOT extend this to 0x08: re-sending the
+# captured tail bundles already cost the ClientContext once
+# (AZOTH_REPLAY_STATE_STREAM lesson).
+ACTIVITY_STREAM_ENABLED = os.environ.get("AZOTH_REPLAY_ACTIVITY_STREAM", "0") == "1"
+ACTIVITY_STREAM_PERIOD_S = float(
+    os.environ.get("AZOTH_REPLAY_ACTIVITY_STREAM_PERIOD_S", "0.5")
+)
+ACTIVITY_STREAM_TYPE = 0x1B88
 # Post-replay state-bundle stream (type 0x08). The capture's steady state is
 # dominated by R-direction 0x08 bundles: 79 of them, and the last 17
 # (seq 0xa0..0xb0, every one under REPLAY_CHUNK_SIZE so it stays a single
@@ -817,6 +839,10 @@ class PeerSession:
         # Post-replay 0x15d ping/pong (see HEARTBEAT_* above).
         self.heartbeat_next_at = 0.0
         self.heartbeat_tick = HEARTBEAT_TICK_START
+        # Post-replay 0x1b88 activity stream (see ACTIVITY_STREAM_* above).
+        self.activity_body: bytes | None = None
+        self.activity_next_at = 0.0
+        self.activity_sent = 0
         # Post-replay 0x08 state-bundle stream (see STATE_STREAM_* above).
         self.state_stream_all: list = []
         self.state_stream_queue: list = []
@@ -941,6 +967,7 @@ class PeerSession:
         self.maybe_inject(server)
         self.maybe_pump_replay(server)
         self.maybe_heartbeat(server)
+        self.maybe_activity_stream(server)
         self.maybe_state_stream(server)
         self.maybe_resend(server)
 
@@ -959,6 +986,24 @@ class PeerSession:
         self.out_rel_seq = 1
         self.replay_next_at = time.monotonic()
         log_event({"event": "replay-armed", "count": len(self.replay_queue)})
+        if ACTIVITY_STREAM_ENABLED:
+            copies = [
+                m
+                for m in store.messages
+                if m.type_id == ACTIVITY_STREAM_TYPE
+                and m.direction == "R"
+                and not m.has_redaction
+            ]
+            # All 23 captured copies are byte-identical; keep one body and
+            # send it verbatim with a fresh envelope seq each time.
+            self.activity_body = copies[0].body if copies else None
+            log_event(
+                {
+                    "event": "activity-stream-armed",
+                    "copies": len(copies),
+                    "body_len": len(self.activity_body) if self.activity_body else 0,
+                }
+            )
         if STATE_STREAM_ENABLED:
             self.state_stream_all = [
                 m
@@ -1205,6 +1250,46 @@ class PeerSession:
                 "event": "heartbeat",
                 "tick": hex(self.heartbeat_tick),
                 "out_seq": seq,
+            }
+        )
+
+    def maybe_activity_stream(self, server) -> None:
+        """Serve the captured 0x1b88 body periodically once the replay drains.
+
+        Rationale in ACTIVITY_STREAM_* above: the InGame activity clock is
+        only refreshed by messages the dispatcher does NOT recognize, and
+        nothing in our post-replay stream qualifies. The 42-byte 0x1b88 body
+        is real capture data, sent verbatim (its own typed preamble is
+        inside the body, like every replayed message); only the Carrier
+        envelope seq is new, which keeps the client's replication dedup
+        (FUN_14643e7b0) happy.
+        """
+        if not ACTIVITY_STREAM_ENABLED or self.activity_body is None:
+            return
+        if self.gone or not self.v3_responded:
+            return
+        if self.replay_queue or not self.greetings_after_replay:
+            return  # the replay itself is still streaming
+        now = time.monotonic()
+        if now < self.activity_next_at:
+            return
+        self.activity_next_at = now + ACTIVITY_STREAM_PERIOD_S
+        from types import SimpleNamespace
+
+        msg = SimpleNamespace(
+            seq=-1,  # marker: not a captured replay seq, keeps the dup-levelinfo skip inert
+            type_id=ACTIVITY_STREAM_TYPE,
+            body=self.activity_body,
+        )
+        self._send_replay_message(server, msg)
+        self.activity_sent += 1
+        log_event(
+            {
+                "event": "activity-stream",
+                "type": hex(ACTIVITY_STREAM_TYPE),
+                "size": len(self.activity_body),
+                "n": self.activity_sent,
+                "out_seq": (self.out_msg_seq - 1) & 0xFFFF,
             }
         )
 
