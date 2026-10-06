@@ -1,0 +1,3 @@
+interface:
+  display_name: "Azoth Live Debug"
+  short_description: "Repeatable local client experiments"

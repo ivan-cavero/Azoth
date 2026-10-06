@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Skip the streaming-manager teardown that kills the freshly loaded world.
 
-Measured live 2026-09-26 with Frida (`scripts/frida-predicate-probe.py`), first
+Measured live 2026-09-26 with Frida (`reverse/probes/client/frida-predicate-probe.py`), first
 world attempt of a fresh process. The archived diagnosis in STATUS.md blamed the
 virtual predicate `[*(pGame+0x60)+0x28]->vtable[0x88]`; that is WRONG:
 

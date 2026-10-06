@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Screenshot the New World window -> PNG in %TEMP%.
+"""Screenshot the New World window -> PNG in the ignored project capture folder.
 
 The model cannot read raw game PNGs directly: pair with shrink-image.py.
 Usage: python az.py shot [out.png]
@@ -42,7 +42,9 @@ def game_window_rect() -> tuple[int, int, int, int] | None:
 
 
 def main() -> int:
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.home() / "AppData/Local/Temp/azoth_shot.png"
+    repo = Path(__file__).resolve().parents[1]
+    out = Path(sys.argv[1]) if len(sys.argv) > 1 else repo / ".azoth/captures/azoth_shot.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
     rect = game_window_rect()
     if rect is None:
         print("New World window not found")

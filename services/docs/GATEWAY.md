@@ -1,26 +1,29 @@
-# HTTPS Gateway
+# Gateway
 
-Python process on `127.0.0.1:8080`. Caddy terminates TLS on `:443` (SNI, ALPN h1/h2). Local CA installed on Windows for the private profile (hosts or patched URL).
+The gateway is one HTTP process on `127.0.0.1:8080`; Caddy terminates client
+TLS on `:443`. It uses Python's standard-library server and has no runtime
+dependency beyond Python.
 
-## Modules (one binary, no microservices)
+Start, stop, restart, and inspect through `python az.py gateway start|stop|restart|status`.
+`python az.py dev` starts Caddy, gateway, and world in the background; service
+output is stored under `.azoth/logs/`.
 
-| Module | What it serves |
-| --- | --- |
-| `channel` | `STEAM_APP_ID.1063730.json` — a single cluster pointing at us |
-| `cms` | news / tiles / MOTD **with ETag** |
-| `omni` | `tokenservice` + `/prod/credentials/omni` (STS shape, `type=full`) |
-| `remote_config` | S3 keyspace `configuration-sets/…` (SigV4 **unverified**) |
-| `entitlements` / catalog / privacy | stubs |
-| `characters` | getlogininfo + create (path discovered in `FTUE_V2_CC`) |
-| `queue` | ticket `worldId_uuid` + `RepAddress` from `worlds.rep_host:port` |
-| `discovery` | dumps unknown paths to `mock_discovery/` (gitignored) |
+## Code map
 
-## Host allowlist
+- `services/gateway/src/azoth_gateway/app.py` — HTTP request lifecycle and
+  route dispatch.
+- `routes/` — route families; keep wire quirks close to their handler.
+- `data/` — checked-in gateway seed data.
+- `research/atlas/` — durable wire schemas and observed endpoint families.
 
-Single file: `deploy/hosts-allowlist.json` (added in the deploy PR). S3 remote-config **yes**. Epic, EAC, Vivox, Steam, STS **no**.
+## Captures
 
-Do not adopt the 38-host catalog wholesale.
+The gateway appends request/response summaries to
+`services/gateway/traffic.jsonl`; exact bodies are stored in ignored
+`traffic-payloads/` sidecars. Do not edit those files while the gateway is
+running. After a play session, `python az.py doc` refreshes
+`research/atlas/openapi.json` from the captured endpoint families.
 
-## Phase 1 criterion
-
-Game.log: `StartREPConnection` with `RepAddress` localhost. Staying on `WaitingForREPConnection` without a world is success for this piece.
+Unknown paths are logged and return 404. A newly requested endpoint is a
+research item: capture its shape, confirm it against the client or traffic, add
+the durable schema to the atlas, then implement the route.

@@ -130,9 +130,13 @@ def read_mem(hproc, addr, size):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--timeout', type=float, default=90)
-    ap.add_argument('--log', type=Path, default=Path(os.environ.get('TEMP', '.')) / 'azoth_dbg.log')
+    ap.add_argument(
+        '--log',
+        type=Path,
+        default=Path(__file__).resolve().parents[4] / '.azoth' / 'logs' / 'azoth_dbg.log',
+    )
     ns = ap.parse_args()
-    rt = Path(os.environ['LOCALAPPDATA']) / 'Azoth' / 'game' / 'Bin64'
+    rt = Path(__file__).resolve().parents[4] / 'private-client' / 'runtime' / 'Bin64'
     exe = rt / 'NewWorld.exe'
     if not exe.exists():
         print(f'missing {exe} (run Start-NwPrivate.ps1 first)');
@@ -234,6 +238,7 @@ def main() -> int:
         else:
             out.append('TIMEOUT: still alive, no AV seen')
     finally:
+        ns.log.parent.mkdir(parents=True, exist_ok=True)
         ns.log.write_text('\n'.join(out) + '\n', encoding='utf-8')
         print('\n'.join(o for o in out if o.startswith(('AV', 'process', 'TIMEOUT', 'stack', '  '))))
         print(f'full log: {ns.log}')

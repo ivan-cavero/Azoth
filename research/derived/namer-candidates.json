@@ -1,6 +1,6 @@
 {
  "generated_from": "corpus-refs.sqlite + peutil string resolution",
- "note": "CANDIDATES ONLY. Confirm into research/derived/symbols.json by hand, one key at a time, with a second agreeing signal.",
+ "note": "CANDIDATES ONLY. Confirm into research/atlas/client-functions.json by hand, one key at a time, with a second agreeing signal.",
  "items": [
   {
    "seed": "ReplicaChunk",

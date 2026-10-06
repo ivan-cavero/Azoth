@@ -92,4 +92,4 @@ The game, while running, already emits:
 
 That *is* runtime. It goes to disk and to the network. There is no need to enter the address space.
 
-Scripts: `tools/reversing/README.md`.
+Scripts: `reverse/tools/` (disk analysis) and `reverse/probes/client/` (live probes; follow the EAC rules).

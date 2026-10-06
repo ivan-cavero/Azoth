@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "updated": "2026-10-06",
+  "runtime": {
+    "python": {
+      "version": "3.14.8",
+      "url": "https://www.python.org/ftp/python/3.14.8/python-3.14.8-amd64.exe",
+      "sha256": "759be887b96e736a3ca886daf8d575f18fcae1a09efab6902f42d59e8999f8ef"
+    }
+  },
+  "tools": {
+    "ghidra": {
+      "version": "12.1.4",
+      "url": "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip",
+      "sha256": "ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db"
+    },
+    "jdk": {
+      "version": "25.0.4.1+1",
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jdk_x64_windows_hotspot_25.0.4.1_1.zip",
+      "sha256": "00c847d804f4a78e9f04f2683faf14fed898535b177b7fc704486cb0284e9283"
+    },
+    "caddy": {
+      "version": "2.11.7",
+      "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.7/caddy_2.11.7_windows_amd64.zip",
+      "sha256": "0a1edc0b799512051c57071ce0e798d3f2cf67dc98171366f1d2b326072e3b06"
+    }
+  },
+  "python": {
+    "pyOpenSSL": "26.4.0",
+    "frida": "17.21.0",
+    "Pillow": "12.3.0"
+  }
+}

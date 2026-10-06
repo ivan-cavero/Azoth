@@ -1,6 +1,6 @@
 # New World Private Server — Technical analysis
 
-This document lives in **research/** (monorepo). Contract: `../../docs/ARQUITECTURA.md`. Index: [INDEX.md](INDEX.md).
+This document lives in **research/** (monorepo). Contract: `../archive/ARQUITECTURA.md (historical)`. Index: [INDEX.md](INDEX.md).
 
 Date: 2026-09-06. **Snapshot document — historical.** The phased plan in §6 is superseded:
 phases 0–2 already happened (gateway live, world entry solved 2026-10-02); the program now
@@ -87,10 +87,12 @@ New World/
 
 The PAKs are **ZIP** (`PK\x03\x04`). Any ZIP tool lists them; extraction is method-dependent. 93.5% of the 1,413,205 entries use compression method **15**, which stdlib `zipfile` refuses and which is not in public Lumberyard. Measured method table, evidence, and what is still unidentified: [PAK-FORMAT.md](PAK-FORMAT.md).
 
-User data:
+Client user data:
 
-- Logs: `%LOCALAPPDATA%\AGS\New World\Game.log` (very verbose, gold for RE)
-- Settings: `%APPDATA%\AGS\New World\`
+- Private runtime logs/settings: `private-client/profile/Local/AGS/New World/`
+  and `private-client/profile/Roaming/AGS/New World/`.
+- Official Steam sessions still use Windows `%LOCALAPPDATA%` and `%APPDATA%`;
+  pass the official `Game.log` explicitly when ingesting one.
 
 ### Authority
 

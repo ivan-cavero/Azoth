@@ -20,8 +20,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REP_LOG = ROOT / "services" / "world" / "rep_traffic.jsonl"
-GAME_LOG = Path(os.environ["LOCALAPPDATA"]) / "AGS" / "New World" / "Game.log"
-EXE = Path(os.environ["LOCALAPPDATA"]) / "Azoth" / "game" / "Bin64" / "NewWorld.exe"
+REPO = Path(__file__).resolve().parents[1]
+GAME_LOG = REPO / "private-client" / "profile" / "Local" / "AGS" / "New World" / "Game.log"
+EXE = REPO / "private-client" / "runtime" / "Bin64" / "NewWorld.exe"
 GATEWAY_LOG = Path(
     os.environ.get("AZOTH_TRAFFIC_JSONL")
     or ROOT / "services" / "gateway" / "traffic.jsonl"
@@ -38,9 +39,9 @@ def main() -> int:
     parser.add_argument("--pid", type=int, required=True, help="NewWorld.exe PID for this run")
     parser.add_argument("--session", type=int, default=-1, help="0-based DTLS session index; negative from newest")
     parser.add_argument("--screenshot", type=Path, help="optional already-shrunk .small.jpg screenshot")
-    parser.add_argument("--burst-log", type=Path, help="optional JSONL output from frida-burst-capture.py")
-    parser.add_argument("--slot-log", type=Path, help="optional JSONL output from frida-slot-watch.py")
-    parser.add_argument("--deferred-log", type=Path, help="optional JSONL output from frida-deferred-actions.py")
+    parser.add_argument("--burst-log", type=Path, help="optional JSONL output from the burst probe")
+    parser.add_argument("--slot-log", type=Path, help="optional JSONL output from the slot probe")
+    parser.add_argument("--deferred-log", type=Path, help="optional JSONL output from the deferred-actions probe")
     args = parser.parse_args()
 
     for path in (REP_LOG, GAME_LOG, EXE):

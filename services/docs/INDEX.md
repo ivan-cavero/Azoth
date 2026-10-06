@@ -1,10 +1,9 @@
-# Emulator — index
+# Service references
 
-| Doc | Content |
-| --- | --- |
-| [GATEWAY.md](GATEWAY.md) | HTTPS: channel, CMS, Omni, S3, characters, queue |
-| [WORLD.md](WORLD.md) | DTLS, Carrier, frozen spawn |
-| [PERFORMANCE.md](PERFORMANCE.md) | Density, tick, AOI — why official lagged |
-| [DATA.md](DATA.md) | Minimal Postgres |
-
-System architecture: `../../docs/archive/ARQUITECTURA.md` (archived). JSON the client already requested: `../../research/schemas/live/` and `../../research/docs/CONTRATO_CLIENTE.md`.
+- [Gateway](GATEWAY.md) — HTTP routes, traffic capture, and local startup.
+- [World](../world/README.md) — current DTLS/REP implementation and runtime
+  settings.
+- [Performance targets](PERFORMANCE.md) — future measurements; not claims about
+  current server capacity.
+- [Client contract](../../research/docs/CLIENT_CONTRACT.md) — observed client
+  request and response shapes.

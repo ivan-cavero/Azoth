@@ -32998,5 +32998,5 @@
    "slots_in_text": 0
   }
  ],
- "note": "Candidate pool only (regenerable with rtti.py build). Names are RTTI metadata from the exe; a name is CONFIRMED into symbols.json only with a second agreeing signal."
+ "note": "Candidate pool only (regenerable with rtti.py build). Names are RTTI metadata from the exe; a name is CONFIRMED into research/atlas/client-functions.json only with a second agreeing signal."
 }

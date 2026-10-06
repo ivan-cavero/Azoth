@@ -5,7 +5,10 @@ $here = $PSScriptRoot
 $src = Join-Path $here 'src\stub.c'
 $def = Join-Path $here 'src\stub.def'
 $dll = Join-Path $here 'steam_api64.dll'
-$tmpObj = Join-Path $env:TEMP 'azoth_stub.obj'
+$repo = [IO.Path]::GetFullPath((Join-Path $here '..\..\..'))
+$tmpDir = Join-Path $repo '.azoth\tmp'
+New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+$tmpObj = Join-Path $tmpDir 'azoth_stub.obj'
 
 function Find-MSVC {
     $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -35,7 +38,7 @@ if ($cl) {
     $vsInstall = Split-Path (Split-Path (Split-Path $vsRoot))
     $vcvars = Join-Path $vsInstall 'VC\Auxiliary\Build\vcvars64.bat'
     if (-not (Test-Path $vcvars)) { $vcvars = 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat' }
-    $cmd = "`"$vcvars`" >nul && cl /nologo /LD /O2 /W3 /Fo`"$env:TEMP\azoth_stub.obj`" /Fe`"$dll`" `"$src`" /link /DEF:`"$def`" /OUT:`"$dll`""
+    $cmd = "`"$vcvars`" >nul && cl /nologo /LD /O2 /W3 /Fo`"$tmpObj`" /Fe`"$dll`" `"$src`" /link /DEF:`"$def`" /OUT:`"$dll`""
     Write-Host $cmd
     cmd /c $cmd
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $dll)) { throw 'cl failed' }

@@ -1,85 +1,48 @@
-# Azoth — live status
+# Live status
 
-Last updated: 2026-10-04 ~14:30 local (12:30 UTC). Diagnóstico en
-`research/derived/symbols.json`: `capture_redactions_block_player_state_20261004`,
-`client_self_reconnect_kills_context_20261004`, `local_player_has_no_physics_20261004`.
+Updated: 2026-10-06. Exact function evidence is in
+[`research/atlas/client-functions.json`](research/atlas/client-functions.json);
+the consolidated wire reference is
+[`research/docs/JAVELIN-PROTOCOL.md`](research/docs/JAVELIN-PROTOCOL.md).
 
-## El bloqueo (caden completa, medida)
+## Active objective
 
-El cliente entra al mundo, espera un mensaje con la identidad correcta, no llega, y a los ~3 s **el
-mismo** arranca una reconexión. En la reconexión el `ClientContext` nunca se recrea, así que el
-cliente descarta **todo** el estado del mundo (`skipping ReceiveStateBundle ... clientContext ==
-nullptr`, cientos de líneas). Sin ese estado, el jugador local **no tiene componentes de física**, y
-por eso WASD no mueve nada y el cable sube hasta cortarse.
+Make the local player move in the private client. Entry to the world is
+solved and reproducible; movement is the only open failure.
 
-**Por qué no llega:** el mensaje que el cliente espera es el state bundle `0x08`. En el capture son
-los 5 más grandes (`seq 0x25/0x2a/0x2b/0x2e/0x2f`, 46 407–46 423 bytes cada uno). Cada uno tiene
-**453 redacciones de 36 bytes** (el UUID del jugador/cuenta del capture, puesto a `XX`), más
-**9 420 bytes de huecos por mensaje**. El replay rellena sólo las 6 ranuras del allowlist
-`REPLAY_IDENTITY_TARGETS` y `AZOTH_REPLAY_LOCAL_PLAYER_UUID`; los otros **~24 800 bytes de huecos
-quedan en cero**.
+## Confirmed
 
-Con esos huecos, el cliente no puede reconstruir los componentes del jugador (incluido el rigid
-body/character controller), y sin ellos la identidad que la puerta compara no coincide.
+- Gateway and world server connect; the client loads Monarch's Bluffs and
+  possesses the local player. Clean sessions show 1 skipped bundle, 0
+  disconnects, 0 transport errors, 0 warnings — the server is stable.
+- Input delivery is verified: keys, mouse look, and UI actions reach the game.
+  Focus was a harness bug, now fixed (`scripts/focus-window.py` verifies
+  foreground). WASD still does not move the player (motion ratio 0.13x).
+- **Movement blocker, measured 2026-10-05** (`movement_replication_
+  asymmetry_20261005`): the client broadcasts its local-player state on
+  channel 1 (type 0x635); the server never answers on channel 1/2. The reply
+  stream must be constructed server-side — the capture does not contain it.
+- The client never attempts by-name component creation, the cluster, or the
+  transform spawners during world entry; player components come from the
+  slice instantiator (`component_byname_creation_never_runs_20261005`).
+- `player.dynamicslice` has no physics components; the 2026-10-04 physics
+  GUIDs were wrong — use `physics_component_guids_corrected_20261005`.
+- Debug cameras ship in the client: `change_camera`=O verified live;
+  `debug_camera` free-fly (WASD+Space) is disabled by `enable="0"` and can be
+  enabled with a PAK edit — see `research/atlas/levers.md`.
 
-**Y de fondo:** el capture es de build **1.365** y el cliente es **1.400.6031**. Incluso sin
-redacciones, el estado sería el del personaje del capture, no el del jugador de Azoth.
+## Next useful step
 
-**Conclusión de arquitectura:** el cliente no se estabiliza retransmitiendo el capture. El servidor
-tiene que implementar el protocolo de replicación real: crear la entidad del jugador con sus
-componentes (incluido el rigid body/character controller), mandarle el estado con las identidades
-correctas, y responder al input. Eso es lo que hace el servidor real para miles de jugadores
-sincronizados.
+Design the server-side channel-1/2 reply to the client's 0x635 player-state
+stream (protocol-analysis prompt), using the single short captured exchange
+(0x1096/0x1097) and the consolidated message registry in JAVELIN-PROTOCOL.md
+as the starting contract. A/B levers that already exist:
+`AZOTH_REPLAY_INPUT_RESPONSE=1`, the debug-camera PAK edit. Do not return to
+input/focus checks or connection stability — those are solved.
 
-## Lo que sí funciona (medido)
+## Project structure
 
-- El gateway, el mundo (UDP :9000) y el ClienteContext en la **primera** sesión.
-- El cliente entra al mundo, renderiza Monarch's Bluffs, manda el estado 0x635 con el actor del
-  jugador, y responde al heartbeat.
-- El input **llega** al cliente (GetRawInputData con makeCode 0x11 / VKey 0x57), y el mouse mueve la
-  cámara.
-- Las teclas UI funcionan (Escape/I/M abren menús).
-
-## Herramientas nuevas
-
-- `focus-window.py` (fuerza y **verifica** el foco; usar en vez de `SetForegroundWindow` a pelo).
-- `hold-key.py`, `bmp-diff.py`, `frida-activity-timer.py`.
-
-## Próximo paso (realista)
-
-Implementar el protocolo de replicación de Javelin/GridMate para la entidad del jugador:
-1. Decodificar el state bundle `0x08` del capture (Oodle) para entender el formato exacto de los
-   fragmentos y qué campos identifican al jugador.
-2. Construir los bundles propios con las identidades de Azoth y el rigid body del jugador.
-3. Mandarlos con el seq/identidad correctos.
-
-No reactivar el stream 0x08 ni el attach de transforms.
-
----
-
-## Diagnóstico final (2026-10-04, íntegro y verificado)
-
-**El cliente se desconecta por `transportError 4` del ClientSDK anticheat ~50 s después del spawn, en TODAS las sesiones, siempre.** El stub EOS está vivo (el log lo dice), el watchdog está parcheado (b001→b000), y el servidor no cierra la DTLS. Pero el ClientSDK espera que el servidor le mande mensajes anticheat por el canal REP que el servidor real manda; nuestro servidor no los implementa, así que después de un timeout el SDK reporta `@mm_csdkerr_disconnect (4)` y el cliente corta la conexión REP.
-
-**Consecuencia en cadena (medida, no teoría):**
-1. El cliente se desconecta → reconecta.
-2. En la reconexión, `clientContext->Initialize` **nunca** corre de nuevo (el gate `FUN_14643e7b0` exige que la identidad del mensaje coincida con `port[+0x80]`, y el estado del puerto ya cambió).
-3. Sin ClientContext, el cliente descarta **TODO** el estado del mundo (cientos de `skipping ReceiveStateBundle ... clientContext == nullptr`).
-4. Sin ese estado, el jugador local no recibe sus componentes de física (`GameRigidBodyComponent`, `CharacterPhysicsComponent`, `CharacterControllerComponent`).
-5. Sin física, **WASD no mueve nada** — el input llega (verificado con GetRawInputData) pero no hay cuerpo que mover.
-6. El cable sube hasta el rojo porque el ClientSDK no reporta heartbeat al servidor.
-
-**El capture 1.365 tiene 453 redacciones de 36 bytes por bundle 0x08** (los 5 bundles más grandes son 46 407–46 423 bytes cada uno). El replay rellena solo 6 ranuras del allowlist; los otros ~24 800 bytes de huecos quedan en cero. Con esos huecos el cliente no puede reconstruir los componentes del jugador.
-
-**Y de fondo: el capture es de build 1.365, el cliente es 1.400.6031.** Incluso sin redacciones, el estado sería del personaje del capture, no del jugador de Azoth.
-
-## Qué se necesita de verdad
-
-El servidor tiene que implementar el protocolo de replicación real de Javelin/GridMate:
-1. Crear la entidad del jugador con sus componentes (incluido el rigid body/character controller).
-2. Mandar el estado con las identidades correctas.
-3. Implementar el canal anticheat que el ClientSDK espera.
-4. Responder al input del cliente con posiciones autoritativas.
-
-Eso es lo que hace el servidor real para miles de jugadores sincronizados. Es un proyecto de ingeniería inversa sustancial, no un parche.
-
+The game profile/runtime, PAK index, tools, and old logs live in ignored
+project-local paths (`private-client/`, `.azoth/`, `reverse/builds/`). The
+project restructure (single `az.py` entry point, phase campaign, client map,
+agent prompts) is complete on this branch pending merge to main.

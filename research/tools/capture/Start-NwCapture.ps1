@@ -5,9 +5,9 @@ param(
     [switch]$SkipPktmon,
     [switch]$SkipStatic,
     [switch]$SmokeTest,
+    [switch]$PrivateClient,
     [int]$WaitSeconds = 0,
     [string]$SessionName,
-    [string]$PythonExe,
     [string]$RepoRoot
 )
 
@@ -19,28 +19,26 @@ $CaptureDir = $PSScriptRoot
 if (-not $RepoRoot) {
     $RepoRoot = (Resolve-Path (Join-Path $CaptureDir '..\..')).Path
 }
+$ProjectRoot = (Resolve-Path (Join-Path $RepoRoot '..')).Path
+$LocalTemp = Join-Path $ProjectRoot '.azoth\tmp'
+New-Item -ItemType Directory -Force -Path $LocalTemp | Out-Null
+$env:TEMP = $LocalTemp
+$env:TMP = $LocalTemp
+if ($PrivateClient) {
+    $env:AZOTH_GAME_LOG = Join-Path $ProjectRoot 'private-client\profile\Local\AGS\New World\Game.log'
+} else {
+    $env:AZOTH_GAME_LOG = Join-Path $env:LOCALAPPDATA 'AGS\New World\Game.log'
+}
 
 function Test-Admin {
     ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).
         IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Resolve-Python([string]$Hint) {
-    $candidates = @()
-    if ($Hint) { $candidates += $Hint }
-    try {
-        $exe = & python -c "import sys; print(sys.executable)" 2>$null
-        if ($exe) { $candidates += $exe.Trim() }
-    } catch {}
-    $candidates += @(
-        "$env:LOCALAPPDATA\Python\pythoncore-3.14-64\python.exe",
-        "$env:LOCALAPPDATA\Python\pythoncore-3.13-64\python.exe",
-        "$env:LOCALAPPDATA\Programs\Python\Python314\python.exe"
-    )
-    foreach ($c in $candidates) {
-        if ($c -and (Test-Path -LiteralPath $c) -and ($c -notmatch 'WindowsApps')) { return $c }
-    }
-    throw "No real python.exe found (avoid the WindowsApps stub)."
+function Resolve-Python {
+    $python = Join-Path $ProjectRoot '.azoth\venv\Scripts\python.exe'
+    if (Test-Path -LiteralPath $python) { return $python }
+    throw 'Project Python is missing. Run `python az.py setup` from the checkout first.'
 }
 
 function Start-DetachedProcess {
@@ -68,14 +66,14 @@ function Wait-End([string]$Msg) {
 
 $needAdmin = -not $SkipPktmon -and -not $SmokeTest -and $WaitSeconds -le 0
 if ($needAdmin -and -not (Test-Admin)) {
-    $py = Resolve-Python $PythonExe
+    Resolve-Python | Out-Null
     $argList = @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit',
         '-File', $PSCommandPath,
         '-SkipStatic',
-        '-PythonExe', $py,
         '-RepoRoot', $RepoRoot
     )
+    if ($PrivateClient) { $argList += '-PrivateClient' }
     if ($SessionName) { $argList += @('-SessionName', $SessionName) }
     Write-Host 'Requesting Administrator (required for NIC capture)...' -ForegroundColor Yellow
     Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argList
@@ -86,7 +84,7 @@ $session = $null
 $pktmonOn = $false
 try {
     Set-Location $RepoRoot
-    $PythonExe = Resolve-Python $PythonExe
+    $PythonExe = Resolve-Python
     $PythonScript = Join-Path $CaptureDir 'nw_capture.py'
     if (-not (Test-Path -LiteralPath $PythonScript)) { throw "Missing $PythonScript" }
 

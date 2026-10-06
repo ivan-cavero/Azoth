@@ -188,9 +188,6 @@ class Handler(BaseHTTPRequestHandler):
             key = "getlogininfo"
             region_id = region_from_headers(self.headers)
             payload = getlogininfo_response(st.cfg.discovery_dir, region_id)
-            if payload is None:  # 400-probe override active
-                self.send_error(400, "getlogininfo probe")
-                return True
             self._send_body(payload, ctype="application/x-amz-json-1.1", aws_id=True)
             st.metrics.hit(key)
             keep = {k: v[:200] for k, v in self.headers.items()}

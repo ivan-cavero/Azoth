@@ -1,8 +1,8 @@
 # World entry investigation — snapshot 2026-10-02
 
-The current frontier is movement, attack, inventory, and the in-game activity timer.
-Read [`../../STATUS.md`](../../STATUS.md) (2026-10-03 handoff) and
-`research/derived/symbols.json` key `gametransform_attach_ab` before this file.
+This is a dated evidence record. The current frontier is local-player movement;
+read [`../../STATUS.md`](../../STATUS.md) and
+`research/atlas/client-functions.json` key `gametransform_attach_ab` first.
 The sections below record the possession fix. They are not the next experiment.
 
 This is the detailed evidence snapshot extracted from the project dashboard.
@@ -56,7 +56,7 @@ right below, and `research/atlas/levers.md` for the lever entry.
      facets that do not exist locally.
   3. **26 `slices/remoteplayer.dynamicslice` warnings** ("Couldn't get Transform component on the
      slice!") — the other players' actors, not the local one.
-  4. **`State(InGame) is timeout` still fires every 30 s**; `scripts/patch-timeout-watchdog.py`
+  4. **`State(InGame) is timeout` still fires every 30 s**; `services/launcher/runtime-tools/patch-timeout-watchdog.py`
      patches a different site than the one reporting.
 - **The GATE MECHANISM chain, confirmed by measurement (2026-10-01/02).** `FUN_146929DF0` writes
   gate status `state+0x318`. It first looks up a value in a **thread-local** option store
@@ -70,8 +70,9 @@ right below, and `research/atlas/levers.md` for the lever entry.
   `FUN_141026080()` vtable `+0x10` (the context setter) with `FUN_1406C6A00(state)`. Its only
   caller `FUN_14683C8D0` (facet vtable `0x148535728` slot `+0xb0`) fires the writer when
   `*(entity+0x7c0)->vtable[0x60]()` or `*(entity+0x870)->vtable[0x60]()` reports a value, passing
-  `entity+0x7d0` (the wire UUID) and `entity+0x880` (the display name). Pseudocode:
-  `research/derived/decomp/gate-chain.c`; landmarks in `research/derived/symbols.json`.
+  `entity+0x7d0` (the wire UUID) and `entity+0x880` (the display name).
+  Pseudocode is in the ignored `reverse/builds/<client-sha256>/` workspace;
+  landmarks are in `research/atlas/client-functions.json`.
 - **FIELD SHAPE confirmed on the wire (2026-10-02).** In each player's facet record the UUID is
   immediately followed by `[u8 len][name]`: other players show
   `45 29 88 c6 … 45 e6 | 07 | "Unusual"`, the local player shows
@@ -96,9 +97,10 @@ right below, and `research/atlas/levers.md` for the lever entry.
   is the option-presence flag + string** — candidates: a later record of seq `0x25` (records
   2–94) or a fragment of `0x29`/`0x2a`. Next A/B: inject a shaped option fragment into record 1
   and watch `[slot+0xa0]` + gate status.
-- **GATE MECHANISM RE-READ FROM PSEUDOCODE (2026-10-01, corpus complete).** The full-client
-  decompilation finished (`%LOCALAPPDATA%\Azoth\decomp\corpus\8654f01d324636d9`, `status=complete`,
-  423579 functions), so this chain is now read instead of inferred. Corrections to the bullet above:
+- **GATE MECHANISM RE-READ FROM PSEUDOCODE (2026-10-01, historical corpus complete).** The prior
+  full-client export finished in a per-user workspace (423,579 ranges); that output is historical
+  evidence and is not reused. New analysis lives under `reverse/builds/<full-sha256>/`. This chain
+  was read from the prior export, not inferred. Corrections to the bullet above:
   (1) `FUN_146929DF0` writes `+0x318` in two steps — if the local option lookup
   `FUN_140FCA4E0(out, key)` reports "no value", status is 2 **without ever comparing the wire
   string**; only when the lookup has a value does it compare (size, then `memcmp`) that value with
@@ -112,8 +114,9 @@ right below, and `research/atlas/levers.md` for the lever entry.
   `FUN_14683C8D0` (facet vtable `0x148535728` slot `+0xb0`) fires it only when
   `*(entity+0x7c0)->vtable[0x60]()` or `*(entity+0x870)->vtable[0x60]()` reports a present value, and
   passes `entity+0x7d0` (wire string) and `entity+0x880` (value applied on success). The pseudocode
-  is cached at `research/derived/decomp/gate-chain.c` and the landmarks are in
-  `research/derived/symbols.json` (`local_option_gate_status_writer`, `local_option_lookup`,
+  is cached in the ignored `reverse/builds/<client-sha256>/` workspace; the
+  landmarks are in `research/atlas/client-functions.json`
+  (`local_option_gate_status_writer`, `local_option_lookup`,
   `local_option_store_thread_local`, `facet_option_apply_from_entity`). **Consequence for the next
   measurement: the 39 status-2 dispatches are ambiguous — they may be the "local store has no
   entry" path rather than a wire-string mismatch. Watch the two arms of `FUN_146929DF0`
@@ -139,7 +142,7 @@ right below, and `research/atlas/levers.md` for the lever entry.
   stayed black and `State(InGame) is timeout` appeared at 14:30:42Z.** Full local evidence is under
   `research/sessions/world_20260930T143111Z_pid39172_session1059/`.
 - **Changes that enabled stable `InGame`** (measured live):
-  1. `scripts/patch-predicate-flag.py` — `LoadContextAndLevel` hands the virtual predicate's result
+  1. `services/launcher/runtime-tools/patch-predicate-flag.py` — `LoadContextAndLevel` hands the virtual predicate's result
      to `ClientContext::Initialize` as its 7th argument, and `Initialize` **self-cleans when that
      value is 0** (`14171ba31 cmp byte [rsp+0x110],0 / jne skip / call 0x1416835B0`). The predicate
      returns 0, so the context died in the same millisecond. The archived `patch-context-gate.py`
@@ -150,7 +153,7 @@ right below, and `research/atlas/levers.md` for the lever entry.
      bundle is skipped now; the other 26 are queued and replayed once the context is up.
   3. `rep.py` post-replay heartbeat (type `0x15d`, RELIABLE flags `0x21` since 2026-09-30 —
      the old unreliable `0x20` form was ACKed at Carrier level but never processed: 0 pongs in
-     949k traffic lines; now 200/200 pongs match our ticks) + `scripts/patch-timeout-watchdog.py` —
+     949k traffic lines; now 200/200 pongs match our ticks) + `services/launcher/runtime-tools/patch-timeout-watchdog.py` —
      the official server pinged `0x15d` every ~1 s and the client echoed it; the capture ends, the
      server went quiet, and the per-state watchdog (`FUN_146445E10`) forced
      `connection_ingame_timeout`. The heartbeat continues the exchange (stretched the window
@@ -176,7 +179,7 @@ right below, and `research/atlas/levers.md` for the lever entry.
   per-frame asker `FUN_141042820`, sole gate caller, uses it directly as `rdi+0x38/+0x80` and
   calls `[rdi+0x98]->+0xd8`), not a table key — stuffing a node id there interprets the id as
   a pointer (luck-dependent crash/limp). `FUN_146801040` (table lookup, slot `+0x78`) is never
-  called by anyone. Sweeping all 13 ids (`scripts/frida-possess-all.py`) reaches `InGame` but
+  called by anyone. Sweeping all 13 ids (`reverse/probes/client/frida-possess-all.py`) reaches `InGame` but
   stays black. The actor factory `FUN_141563e20` has 1 caller (`0x1416957c0`) with 0 callers.
   The `Received new local player metadata` trace is category 3 and currently
   suppressed; its absence from Game.log is not evidence about that handler.
@@ -270,9 +273,9 @@ right below, and `research/atlas/levers.md` for the lever entry.
   `FUN_1416adce0`. That routine drains the deferred-action queue at `object+0x1b8` in batches, up to
   `max(1, _DAT_14a321a4c)` per call; if entries remain, it logs their count and clears the queue.
   This locates the stage where work is dropped but does not identify which action keeps enqueueing
-  or whether that action causes the black view. Decompilation: ignored
-  `research/derived/decomp/deferred-action-limit.c`; landmark:
-  `research/derived/symbols.json:deferred_action_queue_drain`.
+  or whether that action causes the black view. Its pseudocode is in the
+  ignored `reverse/builds/<client-sha256>/` workspace; landmark:
+  `research/atlas/client-functions.json:deferred_action_queue_drain`.
 - **HTTP capture was incomplete for session 1054, then restored for 1055.** The game had established connections to local
   Caddy, but `services/gateway/traffic.jsonl` had not appended since 13:00:52Z; the run bundle
   therefore has zero gateway rows and no exact HTTP body sidecars. The REP, game log, screenshot,

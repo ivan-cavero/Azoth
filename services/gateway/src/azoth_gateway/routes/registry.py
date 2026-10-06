@@ -151,37 +151,6 @@ def _world_metadata(w: dict) -> dict:
     }
 
 
-def _aws_world(w: dict) -> dict:
-    """ListWorlds/GetLoginInfo AWS member names (PascalCase). WorldType uses
-    the mapper tokens OpenWorld/FTUE (0x1417c40a0), not eWorldType_*.
-    """
-    maintenance = w.get("status") == "MAINTENANCE"
-    short = _wire_world_type(str(w.get("type", "OpenWorld")))
-    return {
-        "WorldName": w.get("name", AZOTH_WORLD_NAME),
-        "PublicName": w.get("displayName", ""),
-        "WorldStatus": w.get("status", "ACTIVE"),
-        "WorldType": short,
-        "WorldVersion": w.get("version", "1.0.0"),
-        "PublicStatusCode": 1,
-        "QueueWaitTimeSec": 0,
-        "WorldAgeDays": 1,
-        "WorldPopulationStatus": "LOW",
-        "IsFull": False,
-        "IsRecommended": not maintenance,
-        "MaxConnectionCount": w.get("maxPlayers", 2500),
-        "TransferToRegion": "",
-    }
-
-
-def _world_entry(w: dict) -> dict:
-    # Union for tests/queue that still read WorldName on getlogininfo.
-    return {
-        **_world_metadata(w),
-        **_aws_world(w),
-    }
-
-
 def worlds_list_doc(reg: Registry) -> dict:
     """GET /prod/game/worlds/list/... = ListWorlds.
 

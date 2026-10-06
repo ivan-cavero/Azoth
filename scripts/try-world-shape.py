@@ -6,8 +6,8 @@ run (~2 min) because the panel only consumes getlogininfo at login: hot-swapping
 the override and waiting for the next poll does NOT re-render it.
 
 Usage:
-  python scripts/try-world-shape.py --root worlds
-  python scripts/try-world-shape.py --file /path/to/body.json
+  python az.py shape /path/to/body.json
+  python az.py shape /path/to/raw-response.bin --raw
 """
 
 from __future__ import annotations
@@ -19,33 +19,11 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+REPO = Path(__file__).resolve().parents[1]
 SCRIPTS = REPO / "scripts"
 OVERRIDE = REPO / "services/gateway/mock_discovery/getlogininfo.json"
-GAME_LOG = Path.home() / "AppData/Local/AGS/New World/Game.log"
-GW_LOG = REPO / "services/gateway/gateway.out.log"
-ROW_PNG = Path.home() / "AppData/Local/Temp/azoth-ocr/row.png"
-WORLD_ID = "00000000-0000-4000-8000-000000000001"
-LAUNCHER = f"& '{REPO / 'services/launcher/src/Start-NwPrivate.ps1'}'"
-
-# Exact WorldMetadata property set, in registration order, from the AZ reflection
-# table at 0x144f54cda (research xrefmap dump). Extra keys are not just ignored:
-# a strict deserialize can drop the whole object.
-WORLD_METADATA = {
-    "worldId": WORLD_ID,
-    "status": "ACTIVE",
-    "publicStatusCode": 0,
-    "maxAccountCharacters": 4,
-    "worldSet": "azoth-1",
-    "worldMetrics": {
-        "worldAgeDays": 1,
-        "queueSize": 0,
-        "queueWaitTimeSec": 0,
-        "worldPopulationStatus": "LOW",
-    },
-    "transferToRegion": "",
-    "isRecommended": True,
-}
+GAME_LOG = REPO / "private-client/profile/Local/AGS/New World/Game.log"
+GW_LOG = REPO / ".azoth/logs/gateway.log"
 
 
 def safe(text: str) -> str:
@@ -54,45 +32,30 @@ def safe(text: str) -> str:
     return text.encode(enc, errors="replace").decode(enc, errors="replace")
 
 
-def body_for(root: str) -> dict:
-    """One root key only: the parser is strict, an unexpected member can abort it."""
-    if root == "WorldsInfo":
-        return {"WorldsInfo": {"worlds": [WORLD_METADATA], "recommendedWorlds": []}}
-    if root == "worldsInfo":
-        return {"worldsInfo": {"worlds": [WORLD_METADATA], "recommendedWorlds": []}}
-    if root == "worlds":
-        return {"worlds": [WORLD_METADATA], "recommendedWorlds": []}
-    if root in ("LoginInfoList", "loginInfoList", "Worlds"):
-        return {root: [WORLD_METADATA]}
-    raise SystemExit(f"unknown root {root!r}")
-
-
 def restart_game() -> None:
+    python = REPO / ".azoth/venv/Scripts/python.exe"
+    if not python.is_file():
+        python = Path(sys.executable)
     subprocess.run(
-        [
-            "powershell",
-            "-NoProfile",
-            "-Command",
-            "Get-Process NewWorld -ErrorAction SilentlyContinue | Stop-Process -Force",
-        ],
-        check=False,
-        capture_output=True,
-    )
-    time.sleep(3)
-    subprocess.run(
-        ["powershell", "-NoProfile", "-Command", LAUNCHER],
-        check=False,
-        capture_output=True,
+        [str(python), str(REPO / "az.py"), "game", "restart"],
+        check=True,
+        cwd=REPO,
     )
 
 
-def poll_count() -> int:
-    """How many times the client fetched getlogininfo. Proves the body was
-    actually consumed: the panel only reads it during login."""
+def log_offset(path: Path) -> int:
     try:
-        return GW_LOG.read_text(encoding="utf-8", errors="replace").count(
-            "-> getlogininfo mock"
-        )
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def poll_count(offset: int) -> int:
+    """Count only getlogininfo requests appended by this trial."""
+    try:
+        with GW_LOG.open("rb") as log:
+            log.seek(offset)
+            return log.read().count(b"-> getlogininfo mock")
     except OSError:
         return 0
 
@@ -107,21 +70,68 @@ def session_marker() -> int:
     return text.rfind("Executable: NewWorld.exe")
 
 
-def wait_for_login(marker: int, timeout: float = 150) -> bool:
-    """True only when CampfireLoginComplete appears after THIS run's start."""
+def wait_for_login(previous_marker: int, timeout: float = 150) -> bool:
+    """Wait for this launch's start and completion, ignoring older log runs."""
     start = time.time()
+    current_marker = None
     while time.time() - start < timeout:
         try:
             text = GAME_LOG.read_text(encoding="utf-8", errors="replace")
         except OSError:
             time.sleep(3)
             continue
-        if text.rfind("Executable: NewWorld.exe") != marker:
-            return False  # another launch superseded us
-        if "CampfireLoginComplete" in text[marker:]:
-            return True
+        latest_marker = text.rfind("Executable: NewWorld.exe")
+        if latest_marker < 0:
+            time.sleep(3)
+            continue
+        if latest_marker != previous_marker:
+            if current_marker is None:
+                current_marker = latest_marker
+            elif latest_marker != current_marker:
+                return False  # another launch superseded this trial
+            if "CampfireLoginComplete" in text[current_marker:]:
+                return True
         time.sleep(3)
     return False
+
+
+def replace_override(payload: bytes) -> None:
+    temporary = OVERRIDE.with_name(OVERRIDE.name + ".tmp")
+    try:
+        temporary.write_bytes(payload)
+        temporary.replace(OVERRIDE)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def run_trial(payload: bytes, label: str) -> int:
+    OVERRIDE.parent.mkdir(parents=True, exist_ok=True)
+    previous_override = OVERRIDE.read_bytes() if OVERRIDE.is_file() else None
+    previous_game_marker = session_marker()
+    gateway_offset = log_offset(GW_LOG)
+    try:
+        replace_override(payload)
+        print(f"[shape] {label}", flush=True)
+
+        restart_game()
+        ok = wait_for_login(previous_game_marker)
+        polls = poll_count(gateway_offset)
+        print(
+            f"[login] CampfireLoginComplete={ok} | getlogininfo polls={polls}",
+            flush=True,
+        )
+
+        text = advance_to_panel()
+        row = row_text()
+        print(f"[row] {safe(row).replace(chr(10), ' | ')}", flush=True)
+        hit = "Azoth-1" in text or "azoth-1-01" in text or "azoth-1-01" in row.lower()
+        print(f"[RESULT] {label} -> world visible: {hit}", flush=True)
+        return 0 if hit else 1
+    finally:
+        if previous_override is None:
+            OVERRIDE.unlink(missing_ok=True)
+        else:
+            replace_override(previous_override)
 
 
 def ocr_paths() -> list[str]:
@@ -175,7 +185,7 @@ def full_text() -> str:
     return ocr_text(ocr_paths())
 
 
-def row_text(y0: int = 0, y1: int = 712) -> str:
+def row_text() -> str:
     """The world-table region. Coordinates are ignored: the orca capture is
     scaled, so we OCR the full frame and filter by content downstream."""
     return ocr_text(ocr_paths())
@@ -215,8 +225,7 @@ def advance_to_panel(timeout: float = 240) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root")
-    ap.add_argument("--file", type=Path)
+    ap.add_argument("body", type=Path, help="response body to try")
     ap.add_argument(
         "--raw",
         action="store_true",
@@ -224,43 +233,21 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    if args.file and args.raw:
+    if args.raw:
         try:
-            raw = args.file.read_bytes()
+            raw = args.body.read_bytes()
         except OSError as exc:
-            raise SystemExit(f"cannot read {args.file}: {exc}") from exc
-        OVERRIDE.write_bytes(raw)
-        label = f"raw:{args.file.name}"
+            raise SystemExit(f"cannot read {args.body}: {exc}") from exc
+        payload = raw
+        label = f"raw:{args.body.name}"
     else:
-        if args.file:
-            try:
-                doc = json.loads(args.file.read_text(encoding="utf-8"))
-            except (OSError, ValueError) as exc:
-                raise SystemExit(f"cannot read shape file {args.file}: {exc}") from exc
-            label = f"file:{args.file.name}"
-        elif args.root:
-            doc = body_for(args.root)
-            label = f"root={args.root}"
-        else:
-            raise SystemExit("pass --root or --file")
-        OVERRIDE.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
-
-    print(f"[shape] {label}", flush=True)
-
-    restart_game()
-    marker = session_marker()
-    ok = wait_for_login(marker)
-    polls = poll_count()
-    print(
-        f"[login] CampfireLoginComplete={ok} | getlogininfo polls={polls}", flush=True
-    )
-
-    text = advance_to_panel()
-    row = row_text()
-    print(f"[row] {safe(row).replace(chr(10), ' | ')}", flush=True)
-    hit = "Azoth-1" in text or "azoth-1-01" in text or "azoth-1-01" in row.lower()
-    print(f"[RESULT] {label} -> world visible: {hit}", flush=True)
-    return 0 if hit else 1
+        try:
+            doc = json.loads(args.body.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise SystemExit(f"cannot read shape file {args.body}: {exc}") from exc
+        label = f"file:{args.body.name}"
+        payload = (json.dumps(doc, indent=1) + "\n").encode("utf-8")
+    return run_trial(payload, label)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ Everything here is RE'd from `NewWorld.exe` (1.400.6031.6004151) or verified
 against a live client session. External ground truth: the nw-private-server
 (first-light) project decompiled the same stack on build 1.365.6031.6006993 —
 their function VAs differ from ours, the wire layout matches. Re-derive every
-VA on OUR build before trusting it (`research/tools/reversing/bytepat.py`).
+VA on OUR build before trusting it (`reverse/tools/bytepat.py`).
 
 ## Where REP sits in the login chain
 
@@ -32,7 +32,7 @@ validation against the **embedded** self-signed `CN=New World` cert
 - Verify callback returns constant `1` (always trust)
 - Branch site: `CMP qword ptr [RDI + 0x288], 0x0` / `JZ <permissive path>`
 - Runtime patch: force the jump unconditionally (`JZ rel32` -> `JMP rel32`,
-  same target). The historical probe used `scripts/frida-trust-patch.py`. Only
+  same target). The historical probe used `services/launcher/runtime-tools/frida-trust-patch.py`. Only
   run it against a private process after confirming EAC is inactive; private
   mode by itself does not establish that. Current EAC restrictions are in
   `EAC.md` and the live process status is in `STATUS.md`.
@@ -43,7 +43,7 @@ CMP at `0x145dce8ad` (`48 83 BF 88 02 00 00 00`), JZ at `0x145dce8b5`
 (`0F 84 19 01 00 00` -> `0x145dce9d4`). Patch bytes recomputed:
 `E9 1A 01 00 00 90`. (The externally archived `E9 19 01 00 00 90` is off by
 one — a 5-byte JMP in a 6-byte slot must use rel32 = 0x11A, not the JZ's
-0x119. `scripts/frida-trust-patch.py` always recomputes.) Both builds share
+0x119. `services/launcher/runtime-tools/frida-trust-patch.py` always recomputes.) Both builds share
 the `6031` branch and this code did not move. Keep re-deriving on every
 client update anyway.
 

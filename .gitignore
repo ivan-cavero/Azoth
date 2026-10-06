@@ -1,4 +1,5 @@
 # --- runtime / local state ---
+.azoth/
 *.log
 *.log.*
 hosts.*
@@ -10,7 +11,9 @@ captures/
 *.etl
 *.raw
 *.bin
-derived/decomp/
+/reverse/builds/
+# Keep local workspaces made by older checkouts ignored.
+/research/derived/decomp/
 !research/derived/*.json
 services/gateway/mock_discovery/
 services/gateway/traffic.jsonl
@@ -32,4 +35,7 @@ __pycache__/
 private-client/
 # --- keep tracked exceptions ---
 !launcher/steam_stub/steam_api64.dll
-services/world/replay/
+# --- world replay captures (raw dumps stay local) ---
+services/world/replay/*
+# the redacted capture is the regression fixture for the world tests
+!services/world/replay/messages-redacted.txt

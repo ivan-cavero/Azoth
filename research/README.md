@@ -1,26 +1,21 @@
-# Azoth research
+# Research
 
-**Capture, reverse engineering and decompilation** lab for the New World client, part of the **Azoth** monorepo.
+Use the [research index](docs/INDEX.md) to find a method or protocol reference.
+The atlas is the durable store for confirmed endpoint, wire, and client
+function facts.
 
-Sessions go in `sessions/` (raw dumps gitignored). Docs, atlas and commits are in English.
+| Path | Contents |
+| --- | --- |
+| `atlas/` | Curated protocol facts, observed endpoint data, client functions |
+| `docs/` | Decompilation, protocol, capture, and world investigation references |
+| `tools/capture/` | Official-session capture tools and ingestion |
+| `fixtures/` | Small reproducible inputs; redact account/session data |
+| `schemas/live/` | Captured client JSON responses |
+| `derived/` | Small catalogs and candidate summaries; large decompilation output is under `reverse/builds/` |
+| `sessions/` | Local raw captures and logs; ignored by Git |
 
-```
-research/
-  atlas/           RE memory: endpoints, models, errors, levers
-  docs/            analysis, kit, EAC, contract, decompilation, sessions, protocol
-  derived/         decompilation output — regenerable, gitignored
-  fixtures/        redacted extracts
-  schemas/live/    channel + CMS (plaintext)
-  sessions/        raw dumps — gitignored (tickets, pcap)
-  notes/           local channel_config
-  tools/capture/   Start-NwCapture.bat — record an official session
-  tools/reversing/ disk, strings, pcap, endpoints
-```
-
-## Capture (official profile)
-
-Steam + New World as always. Admin: `tools\capture\Start-NwCapture.bat`. Play 5–15 min. ENTER. Start with `sessions/<session>/REPORT.md`.
-
-Docs: [docs/INDEX.md](docs/INDEX.md).
-
-Docs and commits are written in English.
+The client function registry lives at `atlas/client-functions.json`. The
+Ghidra project, per-function output, corpus, and caches live in the ignored
+`reverse/builds/<client-sha256>/` workspace. See [the reverse engineering
+guide](docs/DECOMPILATION.md). Do not describe generated pseudocode as verified
+source.

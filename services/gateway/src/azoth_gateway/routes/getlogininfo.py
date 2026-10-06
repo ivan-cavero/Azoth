@@ -1,18 +1,12 @@
-"""GET /prod/game/getlogininfo/... (Azoth-local mock).
+"""GET /prod/game/getlogininfo/... for the private client.
 
-Body is generated from the world/region registry (data/worlds.json — see
-registry.py): one ListWorldsResponseBody entry + LoginInfoList entry per
-registered world. The 1.400 client polls this right after omni credentials
-(observed: /prod/game/getlogininfo/jwt/omni, retried every 10s).
+The body comes from the region/world registry. The client consumes two
+distinct models from the same response: lowercase ``worlds`` for the dropdown
+and the PascalCase ``LoginInfoList`` object for the character gate. Both are
+required by the 1.400 contract; see ``registry.getlogininfo_doc``.
 
-Unknowns (iterate via the override file — strict JSON parsing means a missing
-key or wrong type can surface as a client-side parse error, cf. STATUS.md):
-* exact key casing (queue log shows PascalCase WorldId/WorldName, so both
-  casings are emitted until the live session disambiguates)
-* whether the world list is embedded here or fetched from another route
-* what the client actually reads from the login token claims
-
-Override: <discovery_dir>/getlogininfo.json is served verbatim (no restart).
+An ignored local ``getlogininfo.json`` override remains available to the shape
+harness. It changes only the response body and adds no alternate server mode.
 """
 
 from __future__ import annotations
@@ -27,17 +21,13 @@ OVERRIDE_NAME = "getlogininfo.json"
 
 def getlogininfo_response(
     discovery_dir: Path | None = None, region_id: str | None = None
-) -> bytes | None:
+) -> bytes:
     if discovery_dir is not None:
         fp = discovery_dir / OVERRIDE_NAME
         if fp.is_file():
-            raw = fp.read_bytes()
-            if b"__http_error" in raw:
-                    return None  # 400-probe: caller answers HTTP 400
-            return raw
-    return (
-        json.dumps(getlogininfo_doc(load(discovery_dir), region_id)) + "\n"
-    ).encode()
+            return fp.read_bytes()
+    body = getlogininfo_doc(load(discovery_dir), region_id)
+    return (json.dumps(body) + "\n").encode()
 
 
 def is_getlogininfo_path(path: str) -> bool:

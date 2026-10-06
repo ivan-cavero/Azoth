@@ -237,7 +237,7 @@ matters is the statically linked one named above.
    method-15 payload exactly, header included, from offset 0. Measured 2026-10-05:
    ground-truth pair + 30 random entries across 5 paks + the `.dds` exception = **31/31 exact
    CRC matches, 0.7 s total**. Research-tooling use only: pip stays banned in `services/`;
-   vendor or wrap it under `research/tools/reversing/` with a cached wheel, or shell out to
+   vendor or wrap it under `reverse/tools/` with a cached wheel, or shell out to
    `ooz` (powzix, zlib license) / `oozextract` (Rust) if a build without a C extension is
    preferred. Nothing was executed inside the game process; this is an offline file reader.
 2. **Call the client's own decoder.** `oo2::OodleLZ_Decompress` is statically linked at
@@ -329,8 +329,9 @@ the one-function-at-a-time dump is not memory-hungry. Full analysis is.
 
 Navigation that works today without any project, and which is the recommended
 route for the codec question: `peutil.py str` for a string's VA, the cached
-`xrefmap.py` map (`%LOCALAPPDATA%\Azoth\decomp\xrefmap.json`, 280,594 targets,
-`lea r64,[rip+disp32]` only), and raw pointer scans in the PE. Note the limits
+`xrefmap.py` map (280,594 targets, `lea r64,[rip+disp32]` only; cache defaults
+to ignored `reverse/builds/<client-sha256>/xrefmap.json`), and raw pointer scans in
+the PE. Note the limits
 that matter here: the two `.rdata` RVA tables found earlier (see below) have
 **zero** references in *any* form these scanners can see — no RIP-relative `lea`
 in a 64 KB window around them, no u32 RVA pointer, no u64 pointer. Their

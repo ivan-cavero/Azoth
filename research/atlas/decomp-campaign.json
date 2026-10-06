@@ -1,0 +1,62 @@
+{
+  "_comment": "Decompilation campaign manifest. Phases follow the player-visible flow in research/docs/DECOMP-PLAN.md. Targets reference research/atlas/client-functions.json symbols (or VAs) so they re-resolve per build; `python az.py re campaign init` snaps them to exact .pdata ranges in the ignored per-build state. Add targets with `campaign add` / `campaign expand` as a phase's call graph grows. A phase is complete when its message contract and state transitions are in the atlas with evidence labels, not when this list looks long.",
+  "phases": [
+    {
+      "name": "launch",
+      "title": "Engine startup, title screen, settings bootstrap",
+      "targets": [
+        {"symbol": "javelin_frame_tick_driver", "note": "frame tick driver that drives startup phases"}
+      ]
+    },
+    {
+      "name": "login",
+      "title": "Steam auth handoff, gateway queue, login RMI chain",
+      "targets": [
+        {"symbol": "getlogininfo_request_builder", "note": "builds the first gateway request"},
+        {"symbol": "login_error_enum", "note": "login error code table"}
+      ]
+    },
+    {
+      "name": "server-select",
+      "title": "Server list request/response and selection commit",
+      "targets": [
+        {"symbol": "worlds_info_accessor", "note": "world list consumer"},
+        {"symbol": "worldtype_mapper", "note": "world type mapping for the list"},
+        {"symbol": "worldmetadata_property_table", "note": "world metadata property range"}
+      ]
+    },
+    {
+      "name": "character-select",
+      "title": "Character list, create, delete, appearance data",
+      "targets": []
+    },
+    {
+      "name": "world-entry",
+      "title": "REP connection, V3 registration, spawn ladder",
+      "targets": [
+        {"symbol": "game_connection_stream_processor_slot", "note": "GameConnection stream slot"},
+        {"symbol": "javelin_stream_processor", "note": "Javelin inbound stream processor"},
+        {"symbol": "javelin_inbound_decode_entry", "note": "inbound decode entry"},
+        {"symbol": "javelin_inbound_type_dispatch", "note": "inbound type dispatch"},
+        {"symbol": "state_record_bundle_parser", "note": "state bundle parser"}
+      ]
+    },
+    {
+      "name": "in-world",
+      "title": "Movement/physics authority, interaction, replication, zoning",
+      "targets": [
+        {"symbol": "local_player_actor_prototype_builder", "note": "local player prototype"},
+        {"symbol": "local_player_context_manager_dispatch", "note": "context manager dispatch"},
+        {"symbol": "replica_portrayal_update", "note": "replica portrayal update"},
+        {"symbol": "replica_portrayal_table_insert", "note": "portrayal table insert"},
+        {"symbol": "replica_rmi_target_lookup", "note": "RMI target lookup"},
+        {"symbol": "netbinding_component_creators", "note": "net-bound component creators"},
+        {"symbol": "transform_spawner_chain_confirmed_20261005", "note": "confirmed transform spawner chain"},
+        {"symbol": "gametransform_entity_attach", "note": "GameTransform attach"},
+        {"symbol": "actor_spawner_factory_1", "note": "actor spawner factory"},
+        {"symbol": "component_cluster_table_driven", "note": "table-driven component cluster"},
+        {"symbol": "replication_unreliable_gate_20261003", "note": "unreliable replication gate"}
+      ]
+    }
+  ]
+}

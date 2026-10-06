@@ -1,7 +1,7 @@
 [project]
 name = "azoth-gateway"
 version = "0.1.0"
-description = "Azoth gateway minimo: channel + CMS con ETag (stdlib only)"
+description = "Azoth HTTP gateway for local New World client traffic"
 requires-python = ">=3.11"
 
 [tool.ruff]

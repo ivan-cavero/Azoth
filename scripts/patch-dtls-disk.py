@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """Apply the verified DTLS verify bypass to the private executable copy only.
 
-The launcher normally hard-links NewWorld.exe from the Steam install. This
-helper breaks that link, copies the original into the private runtime, and
-patches the copy on disk. It never writes the Steam installation.
+The launcher keeps NewWorld.exe as an independent file in the repo-local
+private runtime. This helper patches that copy on disk; it never writes the
+Steam installation.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import shutil
 import struct
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "research" / "tools" / "reversing"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "reverse" / "tools"))
 from catalog import PE  # noqa: E402
 
 PATCH_VA = 0x145DCE8B5
@@ -22,8 +23,15 @@ ORIGINAL = bytes.fromhex("0f8419010000")
 
 
 def paths() -> tuple[Path, Path]:
-    private = Path.home() / "AppData" / "Local" / "Azoth" / "game" / "Bin64" / "NewWorld.exe"
-    official = Path(r"C:\Program Files (x86)\Steam\steamapps\common\New World\Bin64\NewWorld.exe")
+    root = Path(__file__).resolve().parents[1]
+    private = root / "private-client" / "runtime" / "Bin64" / "NewWorld.exe"
+    install = Path(
+        os.environ.get(
+            "AZOTH_GAME_INSTALL",
+            r"C:\Program Files (x86)\Steam\steamapps\common\New World",
+        )
+    )
+    official = install / "Bin64" / "NewWorld.exe"
     if not official.is_file():
         raise SystemExit(f"official executable not found: {official}")
     return private, official

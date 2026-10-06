@@ -426,29 +426,32 @@ HIGHLIGHT_KINDS = {
 
 
 def default_paths() -> dict[str, Path]:
-    local = Path(os.environ.get("LOCALAPPDATA", ""))
-    roaming = Path(os.environ.get("APPDATA", ""))
+    repo = Path(__file__).resolve().parents[3]
+    private = repo / "private-client"
+    local = private / "profile" / "Local"
+    roaming = private / "profile" / "Roaming"
     pf86 = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
+    configured_install = os.environ.get("AZOTH_GAME_INSTALL")
+    install = Path(configured_install) if configured_install else None
+    manifest = private / "state" / "client-source.json"
+    if install is None:
+        try:
+            candidate = Path(json.loads(manifest.read_text(encoding="utf-8"))["install"])
+            if (candidate / "Bin64" / "NewWorld.exe").is_file():
+                install = candidate
+        except (OSError, KeyError, json.JSONDecodeError, TypeError):
+            pass
+    if install is None:
+        install = pf86 / "Steam" / "steamapps" / "common" / "New World"
     return {
-        "game_log": local / "AGS" / "New World" / "Game.log",
+        "game_log": Path(os.environ.get("AZOTH_GAME_LOG", str(local / "AGS" / "New World" / "Game.log"))),
         "ags_local": local / "AGS" / "New World",
         "ags_roaming": roaming / "AGS" / "New World",
         "eac_roaming": roaming / "EasyAntiCheat",
-        "install": pf86 / "Steam" / "steamapps" / "common" / "New World",
+        "install": install,
         "steam_logs": pf86 / "Steam" / "logs",
-        "exe": pf86
-        / "Steam"
-        / "steamapps"
-        / "common"
-        / "New World"
-        / "Bin64"
-        / "NewWorld.exe",
-        "launcher": pf86
-        / "Steam"
-        / "steamapps"
-        / "common"
-        / "New World"
-        / "NewWorldLauncher.exe",
+        "exe": install / "Bin64" / "NewWorld.exe",
+        "launcher": install / "NewWorldLauncher.exe",
     }
 
 

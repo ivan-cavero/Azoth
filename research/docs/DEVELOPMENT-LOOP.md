@@ -35,6 +35,20 @@ Every issue follows this chain:
    entry. Keep dead hypotheses marked closed with evidence so they are not
    repeated.
 
+## Close the experiment before adding more code
+
+When a variant works, stop broadening the search and close the loop:
+
+1. Name the exact winning input and visible result; cite the build and deciding
+   evidence.
+2. Explain the client behavior that made it work, and check for side effects.
+3. Compare the implementation with the smallest equivalent response/path.
+4. Keep one supported server path. Remove rejected branches, duplicate scripts,
+   and temporary payloads that have no remaining diagnostic purpose.
+5. Keep useful failures as a concise `Closed` atlas entry, not as live runtime
+   fallbacks. Retain only a minimal fixture that protects the confirmed wire
+   contract.
+
 ## Evidence standard
 
 Use these labels consistently in notes and artifacts:
@@ -58,7 +72,7 @@ that proves the experiment actually ran.
 | --- | --- | --- |
 | Current project frontier | ../../STATUS.md | Short dashboard and links; keep it lean. |
 | Protocol/schema fact | ../atlas/ | Endpoints, exact models, errors, levers, observed traffic. This is the source of truth for RE facts. |
-| Function/address fact | ../derived/symbols.json | Confirmed symbol, VA, meaning, method. Other derived/ files are regenerable. |
+| Function/address fact | ../atlas/client-functions.json | Confirmed symbol, VA, meaning, method. Generated pseudocode stays in ignored derived/. |
 | Minimal input/output fixture | ../fixtures/ | Stable bytes or JSON used for repeatable parser/contract tests. Keep provenance and redaction notes beside it. |
 | Automated regression | services/<service>/tests/ | Fast offline checks for wire parsing, dispatch, and service behavior. Use stdlib unittest per repo rules. |
 | Live run raw material | ../sessions/ | Gitignored captures and logs. Keep only necessary excerpts or derived evidence tracked. |
@@ -142,7 +156,10 @@ Hypothesis (observed / derived / inferred / guessed):
 Cheapest deciding test:
 One changed variable:
 Result (validated / rejected / inconclusive):
-Regression added:
+Why it worked / deciding evidence:
+Side effects checked:
+Unneeded branches or tools removed:
+Regression or minimal fixture retained:
 Atlas/symbols/docs updated:
 Next frontier:
 ```

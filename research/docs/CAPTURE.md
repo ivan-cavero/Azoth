@@ -22,7 +22,8 @@ Once we have **our** REP and the client no longer talks to Amazon, protocol reve
 
 | Source | What you get | Does EAC see it? |
 | --- | --- | --- |
-| `%LOCALAPPDATA%\AGS\New World\Game.log` | The whole state machine, URLs, Omni, REP IP:port, spawn | No. The game itself writes it |
+| Official client: `%LOCALAPPDATA%\AGS\New World\Game.log` | The whole state machine, URLs, Omni, REP IP:port, spawn | No. The game itself writes it |
+| Private client: `private-client/profile/Local/AGS/New World/Game.log` | Same client state from the repo-local runtime | No. Pass `-PrivateClient` to the capture script |
 | `pktmon` at the NIC (`--comp nics`) | Encrypted UDP/DTLS + TCP 443. IPs, ports, sizes, handshake timing | It does not inject into the process. It is Windows' packet monitor |
 | `netstat -ano` filtered by PID | Launcher/client connections | An OS query, does not open the process with `VM_READ` |
 | DNS cache | CloudFront / API Gateway / Vivox resolution | Same |
@@ -40,7 +41,10 @@ The **clear** part of auth is in `Game.log` (the client prints it). That is wort
 ## How to use it
 
 1. Close weird overlays (not the Steam overlay; that one is already in). Do not have Cheat Engine open "just in case".
-2. **Double-click** `tools\capture\Start-NwCapture.bat` and accept the UAC (pktmon needs admin).
+2. Run `python az.py run research/tools/capture/Start-NwCapture.ps1 -SkipStatic`
+   (or the `.bat` next to it) for the official Steam client; add
+   `-PrivateClient` when invoking `Start-NwCapture.ps1` directly for the private
+   runtime. Accept the UAC prompt (pktmon needs admin).
 3. Two windows open: orchestrator (press **Q** to finish) and watcher (live events).
 4. Open Steam, launch New World **as always**, log in, enter the world.
 5. Play **5–15 minutes** for real: walk, hit a mob, open inventory, swap weapon, talk if you can. The more systems you touch, the more RMI names show up in the log.

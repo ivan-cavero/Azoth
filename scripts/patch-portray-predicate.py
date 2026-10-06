@@ -19,7 +19,7 @@ function ENTRY to `mov al,1; ret` (B0 01 C3) which is 3 bytes and safe:
   146165f22  sub rsp, 0x30   (48 83 EC 30)
 Patching entry: B0 01 C3 + NOP (4 bytes: 53 48 83 EC -> B0 01 C3 90).
 
-Direct memory write (same technique as patch-predicate-flag.py). Run AFTER
+Direct memory write (same technique as services/launcher/runtime-tools/patch-predicate-flag.py). Run AFTER
 the game window exists, BEFORE entering the world. In-memory only, private
 runtime only. Restore by restarting the game.
 

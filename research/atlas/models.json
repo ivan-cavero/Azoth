@@ -179,7 +179,7 @@
     },
     {
       "name": "GetLoginInfoResult (C++ layout)",
-      "evidence": "decompiled FUN_1464033e0 (result constructor) + FUN_1464154e0 (outcome handler), research/derived/decomp/",
+      "evidence": "decompiled FUN_1464033e0 (result constructor) + FUN_1464154e0 (outcome handler), local per-build Ghidra pseudocode",
       "layout": {
         "intermediate model (param of FUN_146456b60)": {
           "+0x18/+0x20": "count + vector A — worlds; elements 0x168 B; converter FUN_1464582b0 -> calls FUN_146407ad0 (world-entry ctor) + FUN_1417c40a0 (worldtype_mapper)",

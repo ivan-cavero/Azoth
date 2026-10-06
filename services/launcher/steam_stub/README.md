@@ -1,6 +1,7 @@
 # steam_api64 stub v2 (minimal)
 
-Valve's `steam_api64.dll` talks to `steam.exe`. Azoth replaces it **only** in `%LOCALAPPDATA%\Azoth\game\Bin64\`, never in the Steam install. No IPC, no pipes.
+Valve's `steam_api64.dll` talks to `steam.exe`. Azoth replaces it only in the
+ignored `private-client/runtime/Bin64/` tree, never in the Steam install.
 
 ```
 powershell -File steam_stub\build.ps1
@@ -13,15 +14,16 @@ powershell -File src\Start-NwPrivate.ps1
 (`SteamAPI_Init`, `GetHSteamUser`, `RunCallbacks`, `Shutdown`, `Register/UnregisterCallback`,
 `SteamInternal_ContextInit`, `FindOrCreateUserInterface`) and resolves
 `SteamUser023` / `SteamFriends017` / `SteamUtils010` via `ContextInit`.
-Verify: `python tools/check_imports.py` (needs `pip install pefile`).
-
+Verify with `pip install pefile` that the built DLL's static imports match
+the list above and that the three interfaces resolve via `ContextInit`.
 v1 exported 1065 symbols with **one shared dummy vtable returning 1 for every slot**.
 Any method returning a pointer then dereferenced `0x1` → random startup crashes.
 v2 exports ~22 symbols (`src/stub.def`) with **3 separate vtables + tiny Apps008**,
 type-correct safe defaults (pointers → `NULL`/`""`, never `0x1`), and routes by
 version string (`SteamUser*` → user, `SteamFriends*` → friends, …).
 
-Debug: `set AZOTH_STUB_LOG=1` → `%TEMP%\azoth_stub.log` (iface versions, tickets).
+Debug: `AZOTH_STUB_LOG=1` writes `.azoth/tmp/azoth_stub.log` in the project
+runtime environment (interface versions and ticket diagnostics).
 
 ## What it answers
 

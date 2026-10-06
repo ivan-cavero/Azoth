@@ -4,7 +4,7 @@
 WHY. The record handler FUN_141717fc0 builds the local-player actor only for
 records whose parsed `interestId` ([rbp+0x268], visitor registered at
 0x14171800c) is 1, and only after four guards. Measured live 2026-09-27 with
-scripts/frida-actor-guards.py + scripts/frida-guard-value.py:
+reverse/probes/client/frida-actor-guards.py + reverse/probes/client/frida-guard-value.py:
 
     interest_is_1 : 25     interestId == 1 passed 25 times
     slot_true     : 25     [r13+0x850]->vtable[0x20]() returned true

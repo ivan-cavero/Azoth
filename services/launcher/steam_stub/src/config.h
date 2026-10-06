@@ -1,5 +1,5 @@
 // Azoth steam stub — shared constants (private launch only).
-// Never copy over the Steam install DLL. Used only in %LOCALAPPDATA%\Azoth\game\Bin64\.
+// Never copy over the Steam install DLL. Used only in the ignored private-client runtime.
 #pragma once
 #include <stdint.h>
 

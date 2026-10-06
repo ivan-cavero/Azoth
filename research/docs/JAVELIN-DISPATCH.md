@@ -1,6 +1,6 @@
 # Javelin inbound dispatch — static map (build 1.400)
 
-> Static RE, 2026-09-27. Every VA is in `research/derived/symbols.json` with `found_by`.
+> Static RE, 2026-09-27. Every VA is in `research/atlas/client-functions.json` with `found_by`.
 > No runtime access; nothing carried over from the 1.365 replay.
 
 ## Two rings, do not confuse them

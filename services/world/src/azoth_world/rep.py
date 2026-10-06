@@ -7,7 +7,7 @@ Frozen spawn contract (services/docs/WORLD.md):
 
 Trust: the client pins an embedded `CN=New World` cert, so the handshake
 only completes after the runtime verify-bypass patch
-(scripts/frida-trust-patch.py + research/atlas/levers.md "DTLS verify
+(services/launcher/runtime-tools/frida-trust-patch.py + research/atlas/levers.md "DTLS verify
 bypass"). No cert authority we control can ever validate.
 
 Every datagram is logged (like the gateway's traffic capture): parsed
@@ -81,7 +81,7 @@ REPLAY_CHUNK_SIZE = 1100
 # chunks into ~4KB datagrams instead of one giant datagram: a lost
 # datagram then costs 3 chunks, not 12.
 REPLAY_DGRAM_TARGET = 4000
-# 2026-09-24 (live probe, scripts/frida-reader-capture.py): the client
+# 2026-09-24 (live probe, reverse/probes/client/frida-reader-capture.py): the client
 # consumed replay seq 2/4/5 (12B, 76B, 76B) and then the typed-stream reader
 # stopped receiving forever -- seq 6 (0x65c, 12706B) never arrived. The
 # messages that DO arrive are <= 76B; the first one past that is 12.7KB and
@@ -171,7 +171,7 @@ HEARTBEAT_TICK_STEP = int(os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK_STEP", "10
 # The capture's only verbatim repeatable bodies are the 23 IDENTICAL
 # type-0x1b88 messages (42 bytes, no redaction, seqs 0x0c..0x24,
 # pre-snapshot). Whether their GUID takes the stamp path is UNPROVEN
-# (ingame_activity_timer in research/derived/symbols.json), so this is an
+# (ingame_activity_timer in research/atlas/client-functions.json), so this is an
 # experiment: serve the real captured body with a fresh envelope seq and
 # watch the warning counter. Do NOT extend this to 0x08: re-sending the
 # captured tail bundles already cost the ClientContext once
@@ -225,6 +225,19 @@ STATE_STREAM_SEQ_OFFSET = 4
 # so a stream starting at 54 spent ~70 messages being dropped before it passed
 # it. Start above any captured seq instead of just above the armed bundles.
 STATE_STREAM_SEQ_FLOOR = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_SEQ_FLOOR", "0x80"), 0)
+# Post-replay INPUT RESPONSE (types 0x1096/0x1097). In the capture the server
+# answers the client's local-player state stream (type 0x635, client->server)
+# with these two short messages immediately after the 0x635 burst (replay seq
+# 0x75 = 0x1096 80 B, 0x76 = 0x1097 24 B). Both carry the local-player key and
+# some state floats. Our replay sends them ONCE and then goes quiet, which is
+# exactly when the client HUD's "Time since last response" starts climbing.
+# Re-send the captured bodies verbatim on a period so the client keeps seeing a
+# server response to its input. Default off; A/B with the env var.
+INPUT_RESPONSE_ENABLED = os.environ.get("AZOTH_REPLAY_INPUT_RESPONSE", "0") == "1"
+INPUT_RESPONSE_PERIOD_S = float(
+    os.environ.get("AZOTH_REPLAY_INPUT_RESPONSE_PERIOD_S", "1.0")
+)
+INPUT_RESPONSE_TYPES = (0x1096, 0x1097)
 # Controlled replay A/B for the six explicitly redacted 36-byte UUID slots.
 # off preserves the capture; character|session fills only the allowlisted
 # offsets in javelin.replay_store. Never inferred from arbitrary body text.
@@ -849,6 +862,10 @@ class PeerSession:
         self.state_stream_next_at = 0.0
         self.state_stream_sent = 0
         self.state_stream_seq = 0
+        # Post-replay 0x1096/0x1097 input-response stream (see INPUT_RESPONSE_*).
+        self.input_response_msgs: list = []
+        self.input_response_next_at = 0.0
+        self.input_response_sent = 0
 
     def feed(self, server, data: bytes) -> None:
         """Feed one datagram in; send everything OpenSSL produced."""
@@ -969,6 +986,7 @@ class PeerSession:
         self.maybe_heartbeat(server)
         self.maybe_activity_stream(server)
         self.maybe_state_stream(server)
+        self.maybe_input_response(server)
         self.maybe_resend(server)
 
     def _arm_replay(self) -> None:
@@ -1027,6 +1045,20 @@ class PeerSession:
                     "loop": True,
                     "rewrite_seq": STATE_STREAM_REWRITE_SEQ,
                     "seq_base": self.state_stream_seq,
+                }
+            )
+        if INPUT_RESPONSE_ENABLED:
+            self.input_response_msgs = [
+                m
+                for m in store.messages
+                if m.type_id in INPUT_RESPONSE_TYPES and m.direction == "R"
+            ]
+            log_event(
+                {
+                    "event": "input-response-armed",
+                    "count": len(self.input_response_msgs),
+                    "types": [hex(m.type_id) for m in self.input_response_msgs],
+                    "period_s": INPUT_RESPONSE_PERIOD_S,
                 }
             )
 
@@ -1338,6 +1370,35 @@ class PeerSession:
                 "n": self.state_stream_sent,
                 "wire_seq": sent_seq,
                 "remaining": len(self.state_stream_queue),
+            }
+        )
+
+    def maybe_input_response(self, server) -> None:
+        """Keep answering the local player's input stream after the replay drains.
+
+        See INPUT_RESPONSE_* above: the capture's server answers the client's
+        0x635 burst with 0x1096/0x1097 (replay seq 0x75/0x76). Our replay sends
+        them once, then the client HUD's "Time since last response" climbs.
+        Re-send the captured bodies verbatim with fresh outbound seqs.
+        """
+        if not INPUT_RESPONSE_ENABLED or self.gone or not self.v3_responded:
+            return
+        if self.replay_queue or not self.greetings_after_replay:
+            return  # let the replay itself deliver the captured copies first
+        if not self.input_response_msgs:
+            return
+        now = time.monotonic()
+        if now < self.input_response_next_at:
+            return
+        self.input_response_next_at = now + INPUT_RESPONSE_PERIOD_S
+        for msg in self.input_response_msgs:
+            self._send_replay_message(server, msg)
+            self.input_response_sent += 1
+        log_event(
+            {
+                "event": "input-response",
+                "sent": self.input_response_sent,
+                "types": [hex(m.type_id) for m in self.input_response_msgs],
             }
         )
 

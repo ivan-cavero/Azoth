@@ -1,97 +1,42 @@
-# Scripts index
+# Operator tools
 
-Diagnostic scripts stay directly in scripts/ because az.py, launcher flows,
-and experiment notes invoke many of them by path. This index groups them by
-job; do not move a script without updating every caller and document.
+Use `python az.py ...` for setup, services, the private client, and tools used
+repeatedly. A focused helper without its own command runs as
+`python az.py run <script.py> [args]`.
 
-## Start/operate the game
+## Common commands
 
-- az.py game, az.py mode, az.py dev, az.py world start, az.py shot,
-  az.py click, and az.py key are the normal entry points.
-- try-world-shape.py — shape A/B harness.
-- capture-world-run.py — snapshot one DTLS session, Game.log, process hash,
-  matching gateway JSONL rows and exact HTTP body sidecars, optional burst-probe
-  log/reduced screenshot, and `ack-window.py` output under ignored
-  `research/sessions/`. It reads append-only logs without editing them; raw
-  evidence can contain private identities, tokens, and full plaintext payloads.
-- shrink-image.py — shrink a screenshot before reading it. Never read the raw
-  PNG.
-- send-input.py, click-window.py, post-input.py — input methods. The game
-  consumes Raw Input; use the validated SendInput path for real interaction.
+- `python az.py setup` — install the locked local toolchain and dependencies.
+- `python az.py migrate` — move existing per-user game and research state into
+  ignored paths in this checkout; active game/decompiler files are deferred.
+- `python az.py dev [start|stop|restart|status]` — manage Caddy, gateway, and
+  world as background processes.
+- `python az.py game [start|stop|restart|status]` — manage the private game.
+- `python az.py shape <body.json>` — run one login response fixture against the
+  live client. The harness restores the old override and counts only requests
+  from that run.
+- `python az.py doc` — refresh OpenAPI from captured gateway traffic.
+- `python az.py shot`, `click`, `key`, `post` — screenshot or send UI input.
 
-## Client static analysis
+## Focused helpers
 
-Most reusable RE tooling lives in research/tools/reversing/, not here. Start
-at research/docs/DECOMPILATION.md for peutil, xrefmap, Ghidra, and the symbol
-database. The scripts below are focused live probes or patch helpers:
+| Task | Helper |
+| --- | --- |
+| Capture and summarize a world attempt | `capture-world-run.py`, `ack-window.py`, `ack-coverage.py`, `trace-session.py` |
+| Decode client channel-0 traffic | `decode-ch0.py` |
+| Send one test message to a running private world | `world-inject.py` |
+| Start a fresh instrumented client attempt | `run-instrumented-attempt.py` |
+| Compare two game captures | `bmp-diff.py` |
+| Hold a key or verify game focus | `hold-key.py`, `focus-window.py` |
+| Send text or a raw virtual key | `send-input.py`, `post-input.py` |
+| Shrink a screenshot for inspection | `shrink-image.py` |
+| Apply a build-bound manual patch | `patch-actor-guard.py`, `patch-dtls-disk.py`, `patch-portray-predicate.py`, `patch-teardown-guard.py` |
 
-- patch-*.py — narrow byte patches. Read each script's build/offset and
-  restore behavior before use.
-- frida-*.py — targeted probes for the private runtime only when EAC is
-  confirmed inactive. The repository's EAC rule always takes precedence.
-- experiment-v3-*.py, trace-session.py, world-inject.py — protocol/session
-  experiments; read the matching atlas lever and experiment notes first.
+The login harness uses `ocr-image.ps1` internally. Do not use the removed
+`ocr-window.py` capture chain; `capture-window.py` no longer exists. Client
+Frida probes have their own catalog at `python az.py probe list`, and startup
+patch helpers live in `services/launcher/runtime-tools/`.
 
-## World black-screen investigation
-
-Start with research/docs/WORLD-DEBUGGING.md. Current focused probe families:
-
-- Carrier delivery: ack-window.py maps each replay chunk to its Carrier
-  sequence and reports client ACK gaps; ack-coverage.py gives a compact summary.
-
-- State bundle/context: frida-context-init.py, frida-bundle-chain.py,
-  frida-reader-capture.py, frida-burst-capture.py, frida-slot-watch.py,
-  frida-deferred-actions.py, frida-rep-gate.py.
-  `frida-burst-capture.py` also records the gated manager-context dispatch,
-  its indirect setter, and local-player prototype-builder calls; zero counts
-  are meaningful only after the bundle drain is confirmed in `Game.log`.
-- Entity table and possession: frida-entity-table.py, frida-node-actors.py,
-  frida-mgr-watch.py, frida-possess-valid.py, frida-possess-all.py.
-- Replication/portrayal: frida-dispatch-probe.py, frida-portray-probe.py,
-  frida-real-pump-probe.py, frida-player-id-watch.py.
-- Patch helpers: see patch-predicate-flag.py, patch-timeout-watchdog.py,
-  patch-spawn-gate.py, and the corresponding entries in research/atlas/levers.md.
-- `frida-set-deferred-depth.py` changes the deferred-action batch limit only in
-  the selected process. It requires an explicit EAC-inactive acknowledgement;
-  use one fresh process per value and retain its JSONL before/after record.
-
-Probe names describe historical experiments, not guarantees that a probe is
-safe or still valid for the installed build. Check its offsets, target process,
-and EAC status before use. Prefer static analysis and server-side evidence when
-runtime instrumentation is not allowed.
-
-## Rule for adding a script
-
-1. Give it one narrow purpose and a name that identifies the subsystem.
-2. Put shared reusable code in a module/tool rather than copying probe logic.
-3. Record the exact build, evidence, and invocation in the relevant research
-   doc or atlas entry.
-4. Add it to this index only if it is a stable operator entry point. One-off
-   experiments can remain discoverable through the investigation log.
-
-## Frida probe rule: a zero needs a live control
-
-**A probe can report `ready`, tick for 23 minutes, and fire no hook at all.**
-Measured twice on 2026-10-01: `frida-burst-capture.py` logged `ready` and its
-5-second ticks while every hook counter stayed 0, which produced a wrong "the
-pipeline never ran" conclusion. The cause is an attach race with the launcher's
-own Frida sequence (`frida-trust-patch`, `patch-spawn-gate`,
-`frida-anticheat-patch`, `frida-rep-force-ladder`, `frida-eos-stub`): Frida can
-answer `ProcessNotRespondingError: ... refused to load frida-agent`, and a
-successful attach during that window can still end up with its inline hooks
-clobbered when the launcher's sessions detach.
-
-Therefore:
-
-1. **Every burst probe carries a control counter** on a function that runs
-   unconditionally. `frida-burst-capture.py` uses `FUN_1416adce0` (deferred-action
-   drain, once per frame) and `FUN_145f62e80` (per-frame view update). Do not use
-   `FUN_145aa23f0` alone as the control: it is the connection-wrapper tick and only
-   runs while a REP connection exists, so a legitimate 0 in the menu would look
-   like a dead probe.
-2. **Wait for the control to go non-zero before trusting any other counter**, and
-   re-attach until it does. The attach helper retries up to 8 times.
-3. **Attach after the image has mapped** (working set above ~500 MB), not the
-   instant the process appears.
-4. The client enters the world by itself 2-17 min after launch, so the probes must
-   be up within the first seconds; a late attach measures an idle process.
+Keep a helper only while it has a caller, a measured operator use, or unique
+reproduction value. Put reusable workflows behind `az.py`; do not add wrappers
+for one-off experiments.

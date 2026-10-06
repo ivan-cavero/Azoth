@@ -1,19 +1,23 @@
-# Azoth launcher
+# Launcher
 
-Launcher **propio**. En private no usamos Steam ni Easy Anti-Cheat.
+The current private launcher is
+[`src/Start-NwPrivate.ps1`](src/Start-NwPrivate.ps1). It prepares the ignored
+`private-client/runtime/` tree from the operator's Steam install, copies the
+executable and writable configuration files, and links the read-only assets.
+The game profile and logs also stay under `private-client/profile/`. The
+`python az.py game` supervisor hides the launcher console and records lifecycle
+state and launcher output under `.azoth/`.
 
-Responsabilidades:
+`python az.py migrate` moves the previous per-user runtime/profile into those
+project-local paths. Run it once after closing the game and any Ghidra process
+using the old analysis workspace. Existing private executables are preserved;
+pass `-RefreshExe` to the PowerShell launcher only when you want a fresh copy
+from Steam.
 
-1. **Install / update** del cliente ya preparado para nuestro server (exe sin EAC, URLs/pin nuestros, PAKs vanilla + contenido custom).
-2. **Play** — arranca `Bin64\NewWorld.exe` directo.
-3. En el futuro: parches de contenido, UI, news de *nuestro* CMS.
+The seven instrumentation and build-bound patch helpers used during private
+startup live in [`runtime-tools/`](runtime-tools/). General operator scripts
+stay in the root `scripts/` directory; one-off client probes live under
+`reverse/probes/client/`.
 
-## Steam
-
-Steam **solo** existe en el perfil official (`research/`). El launcher private no lo llama. El seed inicial del cliente es la copia que **tú ya compraste** (árbol de archivos del install). No vamos a montar un CDN pirata del juego de Amazon: el operador parte de su install legal; el launcher reparte **nuestros** parches y packs encima.
-
-## Spike ahora
-
-`src/Start-NwPrivate.ps1` — Steam puede estar abierto o no; el script lanza el exe directo y registra si aparece `EasyAntiCheat_EOS.exe` y si Game.log llega a frontend. Aún no está medido en el build 1.400.
-
-Docs: [docs/LAUNCHER.md](docs/LAUNCHER.md).
+The fuller launcher/update client is a future product direction, not an
+implemented service. See [launcher notes](docs/LAUNCHER.md).

@@ -1,46 +1,17 @@
-# Documentation — index
+# Docs
 
-**Azoth** — New World private server. RE knowledge lives in **research/** (atlas + docs), the server contract in **services/docs/**, the own-client in **services/launcher/**. This `docs/` is the glue. All docs are written in English; `docs/archive/` and `docs/sessions/` hold Spanish historical documents.
+Start with [project status](../STATUS.md), then open the reference for the work
+at hand.
 
-## System
-
-| Doc | Content |
+| Work | Read |
 | --- | --- |
-| [NOMBRE.md](NOMBRE.md) | Why "Azoth" |
-| [ROADMAP.md](ROADMAP.md) | Phases + **what to capture now** |
-| [ADMIN.md](ADMIN.md) | **Admin permissions: ask the operator for UAC ONCE before starting** (Spanish) |
-| [sessions/](sessions/) | Historical session log (`2026-09-13_pre-monorepo-STATUS.md` = the full pre-monorepo STATUS) |
-| [archive/](archive/) | Pre-monorepo design docs (Spanish, old paths — design rationale only) |
-| [../services/docs/PERFORMANCE.md](../services/docs/PERFORMANCE.md) | Density / tick / AOI |
+| Run the local stack | [README](../README.md), [deploy](../deploy/README.md) |
+| Change Windows host routing | [Admin operations](ADMIN.md) |
+| Understand Rust, content, decompilation, and capacity direction | [Architecture](ARCHITECTURE.md), [roadmap](ROADMAP.md) |
+| Change gateway or world code | [Gateway](../services/docs/GATEWAY.md), [World](../services/world/README.md), [performance contract](../services/docs/PERFORMANCE.md) |
+| Reverse engineer the client | [Reverse engineering tools](../reverse/README.md), [Research index](../research/docs/INDEX.md), [decompilation](../research/docs/DECOMPILATION.md), [client function registry](../research/atlas/client-functions.json) |
+| Repeat a world attempt | [World debug loop](../research/docs/WORLD-DEBUGGING.md), [live debug skill](../.agents/skills/azoth-live-debug/SKILL.md) |
+| Understand historical decisions | [`archive/`](archive/) and [`sessions/`](sessions/) |
 
-## Research (`research/docs/`)
-
-| Doc | Content |
-| --- | --- |
-| [ANALYSIS.md](../research/docs/ANALYSIS.md) | Engine, login, GridMate, PAKs |
-| [CAPTURE.md](../research/docs/CAPTURE.md) | Passive capture kit |
-| [EAC.md](../research/docs/EAC.md) | EAC EOS, no process memory while on official |
-| [CLIENT_CONTRACT.md](../research/docs/CLIENT_CONTRACT.md) | JSON/hosts the client expects |
-| [SESSIONS.md](../research/docs/SESSIONS.md) | Live 2026-09-06 findings |
-| [PROTOCOL.md](../research/docs/PROTOCOL.md) | DTLS, Carrier, RMI |
-| [DECOMPILATION.md](../research/docs/DECOMPILATION.md) | Decompilation workflow (tools, method, findings) |
-| [DEVELOPMENT-LOOP.md](../research/docs/DEVELOPMENT-LOOP.md) | Reproducible evidence, fast test ladder, and regression workflow for all future features |
-| [WORLD-DEBUGGING.md](../research/docs/WORLD-DEBUGGING.md) | Fresh-process checklist for the current black-screen investigation |
-| [WORLD-INVESTIGATION.md](../research/docs/WORLD-INVESTIGATION.md) | Detailed world-entry evidence and current frontier |
-
-**Atlas (live RE memory):** [`research/atlas/`](../research/atlas/README.md) — endpoints, wire models, errors, debug levers, observed traffic + OpenAPI.
-Live schemas: `research/schemas/live/`. Fixtures: `research/fixtures/`. Working RE notes: `research/notes/`.
-
-## Services (`services/docs/`)
-
-| Doc | Content |
-| --- | --- |
-| [GATEWAY.md](../services/docs/GATEWAY.md) | HTTPS :8080 |
-| [WORLD.md](../services/docs/WORLD.md) | REP / spawn |
-| [DATA.md](../services/docs/DATA.md) | Persistence (note: today DB-free, mocks) |
-
-## Launcher (`services/launcher/docs/`)
-
-| Doc | Content |
-|---|---|
-| [LAUNCHER.md](../services/launcher/docs/LAUNCHER.md) | Updater, Play, no Steam |
+Current implementation facts belong next to the code or in the client registry.
+This folder holds only project-wide guidance and historical material.

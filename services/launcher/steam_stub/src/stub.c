@@ -10,7 +10,7 @@
  *   - 4 separate vtables with type-correct safe defaults:
  *       pointers -> NULL or "" (never 0x1), ints/handles -> 0, bools -> plausible
  *   - minimal Steam callback dispatch (101/163/168) so the Omni login proceeds
- *   - optional file log (AZOTH_STUB_LOG=1) to %TEMP%\azoth_stub.log showing
+ *   - optional file log (AZOTH_STUB_LOG=1) to the project temp directory showing
  *     interface versions, tickets, callbacks and vtable probes.
  *
  * Provenance: every non-obvious answer here was earned against the running
@@ -92,7 +92,7 @@ static uint64_t __fastcall a_def(void *s) {
     return 0;
 }
 
-/* One-line trace per process for hot thunks (keeps %TEMP%\azoth_stub.log small
+/* One-line trace per process for hot thunks (keeps the stub log small
  * while showing the exact last stub call before any early exit). */
 #define TRACE_ONCE(msg) do { static int _once = 0; if (!_once) { _once = 1; log_line(msg, ""); } } while (0)
 

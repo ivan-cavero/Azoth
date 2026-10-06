@@ -156,5 +156,5 @@
     "levels/nw_trial_season_04_deviceroom/level.pak": 23
   },
   "build_seconds": 19.4,
-  "note": "Central directories only. Full index at %LOCALAPPDATA%/Azoth/pakindex/pakindex.db (gitignored)."
+  "note": "Central directories only. Full index at .azoth/cache/pak-index/pakindex.db (gitignored)."
 }

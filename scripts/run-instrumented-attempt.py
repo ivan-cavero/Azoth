@@ -5,8 +5,8 @@ Automates the full sequence so the record-1/possession burst never escapes
 the probe window (it fires ~5 s after ClientContext::Initialize, and the
 previous runs lost it by attaching minutes later):
 
-  1. start the game via the launcher watch flow (python az.py game)
-  2. attach scripts/frida-record1-chain.py as soon as the window exists
+  1. start the game via the managed launcher (python az.py game restart)
+  2. attach reverse/probes/client/frida-record1-chain.py as soon as the window exists
   3. wait for the burst markers (record1 events) or a timeout
   4. report what was captured; the user then enters the world normally
 
@@ -26,7 +26,10 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-OUT_DIR = REPO / "research" / "sessions"
+OUT_DIR = REPO / ".azoth" / "captures" / "probes"
+PYTHON = REPO / ".azoth" / "venv" / "Scripts" / "python.exe"
+if not PYTHON.is_file():
+    PYTHON = Path(sys.executable)
 os.environ["AZOTH_REPLAY_LOCAL_PLAYER_UUID"] = "character"
 
 
@@ -52,9 +55,9 @@ def main() -> int:
     # 1. launch
     print("[attempt] launching game (watch flow)...", flush=True)
     subprocess.Popen(
-        ["python", "az.py", "game"],
+        [str(PYTHON), "az.py", "game", "restart"],
         cwd=REPO, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
 
     # 2. attach as soon as the window exists
@@ -71,7 +74,7 @@ def main() -> int:
     time.sleep(4)  # let the module map enough for Interceptor.attach
 
     probe = subprocess.Popen(
-        ["python", "-u", str(REPO / "scripts" / "frida-record1-chain.py"), "--stay"],
+        [str(PYTHON), "-u", str(REPO / "reverse" / "probes" / "client" / "frida-record1-chain.py"), "--stay"],
         cwd=REPO, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     print(f"[attempt] probe pid {probe.pid} attached early", flush=True)
