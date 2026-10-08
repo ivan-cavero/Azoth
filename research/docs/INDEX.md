@@ -9,6 +9,16 @@
 - [Decompilation backlog](DECOMP-BACKLOG.md) — remaining naming, data, and
   protocol work.
 - [EAC boundary](EAC.md) — rules for official and private client processes.
+- [Private client runbook](PRIVATE-CLIENT-RUNBOOK.md) — cold setup, the five
+  gates a private run crosses, patch policy (disk vs Frida, when to apply),
+  and where each artifact actually lands.
+- [Server contract](SERVER-CONTRACT.md) — phase-by-phase list of what the
+  client expects from the server, the REP message registry both directions,
+  and what is still missing (movement authority).
+- [Javelin message GUIDs](JAVELIN-MESSAGE-GUIDS.md) — the 156 named message
+  types with their AZ type GUIDs, including the movement family.
+- [Session 2026-10-07/08](SESSION-2026-10-07.md) — autonomous overnight run:
+  gates 5-8 closed, stable session, protocol mapped, warning inventory.
 
 ## Protocol and client
 

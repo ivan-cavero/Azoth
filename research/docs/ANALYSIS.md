@@ -89,10 +89,13 @@ The PAKs are **ZIP** (`PK\x03\x04`). Any ZIP tool lists them; extraction is meth
 
 Client user data:
 
-- Private runtime logs/settings: `private-client/profile/Local/AGS/New World/`
-  and `private-client/profile/Roaming/AGS/New World/`.
-- Official Steam sessions still use Windows `%LOCALAPPDATA%` and `%APPDATA%`;
-  pass the official `Game.log` explicitly when ingesting one.
+- The private runtime tree (executable copy, linked assets, state) lives under
+  `private-client/`. The client **ignores** the launcher's `LOCALAPPDATA`
+  override and writes its log and savedata through the Windows known-folder
+  API, so both the private and the official client use the real
+  `%LOCALAPPDATA%\AGS\New World\Game.log` and
+  `%APPDATA%\AGS\New World\savedata\`. Full path table:
+  [PRIVATE-CLIENT-RUNBOOK.md](PRIVATE-CLIENT-RUNBOOK.md).
 
 ### Authority
 

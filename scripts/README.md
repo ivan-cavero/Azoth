@@ -22,6 +22,9 @@ repeatedly. A focused helper without its own command runs as
 
 | Task | Helper |
 | --- | --- |
+| Drive a full private run unattended | `private-run.py` |
+| Trust Caddy's local CA (gate 2) | `trust-caddy-ca.py` |
+| Apply/restore the DTLS disk patch (gate 4) | `patch-dtls-disk.py` |
 | Capture and summarize a world attempt | `capture-world-run.py`, `ack-window.py`, `ack-coverage.py`, `trace-session.py` |
 | Decode client channel-0 traffic | `decode-ch0.py` |
 | Send one test message to a running private world | `world-inject.py` |

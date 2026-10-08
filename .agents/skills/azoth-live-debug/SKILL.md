@@ -29,8 +29,10 @@ analysis or repository cleanup.
 
 - Each world A/B variant needs a fresh `NewWorld.exe`; the failed client does
   not recreate its `ClientContext` for another attempt.
-- Record the process id and the `private-client/profile/Local/AGS/New World/Game.log`
-  boundary. Treat counters as
+- Record the process id and the `%LOCALAPPDATA%\AGS\New World\Game.log`
+  boundary. The game ignores the launcher's `LOCALAPPDATA` override, so the log
+  is under the real profile, not `private-client/profile/`; see
+  [`PRIVATE-CLIENT-RUNBOOK.md`](../../research/docs/PRIVATE-CLIENT-RUNBOOK.md). Treat counters as
   meaningful only after the log shows
   `ProcessPendingReliableMsgQueue processing 26 messages`.
 - Set `AZOTH_LOG_RAW=1` on the world server when distinguishing missing UDP

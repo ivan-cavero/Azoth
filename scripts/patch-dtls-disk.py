@@ -50,7 +50,21 @@ def patch(private: Path, official: Path) -> None:
         raise SystemExit(f"private runtime directory not found: {private.parent}")
     if not private.exists():
         raise SystemExit(f"private executable not found: {private}")
+
+    target = PATCH_VA + 6 + struct.unpack_from("<i", ORIGINAL, 2)[0]
+    rel = target - (PATCH_VA + 5)
+    patched = b"\xe9" + struct.pack("<i", rel) + b"\x90"
+
     if digest(private) != digest(official):
+        # Idempotent: a copy that already carries the patch is not an error.
+        pe = PE(private)
+        offset = pe.va_to_foff(PATCH_VA)
+        with private.open("rb") as f:
+            f.seek(offset)
+            if f.read(len(patched)) == patched:
+                print(f"private DTLS patch already applied: {private}")
+                print(f"sha256(private)={digest(private)}")
+                return
         raise SystemExit("private executable is not the verified Steam copy; refusing implicit overwrite")
     private.unlink()
     shutil.copyfile(official, private)
@@ -62,9 +76,6 @@ def patch(private: Path, official: Path) -> None:
         before = f.read(len(ORIGINAL))
         if before != ORIGINAL:
             raise SystemExit(f"unexpected bytes at {PATCH_VA:#x}: {before.hex()}")
-        target = PATCH_VA + 6 + struct.unpack_from("<i", ORIGINAL, 2)[0]
-        rel = target - (PATCH_VA + 5)
-        patched = b"\xe9" + struct.pack("<i", rel) + b"\x90"
         f.seek(offset)
         f.write(patched)
     print(f"private DTLS patch applied: {private}")

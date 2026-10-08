@@ -11,12 +11,12 @@ evidence rules are in [the RE skill](../../.agents/skills/azoth-re/SKILL.md).
   decompiles requested function ranges, and reuses a project under the full
   executable SHA-256 workspace.
 - The local corpus is indexed against 423,579 `.pdata` functions for client
-  build `1.400.6031.6004151`. The latest tracked inventory reports 37 cumulative
-  failures; this is historical evidence only. `python az.py migrate` preserves
-  the old workspace under ignored `.azoth/archive/legacy-appdata/decomp/` after
-  active analysis processes exit. Do not resume it as the new analysis source.
-  Rebuild the corpus under `reverse/builds/<full-sha256>/`; see
-  [DECOMP-BACKLOG.md](DECOMP-BACKLOG.md).
+  build `1.400.6031.6004151` (sha256 `8654f01d…c8e`), rebuilt fresh on
+  2026-10-06 under `reverse/builds/8654f01d…c8e/corpus/`: **423,579 `ok`, 0
+  `fail`** (full coverage after retry passes; see DECOMP-BACKLOG §0/§1.1 and
+  §9 for the payload-ladder and fragment-parent techniques). Do not
+  resume the old per-user workspace under ignored
+  `.azoth/archive/legacy-appdata/decomp/`; it is historical evidence only.
 - `xrefmap.py` builds the expensive xref map once and stores it in the local
   work directory. `namer.py` turns string references into review candidates.
 - Confirmed function names and their evidence are tracked in

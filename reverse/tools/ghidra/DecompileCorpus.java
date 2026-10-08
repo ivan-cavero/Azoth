@@ -15,6 +15,7 @@
 
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.decompiler.DecompInterface;
+import ghidra.app.decompiler.DecompileOptions;
 import ghidra.app.decompiler.DecompileResults;
 import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
@@ -287,11 +288,28 @@ public class DecompileCorpus extends GhidraScript {
     }
 
     private DecompInterface openIfc() {
-        DecompInterface ifc = new DecompInterface();
-        ifc.setOptions(ifc.getOptions());
-        ifc.openProgram(currentProgram);
-        opened.add(ifc);
-        return ifc;
+        // The default max payload is 50 MB; several MSVC functions in this
+        // binary legitimately exceed it and fail with "Response buffer size
+        // exceeded". The native decompiler rejects out-of-range option values,
+        // and a rejected setOptions makes openProgram return false, so walk a
+        // payload ladder until the process accepts one. The 50 MB fallback is
+        // the pre-change behavior and always succeeds.
+        int[] ladder = {2048, 1024, 512, 50};
+        RuntimeException last = null;
+        for (int mbytes : ladder) {
+            DecompInterface ifc = new DecompInterface();
+            DecompileOptions opts = new DecompileOptions();
+            opts.setMaxPayloadMBytes(mbytes);
+            ifc.setOptions(opts);
+            if (ifc.openProgram(currentProgram)) {
+                opened.add(ifc);
+                return ifc;
+            }
+            ifc.dispose();
+            last = new RuntimeException(
+                "openProgram failed with maxPayloadMBytes=" + mbytes);
+        }
+        throw last;
     }
 
     private void addResult(Result result) {

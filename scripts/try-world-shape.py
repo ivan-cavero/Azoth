@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -22,7 +23,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 SCRIPTS = REPO / "scripts"
 OVERRIDE = REPO / "services/gateway/mock_discovery/getlogininfo.json"
-GAME_LOG = REPO / "private-client/profile/Local/AGS/New World/Game.log"
+# The game ignores the launcher's LOCALAPPDATA override and resolves its profile
+# through the Windows known-folder API, so Game.log is under the real profile.
+# See research/docs/PRIVATE-CLIENT-RUNBOOK.md (evidence paths).
+GAME_LOG = Path(os.environ.get("LOCALAPPDATA", "")) / "AGS" / "New World" / "Game.log"
 GW_LOG = REPO / ".azoth/logs/gateway.log"
 
 

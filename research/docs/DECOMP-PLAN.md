@@ -8,8 +8,9 @@ compiler-generated function.
 ## Current baseline
 
 - The local corpus is indexed against 423,579 `.pdata` functions for the
-  installed client build. The latest tracked report shows 37 cumulative
-  decompilation failures.
+  installed client build (sha256 `8654f01d…c8e`). The 2026-10-06 rebuild under
+  `reverse/builds/<full-sha256>/corpus/` reports **423,579 `ok` / 0 `fail`**
+  (full coverage after retry passes; techniques in DECOMP-BACKLOG §9).
 - A cached xref map, Ghidra runner, candidate namer, PAK reader, and readers for
   localization/DataSheet data are already in the repository.
 - Confirmed function behavior lives in

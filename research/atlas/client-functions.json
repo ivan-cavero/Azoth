@@ -231,7 +231,7 @@
     "found_by": "direct .rdata string read at the VAs, 2026-10-02"
   },
   "client_input_announcement_burst": {
-    "what": "Live 2026-10-02 19:23Z (PID 25140): at possession the client sends ONE announcement burst on ch0 that byte-matches the official capture's W-direction messages: 0x102e (46B, hash 89248843, entity 1a954abc-4b31-85bf-be37-c3d8592618e0), 0x192c (54B, hash 7f789399), 0x12f6 (299B, lists @cc_f3/@cc_e/@cc_tab/@cc_c/@cc_mouse2/@cc_y input bindings), plus 45B/44B/48B/81B family and 90x 77B (all-distinct bodies, [44:77] fully variable = nonce/hash-like, only in the burst minute). After the burst: SILENCE except 0x15d pongs — WASD produces ZERO wire traffic. This REVISES the session-232 conclusion: the input/controller layer IS bound and announces itself; what never starts is the movement STREAMING. The official capture also shows only an announcement burst + 4x 0x5b2 after possession (capture author was standing still), so there is NO captured movement stream to compare against.",
+    "what": "Live 2026-10-02 19:23Z (PID 25140): at possession the client sends ONE announcement burst on ch0 that byte-matches the official capture's W-direction messages: 0x102e (46B, hash 89248843, entity 1a954abc-4b31-85bf-be37-c3d8592618e0), 0x192c (54B, hash 7f789399), 0x12f6 (299B, lists @cc_f3/@cc_e/@cc_tab/@cc_c/@cc_mouse2/@cc_y input bindings), plus 45B/44B/48B/81B family and 90x 77B (all-distinct bodies, [44:77] fully variable = nonce/hash-like, only in the burst minute). After the burst: SILENCE except 0x15d pongs \u2014 WASD produces ZERO wire traffic. This REVISES the session-232 conclusion: the input/controller layer IS bound and announces itself; what never starts is the movement STREAMING. The official capture also shows only an announcement burst + 4x 0x5b2 after possession (capture author was standing still), so there is NO captured movement stream to compare against.",
     "found_by": "live rep_traffic.jsonl decode vs services/world/replay/messages-redacted.txt, 2026-10-02"
   },
   "component_cluster_live_trace": {
@@ -351,13 +351,13 @@
   },
   "eos_anticheat_transport_gap_20261004": {
     "va": "0x146441b40",
-    "what": "CAUSA RAIZ DE LA DESCONEXION A LOS ~52 s, medida 2026-10-04. Patron constante en TODAS las sesiones (7 partidas en dos dias): el cliente hace 'player spawn succeeds', el ClientContext se crea (en la primera sesion), y entre 5 y 52 segundos despues el ClientSDK reporta 'Unexpected client disconnect! {transportError: 4}' + '@mm_csdkerr_disconnect (4)' + 'JavelinGame::OnConnectionFail' y la conexion REP se cierra. El patron es identico en 1.365 y 1.400, con y sin el stream 0x08, con y sin el patch del watchdog. El stub EOS corre (su log dice 'ready' y sigue vivo), el patch del watchdog esta aplicado, y el servidor NO cierra la DTLS. La causa es el canal anticheat: el EOS ClientSDK espera que el servidor le mande mensajes anticheat por el REP; cuando no llegan en el tiempo esperado, reporta transportError 4 y el juego corta la conexion completa. El stub EOS solo enmascara las llamadas del resolver (FUN_1444f79e0 -> 0x444f79e0): devuelve EOS_Success en BeginSession/EndSession/Tick/Initialize, un fake handle en Get*Interface/Create, y 1 en AddNotify* — pero NO implementa el canal de datos anticheat (ReceiveMessageFromServer devuelve 0 = no hay datos). CONSECUENCIA EN CADENA: la conexion se corta -> el cliente se reconecta -> el ClientContext no se recrea (la puerta FUN_14643e7b0 -> FUN_146448cd0 exige que el clientContextInstanceId del mensaje coincida con port[+0x80]) -> el cliente descarta TODO el estado del mundo (cientos de 'skipping ReceiveStateBundle ... clientContext == nullptr') -> el jugador local queda sin componentes de fisica -> WASD no mueve nada -> el cable sube. PARA ARREGLARLO: hay dos caminos. (A) Implementar el canal anticheat en el servidor: interceptar los mensajes que el cliente manda al EOS anticheat server (los que llegan como typed-stream desconocidos) y responder con lo que el ClientSDK espera, para que el transport no reporte error 4. (B) Hookear el ClientSDK en el cliente para que ReceiveMessageFromServer devuelva un payload valido que el juego no interprete como error, o para que OnConnectionFail no corte la conexion REP. (B) es mas corto pero requiere RE del formato que el juego espera. (A) es lo correcto para la vision de miles de jugadores. Found 2026-10-04.",
+    "what": "CAUSA RAIZ DE LA DESCONEXION A LOS ~52 s, medida 2026-10-04. Patron constante en TODAS las sesiones (7 partidas en dos dias): el cliente hace 'player spawn succeeds', el ClientContext se crea (en la primera sesion), y entre 5 y 52 segundos despues el ClientSDK reporta 'Unexpected client disconnect! {transportError: 4}' + '@mm_csdkerr_disconnect (4)' + 'JavelinGame::OnConnectionFail' y la conexion REP se cierra. El patron es identico en 1.365 y 1.400, con y sin el stream 0x08, con y sin el patch del watchdog. El stub EOS corre (su log dice 'ready' y sigue vivo), el patch del watchdog esta aplicado, y el servidor NO cierra la DTLS. La causa es el canal anticheat: el EOS ClientSDK espera que el servidor le mande mensajes anticheat por el REP; cuando no llegan en el tiempo esperado, reporta transportError 4 y el juego corta la conexion completa. El stub EOS solo enmascara las llamadas del resolver (FUN_1444f79e0 -> 0x444f79e0): devuelve EOS_Success en BeginSession/EndSession/Tick/Initialize, un fake handle en Get*Interface/Create, y 1 en AddNotify* \u2014 pero NO implementa el canal de datos anticheat (ReceiveMessageFromServer devuelve 0 = no hay datos). CONSECUENCIA EN CADENA: la conexion se corta -> el cliente se reconecta -> el ClientContext no se recrea (la puerta FUN_14643e7b0 -> FUN_146448cd0 exige que el clientContextInstanceId del mensaje coincida con port[+0x80]) -> el cliente descarta TODO el estado del mundo (cientos de 'skipping ReceiveStateBundle ... clientContext == nullptr') -> el jugador local queda sin componentes de fisica -> WASD no mueve nada -> el cable sube. PARA ARREGLARLO: hay dos caminos. (A) Implementar el canal anticheat en el servidor: interceptar los mensajes que el cliente manda al EOS anticheat server (los que llegan como typed-stream desconocidos) y responder con lo que el ClientSDK espera, para que el transport no reporte error 4. (B) Hookear el ClientSDK en el cliente para que ReceiveMessageFromServer devuelva un payload valido que el juego no interprete como error, o para que OnConnectionFail no corte la conexion REP. (B) es mas corto pero requiere RE del formato que el juego espera. (A) es lo correcto para la vision de miles de jugadores. Found 2026-10-04.",
     "found_by": "Game.log patron identico en 7 sesiones + stub log + rep_traffic.jsonl, 2026-10-04"
   },
   "datasheet_path_joiner": {
     "va": "0x145c34dd0",
     "end": "0x145c350a4",
-    "what": "Path builder for datasheet asset resolution: takes a path (param_1+0x30, MSVC SSO string), appends the literal 'datasheet' (0x14844e7b8) with a separator check (FUN_1463650b0) or fallback concat (FUN_1463a1e30), then rewrites any 'SharedAssets' prefix (0x148469b90, suffix-after-match replace). It is the loader-side path normalization for the springboardentitites/datatables content; the actual file open happens in the callee chain (FUN_14253e810 with an AZStd allocator, likely the AZ IO/asset interface). CONFIRMED by decompile 2026-10-05 (derived/decomp/145c34dd0-145c350a4.c). Candidate found by namer.py seed 'datasheet' (candidate #2 of the first run); the smaller sibling FUN_145abafc0 is an SRWLock-protected container ctor/copy that merely holds the 'datasheet' literal as a type tag — NOT the loader, do not name it datasheet_loader.",
+    "what": "Path builder for datasheet asset resolution: takes a path (param_1+0x30, MSVC SSO string), appends the literal 'datasheet' (0x14844e7b8) with a separator check (FUN_1463650b0) or fallback concat (FUN_1463a1e30), then rewrites any 'SharedAssets' prefix (0x148469b90, suffix-after-match replace). It is the loader-side path normalization for the springboardentitites/datatables content; the actual file open happens in the callee chain (FUN_14253e810 with an AZStd allocator, likely the AZ IO/asset interface). CONFIRMED by decompile 2026-10-05 (derived/decomp/145c34dd0-145c350a4.c). Candidate found by namer.py seed 'datasheet' (candidate #2 of the first run); the smaller sibling FUN_145abafc0 is an SRWLock-protected container ctor/copy that merely holds the 'datasheet' literal as a type tag \u2014 NOT the loader, do not name it datasheet_loader.",
     "found_by": "namer.py corpus-ref index (seed 'datasheet' -> &UNK_14844e7b8 -> 0x145c34dd0) + Ghidra decompile read, 2026-10-05"
   },
   "dynamicslice_path_suffix_check": {
@@ -369,7 +369,7 @@
   "lc_spawnslice_console_command": {
     "va": "0x14101b4b0",
     "end": "0x14101b8f3",
-    "what": "The 'lc_spawnslice' console command handler (string 0x147fd2ad0, 'lc_spawnslice %s'; usage-adjacent strings 'slices/characters/' at 0x147fd2ab8 and 'Actor Container not yet initialized.'). Prepends 'slices/characters/' to the argument and spawns the named dynamicslice into the actor container. USE WITH CARE: this is the client-side debug spawn path — the same facility the world session can use to verify slice spawning outside the replica flow (needs a private client console; do not attempt on the official client). CONFIRMED by decompile 2026-10-05 (derived/decomp/14101b4b0-14101b8f3.c). Candidate from namer.py seed 'dynamicslice'.",
+    "what": "The 'lc_spawnslice' console command handler (string 0x147fd2ad0, 'lc_spawnslice %s'; usage-adjacent strings 'slices/characters/' at 0x147fd2ab8 and 'Actor Container not yet initialized.'). Prepends 'slices/characters/' to the argument and spawns the named dynamicslice into the actor container. USE WITH CARE: this is the client-side debug spawn path \u2014 the same facility the world session can use to verify slice spawning outside the replica flow (needs a private client console; do not attempt on the official client). CONFIRMED by decompile 2026-10-05 (derived/decomp/14101b4b0-14101b8f3.c). Candidate from namer.py seed 'dynamicslice'.",
     "found_by": "namer.py corpus-ref index (seed 'dynamicslice') + decompile read ('lc_spawnslice %s' + 'slices/characters/' literals), 2026-10-05"
   },
   "uicanvas_type_ctor": {
@@ -391,17 +391,17 @@
   },
   "player_slice_content_20261005": {
     "va": "0x0",
-    "what": "ANSWER TO THE MOVEMENT-AGENT QUESTION (measured on SharedDataStrm-part8.pak::slices/player.dynamicslice, 367,528 B): the prefab DOES NOT contain GameRigidBody* (any facet), CharacterPhysicsComponent, CharacterControllerConfig, CryPlayerPhysicsConfiguration, RigidBodyComponent or CharacterControllerComponent — all ZERO occurrences in every byte order. What it DOES contain (one instance each, all GUIDs cross-checked against 'name\\0{GUID}' pairs in .rdata): CharacterComponent {15407CAA-4970-4D06-8B5C-612FBA11BB45} + CharacterComponentClientFacet {8817475C-56BE-46F3-9597-FF325929461E} + CharacterComponentServerFacet {E9C20ECF-9DE9-4969-B76D-91582ED7294D}, PlayerInputFiltersComponent {6585D0E9-22E5-44EB-994E-CC80229FCD68} + Client/Server facets, TraversalComponent + facets, DefenseCollisionComponent + facets, NavMeshConstraintComponent, NavMeshDebugComponent + facets, FootstepComponent, InputConfigurationComponent, JavCameraControllerComponent + facets, TimelineControllerComponent + facets, EmoteControllerComponent + facets, IncapacitatedCharacterComponentClientFacet, plus Transform type-id 484AE67D-... x71 (every entity). CONCLUSION: the player prefab ships movement-adjacent scaffolding but NO physics/rigidbody component — consistent with local_player_has_no_physics_20261004: the wire (or a later server message) must create the physics components, the slice alone cannot.",
+    "what": "ANSWER TO THE MOVEMENT-AGENT QUESTION (measured on SharedDataStrm-part8.pak::slices/player.dynamicslice, 367,528 B): the prefab DOES NOT contain GameRigidBody* (any facet), CharacterPhysicsComponent, CharacterControllerConfig, CryPlayerPhysicsConfiguration, RigidBodyComponent or CharacterControllerComponent \u2014 all ZERO occurrences in every byte order. What it DOES contain (one instance each, all GUIDs cross-checked against 'name\\0{GUID}' pairs in .rdata): CharacterComponent {15407CAA-4970-4D06-8B5C-612FBA11BB45} + CharacterComponentClientFacet {8817475C-56BE-46F3-9597-FF325929461E} + CharacterComponentServerFacet {E9C20ECF-9DE9-4969-B76D-91582ED7294D}, PlayerInputFiltersComponent {6585D0E9-22E5-44EB-994E-CC80229FCD68} + Client/Server facets, TraversalComponent + facets, DefenseCollisionComponent + facets, NavMeshConstraintComponent, NavMeshDebugComponent + facets, FootstepComponent, InputConfigurationComponent, JavCameraControllerComponent + facets, TimelineControllerComponent + facets, EmoteControllerComponent + facets, IncapacitatedCharacterComponentClientFacet, plus Transform type-id 484AE67D-... x71 (every entity). CONCLUSION: the player prefab ships movement-adjacent scaffolding but NO physics/rigidbody component \u2014 consistent with local_player_has_no_physics_20261004: the wire (or a later server message) must create the physics components, the slice alone cannot.",
     "found_by": "pakread extract + GUID byte-order scan of the full slice + 'name\\0{GUID}' .rdata cross-reference, 2026-10-05"
   },
   "transform_spawner_chain_confirmed_20261005": {
     "va": "0x141763b70",
-    "what": "CONFIRMED by fresh decompile (derived/decomp/141763b70-*.c, 2026-10-05): FUN_141763b70 queries param_1->vtable[+0x20](FUN_1407fbe80() = type id {83482F97-84DA-4FD4-BF9E-7FE34C8E091F} THREE times. Query 1 non-null -> FUN_141582430 creates GameTransformComponent and FUN_140a16070/FUN_14046cc60 attach its FOUR reflected properties by name: m_worldTM (+0x140), m_localTM (+0x180), m_onNewParentKeepWorldTM (+0x1b8), m_isStatic (+0x201). Query 2 non-null -> FUN_141582690 creates GameTransformComponentClientFacet. Query 3 non-null -> FUN_1415828f0 creates GameTransformComponentServerFacet. CORRECTION to the earlier 'data-table function pointer' note: the .rdata region at 0x1498a0000+ that contains [start][end][unwind] triples referencing FUN_141761dd0/FUN_141763b70 is an unwind-info COPY (RuntimeFunction-format entries inside .rdata), not a call table; no code or data caller of the cluster was found today (no lea, no u64 pointer, no xrefmap hit). TYPE-ID SEMANTICS (2026-10-05, extended): {6383F1D3-BB27-4E6B-A49A-6409B2059EAA} = AZ::EntityId per public O3DE EntityId.h (AZ_TYPE_INFO) and appears 933x in player.dynamicslice; {75651658-8663-478D-9090-2432DFCAFA44} = AZ::Entity per public O3DE Entity.h (AZ_RTTI) and is the root class of every slice/canvas payload (ObjectStream). {83482F97-84DA-4FD4-BF9E-7FE34C8E091F} = the entity-RESOLVER interface the spawner queries (semantic: entity-id -> AZ::Entity*); its exact C++ name is unproven (candidates: GameEntityContextRequests / BehaviorEntity provider — GameEntityContextComponent {DA235454-DD9C-468C-AE70-404E415BAA6C} IS in the exe by name-guid adjacency). The .rdata trait-descriptor layout is [name string][~200 B descriptor][lowercase guid string]: verified three ways (PersistenceSpawner->4cf7921f, Aoi::GridActorClient->828e805d, ClientMessagesTrait->5ac34998), so 5ac34998-d340-4948-9cb3-7d5b2d24221d = ClientMessagesTrait, whose state object FUN_141542760 reads through vtable[+0x30] (fields at +0x10/+0x50/+0x74/+0x98/+0xc0/+0x100). {83482F97} is NOT in typeindex.json and NOT in player.dynamicslice; the getter FUN_1407fbe80 has 539 call sites; direct callers of the sibling getter FUN_1407fb480: 0x1407ce478, 0x1407cef28, 0x1407e1490, 0x1407f8f50, 0x1407f9580, 0x1407f9ba0, 0x14174b470, 0x141750780, 0x141755b30, 0x14645af40 (jump-table FSM dispatcher).",
+    "what": "CONFIRMED by fresh decompile (derived/decomp/141763b70-*.c, 2026-10-05): FUN_141763b70 queries param_1->vtable[+0x20](FUN_1407fbe80() = type id {83482F97-84DA-4FD4-BF9E-7FE34C8E091F} THREE times. Query 1 non-null -> FUN_141582430 creates GameTransformComponent and FUN_140a16070/FUN_14046cc60 attach its FOUR reflected properties by name: m_worldTM (+0x140), m_localTM (+0x180), m_onNewParentKeepWorldTM (+0x1b8), m_isStatic (+0x201). Query 2 non-null -> FUN_141582690 creates GameTransformComponentClientFacet. Query 3 non-null -> FUN_1415828f0 creates GameTransformComponentServerFacet. CORRECTION to the earlier 'data-table function pointer' note: the .rdata region at 0x1498a0000+ that contains [start][end][unwind] triples referencing FUN_141761dd0/FUN_141763b70 is an unwind-info COPY (RuntimeFunction-format entries inside .rdata), not a call table; no code or data caller of the cluster was found today (no lea, no u64 pointer, no xrefmap hit). TYPE-ID SEMANTICS (2026-10-05, extended): {6383F1D3-BB27-4E6B-A49A-6409B2059EAA} = AZ::EntityId per public O3DE EntityId.h (AZ_TYPE_INFO) and appears 933x in player.dynamicslice; {75651658-8663-478D-9090-2432DFCAFA44} = AZ::Entity per public O3DE Entity.h (AZ_RTTI) and is the root class of every slice/canvas payload (ObjectStream). {83482F97-84DA-4FD4-BF9E-7FE34C8E091F} = the entity-RESOLVER interface the spawner queries (semantic: entity-id -> AZ::Entity*); its exact C++ name is unproven (candidates: GameEntityContextRequests / BehaviorEntity provider \u2014 GameEntityContextComponent {DA235454-DD9C-468C-AE70-404E415BAA6C} IS in the exe by name-guid adjacency). The .rdata trait-descriptor layout is [name string][~200 B descriptor][lowercase guid string]: verified three ways (PersistenceSpawner->4cf7921f, Aoi::GridActorClient->828e805d, ClientMessagesTrait->5ac34998), so 5ac34998-d340-4948-9cb3-7d5b2d24221d = ClientMessagesTrait, whose state object FUN_141542760 reads through vtable[+0x30] (fields at +0x10/+0x50/+0x74/+0x98/+0xc0/+0x100). {83482F97} is NOT in typeindex.json and NOT in player.dynamicslice; the getter FUN_1407fbe80 has 539 call sites; direct callers of the sibling getter FUN_1407fb480: 0x1407ce478, 0x1407cef28, 0x1407e1490, 0x1407f8f50, 0x1407f9580, 0x1407f9ba0, 0x14174b470, 0x141750780, 0x141755b30, 0x14645af40 (jump-table FSM dispatcher).",
     "found_by": "fresh decompile of 0x141763b70 + property-name reads + .rdata unwind-region analysis + xrefmap lookup, 2026-10-05"
   },
   "netbinding_component_creators": {
     "va": "0x14628bea0",
-    "what": "Two creator/registration functions reached from the namer's 'NetBinding' seed: FUN_14628bea0 references 'NetBindingComponent' (0x1484ec4a8) and FUN_14628c100 references 'NetBindingSystemComponent' (0x1484ec8f0). Component type GUIDs from the exe name-guid table: NetBindingComponent {E9CA5D63-ED2D-4B59-B3C4-EBCD4A0013E4}, NetBindingSystemComponent {B96548CC-0866-4BB3-A87B-BF0C4F69E8AC}, NetBindingHandlerInterface {9F84E9FE-81A0-4105-9C51-6C42C83FECAF}. NONE of these appears in player.dynamicslice — the local player prefab has no net-binding component; the server must supply the binding (relevant to the movement/reconnect work).",
+    "what": "Two creator/registration functions reached from the namer's 'NetBinding' seed: FUN_14628bea0 references 'NetBindingComponent' (0x1484ec4a8) and FUN_14628c100 references 'NetBindingSystemComponent' (0x1484ec8f0). Component type GUIDs from the exe name-guid table: NetBindingComponent {E9CA5D63-ED2D-4B59-B3C4-EBCD4A0013E4}, NetBindingSystemComponent {B96548CC-0866-4BB3-A87B-BF0C4F69E8AC}, NetBindingHandlerInterface {9F84E9FE-81A0-4105-9C51-6C42C83FECAF}. NONE of these appears in player.dynamicslice \u2014 the local player prefab has no net-binding component; the server must supply the binding (relevant to the movement/reconnect work).",
     "found_by": "namer.py seed 'NetBinding' -> corpus-ref candidates 0x14628bea0/0x14628c100 + decompile reads + exe GUID table, 2026-10-05"
   },
   "activity_stream_1b88_cable_ab_20261004": {
@@ -428,5 +428,161 @@
     "va": "0x14803d8a8",
     "what": "CORRECTION + RE-VERIFICATION 2026-10-05. The physics-component GUIDs recorded in local_player_has_no_physics_20261004 are WRONG. Correct values read from .rdata by pairing each name string with the GUID string immediately after it: GameRigidBodyComponent 5BA2D1FC-DB9D-4B81-88C9-89787D5C19F1, CharacterControllerComponent E9D84B77-422A-4DCB-9EFF-708120B1B1A0, CharacterPhysicsComponent D707D6C5-3EFA-4275-82EB-A954F845D324, CharacterComponentClientFacet 8817475C-56BE-46F3-9597-FF325929461E (the repo's 8DF76B7E-9079-4627-8D83-0A706D792524 is a DIFFERENT type, present in typeindex.json). Re-verified against SharedDataStrm-part8.pak::slices/player.dynamicslice (367528 B, CRC a52d1752): with the CORRECT guids the result still holds -- GameRigidBodyComponent/CharacterControllerComponent/CharacterPhysicsComponent = 0 hits (both byte orders), CharacterComponentClientFacet = 1 hit, Transform 484AE67D-ABD0-4D9C-B2C8-9BB0EEC900E0 = 71 hits. The player prefab genuinely ships NO physics/rigidbody. ADDITIONAL NEGATIVE: none of these physics guids (nor the Transform guid) appears in install typeindex.json, so the wire type registry cannot reference them; and none appears in the replay as a 16-byte value. Note: the older note's 'search the replay for the physics GUIDs as 16-byte values' is uninformative because the state-bundle wire encodes component references as VLQ type indices, not raw GUIDs.",
     "found_by": "name->guid .rdata adjacency read + pakread extract of player.dynamicslice + typeindex/replay GUID scan, 2026-10-05"
+  },
+  "gameconnection_wrapper_update_warnings": {
+    "va": "0x14646d460",
+    "end": "0x14646d5f5",
+    "what": "GameConnectionWrapper::UpdateWarnings. Queues ShowConnectionWarningMessage() until IsLoadingScreenShown() is false, then writes Client.ConnectionWarning 0/1/2 and Client.ConnectionIsBad via the settings store. Confirms the warning escalation order.",
+    "found_by": "self-naming log string 'GameConnectionWrapper::UpdateWarnings' inside the decompiled body + campaign launch phase 2026-10-06 (confirmed)"
+  },
+  "pak_list_startup_mount": {
+    "va": "0x147215b60",
+    "end": "0x1472160ae",
+    "what": "Startup-time PAK mount: reads PaksList.lst line by line, validates each pak ('Pak file validation error'), errors with 'Error opening'. The PAK edit path's first-line priority claim lives here.",
+    "found_by": "campaign launch phase 2026-10-06: PaksList.lst + validation strings referenced from body (candidate, body-checked)"
+  },
+  "gamestartup_interface_factory": {
+    "va": "0x14720a8c0",
+    "end": "0x14720bffc",
+    "what": "Creates the GameStartup interface. Parses cmdline (-noprompt -minimal -norandom -remotesonic -modrestart restart), env (AMAZON_GAMES_GAME_SESSION, PRODUCT_ID, AMAZON_GAMES_SDK_DLL_PATH), installs CryExceptionHandlerTerminateProcess, owns re-exec restart flow.",
+    "found_by": "campaign launch phase 2026-10-06: 'Failed to create the GameStartup Interface!' string in body (candidate, body-checked)"
+  },
+  "engine_sys_cvar_registration": {
+    "va": "0x147124b40",
+    "end": "0x147124b48",
+    "what": "Engine CVar table registration (305 sys_*/r_*/s_*/g_language strings incl. sys_splashscreen family, sys_PakPriority, sys_localization_folder). Start point for any CVar-driven behavior hunt.",
+    "found_by": "campaign launch phase 2026-10-06: string table + registration pattern in body (candidate, body-checked)"
+  },
+  "game_cvar_console_registration": {
+    "va": "0x141031660",
+    "end": "0x141036e7d",
+    "what": "Game CVar + console command registration (760 strings): nw_isInMainMenu/nw_exitToMainMenu/nw_showLoadingScreen commands, g_debug* overlays, g_worldsCMS* keys, g_showHiddenWorlds, g_selectWorldId.",
+    "found_by": "campaign launch phase 2026-10-06: console command names + descriptions referenced from body (candidate, body-checked)"
+  },
+  "connection_loading_cvar_registration": {
+    "va": "0x146441c70",
+    "end": "0x14644244b",
+    "what": "Connection/loading CVar registration: g_minLoadScreenTime, g_maxLoadScreenTime, g_ignoreLoadTimeout, g_loginQueueBypass, g_maintenanceModeBypass, g_createCharacter*Bypass, g_selectWorldId, g_showHiddenWorlds, g_exitOnNetworkFailure.",
+    "found_by": "campaign launch phase 2026-10-06: string table + registration pattern in body (candidate, body-checked)"
+  },
+  "steam_platform_init_hub": {
+    "va": "0x14102ee20",
+    "end": "0x141031659",
+    "what": "Platform init hub: Steam gate (steam_appid.txt trap, 'Steam must be running', 'Steam Initialized!'), input profile defaultProfile.xml, and the local-dev connection switches client-connection.client-gateway.mode / client-connection.authorization.mode with literals stubbed/dummy + client-connection.enable-local-dev.",
+    "found_by": "campaign launch phase 2026-10-06: Steam + client-connection strings referenced from body (candidate, body-checked)"
+  },
+  "load_context_and_level": {
+    "va": "0x146448cd0",
+    "end": "0x1464490e1",
+    "what": "LoadContextAndLevel: reads the virtual predicate [pGame+0x28]->vtable[0x88] and passes its result as the 7th argument to ClientContext::Initialize; a 0 makes Initialize self-clean (the black screen). Also runs the failure branch that sets [ctx+0x1a2]=1. The predicate-flag patch targets its call sites.",
+    "found_by": "campaign world-entry 2026-10-07 (body-checked); patch-predicate-flag.py header"
+  },
+  "login_queue_ticket_parser": {
+    "va": "0x14643d110",
+    "end": "0x14643d3e0",
+    "what": "Parses the LoginQueueResponse envelope into the ticket fields the handoff gate consumes.",
+    "found_by": "campaign login 2026-10-07 (body-checked); referenced by routes/queue.py"
+  },
+  "login_queue_handoff_gate": {
+    "va": "0x14114b200",
+    "end": "0x14114b24c",
+    "what": "Compares two strings (size then memcmp) for the queue handoff. An empty leading field never advances, which is why the ticket Signature must be non-empty.",
+    "found_by": "campaign login 2026-10-07 (body-checked); routes/queue.py comment"
+  },
+  "cdk_typed_stream_reader": {
+    "va": "0x146b6eb70",
+    "what": "The ONE live typed-stream entry: parses every inbound typed message the client consumes (declared size + leading bytes). Used by frida-reader-capture.py.",
+    "found_by": "campaign in-world 2026-10-07; levers.md"
+  },
+  "typed_message_dispatcher": {
+    "va": "0x146b6f190",
+    "what": "Typed-message dispatcher. Refreshes the InGame activity clock (processor+0x608) only on its MISS path, i.e. for a message whose GUID is not one of its known singletons. Explains why the 0x15d ping does not stamp the clock.",
+    "found_by": "campaign in-world 2026-10-07 (body-checked); levers.md activity-stream note"
+  },
+  "statebundle_record_header": {
+    "va": "0x146af20d0",
+    "what": "StateBundle record header parser: body is [record_id VLQ][u8 fragment_count], then [fragment_key VLQ][fragment_type_index VLQ][payload] per fragment. Record id 1 is the local-player slot.",
+    "found_by": "campaign in-world 2026-10-07 (body-checked); levers.md state-bundle note"
+  },
+  "manager_context_setter": {
+    "va": "0x146928d80",
+    "end": "0x146928e2a",
+    "what": "Local-player manager vtable slot +0x10: stores its context argument at [mgr+8] and copies a shared reference from context +0x48/+0x50 into [mgr+0x10/+0x18]. Reached only through the option-gate status==1 path.",
+    "found_by": "campaign in-world 2026-10-07 (body-checked); levers.md local-player manager note"
+  },
+  "cable_warning_callback": {
+    "va": "0x14644db90",
+    "end": "0x14644dd89",
+    "what": "GameConnectionWrapper::OnLocalNetworkConnectionWarning (GameConnection vtable +0x28). Logs the countReceived and stamps times at this+0x38/+0x60/+0x88. This is the red HUD cable. Zero E8 callers: invoked only through the vtable slot.",
+    "found_by": "campaign in-world 2026-10-07 (body-checked); levers.md red-HUD note"
+  },
+  "ingame_state_watchdog": {
+    "va": "0x146445e10",
+    "what": "Per-state watchdog. param_1[6]=currentTimeoutIntervalCount (increments while [descriptor+0x10] budget not reached); param_1[7]=frames, and after 10 frames it logs 'State(...) is timeout : frames 10' and returns 1, which forces the disconnect. patch-timeout-watchdog.py flips the return to 0. Server traffic that resets the counters (e.g. the 0x1096/0x1097 reply) prevents it entirely.",
+    "found_by": "campaign in-world 2026-10-07 (body-checked); levers.md watchdog note"
+  },
+  "component_byname_create_hub": {
+    "va": "0x141416740",
+    "end": "0x1414168ab",
+    "what": "Component create/register hub keyed by the component TYPE NAME. It computes an FNV-style hash of the name string (param_3) and stores the factory/callback (param_5/param_6) in the container at param_1+0x188 / +0xf8 / +0x2b8. REACHED BY the RigidBody path (FUN_14095ec40 -> this). The atlas note 'the client never attempts by-name component creation during world entry' refers to exactly this function: it has 0 calls in the world-entry bursts, which is why player components never come from the by-name path. Confirms the component-byname lead for the movement blocker.",
+    "found_by": "namer seed 'RigidBodyComponent' -> 0x14095ec40 -> body calls this; campaign in-world 2026-10-07 (body-checked: name hash + container stores)"
+  },
+  "rigidbody_component_setup": {
+    "va": "0x14095ec40",
+    "end": "0x14095ee98",
+    "what": "RigidBody-component setup path. Calls the component create hub FUN_141416740 with the descriptor {147f84b10} and the factory FUN_140c557e0. Part of the physics-component registration family.",
+    "found_by": "namer seed 'RigidBodyComponent' (string VA 0x147f84b10); campaign in-world 2026-10-07 (body-checked)"
+  },
+  "player_component_client_facet_factory": {
+    "va": "0x14661dd30",
+    "end": "0x14661df88",
+    "what": "PlayerComponentClientFacet construction/registration site. Sibling site at 0x1467c7140. These are the client facet factories for the local-player component family whose UUID the possession lever rewrites.",
+    "found_by": "namer seed 'PlayerComponentClientFacet'; campaign in-world 2026-10-07 (body-checked)"
+  },
+  "player_component_client_facet_factory_2": {
+    "va": "0x1467c7140",
+    "end": "0x1467c7253",
+    "what": "Second PlayerComponentClientFacet construction site (see player_component_client_facet_factory).",
+    "found_by": "namer seed 'PlayerComponentClientFacet'; campaign in-world 2026-10-07 (body-checked)"
+  },
+  "options_data_bus_component": {
+    "va": "0x1445a7470",
+    "end": "0x1445acd39",
+    "what": "Settings/options component registration: the 'OptionsDataBus' component with its named methods InitializeSerializedOptions, SerializeOptions, SaveJson, LoadJson, OpenLanguageSpecificUrl, OpenTermsInBrowser, OpenPrivacyInBrowser, OpenNoticesInBrowser, OpenCodeOfConductInBrowser, OpenAntiCheatDisclosure, CopyVersionInfoToClipboard, OpenTwitchStreamInBrowser, OpenForumsInBrowser, OpenNewWorldSiteInBrowser, OpenHelpInBrowser. The method table is bound by the named-operation registration helper FUN_144556990 (name -> function pointer). Client options persist as @savedata@/usersettings_<hash>.javsave (see the log lines 'SerializeOptions: Saving to/Moving to'). This is the settings entry point for any option-related hunt.",
+    "found_by": "xref of the 'InitializeSerializedOptions'/'SerializeOptions' strings (0x148356cf0/0x148356d10) -> 0x1445a7588/0x1445a760f -> FUN_1445a7470; campaign launch 2026-10-08 (body-checked: name table + registration helper)"
+  },
+  "typed_dispatcher_type_compare": {
+    "va": "0x146158ba0",
+    "what": "Type-GUID comparison used by the typed dispatcher FUN_146b6f190 to decide whether an inbound message's type is one of its known singletons ('hit' path) or not ('miss' path). On a miss the dispatcher refreshes the InGame activity clock (processor+0x608); on a hit it does not. This is the mechanism behind gate 7: PingMsg is a singleton, so the 0x15d heartbeat never stamped the clock, while the captured 0x1096/0x1097 (not singletons) did.",
+    "found_by": "campaign in-world 2026-10-08 (call sites in the dispatcher body) + accessor descriptor names"
+  },
+  "singleton_type_accessor_ping": {
+    "va": "0x1407f0940",
+    "end": "0x1407f0b58",
+    "what": "Type-descriptor accessor for the singleton message type PingMsg (GUID {85C7E01E-55DE-4A6E-AFC5-80FA9A8AD260}). One of ~11 accessors the typed dispatcher compares against. Its name+GUID sit at the static descriptor VA it builds from.",
+    "found_by": "campaign in-world 2026-10-08 (body reads the descriptor at 0x147f482b8 = 'PingMsg' + GUID)"
+  },
+  "singleton_type_accessor_timesync": {
+    "va": "0x1407f6a30",
+    "end": "0x1407f6c48",
+    "what": "Type-descriptor accessor for the singleton message type TimeSynchMsg (GUID 038cd847-0653-4243-9a26-936e3bd7f312).",
+    "found_by": "campaign in-world 2026-10-08 (descriptor at 0x147f47de8)"
+  },
+  "singleton_type_accessor_registration_response": {
+    "va": "0x1407f2e80",
+    "end": "0x1407f30be",
+    "what": "Type-descriptor accessor for the singleton message type RegistrationResponseMsg (GUID 104145a7-ff95-44f1-9468-21fb41c8ac2b).",
+    "found_by": "campaign in-world 2026-10-08 (descriptor at 0x147f47ea8)"
+  },
+  "singleton_type_accessor_client_add_entry": {
+    "va": "0x1407ebec0",
+    "end": "0x1407ec0ee",
+    "what": "Type-descriptor accessor for the singleton message type ClientAddEntryMsg (GUID e3578b38-69ad-4c13-a7dd-3fff752d98aa).",
+    "found_by": "campaign in-world 2026-10-08 (descriptor at 0x147f442b8)"
+  },
+  "message_type_guid_registry": {
+    "va": "0x147f442b8",
+    "what": "Static PACKED REGION of Javelin message-type descriptors: each 'XxxMsg' name is stored immediately before its AZ type GUID. A scan of the whole image found 156 such name+GUID pairs, including the complete movement family (StartMovementCommunicationMsg, ReceivePlayerPositionClientMsg, AckMovementMsg, CommitMovementMsg, CancelMovementMsg, AbortMovementMsg, MovementTimeoutMsg, ProcessDeferredMovementRequestsMsg, MoveActorMsg...). This is the canonical identifier set for every Javelin message; the on-wire type numbers are per-build indices into the type table. Full registry: research/docs/JAVELIN-MESSAGE-GUIDS.md.",
+    "found_by": "2026-10-08: regex scan of NewWorld.exe for '[A-Za-z0-9]+Msg'+NULs+GUID (156 pairs); confirmed by the dispatcher accessors reading the same region"
   }
 }

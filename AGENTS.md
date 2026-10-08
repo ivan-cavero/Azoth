@@ -24,8 +24,11 @@ Use these rules for code, research, and runtime work in this repository.
   and Python dependencies live under ignored `.azoth/` after `./az.ps1 setup`
   (or `python az.py setup` if Python is already installed).
 - The private runtime and client profile live under ignored
-  `private-client/runtime/` and `private-client/profile/`. Steam is a read-only
-  source; never hardlink the executable or writable configs into the runtime.
+  `private-client/runtime/` and `private-client/profile/`. Steam is a
+  read-only source: never delete, move, modify, or hardlink anything under
+  the Steam install. Losing `assets/*.pak` (~76 GB) on 2026-10-06 cost a
+  full re-download; after anything touches the install, re-verify the
+  executable SHA-256 before reusing build-scoped analysis.
 - `python az.py dev` owns hidden Caddy, gateway, and world processes. Use
   `python az.py dev stop`, `python az.py game restart`, `python az.py status`,
   and `python az.py stop` for lifecycle management. PIDs and logs live under
@@ -53,7 +56,10 @@ Use these rules for code, research, and runtime work in this repository.
   observed, and how it was confirmed. Verify important conclusions against a
   second signal where practical.
 - Never use ReadProcessMemory, Frida, or a debugger while EAC is active or its
-  state is uncertain. Private launch does not by itself prove EAC is inactive.
+  state is uncertain. Project fact: **Azoth never runs EAC** — the private
+  client is launched with EAC disabled and no Azoth workflow ever enables it.
+  The caution exists only because a private launch by itself does not prove
+  the EAC process is absent; verify that before any live-analysis session.
 - Capture traffic only from Azoth's own gateway. Do not attempt MITM against
   Amazon endpoints.
 - Treat `Game.log` as evidence for client state and RMI names. Ingest it with

@@ -129,11 +129,39 @@ user before firing. For UI iteration, restarting the game (`az.py game`)
 is the no-steal alternative. Screenshot channel: `python az.py shot`
 (GDI PrintWindow → `%TEMP%\azoth_shot.png`) + `shrink-image.py`.
 
+## 12. "Services are running" is not "the client can talk" — trust is a layer
+
+**Incident (2026-10-07):** gateway, world, and caddy all reported `running`,
+hosts were `in-sync`, and DNS resolved the redirected hosts to loopback — yet
+the client hung at the title gate with **zero** gateway requests. Caddy had
+regenerated its local CA in a fresh data dir (same subject, new key) while
+Windows still trusted the old root. Nothing logged an error on the client side.
+
+**Rule:** TLS trust is a first-class environment layer. Verify it end-to-end
+with a client that uses the same store as the game (Schannel:
+`Invoke-WebRequest`), not with a tool that carries its own CA bundle (Git Bash
+`curl` gives a false negative). `python scripts/trust-caddy-ca.py --check`
+makes the state verifiable, like `switch-mode.ps1 status` does for hosts.
+
+## 13. Prefer a disk byte-patch over Frida when the address is fixed
+
+**Incident (2026-10-07):** the Frida DTLS trust-patch attached while the client
+was still mapping and crashed it (`c0000005` in ntdll, before `Game.log`). The
+same change applied to the repo-local executable copy on disk started normally
+and carried the client through the whole REP path.
+
+**Rule:** Frida is for dynamic questions (hooks, pointers, tables, calls). For a
+fixed byte at a known VA, use `ReadProcessMemory`/`WriteProcessMemory` from
+stdlib, or a disk patch on the private copy. And apply world-phase memory
+patches only once the client is at character select — applying them during load
+hangs it.
+
 ## Quick pre-flight for any new session
 
 1. `switch-mode.ps1 status` → in-sync?
 2. One gateway, one world, one caddy? (by command line, not memory)
-3. Tests green? (`az.py gateway test`, `az.py world test`)
-4. Is the shape I'm about to guess already decompiled — or decompilable
+3. `python scripts/trust-caddy-ca.py --check` → caddy CA trusted?
+4. Tests green? (`az.py gateway test`, `az.py world test`)
+5. Is the shape I'm about to guess already decompiled — or decompilable
    in one sitting? If yes: decompile, don't guess.
-5. Does the client log what it parsed? If not, hook or raw-log it first.
+6. Does the client log what it parsed? If not, hook or raw-log it first.

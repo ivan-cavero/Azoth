@@ -112,6 +112,12 @@ REPLAY_RESEND_LIMIT = 6      # max resends per reliable datagram (2026-09-20:
 POST_REPLAY_RESEND_MAX = 2
 POST_REPLAY_RESEND_WINDOW_S = 0.2
 POST_REPLAY_STALE_GAP = 512
+# Minimum seconds before the SAME reliable datagram is retransmitted again.
+# 0.3 is the long-standing value. Raising it throttles the in-flight resend
+# storm that peaks while the paced replay drains (measured 650 resends in one
+# second, which lines up with a burst of OnLocalNetworkConnectionWarning).
+# Default unchanged; A/B with AZOTH_RESEND_INTERVAL_S.
+RESEND_INTERVAL_S = float(os.environ.get("AZOTH_RESEND_INTERVAL_S", "0.3"))
 # 2026-09-24: with the limit above, 12 chunked datagrams of the 12.7 KB
 # message (type 0x65c) reach the client but it only reassembles 6370 of
 # 12706 bytes, then the stream turns to garbage (`num_bytes=0`). The client
@@ -238,6 +244,16 @@ INPUT_RESPONSE_PERIOD_S = float(
     os.environ.get("AZOTH_REPLAY_INPUT_RESPONSE_PERIOD_S", "1.0")
 )
 INPUT_RESPONSE_TYPES = (0x1096, 0x1097)
+# EXPERIMENTAL (default off): echo the client's own channel-1 player-state
+# record back on channel 1. The capture has NO server->client channel-1 traffic
+# (see SERVER-CONTRACT.md "The 0x635 stream"), so this is a synthetic probe to
+# test whether the client needs ANY channel-1 inbound record to keep simulating
+# the local player. It reuses the client's own bytes, so the body is not
+# invented; only the direction and the envelope seq are new. Do not treat a
+# negative result as final until the client's channel-1 reader is decompiled.
+CHANNEL1_ECHO_ENABLED = os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO", "0") == "1"
+CHANNEL1_ECHO_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO_PERIOD_S", "0.5"))
+CHANNEL1_ECHO_MAX_BODY = int(os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO_MAX_BODY", "256"))
 # Controlled replay A/B for the six explicitly redacted 36-byte UUID slots.
 # off preserves the capture; character|session fills only the allowlisted
 # offsets in javelin.replay_store. Never inferred from arbitrary body text.
@@ -866,6 +882,10 @@ class PeerSession:
         self.input_response_msgs: list = []
         self.input_response_next_at = 0.0
         self.input_response_sent = 0
+        # Latest channel-1 client body, captured for the experimental echo.
+        self.channel1_last_body: bytes | None = None
+        self.channel1_echo_next_at = 0.0
+        self.channel1_echo_sent = 0
 
     def feed(self, server, data: bytes) -> None:
         """Feed one datagram in; send everything OpenSSL produced."""
@@ -919,6 +939,16 @@ class PeerSession:
         # "Mixed Nuts" finding) instead of using an independent counter.
         inbound_recs = parse_datagram(inbound_body).messages
         self._process_acks(inbound_recs)
+        if CHANNEL1_ECHO_ENABLED:
+            # Keep the most recent client player-state body so the echo sends
+            # real client bytes, not a synthesised one.
+            for rec in inbound_recs:
+                if (
+                    rec.channel == 1
+                    and rec.payload
+                    and 0 < len(rec.payload) <= CHANNEL1_ECHO_MAX_BODY
+                ):
+                    self.channel1_last_body = rec.payload
         # describe_datagram() already transparently decompresses envelope
         # 0x81, which the raw Carrier parse above cannot do. Use its decoded
         # identity so compressed live V3 retries can key replay remapping.
@@ -987,6 +1017,7 @@ class PeerSession:
         self.maybe_activity_stream(server)
         self.maybe_state_stream(server)
         self.maybe_input_response(server)
+        self.maybe_channel1_echo(server)
         self.maybe_resend(server)
 
     def _arm_replay(self) -> None:
@@ -1402,6 +1433,47 @@ class PeerSession:
             }
         )
 
+    def maybe_channel1_echo(self, server) -> None:
+        """EXPERIMENTAL: echo the client's channel-1 player-state record back.
+
+        See CHANNEL1_ECHO_* above. The capture has no server->client channel-1
+        traffic, so this is a synthetic probe with real client bytes. Default
+        off; enable with AZOTH_REPLAY_CHANNEL1_ECHO=1 for one A/B run.
+        """
+        if not CHANNEL1_ECHO_ENABLED or self.gone or not self.v3_responded:
+            return
+        if self.replay_queue or not self.greetings_after_replay:
+            return  # let the replay finish first
+        if self.channel1_last_body is None:
+            return
+        now = time.monotonic()
+        if now < self.channel1_echo_next_at:
+            return
+        self.channel1_echo_next_at = now + CHANNEL1_ECHO_PERIOD_S
+        body = self.channel1_last_body
+        seq = self.out_msg_seq
+        self.out_msg_seq = (seq + 1) & 0xFFFF
+        rel = self.out_rel_seq
+        self.out_rel_seq = (rel + 1) & 0xFFFF
+        rec = MessageRecord(
+            channel=1,
+            payload=body,
+            sequence=seq,
+            reliable_sequence=rel,
+            reliable=False,
+            connecting=False,
+            flags_override=0x20,  # unreliable + DATA_CHANNEL (the client's form)
+        )
+        self._send_datagram(server, [rec])
+        self.channel1_echo_sent += 1
+        log_event(
+            {
+                "event": "channel1-echo",
+                "sent": self.channel1_echo_sent,
+                "size": len(body),
+            }
+        )
+
     def _send_replay_message(self, server, msg) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.
 
@@ -1599,7 +1671,7 @@ class PeerSession:
                 del self.sent_reliable[seq]
                 continue
             t, dgram = self.sent_reliable[seq]
-            if now - t < 0.3:
+            if now - t < RESEND_INTERVAL_S:
                 continue
             if replay_done:
                 # More than 512 below the ack high-water is stale. The
@@ -1788,6 +1860,18 @@ class RepServer:
                 "chunk_gap_ms": REPLAY_CHUNK_GAP_MS,
                 "heartbeat": HEARTBEAT_ENABLED,
                 "heartbeat_period_s": HEARTBEAT_PERIOD_S,
+                # Post-replay continuation levers. These decide whether the
+                # client keeps seeing server traffic after the replay drains,
+                # which is what the HUD cable and the state watchdog react to.
+                # Logging them here is the only way to tell an A/B run's
+                # configuration from the server log alone.
+                "state_stream": STATE_STREAM_ENABLED,
+                "activity_stream": ACTIVITY_STREAM_ENABLED,
+                "input_response": INPUT_RESPONSE_ENABLED,
+                "input_response_period_s": INPUT_RESPONSE_PERIOD_S,
+                "channel1_echo": CHANNEL1_ECHO_ENABLED,
+                "replay_enabled": REPLAY_ENABLED,
+                "replay_max_seq": hex(REPLAY_MAX_SEQ),
             }
         )
         # Windows: a sendto() to a client that already closed is answered

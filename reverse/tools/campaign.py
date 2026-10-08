@@ -220,8 +220,12 @@ def cmd_run(pex: PEx, args: argparse.Namespace) -> int:
             and "NO FUNCTION" not in block
         )
         func_file.write_text(block if block else "(no output)\n", encoding="utf-8")
-        t["status"] = "done" if ok else "failed"
-        t["out"] = str(func_file.relative_to(decomp.WORK))
+        # pending() returns shallow copies; write the outcome into the real
+        # state record or the ledger never advances past "pending".
+        record = state["phases"][name]["targets"][t["key"]]
+        record["status"] = "done" if ok else "failed"
+        record["out"] = str(func_file.relative_to(decomp.WORK))
+        t["status"] = record["status"]
     save_state(state)
     done = sum(1 for _, t in queue if t["status"] == "done")
     print(f"[campaign] batch: {done}/{len(queue)} decompiled -> {OUT_DIR}")

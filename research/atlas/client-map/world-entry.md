@@ -1,17 +1,39 @@
 # World entry — REP connection, V3 registration, spawn ladder
 
-Build analyzed: pending · Status: open (wire layer partially known)
+Build analyzed: `8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e` ·
+Status: **solved and reproducible** as of 2026-10-07 (see
+`../../docs/PRIVATE-CLIENT-RUNBOOK.md`).
 
 ## Overview
 
 1. DTLS handshake to `RepAddress` from the queue ticket.
 2. `RegistrationRequestV3Msg` -> `RegistrationResponseMsg` (`rep.ready` 0->1).
-3. Post-V3 spawn ladder, states 10->14 (SelfIdent, LevelInfoChanged, replica
-   creation).
+3. Post-V3 spawn ladder: SelfIdent, LevelInfoChanged, replica creation, spawn.
 
 Wire detail is maintained in `../../docs/REP-PROTOCOL.md` (Carrier envelope,
 MessageRecord flags, V3 layouts); this file records flow knowledge and the
 spawn ladder as it is confirmed. Do not duplicate byte layouts here.
+
+## Confirmed ladder (measured 2026-10-07, `Game.log`)
+
+```
+StartREPConnection            "start REP connection RepAddress = 127.0.0.1:9000, worldId = …"
+WaitingForREPConnection       "REP socket connection established"
+                              "received registration response from REP"
+WaitingForActorGameConnection "actor game connection succeeds"
+WaitingForSpawnPoint          "spawn point found"
+WaitingForPlayerSpawn         LevelInfoChanged; map load starts
+InGame                        "player spawn succeeds, in game"
+```
+
+Two server settings are required for this ladder to end in a rendered world:
+
+- `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character` — without it the context lives and
+  the map loads but the screen stays black (gate 6).
+- `AZOTH_REPLAY_INPUT_RESPONSE=1` — without it the session shows the red cable
+  and `State(InGame) is timeout` (gate 7).
+
+A client-side disk patch is required for the DTLS pin (gate 4).
 
 ## UI surfaces (exhaustive)
 
@@ -21,12 +43,13 @@ spawn ladder as it is confirmed. Do not duplicate byte layouts here.
 
 ## Client state machine
 
-- Ladder 10->14 from the external 1.365 map is **statically-derived for a
-  different build** — `open:` verify each transition on ours before
-  implementing (see `../../docs/REP-PROTOCOL.md` "Post-V3 state ladder").
-- Known blocker (STATUS.md): local player entity is created but never gets
-  rigid-body/character-physics components; the `GameTransformComponent`
-  creation path was not reached in the last replay.
+- The ladder is now **observed end to end** on this build (see the confirmed
+  ladder above), not imported from the 1.365 map.
+- The black screen was **not** a ladder defect: it was the ClientContext
+  predicate (`Initialize()` -> `Cleanup()`), fixed client-side, plus the
+  possession setting (gate 6). See `../../docs/PRIVATE-CLIENT-RUNBOOK.md`.
+- `open:` movement authority is a separate, in-world problem
+  (`in-world.md`), not a world-entry one.
 
 ## Messages and payloads
 
@@ -41,11 +64,13 @@ spawn ladder as it is confirmed. Do not duplicate byte layouts here.
 
 | Function (name tier) | VA (build) | What it expects | What it triggers | Evidence |
 | --- | --- | --- | --- | --- |
-| game_connection_stream_processor_slot (confirmed) | 0x146425cb0 (8654f01d…) | inbound stream | GameConnection stream handling | client-functions.json |
+| game_connection_stream_processor_slot (confirmed) | 0x146425cb0 | inbound stream | GameConnection stream handling | client-functions.json |
 | javelin_stream_processor (confirmed) | 0x146b69ad0 | datagram stream | record decode | client-functions.json |
 | javelin_inbound_decode_entry (confirmed) | 0x146b6eb70 | decoded record | type dispatch | client-functions.json |
 | javelin_inbound_type_dispatch (confirmed) | 0x146b6f190 | typed payload | handler routing | client-functions.json |
 | state_record_bundle_parser (confirmed) | 0x146af20d0 | state bundle | state apply | client-functions.json |
+| load_context_and_level (candidate) | 0x146448cd0 | predicate flag | `ClientContext::Initialize` | `campaign/world-entry/` |
+| replication_unreliable_gate (candidate) | 0x14643e7b0 | `clientContextInstanceId` | accepts/​rejects unreliable replication | `campaign/world-entry/` |
 
 ## Framework reference (external, different wire generation)
 
@@ -71,6 +96,9 @@ spawn ladder as it is confirmed. Do not duplicate byte layouts here.
 
 ## Negative findings
 
-- Replaying the old 1.365 state bundle does not advance the current ladder
-  (STATUS.md confirmed list).
+- Replaying the old 1.365 state bundle does not advance the current ladder.
 - Input/focus delivery are NOT the movement blocker (verified).
+- The DTLS trust-patch applied with Frida during startup mapping crashes the
+  client; use the disk patch (`PRIVATE-CLIENT-RUNBOOK.md`, gate 4).
+- Applying the world-phase memory patches during load hangs the client; apply
+  them at character select.

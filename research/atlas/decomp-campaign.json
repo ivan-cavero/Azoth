@@ -5,24 +5,82 @@
       "name": "launch",
       "title": "Engine startup, title screen, settings bootstrap",
       "targets": [
-        {"symbol": "javelin_frame_tick_driver", "note": "frame tick driver that drives startup phases"}
+        {
+          "symbol": "javelin_frame_tick_driver",
+          "note": "frame tick driver that drives startup phases"
+        },
+        {
+          "va": "0x14646d493",
+          "note": "caller of frame tick driver"
+        },
+        {
+          "va": "0x14646c720",
+          "note": "second-order caller growth"
+        }
       ]
     },
     {
       "name": "login",
       "title": "Steam auth handoff, gateway queue, login RMI chain",
       "targets": [
-        {"symbol": "getlogininfo_request_builder", "note": "builds the first gateway request"},
-        {"symbol": "login_error_enum", "note": "login error code table"}
+        {
+          "symbol": "getlogininfo_request_builder",
+          "note": "builds the first gateway request"
+        },
+        {
+          "symbol": "login_error_enum",
+          "note": "login error code table"
+        }
       ]
     },
     {
       "name": "server-select",
       "title": "Server list request/response and selection commit",
       "targets": [
-        {"symbol": "worlds_info_accessor", "note": "world list consumer"},
-        {"symbol": "worldtype_mapper", "note": "world type mapping for the list"},
-        {"symbol": "worldmetadata_property_table", "note": "world metadata property range"}
+        {
+          "symbol": "worlds_info_accessor",
+          "note": "world list consumer"
+        },
+        {
+          "symbol": "worldtype_mapper",
+          "note": "world type mapping for the list"
+        },
+        {
+          "symbol": "worldmetadata_property_table",
+          "note": "world metadata property range"
+        },
+        {
+          "va": "0x1464272a4",
+          "note": "caller of worlds info accessor"
+        },
+        {
+          "va": "0x1464584d6",
+          "note": "caller of worlds info accessor"
+        },
+        {
+          "va": "0x146462cdc",
+          "note": "caller of worlds info accessor"
+        },
+        {
+          "va": "0x146474d48",
+          "note": "caller of worlds info accessor"
+        },
+        {
+          "va": "0x146427390",
+          "note": "second-order caller growth"
+        },
+        {
+          "va": "0x146429770",
+          "note": "second-order caller growth"
+        },
+        {
+          "va": "0x146456b60",
+          "note": "second-order caller growth"
+        },
+        {
+          "va": "0x1464585d0",
+          "note": "second-order caller growth"
+        }
       ]
     },
     {
@@ -34,28 +92,128 @@
       "name": "world-entry",
       "title": "REP connection, V3 registration, spawn ladder",
       "targets": [
-        {"symbol": "game_connection_stream_processor_slot", "note": "GameConnection stream slot"},
-        {"symbol": "javelin_stream_processor", "note": "Javelin inbound stream processor"},
-        {"symbol": "javelin_inbound_decode_entry", "note": "inbound decode entry"},
-        {"symbol": "javelin_inbound_type_dispatch", "note": "inbound type dispatch"},
-        {"symbol": "state_record_bundle_parser", "note": "state bundle parser"}
+        {
+          "symbol": "game_connection_stream_processor_slot",
+          "note": "GameConnection stream slot"
+        },
+        {
+          "symbol": "javelin_stream_processor",
+          "note": "Javelin inbound stream processor"
+        },
+        {
+          "symbol": "javelin_inbound_decode_entry",
+          "note": "inbound decode entry"
+        },
+        {
+          "symbol": "javelin_inbound_type_dispatch",
+          "note": "inbound type dispatch"
+        },
+        {
+          "symbol": "state_record_bundle_parser",
+          "note": "state bundle parser"
+        },
+        {
+          "va": "0x1464205eb",
+          "note": "caller of connection slot setup"
+        },
+        {
+          "va": "0x146b6c4c6",
+          "note": "caller of javelin stream processor"
+        },
+        {
+          "va": "0x14175d21b",
+          "note": "caller of state record bundle parser"
+        },
+        {
+          "va": "0x14642ee80",
+          "note": "second-order caller growth"
+        },
+        {
+          "va": "0x146455e90",
+          "note": "second-order caller growth"
+        },
+        {
+          "va": "0x146462df0",
+          "note": "second-order caller growth"
+        },
+        {
+          "va": "0x146474e00",
+          "note": "second-order caller growth"
+        }
       ]
     },
     {
       "name": "in-world",
       "title": "Movement/physics authority, interaction, replication, zoning",
       "targets": [
-        {"symbol": "local_player_actor_prototype_builder", "note": "local player prototype"},
-        {"symbol": "local_player_context_manager_dispatch", "note": "context manager dispatch"},
-        {"symbol": "replica_portrayal_update", "note": "replica portrayal update"},
-        {"symbol": "replica_portrayal_table_insert", "note": "portrayal table insert"},
-        {"symbol": "replica_rmi_target_lookup", "note": "RMI target lookup"},
-        {"symbol": "netbinding_component_creators", "note": "net-bound component creators"},
-        {"symbol": "transform_spawner_chain_confirmed_20261005", "note": "confirmed transform spawner chain"},
-        {"symbol": "gametransform_entity_attach", "note": "GameTransform attach"},
-        {"symbol": "actor_spawner_factory_1", "note": "actor spawner factory"},
-        {"symbol": "component_cluster_table_driven", "note": "table-driven component cluster"},
-        {"symbol": "replication_unreliable_gate_20261003", "note": "unreliable replication gate"}
+        {
+          "symbol": "local_player_actor_prototype_builder",
+          "note": "local player prototype"
+        },
+        {
+          "symbol": "local_player_context_manager_dispatch",
+          "note": "context manager dispatch"
+        },
+        {
+          "symbol": "replica_portrayal_update",
+          "note": "replica portrayal update"
+        },
+        {
+          "symbol": "replica_portrayal_table_insert",
+          "note": "portrayal table insert"
+        },
+        {
+          "symbol": "replica_rmi_target_lookup",
+          "note": "RMI target lookup"
+        },
+        {
+          "symbol": "netbinding_component_creators",
+          "note": "net-bound component creators"
+        },
+        {
+          "symbol": "transform_spawner_chain_confirmed_20261005",
+          "note": "confirmed transform spawner chain"
+        },
+        {
+          "symbol": "gametransform_entity_attach",
+          "note": "GameTransform attach"
+        },
+        {
+          "symbol": "actor_spawner_factory_1",
+          "note": "actor spawner factory"
+        },
+        {
+          "symbol": "component_cluster_table_driven",
+          "note": "table-driven component cluster"
+        },
+        {
+          "symbol": "replication_unreliable_gate_20261003",
+          "note": "unreliable replication gate"
+        },
+        {
+          "va": "0x14689ba22",
+          "note": "caller of gate chain"
+        },
+        {
+          "va": "0x146929fd8",
+          "note": "caller of gate chain"
+        },
+        {
+          "va": "0x14171883d",
+          "note": "caller of context manager dispatch"
+        },
+        {
+          "va": "0x146392e00",
+          "note": "caller of netbinding creator"
+        },
+        {
+          "va": "0x141763bd5",
+          "note": "caller of actor spawner factory"
+        },
+        {
+          "va": "0x14683c8d0",
+          "note": "second-order caller growth"
+        }
       ]
     }
   ]

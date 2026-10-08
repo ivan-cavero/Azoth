@@ -3,169 +3,115 @@
  "note": "CANDIDATES ONLY. Confirm into research/atlas/client-functions.json by hand, one key at a time, with a second agreeing signal.",
  "items": [
   {
-   "seed": "ReplicaChunk",
+   "seed": "CharacterValidator",
+   "status": "string-not-found",
+   "candidates": []
+  },
+  {
+   "seed": "characters/validator",
    "string_vas": [
-    "0x1484ee539",
-    "0x1484f1f7f"
+    "0x148500de8"
    ],
    "status": "no-corpus-refs",
    "candidates": []
   },
   {
-   "seed": "SpawnPoint",
+   "seed": "ValidateCharacterName",
+   "status": "string-not-found",
+   "candidates": []
+  },
+  {
+   "seed": "CharacterCreate",
    "string_vas": [
-    "0x1481fd513",
-    "0x1483b04cd",
-    "0x1483b04e0",
-    "0x1484ff072"
+    "0x1483b7a5a"
    ],
    "status": "no-corpus-refs",
    "candidates": []
   },
   {
-   "seed": "NetBinding",
+   "seed": "PlayerName",
    "string_vas": [
-    "0x1484ec2f8",
-    "0x1484ec4a8",
-    "0x1484ec760",
-    "0x1484ec8f0",
-    "0x1484f1bb0",
-    "0x1484f1bd0",
-    "0x1484f1ce8",
-    "0x1484f1d20"
+    "0x147fcd8f7",
+    "0x147fd7220",
+    "0x1480db8be",
+    "0x1480de5b7",
+    "0x14837e22d",
+    "0x1483a9dc2",
+    "0x1483bed2c",
+    "0x148557f58"
    ],
    "status": "candidates",
    "candidates": [
     {
-     "string_va": "0x1484ec4a8",
-     "function_start": "0x14628bea0",
-     "function_end": "0x14628c0f8",
-     "proposal": "netbinding_user"
+     "string_va": "0x147fd7220",
+     "function_start": "0x14008ee70",
+     "function_end": "0x14008ee92",
+     "proposal": "playername_user"
     },
     {
-     "string_va": "0x1484ec4a8",
-     "function_start": "0x14628bea0",
-     "function_end": "0x14628c0f8",
-     "proposal": "netbinding_user"
+     "string_va": "0x147fd7220",
+     "function_start": "0x14008f6f0",
+     "function_end": "0x14008f712",
+     "proposal": "playername_user"
     },
     {
-     "string_va": "0x1484ec8f0",
-     "function_start": "0x14628c100",
-     "function_end": "0x14628c358",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484ec8f0",
-     "function_start": "0x14628c100",
-     "function_end": "0x14628c358",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1bb0",
-     "function_start": "0x14631ce80",
-     "function_end": "0x14631d332",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1bb0",
-     "function_start": "0x14631ce80",
-     "function_end": "0x14631d332",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1bb0",
-     "function_start": "0x146392da0",
-     "function_end": "0x146393180",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1bb0",
-     "function_start": "0x146392da0",
-     "function_end": "0x146393180",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1bb0",
-     "function_start": "0x146392da0",
-     "function_end": "0x146393180",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1bd0",
-     "function_start": "0x146392da0",
-     "function_end": "0x146393180",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1ce8",
-     "function_start": "0x146349250",
-     "function_end": "0x1463493d8",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1ce8",
-     "function_start": "0x146383000",
-     "function_end": "0x146383006",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1ce8",
-     "function_start": "0x146383000",
-     "function_end": "0x146383006",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1ce8",
-     "function_start": "0x146383000",
-     "function_end": "0x146383006",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1ce8",
-     "function_start": "0x146383006",
-     "function_end": "0x14638303f",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1ce8",
-     "function_start": "0x146383006",
-     "function_end": "0x14638303f",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1ce8",
-     "function_start": "0x146383006",
-     "function_end": "0x14638303f",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1ce8",
-     "function_start": "0x14638303f",
-     "function_end": "0x1463830b4",
-     "proposal": "netbinding_user"
-    },
-    {
-     "string_va": "0x1484f1d20",
-     "function_start": "0x146349250",
-     "function_end": "0x1463493d8",
-     "proposal": "netbinding_user"
+     "string_va": "0x147fd7220",
+     "function_start": "0x14026fd50",
+     "function_end": "0x14026fd72",
+     "proposal": "playername_user"
     }
    ]
   },
   {
-   "seed": "GridMate",
+   "seed": "FirstName",
    "string_vas": [
-    "0x147fbec60"
+    "0x148232bf0"
+   ],
+   "status": "candidates",
+   "candidates": [
+    {
+     "string_va": "0x148232bf0",
+     "function_start": "0x1438b3910",
+     "function_end": "0x1438b45e8",
+     "proposal": "firstname_user"
+    }
+   ]
+  },
+  {
+   "seed": "CharacterSlot",
+   "string_vas": [
+    "0x1485b9f78"
    ],
    "status": "no-corpus-refs",
    "candidates": []
   },
   {
-   "seed": "PlayerInput",
+   "seed": "Entitlements",
    "string_vas": [
-    "0x14815b9af",
-    "0x14815c265",
-    "0x14834066d"
+    "0x147fcef9e",
+    "0x147fceff1",
+    "0x147fcf037",
+    "0x148017866",
+    "0x14801787d",
+    "0x148017898",
+    "0x148032148",
+    "0x148170a58"
+   ],
+   "status": "no-corpus-refs",
+   "candidates": []
+  },
+  {
+   "seed": "getlogininfo",
+   "string_vas": [
+    "0x148500bc6"
+   ],
+   "status": "no-corpus-refs",
+   "candidates": []
+  },
+  {
+   "seed": "LoginQueueResponse",
+   "string_vas": [
+    "0x148703c28"
    ],
    "status": "no-corpus-refs",
    "candidates": []

@@ -23,7 +23,7 @@ Once we have **our** REP and the client no longer talks to Amazon, protocol reve
 | Source | What you get | Does EAC see it? |
 | --- | --- | --- |
 | Official client: `%LOCALAPPDATA%\AGS\New World\Game.log` | The whole state machine, URLs, Omni, REP IP:port, spawn | No. The game itself writes it |
-| Private client: `private-client/profile/Local/AGS/New World/Game.log` | Same client state from the repo-local runtime | No. Pass `-PrivateClient` to the capture script |
+| Private client: `%LOCALAPPDATA%\AGS\New World\Game.log` | Same client state from the repo-local runtime. The client ignores the launcher's `LOCALAPPDATA` override, so the path is the real profile (see [PRIVATE-CLIENT-RUNBOOK.md](PRIVATE-CLIENT-RUNBOOK.md)) | No. Pass `-PrivateClient` to the capture script |
 | `pktmon` at the NIC (`--comp nics`) | Encrypted UDP/DTLS + TCP 443. IPs, ports, sizes, handshake timing | It does not inject into the process. It is Windows' packet monitor |
 | `netstat -ano` filtered by PID | Launcher/client connections | An OS query, does not open the process with `VM_READ` |
 | DNS cache | CloudFront / API Gateway / Vivox resolution | Same |
