@@ -1,0 +1,871 @@
+{
+  "$comment": "Every Javelin message type this client build ships, with its AZ type GUID and the wire type number that actually goes on the wire. Source: a scan of NewWorld.exe for the packed 'XxxMsg' name + dashed-GUID descriptor region, then each GUID resolved to its POSITION in the per-build type table (private-client/runtime/typeindex.json; disk.py copies it from the install). The wire carries the table index, not the GUID, so this table is what turns a message name into bytes. Validated independently: all 12 previously-known movement-family wire types reproduce exactly. A null wire_type means the GUID is registered in the binary but absent from the type table, so it cannot be addressed on the wire. Regenerate on a client update with reverse/tools/scan-message-registry.py.",
+  "build_sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
+  "type_table_entries": 7052,
+  "messages": [
+    {
+      "name": "AbortMovementMsg",
+      "guid": "adaa28e6-b831-4505-8f05-fe32e000bd5d",
+      "wire_type": 745,
+      "family": "movement"
+    },
+    {
+      "name": "AckHubLifecycleStepUpdateMsg",
+      "guid": "cc4399fa-86d8-4e83-8889-79fb720f00fc",
+      "wire_type": 6438,
+      "family": "hub_routing"
+    },
+    {
+      "name": "AckMovementMsg",
+      "guid": "5ad005ae-375c-4f2d-a00e-3ff9f6f01069",
+      "wire_type": 739,
+      "family": "movement"
+    },
+    {
+      "name": "ActorQueryMsg",
+      "guid": "3b75f658-048e-4e13-b96b-47973f4f1ae6",
+      "wire_type": null,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "AddEntryMsg",
+      "guid": "04c84157-b7aa-4912-8d81-fae46f93ec92",
+      "wire_type": 149,
+      "family": "other"
+    },
+    {
+      "name": "AdvanceTestMsg",
+      "guid": "e00f4b58-7475-4beb-921a-f50594717801",
+      "wire_type": 2227,
+      "family": "other"
+    },
+    {
+      "name": "BehaviorTreeComponentClientMessages_ClientTestFunctionMsg",
+      "guid": "ca011ff3-648d-4960-9e77-20f5b924c772",
+      "wire_type": 2311,
+      "family": "other"
+    },
+    {
+      "name": "CancelMovementMsg",
+      "guid": "a9da71b4-4dcf-46e6-afa2-dbbe9e5ced0e",
+      "wire_type": 5342,
+      "family": "movement"
+    },
+    {
+      "name": "CheckMovementStatusMsg",
+      "guid": "44ba8334-c3aa-476e-855c-27364bf8a964",
+      "wire_type": 747,
+      "family": "other"
+    },
+    {
+      "name": "ClearRemoteRegistryMsg",
+      "guid": "63de8b4f-d87d-424b-8a8b-38bd45b7cff5",
+      "wire_type": 526,
+      "family": "other"
+    },
+    {
+      "name": "ClientAddEntryMsg",
+      "guid": "e3578b38-69ad-4c13-a7dd-3fff752d98aa",
+      "wire_type": 164,
+      "family": "other"
+    },
+    {
+      "name": "ClientAliveMsg",
+      "guid": "1df83613-5012-4a79-8c63-e35962b01ee4",
+      "wire_type": 6885,
+      "family": "session"
+    },
+    {
+      "name": "ClientConnectionMsg",
+      "guid": "c4f1e7b5-d502-49f4-ac71-27928c9d25c5",
+      "wire_type": 374,
+      "family": "session"
+    },
+    {
+      "name": "ClientDisconnectionMsg",
+      "guid": "cabd72ff-cca0-4c8a-804e-c585b386dcfe",
+      "wire_type": 376,
+      "family": "session"
+    },
+    {
+      "name": "ClientRemoveEntryMsg",
+      "guid": "3c70b3a4-f1c9-4206-9c3b-2e8d132c95c4",
+      "wire_type": 168,
+      "family": "other"
+    },
+    {
+      "name": "CommitMovementMsg",
+      "guid": "78ec38b5-d408-4f06-8aaf-60e7fda45cee",
+      "wire_type": 740,
+      "family": "movement"
+    },
+    {
+      "name": "CompleteDelayedMigrationsMsg",
+      "guid": "15203a91-c8b6-43ee-bdf6-571a30c8b8b0",
+      "wire_type": 5032,
+      "family": "other"
+    },
+    {
+      "name": "ConfigurablePayloadMsg",
+      "guid": "a0dcfefc-2684-48b6-a7ef-83bedff00e45",
+      "wire_type": 1011,
+      "family": "other"
+    },
+    {
+      "name": "ConfigureTestActorsMsg",
+      "guid": "0bb0c8ef-4a2a-43e1-a202-b1fa65cb0cae",
+      "wire_type": 216,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "ConfirmRecordRequestMsg",
+      "guid": "a0511bd9-3e54-4e1d-a3af-ff80c77e6a5a",
+      "wire_type": 674,
+      "family": "record_fragment"
+    },
+    {
+      "name": "ConfirmRecordResponseMsg",
+      "guid": "d182278b-4909-4763-a56f-ba7319d8521a",
+      "wire_type": 971,
+      "family": "record_fragment"
+    },
+    {
+      "name": "ContinueLifecycleStartupMsg",
+      "guid": "9719faec-9a26-4a60-aef5-6c018a9819ae",
+      "wire_type": 1284,
+      "family": "hub_routing"
+    },
+    {
+      "name": "CrashMoveActorToHubMsg",
+      "guid": "6f298c98-a99e-4210-ad2a-e48d3cd775ee",
+      "wire_type": 5045,
+      "family": "movement"
+    },
+    {
+      "name": "CrashReceiveActorMsg",
+      "guid": "61fdb168-4ac2-4e31-8cd1-c4b9f40f7d16",
+      "wire_type": 5046,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "DebugStartActorQuerySeqMsg",
+      "guid": "180f5983-16c0-4389-bf5d-fe820a15a439",
+      "wire_type": 295,
+      "family": "other"
+    },
+    {
+      "name": "DelayMigrationsMsg",
+      "guid": "890a8aa5-67df-4ed6-a872-589c60a80190",
+      "wire_type": 5033,
+      "family": "other"
+    },
+    {
+      "name": "EndTestMsg",
+      "guid": "4208c33b-6441-4900-9c8d-168ffdcd3986",
+      "wire_type": 857,
+      "family": "other"
+    },
+    {
+      "name": "ExecuteDebugCommandMsg",
+      "guid": "178ad7c6-9818-4edf-9694-87bd5b641d43",
+      "wire_type": 5474,
+      "family": "other"
+    },
+    {
+      "name": "ExitPeeringMsg",
+      "guid": "538cf087-049b-41d1-9df1-a7b23b55e8c6",
+      "wire_type": 591,
+      "family": "hub_routing"
+    },
+    {
+      "name": "FilterChatResponseMsg",
+      "guid": "951d5056-809a-4019-b6d5-30f89d9c96a8",
+      "wire_type": 317,
+      "family": "other"
+    },
+    {
+      "name": "FilterTextResponseMsg",
+      "guid": "e4b8c624-9165-4a9a-9dfd-61b670b32ee3",
+      "wire_type": 313,
+      "family": "other"
+    },
+    {
+      "name": "ForwardedMessageMsg",
+      "guid": "b55c7649-434c-40b1-aa4f-54085f2bd931",
+      "wire_type": 974,
+      "family": "other"
+    },
+    {
+      "name": "FragmentUpdateMsg",
+      "guid": "951ef3ed-c9a0-4e3d-a6fd-7fe0673d28d2",
+      "wire_type": 422,
+      "family": "record_fragment"
+    },
+    {
+      "name": "GameModeParticipantComponentClientFacet_OnMatchmakingForGameModeFailedMsg",
+      "guid": "bdd6d113-f488-48ff-964a-b952b2b48b60",
+      "wire_type": 3311,
+      "family": "other"
+    },
+    {
+      "name": "GameModeParticipantComponentClientFacet_OnQueueForGameModeFailedMsg",
+      "guid": "188644f3-f557-4778-8e1a-f04f4b037c60",
+      "wire_type": 3310,
+      "family": "other"
+    },
+    {
+      "name": "GoodbyeMsg",
+      "guid": "92076eda-c7f2-4cf9-a3cd-10e3002e7109",
+      "wire_type": 668,
+      "family": "session"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnDataRequestFailedMsg",
+      "guid": "ee7774e7-b701-4a57-850b-fc6d5918e429",
+      "wire_type": 3608,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnDepositGuildTreasuryFundsFailedMsg",
+      "guid": "7bed58ca-9e5e-4915-bc95-31615b24dadd",
+      "wire_type": 3605,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnDepositGuildTreasuryFundsMsg",
+      "guid": "caa452ad-8701-40d9-8f00-0795ad0b32a7",
+      "wire_type": 5201,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnEditGuildCrestFailedMsg",
+      "guid": "839314ba-2436-4d3e-b428-4ecccd94a407",
+      "wire_type": 3467,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnEditGuildCrestSucceededMsg",
+      "guid": "1dbcdb71-5db8-4d94-8c33-3484e6872f77",
+      "wire_type": 1598,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnEditGuildMOTDFailedMsg",
+      "guid": "52ca232d-e0cf-4693-93c5-15af6d5faade",
+      "wire_type": 1305,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnGetGuildTreasuryFailedMsg",
+      "guid": "53d04e83-a9f2-4cf2-9dd2-71a9e323aa12",
+      "wire_type": 5492,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnGetGuildTreasuryWithdrawalLimitFailedMsg",
+      "guid": "eeb43ad9-a9cc-44b7-84fb-ae30a66867fc",
+      "wire_type": 3607,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnGetInvitesFailedMsg",
+      "guid": "8da92ca0-b71b-4a12-bd63-b9317de61a22",
+      "wire_type": 195,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnGetUnorderedGuildsMsg",
+      "guid": "5cbfe0ed-30ed-4f43-8c72-8726d54963c1",
+      "wire_type": 3610,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnGuildInviteRespondedMsg",
+      "guid": "879f3db0-fd6c-441c-86c5-21232c2b1bee",
+      "wire_type": 3247,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnGuildNameAvailableMsg",
+      "guid": "818b663b-da66-4d35-84b0-d8fccf92d350",
+      "wire_type": 2386,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnGuildRequestErrorMsg",
+      "guid": "8004f4db-e121-47e2-a711-5d768e629505",
+      "wire_type": 3087,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnInviteCreatedFailedMsg",
+      "guid": "68125d17-75cd-4266-87a0-072865663c26",
+      "wire_type": 3599,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnRemoveAllGuildInvitesFailedMsg",
+      "guid": "71ca9ad3-a4e3-4b0a-a3a0-235634d27076",
+      "wire_type": 308,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnRemoveGuildMemberFailedMsg",
+      "guid": "e8c468a7-be17-4f22-b82b-bb62bcbdecc2",
+      "wire_type": 3100,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnRemovePastGuildMemberFailedMsg",
+      "guid": "0c03515b-4554-40c2-b569-35b75836ffc8",
+      "wire_type": 1832,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnRespondToGuildInviteFailedMsg",
+      "guid": "6ed4d89b-df71-4e0c-b144-681c18dcffd7",
+      "wire_type": 286,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnSentGuildInviteRejectedMsg",
+      "guid": "42d451ff-bb8a-41ae-b986-ad71e1bea427",
+      "wire_type": 183,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnSetGuildMemberRankFailedMsg",
+      "guid": "0d0ce903-50b0-4a54-a09a-c6219f456ad2",
+      "wire_type": 3603,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnSetGuildMemberRankFailedReasonMsg",
+      "guid": "34fbdc96-628c-4068-af51-a495865e17d6",
+      "wire_type": 3604,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnSetGuildTreasuryWithdrawalLimitFailedMsg",
+      "guid": "402eb227-1b30-439f-b136-b37286de6fd3",
+      "wire_type": 1469,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnSetSiegeWindowFailedMsg",
+      "guid": "cff9287b-bc6a-4e4d-95e6-1f2690cae5c2",
+      "wire_type": 326,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnWithdrawGuildTreasuryFundsFailedMsg",
+      "guid": "e3e85ee0-8196-4c02-8cdd-f7ac61b10f31",
+      "wire_type": 3460,
+      "family": "other"
+    },
+    {
+      "name": "InitMsg",
+      "guid": "177e0cff-f70c-4d87-9551-b3010ea29389",
+      "wire_type": 548,
+      "family": "session"
+    },
+    {
+      "name": "IsUsingBadWordsMsg",
+      "guid": "47ebd2d4-4b67-43d9-9535-2ddb7c223501",
+      "wire_type": 220,
+      "family": "other"
+    },
+    {
+      "name": "IsUsingBadWordsResponseMsg",
+      "guid": "0e289a49-92a6-42d9-8d89-093ac00837f7",
+      "wire_type": 230,
+      "family": "other"
+    },
+    {
+      "name": "KickClientFromRepMsg",
+      "guid": "8a5e870c-878b-4190-a41d-9503ebf2276e",
+      "wire_type": 254,
+      "family": "session"
+    },
+    {
+      "name": "KickClientMsg",
+      "guid": "4a0a26f6-f24e-4239-a771-7ba1f135c6fd",
+      "wire_type": 271,
+      "family": "session"
+    },
+    {
+      "name": "LoadConfigurationMsg",
+      "guid": "75538b51-8e0f-432f-8077-61b0a60854ac",
+      "wire_type": 600,
+      "family": "other"
+    },
+    {
+      "name": "MoveActorMsg",
+      "guid": "5570cfb7-0c5c-475e-bb19-d8fbc3fd8d32",
+      "wire_type": 710,
+      "family": "movement"
+    },
+    {
+      "name": "MoveActorToHubMsg",
+      "guid": "0a8f6818-915c-4700-9c33-463862bbe5f0",
+      "wire_type": 718,
+      "family": "movement"
+    },
+    {
+      "name": "MoveAnActorMsg",
+      "guid": "4d1e559d-3e99-4171-9daf-58810e245447",
+      "wire_type": 84,
+      "family": "movement"
+    },
+    {
+      "name": "MovementTimeoutMsg",
+      "guid": "4604a3cc-2cac-4a93-a0e2-d330041777e6",
+      "wire_type": 736,
+      "family": "movement"
+    },
+    {
+      "name": "NoFragmentsPresentMsg",
+      "guid": "9d63d9bd-09da-45c4-b209-4dd5a924a295",
+      "wire_type": 178,
+      "family": "record_fragment"
+    },
+    {
+      "name": "NotifyClientMessageMetadataMsg",
+      "guid": "ec647fbe-e799-4b67-85ec-a35ef4f6438f",
+      "wire_type": 5035,
+      "family": "other"
+    },
+    {
+      "name": "NotifyPersistenceLoadedMsg",
+      "guid": "451436ac-6702-4482-b53b-63274d877bc5",
+      "wire_type": 769,
+      "family": "other"
+    },
+    {
+      "name": "OnActorMigratedMsg",
+      "guid": "df0b0a76-cc04-4b02-9f8c-4b8607df695b",
+      "wire_type": 2228,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "OnHubCrashMsg",
+      "guid": "3647beac-ec75-4301-80df-f7ca34d96bdb",
+      "wire_type": 965,
+      "family": "hub_routing"
+    },
+    {
+      "name": "OnInitCompletedMessageMsg",
+      "guid": "422e5af5-88f4-4fc0-9faf-5f8e29959bff",
+      "wire_type": 475,
+      "family": "session"
+    },
+    {
+      "name": "OnListenerChangedMsg",
+      "guid": "0ee4e646-d75e-4034-b85c-a9897ffc3e19",
+      "wire_type": 237,
+      "family": "other"
+    },
+    {
+      "name": "OnListenerSubscribedMsg",
+      "guid": "0e72c80f-31c3-4e8f-9b20-4762709f3d3e",
+      "wire_type": 2231,
+      "family": "other"
+    },
+    {
+      "name": "OnMoveCoordinatorChangedMsg",
+      "guid": "020037e0-103c-4c2d-ae9a-7c9b31d3ccf2",
+      "wire_type": 351,
+      "family": "movement"
+    },
+    {
+      "name": "OnNewHubInfoMsg",
+      "guid": "fd419a47-69a5-4e74-b542-3c105dbb1fec",
+      "wire_type": 641,
+      "family": "hub_routing"
+    },
+    {
+      "name": "OnPeerChangedMsg",
+      "guid": "e02facec-37be-441d-91d3-4a371147d689",
+      "wire_type": 748,
+      "family": "hub_routing"
+    },
+    {
+      "name": "OnSpatialRestoreFinishedMsg",
+      "guid": "5f36c8af-2dca-4ba5-b6f7-8225f77d2fd2",
+      "wire_type": 939,
+      "family": "other"
+    },
+    {
+      "name": "OnStateChangedMsg",
+      "guid": "678da812-d9d1-45b5-bfb7-07a631f394de",
+      "wire_type": 629,
+      "family": "other"
+    },
+    {
+      "name": "OnSubRoutingChangedMsg",
+      "guid": "54873248-1da2-4a4b-bf99-c6b70774764c",
+      "wire_type": 2216,
+      "family": "other"
+    },
+    {
+      "name": "OnTargetSpawnedMsg",
+      "guid": "558c24ec-6697-420b-83bd-acc4d1a42029",
+      "wire_type": 2237,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "PeerPresenceAckMsg",
+      "guid": "42de4ff0-f4f6-4660-82fa-525cf7795666",
+      "wire_type": 598,
+      "family": "other"
+    },
+    {
+      "name": "PingRequestMsg",
+      "guid": "ad4c28bd-4208-4b47-9679-9a46dd9e5287",
+      "wire_type": 209,
+      "family": "session"
+    },
+    {
+      "name": "PingResponseMsg",
+      "guid": "259734dd-9277-4e08-b11f-1ab9e71de1be",
+      "wire_type": 310,
+      "family": "session"
+    },
+    {
+      "name": "PokeMsg",
+      "guid": "1f141400-3979-4069-acbb-ce11f549dc64",
+      "wire_type": 1009,
+      "family": "other"
+    },
+    {
+      "name": "PrefabSpawnerComponentClientFacet_RequestServerAuthPrefabIdResponseMsg",
+      "guid": "73c38cc7-d360-4b4d-8ba9-63ce3aa39805",
+      "wire_type": 4768,
+      "family": "other"
+    },
+    {
+      "name": "PrefabSpawnerComponentServerFacet_RequestServerAuthPrefabIdMsg",
+      "guid": "f04aa7e8-94e3-41e1-b53a-5824b858b5fa",
+      "wire_type": 4769,
+      "family": "other"
+    },
+    {
+      "name": "PrefabSpawnerComponentServerFacet_RespawnPrefabClientDebugMsg",
+      "guid": "287283b0-b7bd-421a-9e59-ecf82b0e1401",
+      "wire_type": 3697,
+      "family": "other"
+    },
+    {
+      "name": "ProcessDeferredMovementRequestsMsg",
+      "guid": "4c220b64-c728-4d31-9c1e-6244e8089215",
+      "wire_type": 723,
+      "family": "movement"
+    },
+    {
+      "name": "ReceiveActorMsg",
+      "guid": "764599e8-3d44-4eb3-bf44-77097cb414e3",
+      "wire_type": 921,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "ReceiveAllHubNamesMsg",
+      "guid": "4cf9d4ae-3be1-4e9e-a8f1-a313ab114d00",
+      "wire_type": 191,
+      "family": "hub_routing"
+    },
+    {
+      "name": "ReceiveConfigOverridesKeyValuePairsMsg",
+      "guid": "b40ae287-a16f-48c6-b43f-246cd34ce105",
+      "wire_type": 226,
+      "family": "other"
+    },
+    {
+      "name": "ReceiveConfigOverridesMsg",
+      "guid": "b8ce47d4-4ce9-4803-8db4-beadba4629ec",
+      "wire_type": 154,
+      "family": "other"
+    },
+    {
+      "name": "ReceiveHubInfoForActorsMsg",
+      "guid": "64de5c88-0010-4f0b-b554-db02a2a968e8",
+      "wire_type": 187,
+      "family": "hub_routing"
+    },
+    {
+      "name": "ReceiveManagerConfigurationMsg",
+      "guid": "655f8c9d-4ba8-43c9-9ad5-b97f55d26315",
+      "wire_type": 886,
+      "family": "other"
+    },
+    {
+      "name": "ReceivePlayerPositionClientMsg",
+      "guid": "39ca8bca-2ee8-4104-b0e9-7c2a51b52fb4",
+      "wire_type": 4216,
+      "family": "movement"
+    },
+    {
+      "name": "RegisterFragmentAccessMsg",
+      "guid": "96a58e69-7bd5-45c5-86e4-daf9f5eb1e86",
+      "wire_type": 397,
+      "family": "record_fragment"
+    },
+    {
+      "name": "RegistrationRequestMsg",
+      "guid": "8673a3cc-2848-4c87-aa72-cc860589d1b5",
+      "wire_type": 1,
+      "family": "session"
+    },
+    {
+      "name": "RegistrationRequestV2Msg",
+      "guid": "da4e5889-a65c-4480-8642-0278160125a7",
+      "wire_type": 2,
+      "family": "session"
+    },
+    {
+      "name": "RegistrationRequestV3Msg",
+      "guid": "0b826b33-89f5-49e0-b8cb-fe4433427778",
+      "wire_type": 19,
+      "family": "session"
+    },
+    {
+      "name": "RegistrationResponseMsg",
+      "guid": "104145a7-ff95-44f1-9468-21fb41c8ac2b",
+      "wire_type": 3,
+      "family": "session"
+    },
+    {
+      "name": "RemoveEntryMsg",
+      "guid": "3988c9eb-8ba6-4c68-ad63-c75475bde6e2",
+      "wire_type": 159,
+      "family": "other"
+    },
+    {
+      "name": "RequestAllHubNamesMsg",
+      "guid": "877cd24e-3256-4364-8ce4-fad4b9786619",
+      "wire_type": 198,
+      "family": "hub_routing"
+    },
+    {
+      "name": "RequestHubInfoForActorsMsg",
+      "guid": "21be4bfa-5bc7-423f-99dc-960fc0fd95ab",
+      "wire_type": 194,
+      "family": "hub_routing"
+    },
+    {
+      "name": "RequestRecordsMsg",
+      "guid": "87586f4e-7f71-4b87-9498-87471ec495cb",
+      "wire_type": 247,
+      "family": "record_fragment"
+    },
+    {
+      "name": "RequestShutdownTargetMsg",
+      "guid": "977850bd-17ca-4625-a234-76a796d4035a",
+      "wire_type": 2240,
+      "family": "other"
+    },
+    {
+      "name": "RequestSpawnTargetMsg",
+      "guid": "f75c3dcc-bba2-4263-a8f3-80800f1b2efe",
+      "wire_type": 2241,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "RequestStateMsg",
+      "guid": "39465258-419e-4e0d-b549-63549573dec6",
+      "wire_type": 623,
+      "family": "other"
+    },
+    {
+      "name": "ResetRecordMsg",
+      "guid": "eead05bb-5fe1-4c67-b053-93ce4a3b22aa",
+      "wire_type": 6279,
+      "family": "record_fragment"
+    },
+    {
+      "name": "ResponseMsg",
+      "guid": "48d4f289-66fc-4eed-9097-d2d8205dbacd",
+      "wire_type": 583,
+      "family": "other"
+    },
+    {
+      "name": "RoutingUnsubscribeMsg",
+      "guid": "a6d36734-45b4-4d99-94e8-46ff2819f576",
+      "wire_type": null,
+      "family": "other"
+    },
+    {
+      "name": "SendClockSyncMsg",
+      "guid": "efd5616b-2cca-4f25-891c-4d4d0613663c",
+      "wire_type": 563,
+      "family": "session"
+    },
+    {
+      "name": "SendConfigOverridesMsg",
+      "guid": "d677b2ad-832e-4d43-a1cd-37b0f5183ba4",
+      "wire_type": 171,
+      "family": "other"
+    },
+    {
+      "name": "SetTargetsMsg",
+      "guid": "1e93f466-cd84-4502-ba28-4632f80dd0fa",
+      "wire_type": 780,
+      "family": "other"
+    },
+    {
+      "name": "SpawnActorsMsg",
+      "guid": "d1b5b725-b1b5-4a87-9582-ac4509fb9cc4",
+      "wire_type": 574,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "SpawnRestoredMonikerActorMsg",
+      "guid": "5ba02fa9-76cf-49be-9cd0-b0ce9f789c83",
+      "wire_type": 42,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "SpawnRestoredSpatialActorMsg",
+      "guid": "26cf40ac-aabb-4db5-98e9-fa1c47203fbc",
+      "wire_type": 938,
+      "family": "actor_spawn"
+    },
+    {
+      "name": "SpectatorModeComponentServerFacet_RequestChangeSpectatorModeStateMsg",
+      "guid": "49ede1c5-389c-4ccb-8287-af7cc7672298",
+      "wire_type": 1324,
+      "family": "other"
+    },
+    {
+      "name": "SpectatorModeComponentServerFacet_RequestCycleFocusedPlayerMsg",
+      "guid": "b4cca937-3466-48d0-8c8d-677be9afdddb",
+      "wire_type": 91,
+      "family": "other"
+    },
+    {
+      "name": "SpectatorModeComponentServerFacet_RequestEnterSpectatorModeMsg",
+      "guid": "cd45e2bd-0ba9-48e9-b99f-771de6cd1478",
+      "wire_type": 4222,
+      "family": "other"
+    },
+    {
+      "name": "SpectatorModeComponentServerFacet_RequestExitSpectatorModeMsg",
+      "guid": "8ccb5ccd-cf87-4212-8a2c-4dd0e1463afe",
+      "wire_type": 1243,
+      "family": "other"
+    },
+    {
+      "name": "StartMovementCommunicationMsg",
+      "guid": "767fc9bf-1c8d-417f-ad19-c51e363d4df0",
+      "wire_type": 726,
+      "family": "movement"
+    },
+    {
+      "name": "StartObservingFragmentMsg",
+      "guid": "5f4ce846-ecbc-415b-aae0-85f7e83cde2c",
+      "wire_type": 532,
+      "family": "record_fragment"
+    },
+    {
+      "name": "StartUpdatingMsg",
+      "guid": "fee0688d-06c8-4d66-813d-044d0bd1b70d",
+      "wire_type": 822,
+      "family": "other"
+    },
+    {
+      "name": "StopObservingFragmentMsg",
+      "guid": "a9ed156f-21d9-491e-83ea-330586a5095a",
+      "wire_type": 534,
+      "family": "record_fragment"
+    },
+    {
+      "name": "StopUpdatingMsg",
+      "guid": "e31b6912-856d-4052-bedf-c23fdbf71774",
+      "wire_type": 827,
+      "family": "other"
+    },
+    {
+      "name": "TargetInitMsg",
+      "guid": "844b0b91-6f61-4e0a-9b84-b82cd8d35ebe",
+      "wire_type": 947,
+      "family": "session"
+    },
+    {
+      "name": "TestStepTimeoutMsg",
+      "guid": "66958583-bae9-4540-9d4b-be4604bebe22",
+      "wire_type": 2220,
+      "family": "other"
+    },
+    {
+      "name": "TimeSynchMsg",
+      "guid": "038cd847-0653-4243-9a26-936e3bd7f312",
+      "wire_type": 335,
+      "family": "session"
+    },
+    {
+      "name": "TimeoutMigrationsAtCommitMsg",
+      "guid": "66185cbc-da8c-47e3-a6d9-20d627d80c5a",
+      "wire_type": 5343,
+      "family": "other"
+    },
+    {
+      "name": "TimeoutMigrationsMsg",
+      "guid": "97b5cc71-075e-4f76-a30c-fc670edad0ab",
+      "wire_type": 4996,
+      "family": "other"
+    },
+    {
+      "name": "ToHubDebugMsg",
+      "guid": "f60358c7-361a-465f-a2f9-e04e27e1e50a",
+      "wire_type": 5346,
+      "family": "other"
+    },
+    {
+      "name": "UnregisterFragmentAccessMsg",
+      "guid": "2b7640e0-4204-4e52-998a-c2db02e0a480",
+      "wire_type": 399,
+      "family": "record_fragment"
+    },
+    {
+      "name": "UnregisterProxyMsg",
+      "guid": "b5733a42-3cc9-442e-b6c7-d83af26dbbb4",
+      "wire_type": 401,
+      "family": "other"
+    },
+    {
+      "name": "UpdateHubLifecycleStepMsg",
+      "guid": "99e5a445-bbf8-4093-8a8f-cd3577001082",
+      "wire_type": 596,
+      "family": "hub_routing"
+    },
+    {
+      "name": "UpdateMsg",
+      "guid": "1619d3b8-8b45-46aa-b95e-a414dfebc931",
+      "wire_type": 106,
+      "family": "other"
+    },
+    {
+      "name": "UpdateRecordsMsg",
+      "guid": "8f4bb6ba-3f76-48c7-8bd7-d777bdc61e0b",
+      "wire_type": 970,
+      "family": "record_fragment"
+    },
+    {
+      "name": "UpgradeVersionMsg",
+      "guid": "254f3d8e-5899-4206-88c7-fee4a7362192",
+      "wire_type": 371,
+      "family": "other"
+    },
+    {
+      "name": "VerifyPeersAckedStepUpdateMsg",
+      "guid": "0af84261-9199-418b-87a7-fcfa16bd5854",
+      "wire_type": 6437,
+      "family": "hub_routing"
+    },
+    {
+      "name": "WarnClientMsg",
+      "guid": "c5fc310d-26e9-4e9e-a083-3695c0a86b01",
+      "wire_type": 280,
+      "family": "other"
+    }
+  ]
+}
