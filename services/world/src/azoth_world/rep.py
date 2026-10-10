@@ -32,6 +32,7 @@ import json
 import os
 import socket
 import time
+import traceback
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,6 +46,7 @@ from .javelin import (
     parse_envelope,
     parse_v3_request_or_lenient,
 )
+from .javelin import bundle as javelin_bundle
 
 try:
     from OpenSSL import SSL, crypto
@@ -112,6 +114,34 @@ REPLAY_RESEND_LIMIT = 6      # max resends per reliable datagram (2026-09-20:
 POST_REPLAY_RESEND_MAX = 2
 POST_REPLAY_RESEND_WINDOW_S = 0.2
 POST_REPLAY_STALE_GAP = 512
+# maybe_resend is invoked from the per-datagram pump, so its "4 per call" cap
+# really means "4 x client traffic". Measured 2026-10-09 on a possession run:
+# 232 resends in one second, 485 distinct seqs retried, 54 of them exhausting
+# all 6 tries. Throttle the CALL rate here instead of weakening the per-call
+# cap, which the replay burst genuinely needs for lost possession chunks.
+RESEND_PUMP_MIN_INTERVAL_S = float(
+    os.environ.get("AZOTH_RESEND_PUMP_INTERVAL_S", "0.05")
+)
+# Authoritative tick. The server must emit on its OWN clock, not in proportion
+# to what the client sends. Before this, every periodic emitter was called from
+# on_app_data (once per inbound datagram) and a different, smaller subset was
+# called on socket timeout — so with no traffic the replay pump simply stopped,
+# and with heavy traffic the server's emission rate tracked the client's.
+# Measured 2026-10-09: Pearson(inbound datagrams, server replies) = 0.995, up to
+# 286 outbound in one second, and the client stalled under the flood. All
+# emitters already gate themselves on their own `_next_at`, so calling them from
+# a fixed cadence is safe: they fire only when due.
+TICK_HZ = float(os.environ.get("AZOTH_TICK_HZ", "50"))
+TICK_INTERVAL_S = (1.0 / TICK_HZ) if TICK_HZ > 0 else 0.02
+# Coalesce the CT_ACKS replies. The 0x40 continuous form acknowledges a RANGE,
+# so answering once per window carries the same information as answering once
+# per inbound datagram, at a fraction of the outbound rate. Measured
+# 2026-10-09: uncoalesced 1:1 replies made the server emit 286 datagrams in
+# one second for 185 inbound, the client stalled under the flood, stopped
+# sending, and its ClientSDK dropped the transport at 10 s of silence
+# (`transportError 4`, the red cable). The official capture shows the server
+# sending ~3041 ch0 datagrams for 867 inbound ch0 — it does not answer 1:1.
+ACK_COALESCE_S = float(os.environ.get("AZOTH_ACK_COALESCE_S", "0.05"))
 # Minimum seconds before the SAME reliable datagram is retransmitted again.
 # 0.3 is the long-standing value. Raising it throttles the in-flight resend
 # storm that peaks while the paced replay drains (measured 650 resends in one
@@ -159,6 +189,8 @@ HEARTBEAT_ENABLED = os.environ.get("AZOTH_REPLAY_HEARTBEAT", "1") != "0"
 # tell "packets never arrived" from "DTLS rejected them". Off by default.
 RAW_LOG = os.environ.get("AZOTH_LOG_RAW", "0") != "0"
 OUTBOUND_PAYLOAD_LOG = os.environ.get("AZOTH_LOG_OUTBOUND_PAYLOADS", "1") != "0"
+# Persistent append handle for the event log (see log_event).
+_LOG_HANDLE = None
 HEARTBEAT_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_HEARTBEAT_PERIOD_S", "1.0"))
 # Captured tick of the LAST 0x15d the replay streamed (seq 0x8e).
 HEARTBEAT_TICK_START = int(
@@ -225,7 +257,27 @@ STATE_STREAM_MIN_SEQ = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_MIN_SEQ", "
 # continue the counter above the high-water; that is the same thing the real
 # server did, not a synthesised body. STATE_STREAM_SEQ_BASE is one past the
 # highest captured seq.
-STATE_STREAM_REWRITE_SEQ = os.environ.get("AZOTH_REPLAY_STATE_STREAM_SEQ", "1") != "0"
+# The counter is a PREFIX VARINT, not a raw byte. Overwriting one byte with a
+# value that needs two bytes (0x80 and up) turns a one-byte varint into a
+# two-byte one and shifts the whole fragment list, so the client reports
+# `Failed to unmarshal MessageEnvelope::m_message` /
+# `unmarshalError: ValidationError`. That is the real cause of the 2026-10-09
+# A/B below, where the rewrite looked like it corrupted "any write to body[4]":
+#   FLOOR=0x80 (old default) -> 32 `Failed to unmarshal` (0x80 = 2-byte varint)
+#   FLOOR=0x36               -> 32 `Failed to unmarshal` (1 byte, but the
+#                               capture's own re-applied records also fail)
+#   REWRITE=OFF              ->  0 `Failed to unmarshal`, 1 skip, 7.4 min stable
+# With REWRITE=OFF the bundles are not fixed, they are DROPPED: their counter is
+# at or below the client's high-water, so the replication gate discards them
+# before any deserialization is attempted. "0 failures" therefore does not mean
+# they applied. The rewrite now re-encodes the varint through the verified
+# parser (`javelin.bundle.with_replication_seq`), which fixes the width problem;
+# the remaining open question is whether re-applying a captured record is
+# idempotent client-side, which needs a live run to settle.
+STATE_STREAM_REWRITE_SEQ = os.environ.get("AZOTH_REPLAY_STATE_STREAM_SEQ", "0") != "0"
+# Byte offset of the counter in the capture's bundles, where its varint happens
+# to be one byte wide. Kept for the tests and for reading a captured body by
+# eye; the live path decodes the varint instead of indexing this.
 STATE_STREAM_SEQ_OFFSET = 4
 # Measured 2026-10-03: the replay itself pushed the client's high-water to 127,
 # so a stream starting at 54 spent ~70 messages being dropped before it passed
@@ -358,12 +410,44 @@ def _is_client_hello(data: bytes) -> bool:
 
 def log_event(event: dict) -> None:
     event = {"ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), **event}
-    print(f"[rep] {json.dumps(event, ensure_ascii=False)}")
+    line = json.dumps(event, ensure_ascii=False)
+    print(f"[rep] {line}")
+    # Keep the file handle open instead of open/write/close per event. The old
+    # form paid an open+close on a file that reaches ~90 MB, for every single
+    # event, inside the UDP loop. Measured 2026-10-09: under a client burst of
+    # 287 records in one second the server stopped logging entirely for 27 s
+    # (16:57:55 -> 16:58:22), and because the keepalive/heartbeat also run in
+    # that loop it went silent — the client drops the transport after 10 s of
+    # silence, which is the `transportError 4` seen at ~35 s after spawn.
+    _log_write(line)
+
+
+def _log_write(line: str) -> None:
+    global _LOG_HANDLE
     try:
-        with LOG_PATH.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(event, ensure_ascii=False) + "\n")
-    except OSError:
-        pass
+        if _LOG_HANDLE is None:
+            LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            _LOG_HANDLE = LOG_PATH.open("a", encoding="utf-8", buffering=1)
+        _LOG_HANDLE.write(line + "\n")
+    except (OSError, ValueError):
+        # Never let a logging failure kill the UDP loop; reopen next time.
+        _LOG_HANDLE = None
+
+
+def _u16(value: int) -> bytes:
+    """Encode a 16-bit wire field, wrapping like the Carrier writer does.
+
+    The envelope sequence and the ACK range fields are 16-bit on the wire while
+    the server's counters grow without bound, and `int.to_bytes` raises
+    `OverflowError` for anything above 65535. An unmasked counter therefore
+    kills the emitter that uses it permanently: measured 2026-10-10, the last
+    successful `maybe_keepalive` was at 22:10:22Z with seq 65533, and from
+    22:10:23Z every tick raised `OverflowError: int too big to convert` --
+    7395 consecutive tick errors over two hours, with no CLOCK_SYNC sent at all
+    in that window. Wrapping is what the protocol does anyway, so mask here
+    rather than trusting every caller to have masked first.
+    """
+    return (value & 0xFFFF).to_bytes(2, "big")
 
 
 def describe_datagram(data: bytes) -> dict:
@@ -441,7 +525,7 @@ def v3_response_datagram(seq: int, *, session_token: bytes | None = None) -> byt
         connecting=False,
         flags_override=0x21,  # RELIABLE | DATA_CHANNEL
     )
-    return b"\x80\x01" + seq.to_bytes(2, "big") + marshal_datagram([rec])
+    return b"\x80\x01" + _u16(seq) + marshal_datagram([rec])
 
 
 def _az_string(s: str) -> bytes:
@@ -525,7 +609,7 @@ def post_v3_datagram(seq: int) -> bytes:
     self_ident = _typed_record(
         0, bytes((0x00, 0x01, 0x91, 0x17)), self_ident_body(), seq=1, rel=1
     )
-    return b"\x80\x01" + seq.to_bytes(2, "big") + marshal_datagram([self_ident])
+    return b"\x80\x01" + _u16(seq) + marshal_datagram([self_ident])
 
 
 def system_record(msg_id: int, body: bytes, *, connecting: bool = False) -> MessageRecord:
@@ -604,8 +688,8 @@ def carrier_state_datagram(seq: int, *, welcome: bytes, ack_first: int, ack_last
         channel=3,
         payload=(
             bytes([0x40])
-            + ack_last.to_bytes(2, "big")
-            + ack_first.to_bytes(2, "big")
+            + _u16(ack_last)
+            + _u16(ack_first)
             + bytes([SystemMessageId.SM_CT_ACKS])
         ),
         sequence=0,  # inherited (flags 0x18 omits both SEQ fields)
@@ -614,7 +698,7 @@ def carrier_state_datagram(seq: int, *, welcome: bytes, ack_first: int, ack_last
         connecting=False,
         flags_override=0x18,  # SEQUENTIAL_ID | SEQUENTIAL_REL_ID
     )
-    return b"\x80\x01" + seq.to_bytes(2, "big") + marshal_datagram(
+    return b"\x80\x01" + _u16(seq) + marshal_datagram(
         [clock_sync, ack, piggyback]
     )
 
@@ -628,8 +712,8 @@ def ct_acks_datagram(seq: int, *, ack_first: int, ack_last: int) -> bytes:
         channel=3,
         payload=(
             bytes([0x40])
-            + ack_last.to_bytes(2, "big")
-            + ack_first.to_bytes(2, "big")
+            + _u16(ack_last)
+            + _u16(ack_first)
             + bytes([SystemMessageId.SM_CT_ACKS])
         ),
         sequence=0,
@@ -638,7 +722,7 @@ def ct_acks_datagram(seq: int, *, ack_first: int, ack_last: int) -> bytes:
         connecting=False,
         flags_override=0x20,
     )
-    return b"\x80\x01" + seq.to_bytes(2, "big") + marshal_datagram([rec])
+    return b"\x80\x01" + _u16(seq) + marshal_datagram([rec])
 
 
 def clock_sync_datagram(seq: int) -> bytes:
@@ -653,7 +737,7 @@ def clock_sync_datagram(seq: int) -> bytes:
         connecting=False,
         flags_override=0x20,
     )
-    return b"\x80\x01" + seq.to_bytes(2, "big") + marshal_datagram([rec])
+    return b"\x80\x01" + _u16(seq) + marshal_datagram([rec])
 
 
 def greetings_datagram(env_seq: int) -> bytes:
@@ -679,7 +763,7 @@ def greetings_datagram(env_seq: int) -> bytes:
     )
     return (
         b"\x80\x01"
-        + env_seq.to_bytes(2, "big")
+        + _u16(env_seq)
         + marshal_datagram([rec])
     )
 
@@ -692,6 +776,7 @@ def handle_app_data(
     inbound_first: int,
     v3_done: bool = False,
     v3_last_reply: float = 0.0,
+    ack_allowed: bool = True,
 ) -> list[bytes]:
     """Server logic for one decrypted datagram -> 0..n reply datagrams.
 
@@ -758,20 +843,36 @@ def handle_app_data(
     # login cycle — the UI "queue 0<->1" loop. Answer every V3-shaped
     # record, throttled to 1 per 5s: handshake retries (1/s for 15s) get
     # deduplicated, post-InGame re-registrations (90s apart) get answered.
-    v3_records = [rec for rec in result.messages if rec.channel == 0 and rec.size > 64]
+    # A record is a V3 registration only if it PARSES as one. The old test was
+    # `channel == 0 and size > 64`, which also matched the client's ordinary ch0
+    # game messages. Measured 2026-10-09 on a live session: of 17 ch0 records of
+    # size 256, exactly 2 parsed as V3 (one per connection) while 15 were game
+    # data — the same size. The server answered every one of them, so
+    # `v3-registered` fired ~8 times while the client logged "received
+    # registration response from REP" only twice, once per real connection.
+    # Answering a registration the client never sent makes it restart transport
+    # handling it is already past, and the client showed continuous
+    # OnLocalNetworkConnectionWarning until the transport dropped at ~35 s.
+    v3_records = []
+    for rec in result.messages:
+        if rec.channel != 0 or rec.size <= 64:
+            continue
+        try:
+            parse_v3_request_or_lenient(rec.payload)
+        except ValueError:
+            continue
+        v3_records.append(rec)
     if v3_records and (not v3_done or time.monotonic() - v3_last_reply > 5.0):
         # V3 registration: extract session_uuid and echo it as the session
         # token (first-light doc: "the 32-char hex form of the client's
         # session_uuid echoed back" — the client stores it via vtable+0x110).
         session_token = None
-        for rec in v3_records:
-            try:
-                req = parse_v3_request_or_lenient(rec.payload)
-                if req.session_uuid:
-                    session_token = req.session_uuid.replace("-", "").encode("ascii")
-            except ValueError:
-                pass
-            break
+        try:
+            req = parse_v3_request_or_lenient(v3_records[0].payload)
+            if req.session_uuid:
+                session_token = req.session_uuid.replace("-", "").encode("ascii")
+        except ValueError:
+            pass
         replies.append(v3_response_datagram(client_env_seq + 1, session_token=session_token))
         v3_replied = True
         # Post-V3 flight (SelfIdent + LevelInfoChanged) is NOT sent here.
@@ -790,11 +891,19 @@ def handle_app_data(
         not in (SystemMessageId.SM_CT_ACKS, SystemMessageId.SM_CLOCK_SYNC)
         for rec in result.messages
     )
-    if needs_ack:
+    if needs_ack and ack_allowed:
         # ACK data envelopes so reliable V3 retries stop. Do not ACK
         # the client's own CT_ACKS/CLOCK_SYNC or we loop (seq 500 in
         # 40s, live 2026-09-18 20:20). Empty replies after v3_done
         # used to let ClientSDK hit disconnect (4) at 10s.
+        #
+        # ack_allowed coalesces these. The 0x40 form already covers a RANGE
+        # (ack_first..ack_last), so one datagram per window conveys the same
+        # information as one per inbound datagram. Measured 2026-10-09: the
+        # uncoalesced 1:1 reply made the server answer 286 datagrams in one
+        # second for 185 inbound, the client stalled under the flood, stopped
+        # sending, and its ClientSDK dropped the transport at 10 s of silence
+        # (`transportError 4`). See ACK_COALESCE_S.
         replies.append(
             ct_acks_datagram(
                 client_env_seq,
@@ -863,6 +972,8 @@ class PeerSession:
         # rate-limit skip must not feed REPLAY_RESEND_LIMIT.
         self.resend_window_start = 0.0
         self.resend_window_count = 0
+        self.last_resend_pump = 0.0
+        self.last_ack_at = 0.0
         self.acked_seqs: set[int] = set()
         self.greetings_after_replay = False
         # Post-replay 0x15d ping/pong (see HEARTBEAT_* above).
@@ -983,6 +1094,13 @@ class PeerSession:
             for rec in inbound_recs
         )
         self.next_out_seq = max(self.next_out_seq, inbound_env.sequence + 1)
+        # Coalesce ACKs by time (see ACK_COALESCE_S). This pump runs once per
+        # inbound datagram, so an unconditional ACK reply is 1:1 with client
+        # traffic and floods a client that is already busy.
+        ack_now = time.monotonic()
+        ack_allowed = ack_now - self.last_ack_at >= ACK_COALESCE_S
+        if ack_allowed:
+            self.last_ack_at = ack_now
         for reply in handle_app_data(
             app,
             inbound_env.sequence,
@@ -990,6 +1108,7 @@ class PeerSession:
             inbound_first=self.inbound_first,
             v3_done=self.v3_responded,
             v3_last_reply=self.v3_last_time,
+            ack_allowed=ack_allowed,
         ):
             log_event(
                 {
@@ -1009,6 +1128,28 @@ class PeerSession:
             elif had_request and not self.carrier_connected:
                 self.carrier_connected = True  # the acceptance flight went out
             self.send(server, reply)
+        # Everything periodic is emitted by tick(), not here: on_app_data is the
+        # REACTIVE path (handshake replies, ACKs, the V3 answer) and must not
+        # drive the server's output rate. See PeerSession.tick().
+
+    def tick(self, server) -> None:
+        """Emit everything that is due on the server's own clock.
+
+        This is the authoritative tick: it runs from the UDP loop on a fixed
+        cadence (TICK_INTERVAL_S) whether or not a datagram arrived, so
+        emission is decoupled from inbound traffic. Each emitter gates itself
+        on its own `_next_at`, so calling this more often than needed costs a
+        few comparisons and emits nothing extra.
+
+        Before this existed, the periodic emitters were called from
+        on_app_data, which made the server's output rate proportional to the
+        client's input rate (measured Pearson 0.995) and made the replay stop
+        when the client went quiet. Reactive work — handshake replies, ACKs,
+        the V3 answer — stays in on_app_data, because that genuinely is a
+        response to an inbound datagram.
+        """
+        if self.gone:
+            return
         self.maybe_keepalive(server)
         self.maybe_send_post_v3(server)
         self.maybe_inject(server)
@@ -1018,7 +1159,10 @@ class PeerSession:
         self.maybe_state_stream(server)
         self.maybe_input_response(server)
         self.maybe_channel1_echo(server)
-        self.maybe_resend(server)
+        now_mono = time.monotonic()
+        if now_mono - self.last_resend_pump >= RESEND_PUMP_MIN_INTERVAL_S:
+            self.last_resend_pump = now_mono
+            self.maybe_resend(server)
 
     def _arm_replay(self) -> None:
         if not REPLAY_ENABLED:
@@ -1064,8 +1208,16 @@ class PeerSession:
             self.state_stream_queue = list(self.state_stream_all)
             highest = 0
             for msg in self.state_stream_all:
-                if len(msg.body) > STATE_STREAM_SEQ_OFFSET:
-                    highest = max(highest, msg.body[STATE_STREAM_SEQ_OFFSET])
+                # The counter the client's replication gate compares is the
+                # record-id varint, not a raw byte. Read it through the
+                # verified parser so a multi-byte value cannot be misread.
+                try:
+                    highest = max(
+                        highest,
+                        javelin_bundle.decode_bundle(msg.body).replication_seq,
+                    )
+                except javelin_bundle.BundleError:
+                    continue
             self.state_stream_seq = max(highest + 1, STATE_STREAM_SEQ_FLOOR)
             log_event(
                 {
@@ -1268,6 +1420,28 @@ class PeerSession:
             self.heartbeat_next_at = time.monotonic()
         self.replay_next_at = now + REPLAY_INTERVAL_S
 
+    def _post_replay_started(self) -> bool:
+        """True once the post-V3 flight has gone out.
+
+        This deliberately does NOT require the replay queue to be empty. The
+        emitters that keep the client's InGame activity clock alive
+        (heartbeat, input-response, activity stream) used to wait for the
+        replay to drain, and measured 2026-10-10 that is fatal: the replay is
+        ~1090 chunks (24 of the captured bodies are 46 KB), so at the
+        recommended AZOTH_CHUNK_GAP_MS=20 it needs ~22 s, while the client's
+        watchdog tears the connection down at ~27 s of not receiving an
+        expected message. In that run the log contained ZERO `heartbeat` and
+        ZERO `input-response` events for the whole session, the client's
+        OnLocalNetworkConnectionWarning climbed to 22, and the transport
+        dropped with `transportError 4` at 00:30:14Z, 27 s after the spawn at
+        00:29:47Z.
+
+        The real server pings while it streams, so running these concurrently
+        with the replay is what the capture shows. They only need to wait for
+        the post-V3 greetings, which is what `greetings_after_replay` marks.
+        """
+        return self.greetings_after_replay
+
     def maybe_heartbeat(self, server) -> None:
         """Continue the captured 0x15d ping/pong once the replay is drained.
 
@@ -1280,7 +1454,7 @@ class PeerSession:
         """
         if not HEARTBEAT_ENABLED or self.gone or not self.v3_responded:
             return
-        if self.replay_queue or not self.greetings_after_replay:
+        if not self._post_replay_started():
             return  # the replay itself still carries the captured pings
         now = time.monotonic()
         if now < self.heartbeat_next_at:
@@ -1307,7 +1481,8 @@ class PeerSession:
             connecting=False,
             flags_override=0x21,  # RELIABLE | DATA_CHANNEL, like the replay
         )
-        self._send_datagram(server, [rec])
+        # Not tracked for retransmission: see _send_datagram(track_reliable).
+        self._send_datagram(server, [rec], track_reliable=False)
         log_event(
             {
                 "event": "heartbeat",
@@ -1331,7 +1506,7 @@ class PeerSession:
             return
         if self.gone or not self.v3_responded:
             return
-        if self.replay_queue or not self.greetings_after_replay:
+        if not self._post_replay_started():
             return  # the replay itself is still streaming
         now = time.monotonic()
         if now < self.activity_next_at:
@@ -1366,6 +1541,10 @@ class PeerSession:
         """
         if not STATE_STREAM_ENABLED or self.gone or not self.v3_responded:
             return
+        # Unlike the heartbeat and input-response, this one MUST wait for the
+        # replay to drain: it re-applies the same captured bundles the replay
+        # is still delivering, and double-applying state is not idempotent
+        # client-side (see the state-stream notes above).
         if self.replay_queue or not self.greetings_after_replay:
             return  # the replay itself still carries the captured bundles
         if not self.state_stream_queue:
@@ -1381,17 +1560,37 @@ class PeerSession:
         msg = self.state_stream_queue.pop(0)
         self.state_stream_sent += 1
         sent_seq = None
-        if (
-            STATE_STREAM_REWRITE_SEQ
-            and len(msg.body) > STATE_STREAM_SEQ_OFFSET
-        ):
-            # Continue the GridMate message counter above the client's
-            # high-water, or the bundle is dropped as already seen.
-            body = bytearray(msg.body)
-            body[STATE_STREAM_SEQ_OFFSET] = self.state_stream_seq & 0xFF
-            sent_seq = self.state_stream_seq & 0xFF
+        if STATE_STREAM_REWRITE_SEQ:
+            # Continue the counter above the client's high-water, or the bundle
+            # is dropped by the replication gate as already seen.
+            #
+            # This MUST re-encode the field as a varint instead of overwriting
+            # one raw byte. The counter is a prefix varint, so a value that
+            # needs two bytes (0x80 and up) would otherwise shift the whole
+            # fragment list and the client reports
+            # `Failed to unmarshal ... ValidationError`. That is exactly the
+            # failure DECOMP-BACKLOG section 12.3 measured and blamed on "any
+            # write to body[4]": the old code wrote `self.state_stream_seq &
+            # 0xFF`, and STATE_STREAM_SEQ_FLOOR defaulted to 0x80, whose high
+            # bit turns a one-byte varint into a two-byte one.
+            try:
+                msg = replace(
+                    msg,
+                    body=javelin_bundle.with_replication_seq(
+                        msg.body, self.state_stream_seq
+                    ),
+                )
+            except javelin_bundle.BundleError as exc:
+                log_event(
+                    {
+                        "event": "state-stream-seq-rewrite-failed",
+                        "seq": hex(msg.seq),
+                        "error": str(exc)[:160],
+                    }
+                )
+            else:
+                sent_seq = self.state_stream_seq
             self.state_stream_seq += 1
-            msg = replace(msg, body=bytes(body))
         self._send_replay_message(server, msg)
         log_event(
             {
@@ -1414,7 +1613,7 @@ class PeerSession:
         """
         if not INPUT_RESPONSE_ENABLED or self.gone or not self.v3_responded:
             return
-        if self.replay_queue or not self.greetings_after_replay:
+        if not self._post_replay_started():
             return  # let the replay itself deliver the captured copies first
         if not self.input_response_msgs:
             return
@@ -1442,6 +1641,8 @@ class PeerSession:
         """
         if not CHANNEL1_ECHO_ENABLED or self.gone or not self.v3_responded:
             return
+        # Experimental probe; keep it behind the drained replay so an A/B of it
+        # never overlaps the replay's own channel-0 traffic.
         if self.replay_queue or not self.greetings_after_replay:
             return  # let the replay finish first
         if self.channel1_last_body is None:
@@ -1578,6 +1779,7 @@ class PeerSession:
         records: list[MessageRecord],
         *,
         replay_chunk: dict | None = None,
+        track_reliable: bool = True,
     ) -> None:
         carrier_seq = self.next_out_seq & 0xFFFF
         datagram = (
@@ -1595,7 +1797,18 @@ class PeerSession:
             )
         # Reliable records ride this datagram: keep it for retransmission
         # until the client's CT_ACKS bitmap covers it (GridMate WriteAckData).
-        if any(rec.reliable for rec in records):
+        #
+        # track_reliable=False is for records that carry a reliable WIRE flag
+        # but must not be retransmitted: periodic ones that supersede
+        # themselves. The post-replay 0x15d heartbeat is exactly that — it
+        # must stay flags 0x21 (flags 0x20 made the client drop it silently,
+        # 2026-09-30) but the client never ACKs it, so tracking it meant every
+        # heartbeat was retried to the 6-try cap. Measured 2026-10-09 over a
+        # 23-minute session: 1106 heartbeats produced 5437 resends — 46% of
+        # all outbound datagrams — and the resent 13-byte ch0 records were the
+        # single largest traffic class (5435). Losing one heartbeat is
+        # harmless because the next tick replaces it a second later.
+        if track_reliable and any(rec.reliable for rec in records):
             self.sent_reliable[carrier_seq] = (time.monotonic(), datagram)
         self.next_out_seq += 1
         self.send(server, datagram)
@@ -1890,9 +2103,36 @@ class RepServer:
         self.v3_count = 0
 
     def serve_forever(self) -> None:  # type: ignore[override]
-        log_event({"event": "listening-dtls", "addr": f"{self.host}:{self.port}"})
-        self.sock.settimeout(0.2)
+        log_event(
+            {
+                "event": "listening-dtls",
+                "addr": f"{self.host}:{self.port}",
+                "tick_hz": TICK_HZ,
+            }
+        )
+        # The socket timeout IS the tick period: with no traffic the loop still
+        # wakes this often and the tick still runs, so the server keeps emitting
+        # on its own clock instead of only when the client speaks.
+        self.sock.settimeout(TICK_INTERVAL_S)
         while True:
+            # Authoritative tick: every session, every iteration, both on a
+            # datagram and on an idle timeout.
+            for session in list(self.peers.values()):
+                try:
+                    session.tick(self)
+                except Exception as exc:  # noqa: BLE001
+                    # Log the traceback, not just the message. A tick error that
+                    # repeats every second is invisible without it: 7395
+                    # consecutive `OverflowError: int too big to convert` lines
+                    # (2026-10-10) named no function, so the keepalive being dead
+                    # for two hours looked like nothing at all in the log.
+                    log_event(
+                        {
+                            "event": "tick-error",
+                            "error": f"{type(exc).__name__}: {exc}"[:200],
+                            "traceback": traceback.format_exc()[-1200:],
+                        }
+                    )
             try:
                 data, peer = self.sock.recvfrom(65536)
                 if RAW_LOG:
@@ -1910,20 +2150,7 @@ class RepServer:
                         }
                     )
             except TimeoutError:
-                for session in list(self.peers.values()):
-                    try:
-                        session.maybe_keepalive(self)
-                        session.maybe_send_post_v3(self)
-                        session.maybe_heartbeat(self)
-                        session.maybe_state_stream(self)
-                        session.maybe_resend(self)
-                    except Exception as exc:  # noqa: BLE001
-                        log_event(
-                            {
-                                "event": "tick-error",
-                                "error": f"{type(exc).__name__}: {exc}"[:200],
-                            }
-                        )
+                # Nothing to read this tick; the tick itself already ran above.
                 continue
             except OSError as exc:
                 winerr = getattr(exc, "winerror", None) or exc.errno

@@ -25,6 +25,33 @@ from azoth_world.javelin import (
 from azoth_world.rep import v3_response_datagram
 
 HAVE_PYOPENSSL = False
+
+
+def v3_registration_payload() -> bytes:
+    """A V3-shaped ch0 body, i.e. one that `parse_v3_request_or_lenient`
+    accepts.
+
+    Why the fixture is shaped instead of arbitrary bytes: the server now
+    identifies a V3 registration by PARSING it, not by `channel == 0 and
+    size > 64`. Measured 2026-10-09 on a live session, 15 of 17 ch0 records of
+    size 256 were ordinary game data and only 2 (one per connection) were
+    registrations, so the old size test made the server answer registrations
+    the client never sent. Tests that pass opaque bytes to represent a V3
+    request would assert the very behaviour that was the bug.
+    """
+    return (
+        b"\x00\x01\x00\x02"
+        + b"Javelin"
+        + b"\x00" * 4
+        + b"sig:"
+        + b"a" * 16
+        + b"$11111111-2222-4333-8444-555555555555"
+        + b"\x00" * 8
+        + b"naId.0123456789abcdef"
+        + b"\x00" * 180
+    )
+
+
 try:
     from OpenSSL import SSL
 
@@ -337,7 +364,9 @@ class TestSystemHandshake(unittest.TestCase):
     def test_v3_still_answered(self):
         from azoth_world.rep import handle_app_data
 
-        rec = MessageRecord(channel=0, payload=bytes(200), flags_override=0xE0)
+        rec = MessageRecord(
+            channel=0, payload=v3_registration_payload(), flags_override=0xE0
+        )
         wire = b"\x80\x01\x00\x01" + marshal_datagram([rec])
         replies = handle_app_data(wire, 2, handshake_done=False, inbound_first=2)
         self.assertTrue(replies)
@@ -392,7 +421,9 @@ class TestSystemHandshake(unittest.TestCase):
         within the throttle window only get Carrier CT_ACKS."""
         from azoth_world.rep import handle_app_data
 
-        rec = MessageRecord(channel=0, payload=bytes(200), flags_override=0xE0)
+        rec = MessageRecord(
+            channel=0, payload=v3_registration_payload(), flags_override=0xE0
+        )
         wire = b"\x80\x01\x00\x01" + marshal_datagram([rec])
         first = handle_app_data(
             wire, 2, handshake_done=True, inbound_first=2, v3_done=False
@@ -466,6 +497,35 @@ class TestHeartbeat(unittest.TestCase):
         self.assertGreater(int.from_bytes(second[6:], "big"),
                            int.from_bytes(first[6:], "big"))
 
+    def test_keepalive_survives_a_wrapped_envelope_counter(self):
+        """The real failing path: maybe_keepalive with next_out_seq past u16.
+
+        Measured 2026-10-10 on the long-running server: the last successful
+        keepalive was at 22:10:22Z with seq 65533 and from 22:10:23Z every tick
+        raised `OverflowError: int too big to convert`, so CLOCK_SYNC stopped
+        being sent entirely. This drives the emitter itself, not just the
+        datagram builder, so a regression in either one fails here.
+        """
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.replay_queue = []
+        session.greetings_after_replay = True
+        session.last_keepalive = 0.0
+        session.next_out_seq = 0x10001  # 65537, one past the u16 wrap
+        session.heartbeat_tick = 0
+        sent = []
+        session.send = lambda _server, data: sent.append(data)
+
+        PeerSession.maybe_keepalive(session, None)
+
+        self.assertEqual(len(sent), 1)
+        # Envelope header: 0x80 0x01 then the wrapped sequence (0x0001).
+        self.assertEqual(sent[0][:4], bytes.fromhex("80010001"))
+        self.assertEqual(session.next_out_seq, 0x10002)
+
     def test_body_is_twelve_bytes_with_the_typed_preamble(self):
         from azoth_world.rep import heartbeat_body
 
@@ -487,6 +547,249 @@ class TestHeartbeat(unittest.TestCase):
         self.assertIsInstance(HEARTBEAT_ENABLED, bool)
         self.assertGreater(HEARTBEAT_PERIOD_S, 0)
 
+
+class TestAuthoritativeTick(unittest.TestCase):
+    """The server emits on its own clock, not in proportion to inbound traffic.
+
+    Measured 2026-10-09, before this contract existed: all periodic emitters
+    were called from on_app_data (once per inbound datagram), so
+    Pearson(inbound datagrams, server replies) = 0.995 and the server emitted up
+    to 286 datagrams in one second for 185 inbound. The client stalled under the
+    flood and dropped the transport. The replay pump had the mirror problem: it
+    was ONLY called from on_app_data, so it stopped whenever the client went
+    quiet. See TICK_HZ / PeerSession.tick in rep.py.
+    """
+
+    EMITTERS = (
+        "maybe_keepalive",
+        "maybe_send_post_v3",
+        "maybe_inject",
+        "maybe_pump_replay",
+        "maybe_heartbeat",
+        "maybe_activity_stream",
+        "maybe_state_stream",
+        "maybe_input_response",
+        "maybe_channel1_echo",
+    )
+
+    def _session_with_recording_emitters(self):
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.last_resend_pump = 0.0
+        session.calls: list[str] = []
+        for name in (*self.EMITTERS, "maybe_resend"):
+
+            def _record(_server, _name=name, _session=session):
+                _session.calls.append(_name)
+
+            setattr(session, name, _record)
+        return session
+
+    def test_tick_runs_every_periodic_emitter(self):
+        """One tick must offer every periodic emitter its chance to fire.
+
+        The tick itself decides nothing about timing; each emitter self-gates on
+        its own `_next_at`. That is what makes calling it on a fixed cadence
+        safe, and what makes a missing emitter a silent regression.
+        """
+        session = self._session_with_recording_emitters()
+        session.tick(None)
+        self.assertEqual(session.calls, [*self.EMITTERS, "maybe_resend"])
+
+    def test_a_dead_session_is_not_ticked(self):
+        session = self._session_with_recording_emitters()
+        session.gone = True
+        session.tick(None)
+        self.assertEqual(session.calls, [])
+
+    def test_on_app_data_does_not_drive_the_periodic_emitters(self):
+        """on_app_data is the reactive path only.
+
+        If a periodic emitter is called from there, the server's output rate
+        becomes a function of the client's input rate again — the feedback loop
+        that made the client drop the transport.
+        """
+        import inspect
+
+        from azoth_world.rep import PeerSession
+
+        source = inspect.getsource(PeerSession.on_app_data)
+        for name in self.EMITTERS:
+            self.assertNotIn(
+                name,
+                source,
+                f"on_app_data must not call {name}; periodic work belongs in tick()",
+            )
+
+    def test_tick_period_is_positive(self):
+        from azoth_world.rep import TICK_HZ, TICK_INTERVAL_S
+
+        self.assertGreater(TICK_HZ, 0)
+        self.assertGreater(TICK_INTERVAL_S, 0)
+
+
+
+class TestActivityClockSurvivesTheReplay(unittest.TestCase):
+    """The heartbeat and input-response must not wait for the replay to drain.
+
+    Measured 2026-10-10 on a live run: the replay is ~1090 chunks (24 of the
+    captured bodies are 46 KB) and at the recommended `AZOTH_CHUNK_GAP_MS=20`
+    it needs ~22 s, while the client's watchdog tears the connection down at
+    ~27 s of not receiving an expected message. Because both emitters gated on
+    `self.replay_queue` being empty, the whole session logged ZERO `heartbeat`
+    and ZERO `input-response` events, the client's
+    `OnLocalNetworkConnectionWarning` climbed to 22, and the transport dropped
+    with `transportError 4` 27 s after the spawn.
+
+    The state stream is the opposite case and must KEEP waiting: it re-applies
+    the same captured bundles the replay is still delivering.
+    """
+
+    def _session(self):
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.greetings_after_replay = True
+        session.replay_queue = ["still delivering the replay"]
+        session.heartbeat_tick = 0
+        session.heartbeat_next_at = 0.0
+        session.input_response_next_at = 0.0
+        session.input_response_msgs = []
+        session.input_response_sent = 0
+        session.out_msg_seq = 0
+        session.out_rel_seq = 0
+        session.next_out_seq = 1
+        session.sent_reliable = {}
+        session.resend_tries = {}
+        session.acked_seqs = set()
+        session.last_keepalive = 0.0
+        sent = []
+        session.send = lambda _server, data: sent.append(data)
+        session.sent = sent
+        return session
+
+    def test_heartbeat_fires_while_the_replay_is_still_draining(self):
+        from azoth_world.rep import HEARTBEAT_ENABLED, PeerSession
+
+        if not HEARTBEAT_ENABLED:
+            self.skipTest("heartbeat disabled in this environment")
+        session = self._session()
+        PeerSession.maybe_heartbeat(session, None)
+        self.assertEqual(len(session.sent), 1, "the client's activity clock needs this")
+
+    def test_input_response_fires_while_the_replay_is_still_draining(self):
+        from azoth_world.javelin.replay_store import ReplayMessage
+        from azoth_world.rep import INPUT_RESPONSE_ENABLED, PeerSession
+
+        if not INPUT_RESPONSE_ENABLED:
+            self.skipTest("input response disabled in this environment")
+        session = self._session()
+        session.input_response_msgs = [
+            ReplayMessage(
+                seq=0x75,
+                type_id=0x1096,
+                direction="R",
+                body=bytes.fromhex("00019642") + bytes(4),
+                has_redaction=False,
+            )
+        ]
+        PeerSession.maybe_input_response(session, None)
+        self.assertEqual(len(session.sent), 1)
+
+    def test_nothing_is_sent_before_the_post_v3_flight(self):
+        from azoth_world.rep import HEARTBEAT_ENABLED, PeerSession
+
+        if not HEARTBEAT_ENABLED:
+            self.skipTest("heartbeat disabled in this environment")
+        session = self._session()
+        session.greetings_after_replay = False
+        PeerSession.maybe_heartbeat(session, None)
+        self.assertEqual(session.sent, [])
+
+    def test_state_stream_still_waits_for_the_drained_replay(self):
+        from azoth_world.rep import STATE_STREAM_ENABLED, PeerSession
+
+        if not STATE_STREAM_ENABLED:
+            self.skipTest("state stream is off by default")
+        session = self._session()
+        session.state_stream_queue = ["a captured bundle"]
+        PeerSession.maybe_state_stream(session, None)
+        self.assertEqual(
+            session.sent,
+            [],
+            "re-applying a captured bundle during the replay double-applies state",
+        )
+
+
+class TestEnvelopeSeqWrapping(unittest.TestCase):
+    """A 16-bit wire field must wrap, not raise.
+
+    Measured 2026-10-10 on the long-running server: the last successful
+    `maybe_keepalive` was at 22:10:22Z with seq 65533, and from 22:10:23Z every
+    tick raised `OverflowError: int too big to convert` -- 7395 consecutive
+    errors over two hours, with no CLOCK_SYNC sent at all. `next_out_seq` grows
+    without bound and the datagram builders called `seq.to_bytes(2, "big")`
+    directly, so the keepalive died permanently the moment the counter passed
+    65535. The envelope sequence is a u16 on the wire, so wrapping is correct.
+    """
+
+    ABOVE_U16 = 70000
+
+    def test_datagram_builders_survive_a_seq_above_u16(self):
+        from azoth_world import rep
+
+        builders = (
+            ("v3_response_datagram", lambda: rep.v3_response_datagram(self.ABOVE_U16)),
+            ("post_v3_datagram", lambda: rep.post_v3_datagram(self.ABOVE_U16)),
+            ("clock_sync_datagram", lambda: rep.clock_sync_datagram(self.ABOVE_U16)),
+            ("greetings_datagram", lambda: rep.greetings_datagram(self.ABOVE_U16)),
+            (
+                "carrier_state_datagram",
+                lambda: rep.carrier_state_datagram(
+                    self.ABOVE_U16,
+                    welcome=b"w",
+                    ack_first=self.ABOVE_U16,
+                    ack_last=self.ABOVE_U16,
+                ),
+            ),
+            (
+                "ct_acks_datagram",
+                lambda: rep.ct_acks_datagram(
+                    self.ABOVE_U16, ack_first=self.ABOVE_U16, ack_last=self.ABOVE_U16
+                ),
+            ),
+        )
+        for name, build in builders:
+            with self.subTest(builder=name):
+                build()  # must not raise OverflowError
+
+    def test_seq_wraps_to_the_same_bytes_as_its_low_16_bits(self):
+        from azoth_world.rep import clock_sync_datagram
+
+        self.assertEqual(clock_sync_datagram(1)[:4], bytes.fromhex("80010001"))
+        self.assertEqual(clock_sync_datagram(65536)[:4], bytes.fromhex("80010000"))
+        self.assertEqual(
+            clock_sync_datagram(65537)[:4], clock_sync_datagram(1)[:4]
+        )
+        # The payload byte after the header is the wall-clock tick, so only the
+        # envelope header is compared.
+        self.assertEqual(
+            clock_sync_datagram(self.ABOVE_U16)[:4],
+            clock_sync_datagram(self.ABOVE_U16 & 0xFFFF)[:4],
+        )
+
+    def test_u16_helper(self):
+        from azoth_world.rep import _u16
+
+        self.assertEqual(_u16(0), bytes.fromhex("0000"))
+        self.assertEqual(_u16(0xFFFF), bytes.fromhex("ffff"))
+        self.assertEqual(_u16(0x10000), bytes.fromhex("0000"))
+        self.assertEqual(_u16(0x10001), bytes.fromhex("0001"))
+        self.assertEqual(_u16(-1), bytes.fromhex("ffff"))
 
 
 class TestClientHelloDetection(unittest.TestCase):
@@ -622,7 +925,7 @@ class TestDtlsHandshake(unittest.TestCase):
         # VLQ32(88)+88B RegistrationResponseMsg back.
         rec = MessageRecord(
             channel=0,
-            payload=bytes(200),  # opaque 200B body (identity not decoded here)
+            payload=v3_registration_payload(),
             flags_override=0xE0,
         )
         client.send(b"\x80\x01\x00\x01" + marshal_datagram([rec]))
@@ -677,14 +980,26 @@ class TestStateStream(unittest.TestCase):
 
     @staticmethod
     def _bundle(seq: int):
-        """Real ReplayMessage so dataclasses.replace works on it."""
+        """Real ReplayMessage whose body is a well-formed type-0x08 bundle.
+
+        The body has to be a REAL bundle, not an opaque byte string: the state
+        stream re-encodes the replication counter through the verified parser
+        (`azoth_world.javelin.bundle`), which refuses to rewrite a body it
+        cannot parse. A synthetic 5-byte body would assert a layout the
+        protocol does not have.
+        """
+        from azoth_world.javelin import bundle as javelin_bundle
         from azoth_world.javelin.replay_store import ReplayMessage
 
+        body = javelin_bundle.encode_type_marker(0x08) + javelin_bundle.BundleBody(
+            replication_seq=0x25,
+            payload=b"\x01\x01" + bytes(16),
+        ).encode_body()
         return ReplayMessage(
             seq=seq,
             type_id=0x08,
             direction="R",
-            body=bytes((0x00, 0x01, 0x08, 0x01, 0x25)),
+            body=body,
             has_redaction=False,
         )
 
@@ -783,11 +1098,34 @@ class TestStateStream(unittest.TestCase):
         self.assertEqual([m.seq for m in session.sent], [first.seq, first.seq])
         self.assertEqual(session.state_stream_sent, 2)
 
-    def test_wire_seq_is_rewritten_above_the_capture(self):
-        """The client drops a replication message whose seq is not strictly
+    def test_wire_seq_rewrite_is_off_by_default(self):
+        """Rewriting body[4] corrupts the bundle; the default must be OFF.
+
+        Measured 2026-10-09, three live A/B runs, same build and config:
+          FLOOR=0x80 (old default) -> 32 `Failed to unmarshal` (ValidationError)
+          FLOOR=0x36               -> 32 `Failed to unmarshal`
+          REWRITE=OFF              ->  0 `Failed to unmarshal`, 7.4 min stable
+        The value written does not matter, so any write to that byte breaks the
+        AZ deserializer. The error is a deserialization failure, not the dedup
+        rejection the rewrite was meant to fix.
+        """
+        from azoth_world.rep import STATE_STREAM_REWRITE_SEQ
+
+        self.assertFalse(
+            STATE_STREAM_REWRITE_SEQ,
+            "rewriting body[4] corrupts the bundle; see DECOMP-BACKLOG 12.2",
+        )
+
+    def test_wire_seq_is_rewritten_when_explicitly_enabled(self):
+        """With the rewrite explicitly ON the counter continues above the
+        capture. Kept as a lever: re-enable only with new evidence that the
+        client drops the unrewritten bundles as already-seen.
+
+        The client drops a replication message whose seq is not strictly
         greater than m_lastUnreliableReplicationSeq, so a re-sent captured
-        bundle must carry a continued counter (measured: high-water 53 while
-        the bundles carried their original 37..53)."""
+        bundle would need a continued counter (measured: high-water 53 while
+        the bundles carried their original 37..53).
+        """
         from unittest import mock
 
         from azoth_world.rep import (
@@ -796,7 +1134,9 @@ class TestStateStream(unittest.TestCase):
             STATE_STREAM_SEQ_OFFSET,
         )
 
-        with mock.patch("azoth_world.rep.STATE_STREAM_ENABLED", True):
+        with mock.patch("azoth_world.rep.STATE_STREAM_ENABLED", True), mock.patch(
+            "azoth_world.rep.STATE_STREAM_REWRITE_SEQ", True
+        ):
             self._rewrites(PeerSession, STATE_STREAM_PERIOD_S, STATE_STREAM_SEQ_OFFSET)
 
     def _rewrites(self, PeerSession, STATE_STREAM_PERIOD_S, STATE_STREAM_SEQ_OFFSET):
