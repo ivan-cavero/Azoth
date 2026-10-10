@@ -47,6 +47,64 @@ old per-user state, then rebuild the corpus with
 `python az.py re corpus` if you need decompilation. Everything committed is
 self-contained: code, docs, and the atlas registries.
 
+## What travels with git, and what does not
+
+Working on two machines is fine, but only if you know which side of this line
+each thing is on. `git ls-files` is 333 files: all code, docs, tests, the atlas
+registries, the probes and the scanners. Everything else is ignored,
+deliberately, and falls into three groups.
+
+**Regenerable from the committed lock plus the Steam install.**
+
+| what | how to regenerate | cost |
+| --- | --- | --- |
+| `.azoth/` toolchain (~3.9 GB) | `.\az.ps1 setup`, pinned by the committed `toolchain.lock.json` | a large download, but deterministic |
+| `private-client/runtime/` (269 MB) | the launcher rebuilds it from the Steam install; `assets` is a junction, not a copy. **This is where `typeindex.json` comes from**, which `reverse/tools/scan-*.py` need | launch the client once (`python az.py game`) |
+| `private-client/profile/` (43 MB) | game local settings | automatic |
+| `services/world/certs/` | regenerated on demand if absent | free |
+| `.codegraph/` (7 MB) | rebuild the index | minutes |
+
+**Expensive to regenerate, so decide deliberately.**
+
+`reverse/builds/<sha256>/` is 1.6 GB and it is the one that actually hurts:
+
+| part | size | notes |
+| --- | --- | --- |
+| `corpus/` | 1.2 GB | decompiled pseudocode for all 423,579 `.pdata` functions. Rebuild with `python az.py re corpus`; **it is resumable**, so an interrupted run is not lost |
+| `ghproj/` | 459 MB | the analyzed Ghidra project; re-importing the exe and re-analyzing is the slowest step |
+| `xrefmap.json` | 12 MB | rebuilt in minutes |
+| `campaign/` | 2.2 MB | this project's own campaign output |
+| `functions/` | **106 KB** | the specific decompiles done for this project |
+
+If you want to move work between machines, the cheap high-value subset is
+`functions/` plus `campaign/` plus `campaign-state.json` plus `xrefmap.json` —
+about **14 MB**, and it carries every specific decompile the project has done.
+The 1.2 GB corpus is bulk pseudocode that only a full-text search needs; rebuild
+it on demand rather than copying it.
+
+**Not regenerable, and not recoverable either.** Session evidence under
+`research/sessions/` (427 MB) records observations of specific runs: `Game.log`,
+screenshots, ACK dumps, raw gateway payloads. Repo rules say raw captures stay
+out of git, so a measurement made on one machine is not visible from the other.
+If a conclusion matters it has to be written into the atlas with its `found_by`
+— which is what the atlas entries do — rather than left implicit in a capture
+file.
+
+**Nothing else needs committing.** Every derived artifact from this session is
+tracked: `javelin/varint.py`, `javelin/bundle.py` and their tests, the three
+scanners, the three generated registries, the six probes, and the docs. The only
+ignored artifact that is small and load-bearing is `typeindex.json`, and that one
+is better rebuilt from the install than committed, because it is a game file.
+
+### Two traps this audit found
+
+- `services/world/rep_traffic.jsonl` is **2.4 GB** of append-only traffic log. It
+  is a debugging log, not state; delete it rather than carrying it, and remember
+  it accumulates across sessions.
+- `scan-az-types.py` used to degrade **silently** when `typeindex.json` was
+  missing, writing a registry with every `in_type_table: false`. It now refuses
+  to write. Both scanners previously told you to run `python az.py disk`, which is
+  not a command that exists; they now name the launcher instead.
 ## What is SOLVED (do not re-investigate)
 
 1. **World entry, possession, rendered world.** Gates 1-8b in

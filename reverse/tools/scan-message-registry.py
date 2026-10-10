@@ -163,8 +163,17 @@ def scan_names(exe: Path) -> dict[str, str]:
 def type_table() -> list[str]:
     path = ROOT / "private-client" / "runtime" / "typeindex.json"
     if not path.is_file():
+        # This file is not in git (private-client/ is ignored) and there is no
+        # `az.py disk` command. The LAUNCHER places it, copying it from the
+        # Steam install together with bootstrap.cfg / engine.json / PaksList.lst
+        # / system_windows_pc.cfg (see Start-NwPrivate.ps1). So the fix is to
+        # build the private runtime once.
         raise SystemExit(
-            f"missing {path}; run `python az.py disk` to copy it from the install"
+            "missing "
+            + str(path)
+            + ": the launcher copies it from the Steam install. Build the private "
+            "runtime once with `python az.py game` (or the launcher), then "
+            "re-run this tool."
         )
     return [
         guid.lower().replace("-", "")
