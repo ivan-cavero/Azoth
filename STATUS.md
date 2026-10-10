@@ -108,6 +108,24 @@ reproducible.** Movement is the only open failure, and its cause is now known
   Frida hook or an observable state change instead.
 - Tests: **109 world**, **24 gateway**.
 
+### The objective is the protocol, not "movement"
+
+Movement is not a feature to implement; it is what falls out once record/fragment
+replication is complete, and the same mechanism serves NPCs, world state and other
+players. Moving the player needs five things true at once: the entity exists
+(spawn), its component state flows (replication), it has a body (physics), the
+client produces movement intent (input), and the server asserts position (the
+movement family). Four of those five are the same work the rest of the world needs.
+
+So the plan is to complete replication for the component types that matter, in
+priority order, rather than to chase movement directly. The ranked experiments and
+the route into each are in [HANDOFF.md](HANDOFF.md).
+
+**One correction to make first, and it is cheap:** the claim that the player has no
+physics component was measured against a GUID list that is shifted by one entry, so
+it is **unproven**. Re-measure the live component list with the corrected GUIDs from
+`research/atlas/az-type-registry.json` before building any physics work on top of it.
+
 ### Movement: the client never emits anything (measured 2026-10-10)
 
 Holding W for 2 s in a stable in-world session produces **no movement message in

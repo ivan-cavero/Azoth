@@ -123,53 +123,96 @@ is better rebuilt from the install than committed, because it is a game file.
    4814 AZ types, 82 AOI traits with 2276 pairs. Three self-verifying scanners
    under `reverse/tools/`.
 
-## What is OPEN — the next objectives, in priority order
+## What is OPEN — and the reframe that matters
 
-### Objective 1: the per-type payload codec (the long tail, and the unlock)
+**Movement is not a feature to implement. It is the last thing that falls out**
+once the replication protocol is complete, and every piece of that protocol is
+shared with NPCs, other players and every world object. Do not plan around
+"doing movement": plan around completing one mechanism.
 
-The container is understood down to the fragment; what is missing is the
-**payload encoding for each component type**. A fragment is
-`[varint KEY][varint TYPE_INDEX][payload]` with NO length field — the length is
-implied by the type, because the reader consumes the payload through the type
-object's vtable `+0x90`. So for a given `record_id`, `key` and `type`, the
-question is: what bytes does that component's state serialize to?
+Moving the player requires five things to be true at once, and four of them are
+the same work the rest of the world needs:
 
-**The route in is the technique that just worked**, and it is already written:
-hook the type's reader and log what it consumes. `reverse/probes/client/frida-read-sequence.py`
-and `frida-fragment-grammar.py` are the templates. Suggested first target:
-record_id 1 (the local-player metadata slot, `FUN_141717fc0`), whose fragments
-are the ones that matter for possession.
+| # | layer | state |
+| --- | --- | --- |
+| 1 | **spawn** — the entity exists client-side | works for the player; NPCs use the same path |
+| 2 | **replication** — entity and component STATE flows as records and fragments | container decoded, payload codecs not written |
+| 3 | **physics** — the entity has a body | nothing started |
+| 4 | **input** — the client produces movement intent | the client produces nothing at all today |
+| 5 | **movement family** — the server asserts and confirms position | wire types known, bodies not |
 
-### Objective 2: give the local player a body (movement)
+So the real objective is: **implement record/fragment replication for the
+component types that matter, in priority order.** Movement, NPCs, world state and
+other players are all the same mechanism applied to different types. That is why
+this is one body of work and not five.
 
-**Measured 2026-10-10, and it reframes the problem:** holding W produces **no
-movement message in either direction**. The channel-1 local-player stream is
-byte-identical across 3038 records (masking the rolling counter at offset 0,
-only two bytes ever differ), and the client's own `teleport_player` command does
-not move the player either. **Nothing moves in the client at all.** So the
-server cannot unblock movement by replying to a client message — the client
-never sends one. The server must CAUSE the body to exist.
+### Step 0 — re-verify the diagnosis first (cheap, one session)
 
-The spawn path is **four steps plus a separate physics registration**, and the
-capture contains only the first:
+The claim "the local player has no physics component" (`local_player_has_no_physics_20261004`)
+was measured by searching for a list of component GUIDs that is **shifted by one
+entry**, and `physics_component_guids_corrected_20261005` fixed only four of them.
+`CharacterPhysicsComponent` was recorded as `{B1237004-14E1-4327-8774-D2C5796230E7}`,
+which **does not exist in this build at all**. So the conclusion is **UNPROVEN**:
+we do not actually know that physics is missing. Use
+`research/atlas/az-type-registry.json`.
 
-1. client asks: `PlayerSpawnPointRequestTrait::RequestPlayerSpawnPointMsg`
-2. server answers: `PlayerSpawnPointResponseTrait::ReceivePlayerSpawnPointSuccessMsg`
-3. manager runs: `PlayerManagerTrait::ProcessSpawnQueueMsg`
-4. body created: `PrefabSpawnRequestTrait::RequestSpawnPrefabMsg`
-5. physics registered separately: `PhysicsTrait::RegisterCharacterMsg` /
-   `RegisterCharacterWithRepulsorsMsg`
+Re-dump the live player entity component list with the corrected GUIDs. Both
+outcomes are useful: if physics really is missing, we now know exactly which GUID
+to hunt for; if it is present, the blocker is the body gate and input filtering,
+and the physics payload work may not be needed at all. An existing probe can do
+this, so it costs one session.
 
-The function that would build the movable body, `FUN_141763b70`, runs **once at
-process startup and never again** — it is not failing, it is not reached.
+### The ranked experiments, cheapest first
 
-### Objective 3 (small, do it while you are there)
+| # | experiment | what it settles | new tooling? |
+| --- | --- | --- | --- |
+| 0 | Re-dump the live player component list with the corrected GUIDs | whether physics is actually missing | no, probe exists |
+| 1 | Hook the vtable slot that would call the body gate; log what has to be present | what triggers `FUN_141763b70` — the hard unknown | small probe |
+| 2 | Perturb each of the 48 fragments in the spawn record, one at a time, and observe the client | which fragment is position, which is physics | no, container now buildable |
+| 3 | Hook the type reader (vtable `+0x90`) per type | the payload format, type by type | template exists |
 
-- Serve a real character UUID; the client sends and logs
-  `11111111-1111-1111-1111-111111111111`.
-- Stop sending RMIs for facets the client lacks (the 23 x
-  `RMIDispatch: facet target ID couldn't be found` warnings).
-- The two unresolved wire types: `ActorQueryMsg`, `RoutingUnsubscribeMsg`.
+Experiment 2 is only possible **because** the container is now understood: we can
+rebuild a bundle with one changed payload and the client will still parse it. That
+turns "which of 47 types is position" from a guess into a search.
+
+### What the codec work actually looks like
+
+The spawn record carries 48 fragments: 48 distinct keys, 47 distinct types. By
+measured size, 13 are 16 bytes or less, 15 are 17-64 bytes, 5 are 65-512 bytes,
+10 are 513 bytes to 4 KB, and 4 exceed 4 KB (17176, 5913, 4843, 4754 bytes).
+**28 of 48 are 64 bytes or smaller** — likely plain scalars and vectors, the
+tractable end. The four large ones will be the expensive ones.
+
+All 47 types **do exist in the executable** (verified: 47 of 47 are present), so
+they are real client types. What is missing is their **names**: these descriptors
+use a different layout from the component and message regions, so the name is not
+recoverable by adjacency, and only 1 of the 47 currently has a name. Without names
+we cannot tell which type carries position and which carries physics — which is
+what makes experiment 2, an empirical search, more valuable than more scanning.
+
+### One shortcut that is closed
+
+The capture is a short login session: 24 of its 79 bundles are the **same 46 KB
+spawn record re-sent**, and the other 54 are one-off records (sizes 78-7167 bytes,
+none sharing a payload). There is **no ongoing per-entity state stream** in it,
+which matches the live measurements — the channel-1 player stream never changes and
+the client emits no movement message in either direction.
+
+Careful with the conclusion: this does **not** prove that no captured record carries
+position, because the 47 spawn types are still unidentified and we cannot rule any of
+them out. What it does mean is that there is no authoritative updating position to
+mine from the capture, so a physics or position fragment must be **constructed**
+rather than replayed. That is exactly why the payload codecs are the crux.
+
+### Where the difficulty actually is
+
+- The container was the part blocked on **unknowns**, and it is done. Bundles can
+  now be built, so every further experiment is a measurement rather than a guess.
+- The remaining work is a **semantics layer**: what the 47 types mean and how each
+  serializes. A long tail, but a searchable one.
+- The **body gate** is the one piece with no visible path yet: `FUN_141763b70` is
+  reached by a dispatch nothing points at, and an unreached gate means no body
+  regardless of how correct the payloads are. Experiment 1 targets exactly this.
 
 ## The three message systems (conflating them is what made this look opaque)
 
@@ -252,39 +295,53 @@ is a motion ratio of ~0.12x.
 
 ## Suggested order for the next session
 
-1. `git log --oneline -8` and read the commits; then `STATUS.md`.
+Work the protocol, not "movement". They are the same task, and the protocol one
+is the one that also gives you NPCs, world state and other players.
+
+1. `git log --oneline -10` and read the commits; then `STATUS.md` and this file.
 2. Read `research/docs/JAVELIN-PROTOCOL.md` sections 2d-2g and
-   `services/world/src/azoth_world/javelin/bundle.py`.
-3. Start Objective 1 (the per-type payload codec) for record_id 1. That is the
-   prerequisite for Objective 2 and the only remaining unknown in the container.
-4. Then Objective 2, using the four-step spawn plus physics registration.
-5. Objective 3 opportunistically.
+   `services/world/src/azoth_world/javelin/bundle.py`. That is the container, and
+   everything else builds on it.
+3. **Step 0 above**: re-dump the player component list with the corrected GUIDs.
+   One session, existing probe, and it decides whether physics work is even needed.
+4. **Experiment 1**: hook the vtable slot that would reach the body gate. This is
+   the other hard unknown and it is independent of the codec work, so it can run
+   in parallel with it.
+5. **Experiment 2**: perturb the 48 spawn fragments one at a time. This is how the
+   47 types get identified without names, and it is cheap now that bundles can be
+   built.
+6. Then the per-type payload codecs (experiment 3), starting with `record_id` 1 and
+   the small fragments — 28 of 48 are 64 bytes or less.
+7. Objective 3 opportunistically: a real character UUID, stop the facet RMI misses,
+   the two unresolved wire types.
 
 ## Summary
 
-**Solved.** The private client enters the world, possesses the player, renders
-the world with NPCs and the full HUD, and holds the session for **over two
-hours** with zero transport errors. Three server-side causes of the old ~27 s
-disconnect were found and fixed, each measured live. The Javelin container is
-fully decoded — prefix varint, byte-exact state bundle, record sequence, and a
-two-varint fragment header — with tests, and the server can now build a bundle
-rather than only replay one. Three registries map the protocol: 144 Javelin
-messages with wire types, 4814 AZ types, and 82 AOI traits with 2276 pairs, each
-generated by a scanner that refuses to write if its hand-verified facts stop
-reproducing. Along the way, several atlas facts were corrected, including a
-systematic one-entry shift in the physics GUID list that had made a prior
-conclusion unsound.
+**Solved.** The private client enters the world, possesses the player, renders the
+world with NPCs and the full HUD, and holds the session for **over two hours** with
+zero transport errors. Three server-side causes of the old ~27 s disconnect were
+found and fixed, each measured live. The Javelin container is fully decoded —
+prefix varint, byte-exact state bundle, record sequence, and a two-varint fragment
+header — with tests, and the server can now **build** a bundle rather than only
+replay one. Three registries map the protocol: 144 Javelin messages with wire
+types, 4814 AZ types, and 82 AOI traits with 2276 pairs, each generated by a
+scanner that refuses to write if its hand-verified facts stop reproducing. Several
+atlas facts were corrected along the way, including a systematic one-entry shift in
+the physics GUID list.
 
-**Open.** Movement. Measured precisely: the client emits no movement message at
-all, its channel-1 player stream never changes, and even its own teleport command
-does not move the player — so nothing moves client-side, and the server must
-cause the body to exist rather than answer a message. The body needs a four-step
-spawn handshake plus a separate physics registration, and the capture holds only
-the first step. The remaining unknown in the container is the **per-type payload
-codec**, and the route into it is the measurement technique that already settled
-the record and fragment layers: hook the type's reader and log what it consumes.
+**Open, and reframed.** The goal is not "movement" but the completion of
+record/fragment replication; movement is what falls out when it is done, and the
+same mechanism gives NPCs, world state and other players. Two things stand between
+here and there: the **per-type payload codecs** (a searchable long tail, 47 types,
+28 of them 64 bytes or smaller) and the **body gate** `FUN_141763b70`, which is
+reached by a dispatch nothing points at and has no visible path yet. And before
+either, one cheap correction: the claim that the player has no physics component
+rests on a GUID list that is shifted by one entry, so it is unproven and needs
+re-measuring.
 
-**Method note.** Twice this session a model passed every check it was given and
-was still wrong, because "consumes the body exactly" is necessary but not
-sufficient. The fix each time was to stop validating the model against itself and
-measure what the client actually does.
+**Method note.** Twice this session a model passed every check it was given and was
+still wrong, because "consumes the body exactly" is necessary but not sufficient — a
+model with an opaque remainder always consumes exactly. The fix each time was to
+stop validating the model against itself and measure what the client actually does.
+Expect to need that discipline again: the fragments have no length field, so the
+temptation to infer a payload layout from size alone will be strong.
