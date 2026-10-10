@@ -50,6 +50,42 @@ def load_manifest() -> dict:
     return json.loads(MANIFEST.read_text(encoding="utf-8"))
 
 
+def save_manifest(manifest: dict) -> None:
+    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def _spec_identity(spec: dict) -> tuple:
+    """The declarative part of a spec, so a note change is not a new target."""
+    for key in ("symbol", "va", "callers_of", "range"):
+        if key in spec:
+            return (key, spec[key])
+    return ("unknown", json.dumps(spec, sort_keys=True))
+
+
+def persist_spec_to_manifest(phase: str, spec: dict) -> bool:
+    """Record a grown target in the committed manifest.
+
+    `add`/`expand` are the documented growth path, but they used to write only
+    the per-build state, which is ignored by git. The grown list therefore died
+    with the workspace and did not exist on another machine (2026-10-09: a
+    session grew the manifest to 108 targets on one host while the committed
+    manifest still declared 45). The manifest is the phase map that `init`
+    replays, so growth has to land there to be durable.
+    """
+    manifest = load_manifest()
+    entry = next((p for p in manifest["phases"] if p["name"] == phase), None)
+    if entry is None:
+        entry = {"name": phase, "title": "", "targets": []}
+        manifest["phases"].append(entry)
+    identity = _spec_identity(spec)
+    for existing in entry.setdefault("targets", []):
+        if _spec_identity(existing) == identity:
+            return False
+    entry["targets"].append(spec)
+    save_manifest(manifest)
+    return True
+
+
 def load_state() -> dict:
     if STATE.is_file():
         return json.loads(STATE.read_text(encoding="utf-8"))
@@ -73,7 +109,17 @@ def resolve(pex: PEx, spec: dict) -> list[tuple[int, int]]:
             )
         va = int(sym["va"].split("-")[0], 16)
         r = pex.func_at(va)
-        return [r] if r else []
+        if r is None:
+            # A symbol whose VA is not inside a .pdata function can never become
+            # a target (e.g. `login_error_enum`, which is a string blob in
+            # .rdata, not code). Say so instead of dropping it silently, which
+            # is how it sat in the manifest resolving to nothing.
+            print(
+                f"warning: symbol {spec['symbol']!r} at {hex(va)} is not inside "
+                "a .pdata function; skipped"
+            )
+            return []
+        return [r]
     if "va" in spec:
         va = int(spec["va"], 16)
         r = pex.func_at(va)
@@ -125,8 +171,9 @@ def cmd_add(pex: PEx, args: argparse.Namespace) -> int:
         spec["range"] = args.range
     else:
         raise SystemExit("pass one of --target / --callers-of / --range")
+    resolved = resolve(pex, spec)
     added = 0
-    for start, end in resolve(pex, spec):
+    for start, end in resolved:
         key = f"{start:x}-{end:x}"
         if key not in entry["targets"]:
             entry["targets"][key] = {
@@ -137,7 +184,11 @@ def cmd_add(pex: PEx, args: argparse.Namespace) -> int:
             }
             added += 1
     save_state(state)
-    print(f"[campaign] {args.phase}: +{added} target(s)")
+    # Keep the committed phase map in sync, or the growth is lost with the
+    # build workspace. A spec that resolved to nothing is not recorded.
+    persisted = persist_spec_to_manifest(args.phase, spec) if resolved else False
+    suffix = " (manifest updated)" if persisted else ""
+    print(f"[campaign] {args.phase}: +{added} target(s){suffix}")
     return 0
 
 
