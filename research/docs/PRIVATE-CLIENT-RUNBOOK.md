@@ -20,6 +20,7 @@ or Frida.
 $env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'   # the world renders + player possessed
 $env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'           # no red cable, no InGame timeout
 $env:AZOTH_CHUNK_GAP_MS             = '20'          # no post-spawn transport drop
+$env:AZOTH_RESEND_INTERVAL_S        = '1.0'         # no post-spawn resend storm (see gate 8b)
 python az.py dev
 
 # once: trust Caddy's CA (gate 2)
@@ -39,6 +40,19 @@ possessed player, and the session stays up with **0**
 `transportError`. Everything below explains why each line is needed and what
 breaks without it.
 
+## Before the gates: the launcher must start at all
+
+`Start-NwPrivate.ps1` is an **advanced** script (`[CmdletBinding()]`) and used
+`$PSScriptRoot` inside a `param()` default. Under **Windows PowerShell 5.1**
+that variable is not bound yet while defaults are evaluated, so the script died
+with `Cannot bind argument to parameter 'Path' because it is an empty string`
+and the client window never appeared. **pwsh 7 binds it, so the same script
+works there** — which is why the bug can hide. Both `az.py game` and
+`scripts/private-run.py` invoke `powershell.exe`, so the whole documented run
+path was dead. Fixed 2026-10-09 by resolving the `$RuntimeRoot` default in the
+body, after `param()`. If a run reports `FAIL: window never appeared`, check
+this first: run the launcher by hand and read its output.
+
 ## The layers, in the order they fail
 
 A private run crosses five independent gates. A failure at any gate looks like
@@ -54,6 +68,164 @@ A private run crosses five independent gates. A failure at any gate looks like
 | 6 | Local-player possession | `replay_local_player_uuid=character` on the world server | context lives, world loads, screen still black, no player |
 | 7 | Post-replay server traffic | `replay_input_response=1` on the world server | player and world render, but the red cable appears and `State(InGame) is timeout` repeats |
 | 8 | Transport burst | pace the replay (`AZOTH_CHUNK_GAP_MS`) | `transportError 4` ~16 s after spawn, then the retry cannot recreate the context |
+| 8b | **Resend storm** | `AZOTH_RESEND_INTERVAL_S=1.0` (default 0.3) | `transportError 4` ~38 s after spawn: `OnLocalNetworkConnectionWarning` climbs, then `Unexpected client disconnect! {"transportError":4}` |
+
+## Gate 8d — the server emits on its own tick (authoritative clock)
+
+The fixes in 8c stopped the stall. This one removes the *coupling*: before it,
+every periodic emitter was called from `on_app_data` (once per inbound
+datagram), so the server's output rate was a function of the client's input
+rate, and the replay pump only advanced while the client was talking.
+
+Measured 2026-10-09, same run shape, before -> after:
+
+| Metric | Coupled to inbound | Own tick |
+| --- | --- | --- |
+| `Pearson(inbound datagrams, outbound datagrams)` | **0.995** | **0.180** |
+| Amplification (out/in) | 3.4:1 | **0.96:1** |
+| Peak outbound/s | 286 | **99** |
+| `v3-registered` per session | 8 | **1** |
+| `OnLocalNetworkConnectionWarning` | 62 | **6** |
+
+`PeerSession.tick()` runs from the UDP loop every `TICK_INTERVAL_S` (default
+50 Hz, `AZOTH_TICK_HZ`), on a datagram *and* on an idle timeout — the socket
+timeout IS the tick period, so the server keeps emitting when the client is
+silent. Each emitter still gates itself on its own `_next_at`, so a faster tick
+emits nothing extra. `on_app_data` is now the reactive path only (handshake
+replies, ACKs, the V3 answer).
+
+Two paths previously disagreed: the timeout path called 5 emitters and the
+datagram path called 10, so `maybe_pump_replay` stopped entirely when the
+client went quiet. There is now one list, in `tick()`, and
+`TestAuthoritativeTick` fails if a periodic emitter is ever called from
+`on_app_data` again.
+
+## Gate 8c — the server must not stall its own UDP loop (found and fixed)
+
+A possession run used to drop the transport ~35 s after spawn even with gates
+6/7/8/8b set. The cause was **not** client-side. Two defects in the world
+server's single-threaded UDP loop made it stop emitting entirely, and the
+client drops the transport after 10 s of silence (that is the `ClientSDK:
+Unexpected client disconnect! {"transportError":4}`):
+
+1. **`log_event` reopened the log file per event.** Open + write + close on a
+   file that reaches ~90 MB, once per event, inside the UDP loop. Under a
+   client burst of 287 records in one second the server stopped logging for
+   **27 s** (measured 2026-10-09, 16:57:55 -> 16:58:22). Fixed with a
+   persistent append handle (`_log_write`).
+2. **Every ACK was a separate datagram (1:1 with inbound).** Measured
+   `Pearson(inbound, reply) = 0.995`; the server emitted up to 286 datagrams in
+   one second for 185 inbound. The official capture is not 1:1 either (867 ch0
+   in for ~3041 out). Fixed by coalescing ACKs by time (`ACK_COALESCE_S`,
+   default 0.05 s); the CT_ACKS 0x40 form acks a *range*, so one datagram per
+   window carries the same information.
+
+Result of both fixes on a fresh run: `transportError` **0**, `disconnected
+from REP` **0**, `Cleanup` **0**, and `InGame` held **10.1 minutes** (previous
+best 0.6 min, and every earlier run died at ~35 s).
+
+Related fixes on the same run:
+
+- **Spurious V3 registrations.** The V3 trigger was `channel == 0 and size >
+  64`, which also matched ordinary ch0 game messages. Of 17 ch0 records of
+  size 256, only 2 parsed as V3 (one per connection) and 15 were game data —
+  same size. The server answered all of them, so `v3-registered` fired 8 times
+  while the client logged "received registration response from REP" only
+  twice. Now a record must actually parse as V3
+  (`parse_v3_request_or_lenient`). See the `v3_registration_payload()` fixture
+  in `services/world/tests/test_rep.py` for the shape that parses.
+- **Heartbeat retransmission.** The post-replay `0x15d` heartbeat carries a
+  reliable wire flag (required: flags 0x20 made the client drop it silently)
+  but the client never ACKs it, so every heartbeat was retried to the 6-try
+  cap. Measured over 23 minutes: 1106 heartbeats produced 5437 resends, 46% of
+  all outbound datagrams. `_send_datagram(track_reliable=False)` excludes
+  self-superseding periodic records. Resends fell to 284.
+- **Resend pump ran per inbound datagram.** Its per-call cap of 4 was really
+  "4 x client traffic". Rate-limited by time instead
+  (`RESEND_PUMP_MIN_INTERVAL_S`).
+
+## Gate 8f — the activity clock must not wait for the replay (found 2026-10-10)
+
+With gates 6/7/8/8b set the run still dropped the transport **26.8 s after the
+spawn**:
+
+```
+00:29:47.751  GameConnectionWrapper: player spawn succeeds, in game
+00:30:14.570  GameConnectionWrapper: disconnected from REP
+00:30:14.570  ClientSDK: Unexpected client disconnect! {"transportError":4}
+```
+
+and the automatic retry never re-created the ClientContext, so every later
+bundle was skipped (`clientContext == nullptr`) and the world stayed frozen on
+the "Iniciando sesión…" popup.
+
+The cause was in the world server, not the client. The two emitters that keep
+the client's InGame activity clock alive — the `0x15d` heartbeat and the
+`0x1096`/`0x1097` input response — both gated on `self.replay_queue` being
+**empty**. The captured replay is 82 messages but **~1090 Carrier chunks**
+(24 of the captured bodies are 46 KB), so at the recommended
+`AZOTH_CHUNK_GAP_MS=20` it needs **~22 s** — inside the client's ~27 s
+watchdog. The server log for that whole session contained **zero** `heartbeat`
+and **zero** `input-response` events while the client's
+`OnLocalNetworkConnectionWarning` climbed to 22.
+
+**Fix:** those two emitters now gate on `_post_replay_started()` (the post-V3
+greetings only) and run **concurrently** with the replay, which is what the
+capture shows the real server doing — it pings while it streams. The state
+stream deliberately keeps the drained-replay requirement, because it
+re-applies the same captured bundles and double-applying state is not
+idempotent client-side.
+
+**Result of the re-run with the fix:** `transportError` **0**,
+`disconnected from REP` **0**, `OnLocalNetworkConnectionWarning` **1**,
+`clientContext == nullptr` **1**, session alive past **128 s**, and the world
+renders with the player, the NPCs and the full HUD
+(`research/sessions/2026-10-10/`).
+
+If a run reaches the world and then dies at ~25-30 s, check this first:
+`grep -c '"event": "heartbeat"' .azoth/logs/world.log` must be non-zero for the
+session.
+
+## Gate 8e — a 16-bit wire field must wrap (found 2026-10-10 on a long uptime)
+
+The world server had been up for many hours and its log was filling with one
+`tick-error` per second:
+
+```
+{"event": "tick-error", "error": "OverflowError: int too big to convert"}
+```
+
+7395 of them, starting at 22:10:23Z, with **no `CLOCK_SYNC` keepalive sent at
+all** from that moment on (the last successful one logged seq 65533 at
+22:10:22Z). The cause: `maybe_keepalive` passed the raw `next_out_seq` to
+`clock_sync_datagram`, which called `seq.to_bytes(2, "big")`. That counter grows
+without bound, so the moment it passed 65535 the call raised `OverflowError`,
+the tick aborted, and every emitter ordered after the keepalive in `tick()` was
+skipped for the rest of the process's life. The envelope sequence is a **u16 on
+the wire**, so wrapping is the correct behaviour; `_send_datagram` already
+masked its own copy, which is why the failure looked isolated to one emitter.
+
+Fixed by routing every 16-bit wire field through a `_u16()` helper
+(`seq`, `ack_first`, `ack_last`, `env_seq`) instead of calling `to_bytes`
+directly, and by logging a **traceback** with a `tick-error` — 7395 identical
+one-line errors named no function, so a dead keepalive was invisible in the log.
+
+Lesson for any counter on the wire: mask at the point where the field is
+written, not at the caller, and make a repeating tick error carry its
+traceback.
+
+## Gate 8b, measured 2026-10-09
+**This lever alone was not enough** — it reduced the storm but the transport
+still dropped at ~38 s, which is why gate 8c above exists. With gates 6/7/8 set
+but the default 0.3 s resend interval, a run still died 38 s after `player spawn
+succeeds`: the resend rate peaked at **223/s**, the first
+`OnLocalNetworkConnectionWarning` landed in the same second, and the disconnect
+followed 11 s later. Raising the interval to 1.0 s cut resends from **2293 to
+1000** (an earlier reading of this run claimed 2292 -> 1; that count was wrong —
+it summed a window from a different session, see the `.idx`-style lesson that the
+world log accumulates runs). The lever (`rep.py` `RESEND_INTERVAL_S`, added
+2026-10-07) is still worth keeping in the recommended block, but the resend storm
+was a symptom of the stalled loop, not its cause.
 
 Gate 6 is not a client patch: it is a **server replay setting**. The capture
 redacted the author's own `PlayerComponentClientFacet` UUID to zeros while every

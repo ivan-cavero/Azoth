@@ -213,6 +213,26 @@
         {
           "va": "0x14683c8d0",
           "note": "second-order caller growth"
+        },
+        {
+          "note": "typed message dispatcher: routes inbound type GUIDs, decides singleton hit/miss",
+          "va": "0x146b6f190"
+        },
+        {
+          "note": "StartMovementCommunicationMsg serializer: writes the movement field layout",
+          "va": "0x146a55850"
+        },
+        {
+          "note": "StartMovementCommunicationMsg ctor/reader: installs vtable, seeds fields",
+          "va": "0x146a55890"
+        },
+        {
+          "note": "type-name accessor ReceivePlayerPositionClientMsg (NOT in .pdata; --range only)",
+          "range": "143f97df0-143f97df8"
+        },
+        {
+          "note": "type-name accessor ReceivePlayerPositionWithCameraClientMsg (NOT in .pdata)",
+          "range": "143f993f0-143f993f8"
         }
       ]
     }

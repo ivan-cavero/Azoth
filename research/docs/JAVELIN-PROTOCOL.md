@@ -121,12 +121,18 @@ type GUID -> `proc+0x20` map -> handler).
 
 ### 2b. Typed envelope on the data channel
 
-A typed message body is `[00 01 <type u16 BE>][payload]`, VLQ32 length-prefixed
-inside the Carrier record. Examples from the capture:
+A typed message body is `[00 01 <prefix varint type>][payload]`. The type is
+**not** a fixed `u16 BE`: it is the shared prefix varint (see 2d), which is why
+a type below 0x40 is one byte (`08`) and `0x15d` is two (`9d 05`). The earlier
+description in this document (`u16 BE`, or `[(type & 0x3F) | 0x80]`) was wrong
+and made the replay validator emit 80 spurious marker warnings out of 138
+messages.
+
+Examples from the capture:
 
 | type | meaning (proven / partial) | codec |
 | --- | --- | --- |
-| `0x0008` | StateBundle (world/entity state, `[record_id VLQ][frag_count u8]` then per frag `[key VLQ][type_index VLQ][payload]`) | FUN_146af20d0 -> FUN_146af2340 |
+| `0x0008` | StateBundle — see 2e for the byte-exact layout | FUN_146af20d0 -> FUN_146af2340 |
 | `0x635` | local-player state (C->S), actor `1a954abc…` | live |
 | `0x663` | LevelInfoChanged (level name + context key) | proven |
 | `0x65c` | WORLD DATA blob (12706 B) | first-light codec |
@@ -143,6 +149,145 @@ NOT all: e.g. the physics components (`GameRigidBodyComponent`,
 `CharacterControllerComponent`, `CharacterPhysicsComponent`) and even the
 `Transform` GUID `484AE67D-…` are absent from it. So "is type X on the wire"
 cannot be answered from typeindex alone.
+
+### 2d. The prefix varint (every typed message starts with it)
+
+Reader: `FUN_14087b5c0`. The number of **leading 1-bits** in the first byte is
+the number of continuation bytes `n` (0..4). The first byte's low `7 - n` bits
+are the **lowest** bits of the value; the continuation bytes are a
+**little-endian** integer placed above them:
+
+```
+value = (LE(continuation_bytes) << (7 - n)) | (b0 & ((1 << (7 - n)) - 1))
+```
+
+| first byte | n | total bytes | capacity |
+| --- | --- | --- | --- |
+| `00`..`7f` | 0 | 1 | 2^7 |
+| `80`..`bf` | 1 | 2 | 2^14 |
+| `c0`..`df` | 2 | 3 | 2^21 |
+| `e0`..`ef` | 3 | 4 | 2^28 |
+| `f0`..`ff` | 4 | 5 | 2^35 |
+
+Verified against capture bytes: `9d 05` = `0x15d`, `88 6e` = `0x1b88`,
+`a3 19` = `0x663`, `a0 5a` = `0x16a0`, `b4 0a` = 692, `d9 a9 05` = 46393.
+Decoding every server->client message type round-trips 137 of 138 (the
+exception is seq `0x25`, the datagram-first case). **Trap:** Ghidra renders the
+3-byte branch as big-endian, which would make `d9 a9 05` equal 1384633 — larger
+than the 46407-byte message containing it. The big-endian reading is falsified
+by the data.
+
+Implementation with tests: `services/world/src/azoth_world/javelin/varint.py`.
+
+### 2e. The type-0x08 StateBundle, byte-exact
+
+```
+[00 01 <varint 0x08>]        typed marker
+[01]                         prologue head
+[varint SEQ]                 the replication counter the gate compares
+[01 01 01 01 00 00]          invariant across all 78 captured bundles
+[varint payload_length]
+[payload]                    a SEQUENCE OF RECORDS, each:
+                                 [u8 record_id][u8 fragment_count][fragments…]
+```
+
+Parsed against all 79 server->client `0x08` bodies in the capture: **78 round-trip
+exactly** (the exception is seq `0x25`, the first message of its datagram, which
+carries a datagram-level preamble). `SEQ` spans **1..53** across the capture,
+which matches the live high-water the client logged
+(`m_lastUnreliableReplicationSeq 53`).
+
+**The payload is not opaque — this was a correction (2026-10-10).** The earlier
+model read the prologue's bytes as `[kind][record_id][fragment_count]` and then
+treated the whole payload as ONE fragment's payload. That consumed every body
+exactly, which is why it looked right, but *"consumes exactly" cannot
+discriminate* when the remainder is opaque. A live Frida probe on `FUN_146af20d0`
+(one record) and `FUN_146af2340` (one fragment) settled it:
+
+* the record's `fragment_count` byte **equals the number of nested reader calls**
+  in every one of 90 distinct records (`01 30`→48, `01 09`→9, `02 03`→3,
+  `03 01`→1, `0d 06`→6, `1d 13`→19);
+* byte-exact on the 78-byte bundle (seq `0xab`): its payload length is 66 and the
+  payload is **two records of exactly 33 bytes** (`48 03 …`, `49 03 …`), and the
+  client measured `consumed=33, fragments=3` for each;
+* `record_id` values are **sequential** across a session (1, 2, 3, …, `0x2e`,
+  then `0x48`, `0x49`, `0x4a`) — a handler index, and `FUN_141717fc0` indexes
+  exactly that at `state + 0x608 + record_id*0x10`.
+
+So the spawn record's real fragment count is **48**, not 1.
+
+**The fragment grammar (verified 2026-10-10).** A fragment is
+
+```
+[varint KEY][varint TYPE_INDEX][type-specific payload]
+```
+
+The header is **exactly two varints and there is no length field**. Measured with
+a live Frida probe that hooks the shared varint reader plus both readers and logs,
+per fragment, every varint read with its offset from the fragment start: across
+**300 fragments the first two varints sit at offset 0 and 1 in every single one**,
+zero exceptions; further varints begin at offset 5 or later and are
+payload-internal. 48 distinct keys, 47 distinct types, and the key→type binding is
+**1:1** — no key ever maps to two types. The keys are **sparse**
+(0,1,2,4,5,9,10,12,13,14,16,19,20,22,27,29,31,…,77), which is what a component
+slot table with freed slots looks like, and the spawn record carries exactly 48
+fragments with exactly 48 distinct keys.
+
+Because no length is stored, the payload length is **implied by the type**: the
+reader consumes it through the type object's vtable `+0x90`, so each type's reader
+knows its own length. That also explains the measured fragment sizes
+(23, 146, 109, 40, 5913, 14, 28, 10, 4754, …): they are per-type, not encoded.
+
+**Still open:** (a) what `SEQ` means beyond being the gate counter, and (b) the
+**per-type payload encoding** — one codec per component type. The container is now
+understood down to the fragment; this is the remaining long tail, and it is also
+what physics needs, since a physics component would arrive as one of these
+fragments.
+
+Implementation with tests: `services/world/src/azoth_world/javelin/bundle.py`.
+
+**The replication gate.** The client accepts an unreliable replication message
+only when both hold (`FUN_14643e7b0`): its `clientContextInstanceId` equals
+`port[+0x80]` (a byte, live value 1), and its counter is strictly greater than
+`port[+0x78]` (`m_lastUnreliableReplicationSeq`). That counter is the
+`record_id` varint. Because it is a varint, advancing it must **re-encode** it:
+writing a byte `>= 0x80` turns a one-byte varint into a two-byte one and shifts
+every following fragment, which is the `Failed to unmarshal ... ValidationError`
+measured in `DECOMP-BACKLOG.md` section 12.3. Also note that with the rewrite
+OFF the bundles are not fixed, they are **dropped** before deserialization, so
+"0 unmarshal failures" does not mean they applied.
+
+### 2f. The message registry (name -> GUID -> wire type)
+
+`research/atlas/javelin-messages.json` lists all **144** Javelin message types
+this build ships, each with its AZ type GUID and the **wire type number** that
+actually goes on the wire. The wire carries the message type's *position* in the
+per-build type table (`private-client/runtime/typeindex.json`, 7052 entries),
+not the GUID, so a name cannot become bytes without this mapping. 142 of 144
+resolve; `ActorQueryMsg` and `RoutingUnsubscribeMsg` are in the binary but not
+in the type table. All 12 movement wire types derived from capture bytes
+reproduce exactly, which is the independent check. Regenerate with
+`python reverse/tools/scan-message-registry.py`.
+
+### 2g. Where physics and NPCs come from: the AOI trait system
+
+The server-side architecture behind every entity and component is an
+**area-of-interest trait** system (`Amazon::Hub::Aoi`, 185 traits in this
+build). Each trait replicates state as **records** carrying **fragments** —
+exactly what the `0x08` bundle transports — with Javelin-level counterparts
+`UpdateRecordsMsg`, `FragmentUpdateMsg`, `RequestRecordsMsg`, `ResetRecordMsg`,
+`StartObservingFragmentMsg`. Physics is one trait: `PhysicsTrait` owns a state
+type `{F05E34C6-AF1E-476D-9472-5FC118FC4503}` and registers
+`RegisterRigidBodyMsg` / `UnregisterRigidBodyMsg` / `UpdateRigidBodyMsg` /
+`UpdateRigidBodyFilterMsg` / `UpdateRigidBodyRaidIdMsg` /
+`RegisterRigidBodyByAssetMsg`.
+
+This matters for the movement blocker: rigid bodies reach the client through
+this record/fragment path, **not** through the by-name component creator
+(`FUN_141416740`, measured never to run during world entry) and **not** through
+the replay, whose 79 captured fragments all carry `type_index` 1. Giving the
+local player physics means implementing record/fragment replication for
+`PhysicsTrait` — the same machinery NPCs need.
 
 ## 3. The client inbound pipeline (from `JAVELIN-DISPATCH.md`)
 

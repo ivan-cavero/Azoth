@@ -109,6 +109,15 @@ decompiled field or offset is the open question:
   types, and names may be wrong even when the control flow is useful.
 - Use exact `.pdata` function bounds. `decomp.py` snaps requested windows to
   real functions to avoid mid-instruction decompilation.
+- **`.pdata` is not the whole `.text` (measured 2026-10-09).** The corpus is
+  `.pdata`-driven, so leaf functions with no unwind info are absent from it. A
+  scan of `.text` for the accessor shape `48 8D 05 rel32 C3` (`lea rax,[rip+X];
+  ret`) followed by `CC CC` padding finds **13,943 standalone leaf functions and
+  0 of them are in `corpus/ranges.txt`**. The typed dispatcher's type accessors
+  are exactly this shape, which is why the movement type path never showed up in
+  the corpus. Reach such a function with `decomp.py --range` (it bypasses the
+  `.pdata` lookup); `--target` refuses with "not inside any .pdata function".
+  Coverage numbers in this repo count `.pdata` ranges only.
 - For this build's raw file arithmetic, `.rdata` VAs use `fileoff + 0x1800`
   and `.text` VAs use `fileoff + 0xA00`. Re-derive these after a client update;
   prefer `peutil.py` when it can resolve the address directly.
