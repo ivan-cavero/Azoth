@@ -4,14 +4,24 @@
 [CmdletBinding()]
 param(
     [string]$InstallRoot = $env:AZOTH_GAME_INSTALL,
-    [string]$RuntimeRoot = $(Join-Path ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))) 'private-client\runtime'),
+    [string]$RuntimeRoot,
     [switch]$Watch,
     [switch]$RefreshExe
 )
 
 $ErrorActionPreference = 'Stop'
 $SteamAppId = '1063730'
+# $PSScriptRoot is NOT bound while param() defaults are evaluated in an advanced
+# script under Windows PowerShell 5.1, though it is under pwsh 7. Measured
+# 2026-10-09: with the default inside param() the launcher dies with
+# "Cannot bind argument to parameter 'Path' because it is an empty string", and
+# the client window never appears. Both az.py and scripts/private-run.py invoke
+# powershell.exe (5.1), so the whole documented run path was dead. Resolve the
+# default here, where $PSScriptRoot is always available.
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
+if (-not $RuntimeRoot) {
+    $RuntimeRoot = Join-Path $repo 'private-client\runtime'
+}
 $repoLauncher = Split-Path -Parent $PSScriptRoot
 $stubDll = Join-Path $repoLauncher 'steam_stub\steam_api64.dll'
 $stubBuild = Join-Path $repoLauncher 'steam_stub\build.ps1'
