@@ -8,8 +8,13 @@ ReplayMessage records keyed by seq. Redacted spans (XX) are preserved as
 whether to skip a message or substitute their own bytes.
 
 R-direction messages start with the typed-stream marker:
-    [0x00 0x01] [(type & 0x3F) | 0x80] [(type >> 6) & 0xFF]
-i.e. a 6-bit-continuation tagged encoding of the GridMate type id. W-direction
+    [0x00 0x01] <prefix varint type>
+
+i.e. a two-byte tag then the type encoded by the shared prefix varint (see
+`varint.py`). The earlier description here -- `[(type & 0x3F) | 0x80]
+[(type >> 6) & 0xFF]` -- was wrong and produced 80 spurious marker warnings out
+of 138 server->client messages. It only ever looked right for types below 0x40,
+and it misread every two-byte type such as 0x15d (`9d 05`). W-direction
 messages have a 24-byte client-only header before that marker, so we don't
 enforce it there.
 """
@@ -548,17 +553,23 @@ class ReplayStore:
             )
 
         if direction == "R":
-            expected = bytes([
-                0x00,
-                0x01,
-                (type_id & 0x3F) | 0x80,
-                (type_id >> 6) & 0xFF,
-            ])
-            if len(body) < 4 or body[:4] != expected:
+            # seq 0x25 is the first message of its datagram and carries a
+            # datagram-level preamble, so its body does not start with the
+            # typed marker (see javelin/bundle.py).
+            from . import varint as _varint
+
+            marker_ok = False
+            if len(body) >= 3 and body[:2] == b"\x00\x01":
+                try:
+                    marker_ok = _varint.decode(body, 2)[0] == type_id
+                except _varint.VarintError:
+                    marker_ok = False
+            if seq != 0x25 and not marker_ok:
                 got = body[:4].hex() if len(body) >= 4 else body.hex()
                 self.validation_warnings.append(
                     f"seq=0x{seq:x} type=0x{type_id:x} dir=R: marker "
-                    f"mismatch (expected {expected.hex()}, got {got})"
+                    f"mismatch (expected 0001 + varint(0x{type_id:x}), "
+                    f"got {got})"
                 )
 
         msg = ReplayMessage(
