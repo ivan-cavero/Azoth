@@ -57,7 +57,7 @@ const done = ganttTasks.filter((task) => task.status === "done").length;
           <ul id="gantt-list" class="divide-y divide-graphite/40">
             {ganttTasks.map((t) => (
               <li
-                class="gantt-row flex cursor-default items-center justify-between gap-3 px-4 py-3"
+                class="gantt-row flex cursor-pointer items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
                 data-task-id={t.id}
               >
                 <div class="flex min-w-0 items-center gap-2">
@@ -89,7 +89,7 @@ const done = ganttTasks.filter((task) => task.status === "done").length;
               <div id="gantt-grid" class="relative">
                 {ganttTasks.map((t) => (
                   <div
-                    class="gantt-row relative h-[46px] border-b border-graphite/30 last:border-b-0"
+                    class="gantt-row relative h-[46px] cursor-pointer border-b border-graphite/30 last:border-b-0"
                     data-task-id={t.id}
                     data-start={t.start}
                     data-end={t.end}
@@ -286,6 +286,7 @@ const done = ganttTasks.filter((task) => task.status === "done").length;
   );
   search.addEventListener("input", filter);
   window.addEventListener("resize", render);
+  setInterval(bindDetailClicks, 5000);
   // keep the NOW marker at ~65% of the visible area so bars + future are both in view
   function scrollToNow() {
     const marker = (nowLine as HTMLElement).style.left;
@@ -294,7 +295,30 @@ const done = ganttTasks.filter((task) => task.status === "done").length;
     scroll.scrollLeft = Math.max(0, x - scroll.clientWidth * 0.65);
   }
 
+  function bindDetailClicks() {
+    document.querySelectorAll<HTMLElement>(".gantt-row[data-task-id]").forEach((row) => {
+      if (row.dataset.detailBound) return;
+      row.dataset.detailBound = "1";
+      row.addEventListener("click", () => {
+        const taskId = row.dataset.taskId!;
+        // find the label + code from the list row
+        const listRow = document.querySelector(
+          `#gantt-list .gantt-row[data-task-id="${taskId}"]`,
+        ) as HTMLElement | null;
+        const label = listRow?.querySelector("span.truncate")?.textContent ?? taskId;
+        const code = listRow?.querySelector("span.mono")?.textContent ?? taskId;
+        (window as any).openRoadmapDetail?.({
+          id: code || taskId,
+          code,
+          label,
+          state: row.dataset.status ?? (listRow ? "done" : "planned"),
+        });
+      });
+    });
+  }
+
   render();
+  bindDetailClicks();
   requestAnimationFrame(() => {
     scrollToNow();
     if (hint) setTimeout(() => hint.remove(), 6000);

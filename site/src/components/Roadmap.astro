@@ -66,7 +66,7 @@ const s = t(locale);
     const evidence = item.evidence
       ? `<span class="mono hidden min-w-0 flex-1 truncate text-[11px] text-[#62666d] lg:block" title="${esc(item.evidence)}">${esc(item.evidence)}</span>`
       : `<span class="hidden min-w-0 flex-1 lg:block"></span>`;
-    return `<li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-6 py-3" data-item-state="${esc(item.state)}">
+    return `<li class="cursor-pointer flex flex-wrap items-center gap-x-4 gap-y-1 px-6 py-3 transition-colors hover:bg-white/[0.03]" data-item-state="${esc(item.state)}" data-id="${esc(item.id)}" data-title="${esc(item.label)}" data-evidence="${esc(item.evidence ?? "")}" role="button" tabindex="0">
       <span class="h-2 w-2 shrink-0 rounded-[2px]" style="background:${m.dot}"></span>
       <span class="min-w-0 flex-1 text-[14px] leading-snug" style="color:${m.text}">${esc(item.label)}</span>
       ${evidence}${effort}
@@ -101,6 +101,7 @@ const s = t(locale);
       })
       .join("");
     applyFilter();
+    bindClicks();
   }
 
   function applyFilter() {
@@ -112,6 +113,20 @@ const s = t(locale);
         (li) => li.style.display !== "none",
       );
       g.style.display = visible ? "" : "none";
+    });
+  }
+
+  function bindClicks() {
+    groupsEl.querySelectorAll<HTMLElement>("[data-id]").forEach((li) => {
+      li.addEventListener("click", () => {
+        (window as any).openRoadmapDetail?.({
+          id: li.dataset.id!,
+          code: li.dataset.id!,
+          label: li.dataset.title!,
+          state: li.dataset.itemState!,
+          evidence: li.dataset.evidence!,
+        });
+      });
     });
   }
 
