@@ -1,0 +1,85 @@
+---
+import { START_DATE, stats } from "../data/project";
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+
+const days = Math.max(
+  1,
+  Math.round((Date.now() - new Date(START_DATE + "T00:00:00").getTime()) / 86_400_000),
+);
+
+const headline = [
+  { value: String(days), label: s.hero.stats[0] },
+  { value: String(stats.commits), label: s.hero.stats[1] },
+  { value: `${stats.testsWorld + stats.testsGateway}`, label: s.hero.stats[2] },
+  { value: String(stats.messageTypesDecoded), label: s.hero.stats[3] },
+  { value: stats.typeRegistryNames.toLocaleString("es"), label: s.hero.stats[4] },
+];
+---
+
+<section class="relative overflow-hidden pt-28 pb-20">
+  <div class="hero-floor"></div>
+
+  <div class="relative mx-auto max-w-[1200px] px-4">
+    <div class="pill mono mb-6 inline-flex items-center gap-2 border border-graphite">
+      <span id="live-dot" class="inline-block h-2 w-2 rounded-full bg-ash"></span>
+      <span id="live-label" class="text-fog">Agente detenido</span>
+      <span id="live-sub" class="hidden text-ash sm:inline"></span>
+    </div>
+
+    <h1
+      class="max-w-4xl text-[34px] leading-[1.05] font-medium tracking-[-0.022em] text-paper sm:text-[48px] md:text-[64px]"
+    >
+      {s.hero.title1}
+      <span class="text-fog">{s.hero.title2}</span>
+    </h1>
+
+    <p class="mt-6 max-w-2xl text-[17px] leading-relaxed text-fog">
+      {s.hero.lead}
+    </p>
+
+    <div class="mt-8 flex items-center gap-3">
+      <a
+        href="#timeline"
+        class="rounded-md bg-acid-lime px-4 py-2.5 text-[14px] font-medium tracking-[-0.011em] text-void shadow-lime transition-opacity hover:opacity-90"
+      >
+        {s.hero.cta1}
+      </a>
+      <a
+        href="#roadmap"
+        class="rounded-md border border-graphite px-4 py-2.5 text-[13px] text-mist transition-colors hover:border-smoke"
+      >
+        {s.hero.cta2}
+        <span class="text-ash">→</span>
+      </a>
+    </div>
+
+    <!-- headline numbers -->
+    <div class="card mt-14 grid grid-cols-2 gap-px overflow-hidden sm:grid-cols-5">
+      {headline.map((s) => (
+        <div class="bg-carbon px-6 py-5">
+          <div class="mono text-[24px] tracking-[-0.012em] text-paper">{s.value}</div>
+          <div class="mt-1 text-[12px] leading-snug text-ash">{s.label}</div>
+        </div>
+      ))}
+    </div>
+
+    <!-- product screenshot card: our own world, captured from the private client -->
+    <div class="shot-card mx-auto mt-14 max-w-[1080px]">
+      <img
+        src={`${import.meta.env.BASE_URL.replace(/\/+$/, "")}/game-shot.jpg`}
+        alt={s.hero.shotCaption}
+        width="2156"
+        height="1214"
+        loading="eager"
+      />
+      <div class="shot-caption flex items-center gap-3">
+        <span class="pill mono border border-graphite bg-void/70 text-[11px] text-mist backdrop-blur">
+          {s.hero.shotCaption}
+        </span>
+      </div>
+    </div>
+  </div>
+</section>

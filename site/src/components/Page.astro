@@ -1,0 +1,38 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Hero from "../components/Hero.astro";
+import LiveStatus from "../components/LiveStatus.astro";
+import Research from "../components/Research.astro";
+import LiveStrings from "../components/LiveStrings.astro";
+import Gantt from "../components/Gantt.astro";
+import Roadmap from "../components/Roadmap.astro";
+import Stack from "../components/Stack.astro";
+import Docs from "../components/Docs.astro";
+import Pace from "../components/Pace.astro";
+import Versions from "../components/Versions.astro";
+import Help from "../components/Help.astro";
+import Footer from "../components/Footer.astro";
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const meta = t(locale);
+---
+
+<Base title={meta.metaTitle} description={meta.metaDescription}>
+  <Nav locale={locale} />
+  <LiveStrings locale={locale} />
+  <main>
+    <Hero locale={locale} />
+    <LiveStatus locale={locale} />
+    <Research locale={locale} />
+    <Gantt locale={locale} />
+    <Roadmap locale={locale} />
+    <Stack locale={locale} />
+    <Docs locale={locale} />
+    <Pace locale={locale} />
+    <Versions locale={locale} />
+    <Help locale={locale} />
+  </main>
+  <Footer locale={locale} />
+</Base>

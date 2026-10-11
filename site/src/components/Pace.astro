@@ -1,0 +1,61 @@
+---
+import { weeklyCommits, stats } from "../data/project";
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+
+const max = Math.max(...weeklyCommits.map((w) => w.commits));
+const avg = (
+  weeklyCommits.reduce((a, w) => a + w.commits, 0) / weeklyCommits.length
+).toFixed(1);
+---
+
+<section id="ritmo" class="scroll-mt-20 py-24">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <h2 class="section-title">{s.pace.title}</h2>
+    <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+      Velocidad real medida en el histórico de git. El ritmo marca los ETA: cuando una
+      semana baja, la fecha objetivo se recalcula, no se esconde.
+    </p>
+
+    <div class="mt-10 grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div class="card p-6">
+        <div class="flex items-baseline justify-between">
+          <span class="text-[14px] text-mist">{s.pace.commitsTitle}</span>
+          <span class="mono text-[11px] text-ash">{s.pace.avg(avg)}</span>
+        </div>
+        <div class="mt-6 flex h-40 items-end gap-3">
+          {weeklyCommits.map((w) => (
+            <div class="flex h-full flex-1 flex-col items-center justify-end gap-2">
+              <span class="mono text-[11px] text-fog">{w.commits}</span>
+              <div
+                class="w-full rounded-t-[4px] bg-acid-lime/80"
+                style={`height:${(w.commits / max) * 100}%`}
+              >
+              </div>
+              <span class="mono text-[10px] whitespace-nowrap text-ash">{w.week}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div class="card divide-y divide-graphite/60">
+        {[
+          { k: s.pace.rows.paceNow, v: `${avg} commits/semana` },
+          { k: s.pace.rows.tests, v: `${stats.testsWorld} ${s.pace.testsValue.split(" · ")[1]} · ${stats.testsGateway} ${s.pace.testsValue.split(" · ")[0]}` },
+          { k: s.pace.rows.decompiled, v: stats.decompiledFunctions.toLocaleString(locale === "en" ? "en" : "es") },
+          { k: s.pace.rows.prioritized, v: `${stats.clientFunctionsMapped}` },
+          { k: s.pace.rows.tick, v: s.pace.tickValue },
+          { k: s.pace.rows.subworlds, v: s.pace.subworldsValue },
+          { k: s.pace.rows.next, v: "PhysicsTrait replication — ETA ~Oct 24" },
+        ].map((row) => (
+          <div class="flex items-center justify-between gap-4 px-6 py-4">
+            <span class="text-[13px] text-fog">{row.k}</span>
+            <span class="mono text-[12px] text-mist">{row.v}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

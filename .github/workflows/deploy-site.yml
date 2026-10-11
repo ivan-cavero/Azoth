@@ -1,0 +1,72 @@
+name: Deploy landing to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'research/atlas/**'
+      - 'research/docs/**'
+      - 'STATUS.md'
+      - '.github/workflows/deploy-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for the commit stats
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install site dependencies
+        working-directory: site
+        run: npm ci
+
+      - name: Compute build-time facts from the repo
+        run: python site/scripts/build_facts.py
+
+      - name: Refresh live status (CI mode)
+        run: python site/scripts/update_live.py --ci
+
+      - name: Build
+        working-directory: site
+        env:
+          PAGES_BASE: /Azoth
+        run: npm run build
+
+      - name: 404 fallback
+        run: cp site/dist/index.html site/dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

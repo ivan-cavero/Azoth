@@ -1,0 +1,152 @@
+---
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+// Roadmap is served from /roadmap.json and re-fetched every 60 s, so agents
+// can edit that file and the page updates without a rebuild. State rendering
+// happens client-side; this component only emits the shell and the script.
+---
+
+<section id="roadmap" class="scroll-mt-20 py-24">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h2 class="section-title">{s.roadmap.title}</h2>
+        <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">{s.roadmap.lead}</p>
+      </div>
+      <div class="mono text-[12px] text-ash" id="rm-summary" data-locale={locale}>…</div>
+    </div>
+
+    <div class="mt-8 flex flex-wrap gap-2" id="rm-filters" data-filters={JSON.stringify(s.roadmap.filters)}></div>
+    <div class="mt-8 space-y-4" id="rm-groups"></div>
+
+    <p class="mono mt-6 text-[11px] leading-relaxed text-ash">
+      {s.roadmap.sources}: <span class="text-fog">research/atlas/az-type-registry.json</span> (4,818
+      types), client PAK index (44 playable subworlds),
+      research/docs/JAVELIN-PROTOCOL.md and public game documentation. {s.roadmap.effortNote}
+    </p>
+  </div>
+</section>
+
+<script>
+  const stateMeta = {
+    done: { label: "HECHO", dot: "#27a644", text: "#8a8f98", badge: "text-[#27a644] border-[#27a644]/40" },
+    active: { label: "EN CURSO", dot: "#e4f222", text: "#d0d6e0", badge: "text-[#e4f222] border-[#e4f222]/40" },
+    investigating: { label: "INVESTIGANDO", dot: "#02b8cc", text: "#d0d6e0", badge: "text-[#02b8cc] border-[#02b8cc]/40" },
+    planned: { label: "PLANIFICADO", dot: "#383b3f", text: "#62666d", badge: "text-[#8a8f98] border-[#23252a]" },
+    blocked: { label: "BLOQUEADO", dot: "#eb5757", text: "#62666d", badge: "text-[#eb5757] border-[#eb5757]/40" },
+  } as Record<string, { label: string; dot: string; text: string; badge: string }>;
+
+  const effortColor: Record<string, string> = {
+    S: "#8a8f98", M: "#d0d6e0", L: "#d0d6e0", XL: "#eb5757",
+  };
+
+  const i18nFilters = JSON.parse(document.getElementById("rm-filters")!.dataset.filters!);
+  const filters = i18nFilters.map((label: string, i: number) => ({
+    key: ["all", "done", "active", "planned", "investigating"][i],
+    label,
+  }));
+  let currentFilter = "all";
+  let currentGroups: any[] = [];
+
+  const groupsEl = document.getElementById("rm-groups")!;
+  const filtersEl = document.getElementById("rm-filters")!;
+  const summaryEl = document.getElementById("rm-summary")!;
+
+  function esc(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function itemHtml(item: any): string {
+    const m = stateMeta[item.state] ?? stateMeta.planned;
+    const effort = item.effort
+      ? `<span class="mono shrink-0 rounded border border-graphite px-1.5 py-0.5 text-[10px]" style="color:${effortColor[item.effort] ?? "#8a8f98"}" title="esfuerzo estimado">${esc(item.effort)}</span>`
+      : `<span class="mono shrink-0 rounded border border-transparent px-1.5 py-0.5 text-[10px]">·</span>`;
+    const evidence = item.evidence
+      ? `<span class="mono hidden min-w-0 flex-1 truncate text-[11px] text-[#62666d] lg:block" title="${esc(item.evidence)}">${esc(item.evidence)}</span>`
+      : `<span class="hidden min-w-0 flex-1 lg:block"></span>`;
+    return `<li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-6 py-3" data-item-state="${esc(item.state)}">
+      <span class="h-2 w-2 shrink-0 rounded-[2px]" style="background:${m.dot}"></span>
+      <span class="min-w-0 flex-1 text-[14px] leading-snug" style="color:${m.text}">${esc(item.label)}</span>
+      ${evidence}${effort}
+      <span class="w-[92px] shrink-0 text-right"><span class="mono rounded border px-1.5 py-0.5 text-[9px] tracking-[0.06em] ${m.badge}">${m.label}</span></span>
+    </li>`;
+  }
+
+  function render() {
+    const total = currentGroups.reduce((a, g) => a + g.items.length, 0);
+    const done = currentGroups.reduce((a, g) => a + g.items.filter((i: any) => i.state === "done").length, 0);
+    const active = currentGroups.reduce((a, g) => a + g.items.filter((i: any) => i.state === "active").length, 0);
+    const fmt = document.getElementById("rm-summary")!.dataset.locale === "en"
+      ? (d: number, a: number, t: number) => `${d} done · ${a} active · ${t} total`
+      : (d: number, a: number, t: number) => `${d} hechos · ${a} en curso · ${t} total`;
+    summaryEl.textContent = fmt(done, active, total);
+
+    groupsEl.innerHTML = currentGroups
+      .map((g) => {
+        const pct = Math.round((g.progress ?? 0) * 100);
+        return `<div class="card overflow-hidden rm-group">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-graphite/60 bg-obsidian/60 px-6 py-4">
+          <div class="min-w-0 flex-1"><h3 class="text-[17px] font-medium tracking-[-0.012em] text-paper">${esc(g.title)}</h3></div>
+          <span class="pill mono border border-graphite text-[11px] text-ash">${esc(g.phase ?? "")}</span>
+          <span class="mono text-[11px] text-ash">${esc(g.eta ?? "")}</span>
+          <div class="flex w-40 items-center gap-2">
+            <div class="prog-track h-1 flex-1"><div class="prog-fill" style="width:${pct}%"></div></div>
+            <span class="mono text-[10px] text-ash">${pct}%</span>
+          </div>
+        </div>
+        <ul class="rm-items divide-y divide-graphite/30">${g.items.map(itemHtml).join("")}</ul>
+      </div>`;
+      })
+      .join("");
+    applyFilter();
+  }
+
+  function applyFilter() {
+    groupsEl.querySelectorAll<HTMLElement>("[data-item-state]").forEach((li) => {
+      li.style.display = currentFilter === "all" || li.dataset.itemState === currentFilter ? "" : "none";
+    });
+    groupsEl.querySelectorAll<HTMLElement>(".rm-group").forEach((g) => {
+      const visible = Array.from(g.querySelectorAll<HTMLElement>("[data-item-state]")).some(
+        (li) => li.style.display !== "none",
+      );
+      g.style.display = visible ? "" : "none";
+    });
+  }
+
+  function renderFilters() {
+    filtersEl.innerHTML = filters
+      .map((f) => {
+        const on = f.key === currentFilter;
+        return `<button data-filter="${f.key}" class="rounded-md px-3 py-1.5 text-[11px] font-medium tracking-[0.04em] transition-colors ${
+          on ? "bg-acid-lime text-void" : "border border-graphite text-mist hover:border-smoke"
+        }">${f.label}</button>`;
+      })
+      .join("");
+    filtersEl.querySelectorAll("button").forEach((b) =>
+      b.addEventListener("click", () => {
+        currentFilter = b.dataset.filter!;
+        renderFilters();
+        applyFilter();
+      }),
+    );
+  }
+
+  async function load() {
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL.replace(/\/+$/, "")}/roadmap.json`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data.groups)) return;
+      currentGroups = data.groups;
+      render();
+    } catch {
+      // keep last good render
+    }
+  }
+
+  renderFilters();
+  load();
+  setInterval(load, 60_000);
+</script>

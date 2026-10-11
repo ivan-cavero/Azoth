@@ -1,0 +1,46 @@
+---
+import { versions } from "../data/project";
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+---
+
+<section id="versiones" class="scroll-mt-20 py-24">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <h2 class="section-title">{s.versions.title}</h2>
+    <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+      {s.versions.lead}
+    </p>
+
+    <div class="relative mt-10">
+      <div class="absolute top-0 bottom-0 left-[7px] w-px bg-graphite sm:left-[calc(90px+7px)]"></div>
+      <div class="space-y-8">
+        {versions.map((v) => (
+          <div class="relative flex flex-col gap-2 pl-8 sm:flex-row sm:gap-10 sm:pl-0">
+            <div class="mono w-[90px] shrink-0 pt-0.5 text-right text-[12px] text-ash sm:pl-4 sm:text-left">
+              {v.date.slice(5)}
+            </div>
+            <div class="absolute top-[5px] left-0 h-[15px] w-[15px] rounded-full border border-smoke bg-void sm:left-[90px]">
+              <div class="absolute inset-[3px] rounded-full bg-acid-lime"></div>
+            </div>
+            <div class="card flex-1 p-5 sm:ml-10">
+              <div class="flex items-baseline gap-3">
+                <span class="mono text-[13px] text-acid-lime">{v.tag}</span>
+                <span class="text-[15px] font-medium text-paper">{v.title[locale]}</span>
+              </div>
+              <ul class="mt-2.5 space-y-1.5">
+                {v.bullets[locale].map((b) => (
+                  <li class="flex gap-2 text-[13px] leading-relaxed text-fog">
+                    <span class="text-ash">·</span>
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,49 @@
+---
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+// Live panel: reflects public/live.json (polled from Base.astro every 30 s).
+// Regenerate that file from the machine running the stack, e.g. from
+// `python az.py status --json > site/public/live.json`.
+---
+
+<section id="estado" class="scroll-mt-20 py-24">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <h2 class="section-title">{s.live.title}</h2>
+    <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+      {s.live.lead}
+    </p>
+
+    <div class="card mt-10 divide-y divide-graphite/60">
+      <div class="flex items-center justify-between px-6 py-5">
+        <div class="flex items-center gap-3">
+          <span class="svc-dot inline-block h-2.5 w-2.5 rounded-full bg-smoke"></span>
+          <div>
+            <div class="text-[15px] text-paper">{s.live.agent}</div>
+            <div class="mono mt-0.5 text-[12px] text-ash">{s.live.agentSub}</div>
+          </div>
+        </div>
+        <span class="svc-text mono text-[12px] text-fog">—</span>
+      </div>
+
+      <div class="grid gap-px bg-graphite/40 sm:grid-cols-3">
+        {s.live.services.map((svc, i) => (
+          <div data-live-service={["gateway", "world", "caddy"][i]} class="bg-carbon px-6 py-5">
+            <div class="flex items-center gap-2.5">
+              <span class="svc-dot inline-block h-2 w-2 rounded-full bg-smoke"></span>
+              <span class="text-[14px] text-mist">{svc.name}</span>
+            </div>
+            <div class="mono mt-1 text-[11px] text-ash">{svc.detail}</div>
+            <div class="svc-text mono mt-3 text-[12px] text-fog">—</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <p class="mono mt-4 text-[11px] text-ash">
+      {s.live.source}: <span class="text-fog">public/live.json</span> — {s.live.sourceDetail}
+      (<span class="text-fog">python az.py status</span>).
+    </p>
+  </div>
+</section>

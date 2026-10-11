@@ -1,0 +1,58 @@
+---
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+const other = locale === "es" ? "en" : "es";
+const base = import.meta.env.BASE_URL.endsWith("/")
+  ? import.meta.env.BASE_URL
+  : import.meta.env.BASE_URL + "/";
+const switchHref = locale === "es" ? `${base}en/` : base;
+const links = [
+  { href: "#estado", label: s.nav.estado },
+  { href: "#research", label: locale === "es" ? "Investigación" : "Research" },
+  { href: "#timeline", label: s.nav.timeline },
+  { href: "#roadmap", label: s.nav.roadmap },
+  { href: "#stack", label: s.nav.stack },
+  { href: "#docs", label: s.nav.docs },
+  { href: "#ayudar", label: s.nav.ayudar },
+];
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 border-b border-graphite/60 bg-void/80 backdrop-blur">
+  <nav class="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-4">
+    <a href={base} class="flex items-center gap-2">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M9 1L16.5 15.5H1.5L9 1Z" stroke="#fff" stroke-width="1.5" />
+        <path d="M9 6.5L12.5 13H5.5L9 6.5Z" fill="#e4f222" />
+      </svg>
+      <span class="text-[16px] font-medium tracking-tight text-paper">Azoth</span>
+    </a>
+    <div class="hidden items-center gap-1 lg:flex">
+      {links.map((l) => (
+        <a
+          href={l.href}
+          class="rounded-md px-3 py-2 text-[13px] text-mist transition-colors hover:text-paper"
+        >
+          {l.label}
+        </a>
+      ))}
+    </div>
+    <div class="flex items-center gap-2">
+      <a
+        href={switchHref}
+        hreflang={other}
+        class="pill mono border border-graphite text-[11px] transition-colors hover:border-smoke"
+        aria-label="Switch language"
+      >
+        {other.toUpperCase()}
+      </a>
+      <a
+        href="#ayudar"
+        class="rounded-full bg-paper px-4 py-2 text-[13px] font-medium text-void transition-opacity hover:opacity-90"
+      >
+        {s.nav.participar}
+      </a>
+    </div>
+  </nav>
+</header>

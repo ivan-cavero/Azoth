@@ -1,0 +1,79 @@
+---
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+
+const facts = [
+  { value: "4,818", en: "client types registered", es: "tipos de cliente registrados" },
+  { value: "2,250", en: "server data tables in the PAK", es: "tablas de datos del servidor en el PAK" },
+  { value: "44", en: "playable subworlds shipped", es: "submundos jugables incluidos" },
+  { value: "112", en: "wiki pages researched", es: "páginas de wiki investigadas" },
+];
+
+const discoveries = [
+  {
+    icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+    title: { es: "Las tablas de datos del servidor viajan en el cliente", en: "The server's data tables ship in the client" },
+    body: {
+      es: "2.250 datasheets javelindata_* contienen las reglas literales: curva de XP, 5.237 loot tables, balance por modo PvP, 53 gamemodes, temporadas 1-10. No hay que inventar números: se cargan.",
+      en: "2,250 javelindata_* datasheets hold the literal rules: XP curve, 5,237 loot tables, per-PvP-mode balance, 53 gamemodes, seasons 1-10. No numbers to invent — we load them.",
+    },
+    href: "https://github.com/",
+    link: { es: "research/docs/sim-blueprint/DATASHEETS.md", en: "research/docs/sim-blueprint/DATASHEETS.md" },
+  },
+  {
+    icon: "M9 3v18M15 3v18M3 9h18M3 15h18",
+    title: { es: "El juego tiene fecha de apagado: el objetivo es estable", en: "The game has a shutdown date: the target is stable" },
+    body: {
+      es: "Amazon cierra los servidores el 31 de enero de 2027. La build que emulamos es la versión final y completa — nada va a cambiar bajo nuestros pies.",
+      en: "Amazon shuts the servers down on Jan 31, 2027. The build we emulate is the final, complete version — nothing will shift under us.",
+    },
+    href: null,
+    link: { es: "steam: 'The Future of New World'", en: "steam: 'The Future of New World'" },
+  },
+  {
+    icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+    title: { es: "Catacombs: el modo instanciado más pequeño y completo", en: "Catacombs: the smallest complete instanced mode" },
+    body: {
+      es: "Dungeon roguelite procedural de la temporada 10 (1-3 jugadores). La gramática de generación viaja en el PAK (dungeongrammars/dungeonrooms). Es el primer modo instancado que conviene emular.",
+      en: "Season 10's procedural roguelite dungeon (1-3 players). The generation grammar ships in the PAK (dungeongrammars/dungeonrooms). First instanced mode to emulate.",
+    },
+    href: null,
+    link: { es: "roadmap: K21", en: "roadmap: K21" },
+  },
+];
+---
+
+<section id="research" class="scroll-mt-20 py-24">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <h2 class="section-title">{locale === "es" ? "Lo que dice la investigación" : "What the research says"}</h2>
+    <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+      {locale === "es"
+        ? "Cada decisión del emulador sale de tres fuentes cruzadas: el cliente (4.818 tipos), los assets del juego (2.250 tablas de datos) y la documentación pública (112 páginas). Nada se diseña a ciegas."
+        : "Every emulator decision comes from three cross-checked sources: the client (4,818 types), the game's assets (2,250 data tables), and public documentation (112 pages). Nothing is designed blind."}
+    </p>
+
+    <div class="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl sm:grid-cols-4" style="box-shadow: rgb(35,37,42) 0 0 0 1px inset">
+      {facts.map((f) => (
+        <div class="bg-carbon px-6 py-5">
+          <div class="mono text-[28px] tracking-[-0.012em] text-paper">{f.value}</div>
+          <div class="mt-1 text-[12px] leading-snug text-ash">{locale === "es" ? f.es : f.en}</div>
+        </div>
+      ))}
+    </div>
+
+    <div class="mt-4 grid gap-4 lg:grid-cols-3">
+      {discoveries.map((d) => (
+        <div class="card p-6">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-acid-lime" aria-hidden="true">
+            <path d={d.icon} stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <h3 class="mt-4 text-[16px] font-medium leading-snug text-paper">{d.title[locale]}</h3>
+          <p class="mt-2.5 text-[13px] leading-relaxed text-fog">{d.body[locale]}</p>
+          <div class="mono mt-4 truncate text-[11px] text-ash">{d.link[locale]}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

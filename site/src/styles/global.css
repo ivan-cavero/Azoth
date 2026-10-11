@@ -1,0 +1,179 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource/jetbrains-mono/400.css";
+
+@theme {
+  /* Colors — Linear midnight system */
+  --color-void: #08090a;
+  --color-carbon: #0f1011;
+  --color-obsidian: #161718;
+  --color-graphite: #23252a;
+  --color-smoke: #383b3f;
+  --color-ash: #62666d;
+  --color-fog: #8a8f98;
+  --color-mist: #d0d6e0;
+  --color-bone: #e5e5e6;
+  --color-paper: #ffffff;
+  --color-acid-lime: #e4f222;
+  --color-pulse-green: #27a644;
+  --color-coral-red: #eb5757;
+  --color-signal-teal: #02b8cc;
+  --color-iris-violet: #6366f1;
+  --color-lavender: #8b5cf6;
+
+  /* Typography */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
+
+  /* Shadows — hairline borders do the separating */
+  --shadow-sm: rgba(0, 0, 0, 0.4) 0px 2px 4px 0px;
+  --shadow-inset-border: rgb(35, 37, 42) 0 0 0 1px inset;
+  --shadow-lime: rgba(0, 0, 0, 0.01) 0px 5px 2px 0px,
+    rgba(0, 0, 0, 0.04) 0px 3px 2px 0px, rgba(0, 0, 0, 0.07) 0px 1px 1px 0px;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "cv01" on, "ss03" on, "zero" on;
+  background: var(--color-void);
+  color: var(--color-mist);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Mono metadata: issue codes, timestamps, keyboard-ish labels */
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "cv01" on, "ss03" on;
+  letter-spacing: -0.013em;
+}
+
+/* Hairline card — the Linear card is defined by its inset border */
+.card {
+  background: var(--color-carbon);
+  border-radius: 12px;
+  box-shadow: var(--shadow-inset-border);
+}
+
+.pill {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--color-mist);
+}
+
+.section-title {
+  font-size: 48px;
+  font-weight: 510;
+  letter-spacing: -0.022em;
+  line-height: 1;
+  color: var(--color-paper);
+}
+
+@media (max-width: 640px) {
+  .section-title {
+    font-size: 32px;
+  }
+}
+
+/* Gantt bars */
+.gantt-bar {
+  border-radius: 4px;
+  min-width: 6px;
+}
+.gantt-bar-done {
+  background: #9ecff7;
+}
+.gantt-bar-active {
+  background: var(--color-acid-lime);
+}
+.gantt-bar-planned {
+  background: #2c2f35;
+  border: 1px solid var(--color-graphite);
+}
+.gantt-now {
+  background: var(--color-coral-red);
+  box-shadow: rgba(235, 87, 87, 0.35) 0 0 12px 2px;
+}
+
+/* Progress bars */
+.prog-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--color-acid-lime);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Pulse dot for live status */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Product screenshot card — the only imagery, framed like Linear does it */
+.shot-card {
+  position: relative;
+  border-radius: 12px;
+  box-shadow:
+    rgb(35, 37, 42) 0 0 0 1px inset,
+    rgba(8, 9, 10, 0.6) 0 4px 32px 0px;
+  overflow: hidden;
+  background: var(--color-carbon);
+}
+.shot-card img {
+  display: block;
+  width: 100%;
+  filter: saturate(0.92) brightness(0.96);
+}
+.shot-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 9, 10, 0.08) 0%, rgba(8, 9, 10, 0) 30%, rgba(8, 9, 10, 0.35) 100%);
+  pointer-events: none;
+}
+.shot-caption {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  z-index: 1;
+}
+
+/* Hero atmospheric floor — gradient only, no photo */
+.hero-floor {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(228, 242, 34, 0.05), transparent 60%),
+    linear-gradient(180deg, rgba(8, 9, 10, 0) 40%, rgba(15, 16, 17, 0.5) 100%);
+  pointer-events: none;
+}
+
+::selection {
+  background: rgba(228, 242, 34, 0.25);
+}

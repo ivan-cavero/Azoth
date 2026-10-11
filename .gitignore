@@ -39,3 +39,9 @@ private-client/
 services/world/replay/*
 # the redacted capture is the regression fixture for the world tests
 !services/world/replay/messages-redacted.txt
+
+# --- landing site build artifacts (source is tracked; dist is generated in CI) ---
+site/node_modules/
+site/dist/
+site/.astro/
+site/src/data/repo-facts.gen.json

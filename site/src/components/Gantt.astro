@@ -1,0 +1,320 @@
+---
+import { ganttTasks } from "../data/project";
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+
+const statusLabel = { done: "hecha", active: "en curso", planned: "planificada" } as const;
+const done = ganttTasks.filter((task) => task.status === "done").length;
+---
+
+<section id="timeline" class="scroll-mt-20 py-24">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h2 class="section-title">{s.gantt.title}</h2>
+        <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+          {s.gantt.lead}
+        </p>
+      </div>
+      <div class="mono text-[12px] text-ash">
+        {done}/{ganttTasks.length} {s.gantt.closed}
+      </div>
+    </div>
+
+    <div class="card mt-10 overflow-hidden">
+      <!-- toolbar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-graphite/60 px-4 py-3">
+        <input
+          id="gantt-search"
+          type="text"
+          placeholder={s.gantt.search}
+          class="w-56 rounded-md border border-white/10 bg-white/[0.02] px-3 py-2 text-[13px] text-mist placeholder:text-ash focus:border-mist focus:outline-none"
+        />
+        <div class="flex items-center gap-1" id="gantt-ranges" data-ranges={JSON.stringify(s.gantt.ranges)}>
+          {s.gantt.ranges.map((r, i) => (
+            <button
+              data-range={r}
+              class={`rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                i === 2
+                  ? "bg-acid-lime text-void"
+                  : "border border-graphite text-mist hover:border-smoke"
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div class="flex">
+        <!-- left: task list -->
+        <div class="w-[300px] shrink-0 border-r border-graphite/60 max-sm:w-[210px]">
+          <div class="border-b border-graphite/60 px-4 py-3">
+            <span class="mono text-[10px] tracking-[0.08em] text-ash">{s.gantt.listHeader}</span>
+          </div>
+          <ul id="gantt-list" class="divide-y divide-graphite/40">
+            {ganttTasks.map((t) => (
+              <li
+                class="gantt-row flex cursor-default items-center justify-between gap-3 px-4 py-3"
+                data-task-id={t.id}
+              >
+                <div class="flex min-w-0 items-center gap-2">
+                  <span
+                    class={`inline-block h-2 w-2 shrink-0 rounded-[2px] ${
+                      t.status === "done"
+                        ? "bg-signal-teal"
+                        : t.status === "active"
+                          ? "bg-acid-lime"
+                          : "bg-smoke"
+                    }`}
+                  />
+                  <span class="mono shrink-0 text-[11px] text-ash">{t.code}</span>
+                  <span class="truncate text-[13px] text-mist">{t.label[locale]}</span>
+                </div>
+                <span class="mono shrink-0 text-[11px] text-ash">
+                  {t.status === "planned" ? "—" : `${Math.round(t.progress * 100)}%`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <!-- right: timeline, horizontally scrollable -->
+        <div class="relative min-w-0 flex-1">
+          <div id="gantt-scroll" class="gantt-scroll overflow-x-auto overflow-y-hidden">
+            <div id="gantt-inner" class="relative" style="width: 1600px">
+              <div id="gantt-header" class="sticky top-0 z-10 h-10 border-b border-graphite/60 bg-carbon"></div>
+              <div id="gantt-grid" class="relative">
+                {ganttTasks.map((t) => (
+                  <div
+                    class="gantt-row relative h-[46px] border-b border-graphite/30 last:border-b-0"
+                    data-task-id={t.id}
+                    data-start={t.start}
+                    data-end={t.end}
+                    data-open={t.open ? "1" : "0"}
+                    data-status={t.status}
+                    data-label={t.label}
+                    data-code={t.code}
+                  >
+                    <div
+                      class={`gantt-bar absolute top-1/2 h-4 -translate-y-1/2 ${
+                        t.status === "done"
+                          ? "gantt-bar-done"
+                          : t.status === "active"
+                            ? "gantt-bar-active"
+                            : "gantt-bar-planned"
+                      }`}
+                      data-bar
+                    >
+                    </div>
+                    <div
+                      class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] whitespace-nowrap text-fog"
+                      data-bar-label
+                    >
+                    </div>
+                  </div>
+                ))}
+                <!-- NOW marker, positioned by script -->
+                <div id="gantt-now" class="pointer-events-none absolute inset-y-0 hidden w-px gantt-now">
+                  <span class="gantt-now absolute -top-[1px] right-0 translate-x-1/2 rounded-[3px] bg-coral-red px-1.5 py-0.5 text-[9px] font-medium tracking-[0.06em] text-void">
+                    {s.gantt.now}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- scroll hint -->
+          <div class="pointer-events-none absolute right-0 top-10 bottom-0 hidden w-16 bg-gradient-to-l from-carbon to-transparent max-md:block" id="gantt-hint">
+            <span class="mono absolute right-2 top-2 text-[9px] tracking-[0.08em] text-ash">{s.gantt.swipe}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  type Range = "7 DÍAS" | "1 MES" | "TODO";
+  const DAY = 86_400_000;
+
+  const scroll = document.getElementById("gantt-scroll")!;
+  const grid = document.getElementById("gantt-grid")!;
+  const header = document.getElementById("gantt-header")!;
+  const inner = document.getElementById("gantt-inner")!;
+  const nowLine = document.getElementById("gantt-now")!;
+  const hint = document.getElementById("gantt-hint");
+  const rows = Array.from(document.querySelectorAll<HTMLElement>(".gantt-row[data-start]"));
+  const search = document.getElementById("gantt-search") as HTMLInputElement;
+  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("#gantt-ranges button"));
+  const strings = document.getElementById("live-strings");
+  const nowLabel = strings?.dataset.now ?? "NOW";
+  const rangeLabels = JSON.parse(document.getElementById("gantt-ranges")!.dataset.ranges!);
+  let range: Range = "TODO";
+
+  const fmtDay = new Intl.DateTimeFormat("es", { day: "numeric", month: "short" });
+
+  // px per day: TODO ~ 4.4 (≈ 2 years fit), 1 MES wider, 7 DÍAS widest
+  function pxPerDay(): number {
+    if (range === "7 DÍAS") return 60;
+    if (range === "1 MES") return 26;
+    return 4.4;
+  }
+
+  function render() {
+    const now = Date.now();
+    const starts = rows.map((r) => new Date(r.dataset.start!).getTime());
+    let min = Math.min(...starts);
+    let max = Math.max(...rows.map((r) => new Date(r.dataset.end!).getTime()), min + DAY);
+
+    if (range === "7 DÍAS") min = Math.max(min, now - 7 * DAY);
+    if (range === "1 MES") min = Math.max(min, now - 30 * DAY);
+    max = Math.max(max, now) + 30 * DAY; // room after NOW for planned bars
+    if (range === "7 DÍAS") max = now + 2 * DAY;
+    if (range === "1 MES") max = now + 7 * DAY;
+
+    const span = Math.max(1, max - min);
+    const ppd = pxPerDay();
+    const width = Math.max(320, Math.ceil((span / DAY) * ppd));
+    inner.style.width = `${width}px`;
+
+    // header ticks: daily for 7 DÍAS/1 MES, monthly for TODO — with enough spacing
+    header.innerHTML = "";
+    const step = range === "TODO" ? 30 * DAY : range === "1 MES" ? 7 * DAY : DAY;
+    const labelEvery = range === "TODO" ? 1 : 1;
+    const firstTick = Math.ceil(min / step) * step;
+    let n = 0;
+    for (let t = firstTick; t <= max; t += step) {
+      const x = ((t - min) / span) * width;
+      const tick = document.createElement("div");
+      tick.className = "absolute top-0 h-full border-l border-graphite/40";
+      tick.style.left = `${x}px`;
+      const label = document.createElement("span");
+      label.className = "mono absolute top-2 left-1.5 text-[10px] whitespace-nowrap text-ash";
+      const d = new Date(t);
+      label.textContent =
+        range === "TODO"
+          ? d.toLocaleDateString("es", { month: "short", year: "2-digit" })
+          : fmtDay.format(d);
+      tick.appendChild(label);
+      header.appendChild(tick);
+      n += labelEvery;
+    }
+
+    // vertical grid lines through the rows
+    grid.querySelectorAll(".gantt-vline").forEach((el) => el.remove());
+    for (let t = firstTick; t <= max; t += step) {
+      const x = ((t - min) / span) * width;
+      const line = document.createElement("div");
+      line.className = "gantt-vline pointer-events-none absolute inset-y-0 border-l border-graphite/20";
+      line.style.left = `${x}px`;
+      grid.appendChild(line);
+    }
+
+    // bars
+    for (const row of rows) {
+      const bar = row.querySelector<HTMLElement>("[data-bar]")!;
+      const label = row.querySelector<HTMLElement>("[data-bar-label]")!;
+      const start = new Date(row.dataset.start!).getTime();
+      let end = new Date(row.dataset.end!).getTime();
+      if (row.dataset.open === "1") end = Math.max(end, now);
+
+      const visibleStart = Math.max(start, min);
+      const visibleEnd = Math.min(end, max);
+      if (visibleEnd <= visibleStart) {
+        bar.style.display = "none";
+        label.textContent = "";
+        continue;
+      }
+      bar.style.display = "";
+      bar.style.left = `${((visibleStart - min) / span) * width}px`;
+      bar.style.width = `${Math.max(6, ((visibleEnd - visibleStart) / span) * width)}px`;
+
+      const days = Math.max(1, Math.round((end - start) / DAY));
+      const text = `${row.dataset.code} · ${days} d`;
+      const barLeft = ((visibleStart - min) / span) * width;
+      const barWidth = ((visibleEnd - visibleStart) / span) * width;
+      if (barWidth > 70) {
+        label.style.left = `${barLeft + 6}px`;
+        label.style.color = "rgba(8,9,10,0.75)";
+        label.textContent = text;
+      } else {
+        label.style.left = `${barLeft + barWidth + 6}px`;
+        label.style.color = "";
+        label.textContent = text;
+      }
+    }
+
+    // NOW marker
+    if (now >= min && now <= max) {
+      nowLine.classList.remove("hidden");
+      (nowLine as HTMLElement).style.left = `${((now - min) / span) * width}px`;
+    } else {
+      nowLine.classList.add("hidden");
+    }
+  }
+
+  function filter() {
+    const q = search.value.trim().toLowerCase();
+    for (const row of rows) {
+      const hit =
+        !q ||
+        row.dataset.label!.toLowerCase().includes(q) ||
+        row.dataset.code!.toLowerCase().includes(q);
+      row.style.display = hit ? "" : "none";
+      const listRow = document.querySelector(
+        `#gantt-list .gantt-row[data-task-id="${row.dataset.taskId}"]`,
+      ) as HTMLElement | null;
+      if (listRow) listRow.style.display = hit ? "" : "none";
+    }
+  }
+
+  buttons.forEach((b) =>
+    b.addEventListener("click", () => {
+      range = b.dataset.range as Range;
+      buttons.forEach((x) => {
+        x.className =
+          "rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors " +
+          (x === b
+            ? "bg-acid-lime text-void"
+            : "border border-graphite text-mist hover:border-smoke");
+      });
+      render();
+      scrollToNow();
+    }),
+  );
+  search.addEventListener("input", filter);
+  window.addEventListener("resize", render);
+  // keep the NOW marker at ~65% of the visible area so bars + future are both in view
+  function scrollToNow() {
+    const marker = (nowLine as HTMLElement).style.left;
+    if (!marker) return;
+    const x = parseFloat(marker);
+    scroll.scrollLeft = Math.max(0, x - scroll.clientWidth * 0.65);
+  }
+
+  render();
+  requestAnimationFrame(() => {
+    scrollToNow();
+    if (hint) setTimeout(() => hint.remove(), 6000);
+  });
+  setInterval(render, 60_000);
+</script>
+
+<style>
+  .gantt-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-smoke) transparent;
+  }
+  .gantt-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+  .gantt-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-smoke);
+    border-radius: 4px;
+  }
+  .gantt-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+</style>

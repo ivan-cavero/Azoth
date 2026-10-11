@@ -1,0 +1,46 @@
+---
+import { stack } from "../data/project";
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+
+const stateMeta = {
+  now: { label: s.stack.now, cls: "bg-acid-lime text-void" },
+  transition: { label: s.stack.transition, cls: "bg-iris-violet text-paper" },
+  future: { label: s.stack.future, cls: "bg-graphite text-mist" },
+} as const;
+---
+
+<section id="stack" class="scroll-mt-20 py-24">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <h2 class="section-title">{s.stack.title}</h2>
+    <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+      {s.stack.lead}
+    </p>
+
+    <div class="card mt-10 divide-y divide-graphite/60">
+      {stack.map((entry) => (
+        <div class="grid gap-2 px-6 py-5 sm:grid-cols-[220px_1fr_110px] sm:items-center sm:gap-6">
+          <div>
+            <div class="text-[15px] font-medium text-paper">{entry.name}</div>
+            <div class="mt-0.5 text-[12px] text-ash">{entry.role[locale]}</div>
+          </div>
+          <p class="text-[13px] leading-relaxed text-fog">{entry.detail[locale]}</p>
+          <div class="sm:text-right">
+            <span class={`mono inline-block rounded px-2 py-1 text-[10px] font-medium tracking-[0.04em] ${stateMeta[entry.state].cls}`}>
+              {stateMeta[entry.state].label.toUpperCase()}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="card mt-4 flex flex-wrap items-center gap-x-8 gap-y-3 px-6 py-4">
+      <span class="mono text-[11px] tracking-[0.06em] text-ash">{s.stack.portRule}</span>
+      <span class="text-[13px] text-fog">
+        {s.stack.portText}
+      </span>
+    </div>
+  </div>
+</section>

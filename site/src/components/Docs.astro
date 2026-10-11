@@ -1,0 +1,48 @@
+---
+import { docs } from "../data/project";
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+
+const meta = {
+  verified: { label: s.docs.verified, cls: "text-pulse-green border-pulse-green/40" },
+  partial: { label: "PARTIAL", cls: "text-signal-teal border-signal-teal/40" },
+  open: { label: s.docs.open, cls: "text-coral-red border-coral-red/40" },
+} as const;
+
+const verified = docs.filter((d) => d.verified === "verified").length;
+---
+
+<section id="docs" class="scroll-mt-20 py-24 no-bg-backdrop">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h2 class="section-title">{s.docs.title}</h2>
+        <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+          Cada conclusión vive en el atlas con su evidencia: dirección, qué se observó
+          y cómo se confirmó. Lo no verificado se marca como tal — aquí también.
+        </p>
+      </div>
+      <div class="mono text-[12px] text-ash">{s.docs.counter(verified, docs.length)}</div>
+    </div>
+
+    <div class="card mt-10 divide-y divide-graphite/60">
+      {docs.map((d) => {
+        const m = meta[d.verified];
+        return (
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-6 py-4">
+            <span class={`mono shrink-0 rounded border px-2 py-0.5 text-[10px] tracking-[0.04em] ${m.cls}`}>
+              {m.label}
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="mono truncate text-[13px] text-mist">{d.name}</div>
+              <div class="mt-0.5 text-[12px] text-ash">{d.what[locale]}</div>
+            </div>
+            <code class="mono shrink-0 text-[11px] text-fog">{d.path}</code>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,43 @@
+---
+import { helpOptions } from "../data/project";
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+---
+
+<section id="ayudar" class="scroll-mt-20 py-24">
+  <div class="mx-auto max-w-[1200px] px-4">
+    <h2 class="section-title">{s.help.title}</h2>
+    <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+      {s.help.lead}
+    </p>
+
+    <div class="mt-10 grid gap-4 sm:grid-cols-2">
+      {helpOptions.map((h) => (
+        <div class="card p-6">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-[16px] font-medium text-paper">{h.title[locale]}</h3>
+            <span class="pill border border-graphite mono text-[11px] text-ash">{h.tag[locale]}</span>
+          </div>
+          <p class="mt-3 text-[14px] leading-relaxed text-fog">{h.body[locale]}</p>
+        </div>
+      ))}
+    </div>
+
+    <div class="card mt-10 flex flex-col items-start justify-between gap-6 p-8 sm:flex-row sm:items-center">
+      <div>
+        <h3 class="text-[24px] tracking-[-0.012em] text-paper">{s.help.supportTitle}</h3>
+        <p class="mt-2 max-w-xl text-[14px] leading-relaxed text-fog">
+          {s.help.supportBody}
+        </p>
+      </div>
+      <a
+        href="mailto:contacto@azoth.dev"
+        class="shrink-0 rounded-md bg-acid-lime px-5 py-3 text-[14px] font-medium tracking-[-0.011em] text-void shadow-lime transition-opacity hover:opacity-90"
+      >
+        {s.help.supportCta}
+      </a>
+    </div>
+  </div>
+</section>

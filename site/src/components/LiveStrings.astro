@@ -1,0 +1,13 @@
+---
+import { t, type Locale } from "../data/i18n";
+
+const { locale } = Astro.props as { locale: Locale };
+const s = t(locale);
+---
+
+<span id="live-strings" class="hidden"
+  data-on={s.hero.badgeOn}
+  data-off={s.hero.badgeOff}
+  data-running={s.live.running}
+  data-stopped={s.live.stopped}
+></span>

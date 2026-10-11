@@ -1,0 +1,77 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Azoth — Servidor privado de New World",
+  description = "Estado en vivo, roadmap y progreso verificable del proyecto Azoth.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body class="min-h-screen antialiased">
+    <slot />
+    <script>
+      // Refresh the live badge by re-reading /live.json (no rebuild needed).
+      async function refreshLive() {
+        try {
+          const res = await fetch(`${import.meta.env.BASE_URL.replace(/\/+$/, "")}/live.json`, { cache: "no-store" });
+          if (!res.ok) return;
+          const live = await res.json();
+          const dot = document.getElementById("live-dot");
+          const label = document.getElementById("live-label");
+          const sub = document.getElementById("live-sub");
+          if (!dot || !label) return;
+          const running = Boolean(live.agentRunning);
+          dot.classList.toggle("pulse", running);
+          (dot as HTMLElement).style.background = running
+            ? "var(--color-acid-lime)"
+            : "var(--color-ash)";
+          const strings = document.getElementById("live-strings");
+          label.textContent = strings
+            ? running
+              ? strings.dataset.on!
+              : strings.dataset.off!
+            : running
+              ? "Agent running"
+              : "Agent idle";
+          if (sub && live.lastHeartbeat) {
+            sub.textContent = `último latido ${live.lastHeartbeat}`;
+          }
+          const services = live.services ?? {};
+          for (const el of document.querySelectorAll<HTMLElement>("[data-live-service]")) {
+            const key = el.dataset.liveService!;
+            const on = Boolean(services[key]);
+            const dot = el.querySelector<HTMLElement>(".svc-dot");
+            const text = el.querySelector<HTMLElement>(".svc-text");
+            if (dot) {
+              dot.classList.toggle("pulse", on);
+              dot.style.background = on ? "var(--color-acid-lime)" : "var(--color-smoke)";
+            }
+            if (text)
+              text.textContent = strings
+                ? on
+                  ? strings.dataset.running!
+                  : strings.dataset.stopped!
+                : on ? "running" : "stopped";
+          }
+        } catch {
+          // Static build data stays visible on failure.
+        }
+      }
+      refreshLive();
+      setInterval(refreshLive, 30_000);
+    </script>
+  </body>
+</html>
