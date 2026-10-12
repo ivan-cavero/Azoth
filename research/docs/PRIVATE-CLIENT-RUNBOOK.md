@@ -590,11 +590,24 @@ entity carries `PlayerPositionTrackingComponent` (GUID `62620B33-6F37-418B-9C4F-
 function pointer stored in it lives in `.text`. Checking `inCode(vtable)` therefore rejects
 **every** component (126/126) as `badVtbl`. Check the resolved **function pointer** instead.
 
-**Unresolved disagreement:** at ~4 s after spawn, `CharacterPhysicsComponent` and
-`GameRigidBodyComponent` are NOT on the entity, by the component-list dump and by asking the
-client's own lookup `FUN_1413fb700` for both GUIDs (controls positive). The committed record
-`local_player_components_step0_20261010` claims the lookup found both. Re-dump at spawn+4 s,
-+30 s and +2 min while logging every ADD (`FUN_1413789c0`) to settle it.
+**Unresolved disagreement: RESOLVED 2026-10-12 — the physics components are ABSENT.** At three
+instants of the same live entity (~4 s, +30 s, +120 s after spawn) `CharacterPhysicsComponent`
+and `GameRigidBodyComponent` are neither in the 126-component list nor returned by the client's
+own lookup `FUN_1413fb700` (both byte orders, controls positive), while the ADD hook `FUN_1413789c0`
+was demonstrably live (24 adds, none on the player entity). The earlier claim came from
+misreading a capture that says `physics_asked: {..."null"}` and lists both in `lost_named`. See
+`physics_components_absent_RESOLVED_20261012`.
+
+**The position path is replicated state, and its facets are missing.** On the live entity only
+the bare `PlayerPositionTrackingComponent` is present; `PositionInTheWorldComponent{Client,Server}Facet`,
+`PlayerPositionTrackingComponent{Client,Server}Facet`, `PositionalTicketingComponent{Client,Server}Facet`,
+`CameraComponent` and `IPositionReceiver` are ALL absent. Static agrees that no RMI can be the
+authoritative path: `PlayerPositionTrackingComponent` has only AI-debug messages,
+`PositionInTheWorldComponent{Client,Server}Facet` have none, and
+`PositionInTheWorldComponentServerFacet::InitializeReplicatedFields` exists, so the position
+travels as replicated state (`MB::PositionInTheWorldReplicatedState`) on the AOI state-record
+path — the same failure class as the unbound `GlobalStorageComponentClientFacet`. Do not write
+another position RMI payload.
 
 **Frida is a crash source on this build.** One crash's faulting module was
 `frida-agent.dll_unloaded` at `0x9c7e0`. Attach as late as possible (at character select via

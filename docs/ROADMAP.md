@@ -48,11 +48,22 @@ orders the work without repeating those references.
   the client's own command output by `frida-position-validate.py`. Measured 2026-10-12:
   **667/667 identical samples** over 136 s containing a 10 s W hold and a 4 s S control,
   while the server received 7804 channel-1 records — so W does not move the player and the
-  input does reach the game. Build the next step on `PlayerPositionTrackingComponent` /
-  `PositionInTheWorldComponent`, NOT on the `ActorMover` family: that family is server-side
-  hub migration (`Sending CommitMovement for actor`, `DelayMigrationsMsg`), which is why
-  `StartMovementCommunicationMsg` changed nothing. The client's own accessor also gives
-  turning/collision checks a real instrument.
+  input does reach the game.
+- **The position arrives as REPLICATED STATE, not as an RMI, and the client-side facets are
+  missing.** `PlayerPositionTrackingComponent` has only AI spawn-manager debug messages;
+  `PositionInTheWorldComponent{Client,Server}Facet` have none; and
+  `PositionInTheWorldComponentServerFacet::InitializeReplicatedFields` exists with
+  `MB::PositionInTheWorldReplicatedState`. On the live player entity only the bare
+  `PlayerPositionTrackingComponent` is present — every position facet, `CameraComponent` and
+  `IPositionReceiver` are absent. This is the same failure class as the unbound
+  `GlobalStorageComponentClientFacet` and the missing `IPositionReceiver`: the client-side
+  facets are not created. Do not write another position RMI payload; find what makes the
+  client create/bind a client-side facet for a replicated component instead.
+- **Physics components are absent on the live player entity (RESOLVED 2026-10-12).** Three
+  instants of the same entity all show 126 components with `CharacterPhysicsComponent` and
+  `GameRigidBodyComponent` absent and the controls present, and the ADD hook was live (24 adds,
+  none on the player entity). The old record misread its own capture
+  (`physics_components_absent_RESOLVED_20261012`).
 - Resolve the two known application failures with evidence. W produces no movement-family
   message (re-confirmed 2026-10-12 on a fresh client: a 4 s W-hold produced 210 inbound
   app-data records, all channel 1 at 119/120 B), while the client does stream its input
@@ -73,12 +84,11 @@ orders the work without repeating those references.
   change at all while W is held, and the `IPositionReceiver` instance the reply needs is
   never created client-side.
 - **Open question to settle before it steers work:** whether the live player entity
-  carries `CharacterPhysicsComponent` / `GameRigidBodyComponent`. The 2026-10-10 record
-  says yes; a 2026-10-12 measurement of the same lookup on the same 126-component entity
-  says no, and the full 126-component list dump does not contain them
-  (`physics_components_absent_on_the_live_player_entity_20261012`). Settle it by
-  re-dumping at spawn+4 s / +30 s / +2 min while logging every ADD (`FUN_1413789c0`),
-  and do not build a plan on either answer until then.
+  carries `CharacterPhysicsComponent` / `GameRigidBodyComponent`. **SETTLED 2026-10-12: it does
+  not.** Three instants of the same entity, with a live ADD hook, all show both absent and the
+  controls present; the earlier claim misread its own capture
+  (`physics_components_absent_RESOLVED_20261012`). Do not build a plan on physics components
+  being present.
 - Reproduce each baseline on a fresh `NewWorld.exe`; change one variable per
   attempt. Record build hash, config, logs/probe counters, HUD result, transform
   delta, duration, and negative results in the atlas before closing the run. Keep

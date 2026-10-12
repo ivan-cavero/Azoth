@@ -1,5 +1,50 @@
 # Live status
 
+## 2026-10-12 (cont. 5) — physics disagreement RESOLVED; the position path is replicated state, and its facets are missing
+
+**The physics disagreement is settled, and it settles AGAINST the committed record — by that
+record's own capture.** One session (run `phys-101555`, probe
+`reverse/probes/client/frida-physics-timeline.py`, new) snapshotted the SAME live entity at
+three instants — as soon as it was tracked (~4 s after spawn), +30 s and +120 s — while hooking
+the component ADD `FUN_1413789c0` so a late addition could not be missed:
+
+| instant | components | resolved | `CharacterPhysicsComponent` | `GameRigidBodyComponent` | controls |
+| --- | --- | --- | --- | --- | --- |
+| ~4 s | 126 | 126/126 | absent | absent | all present |
+| +30 s | 126 | 126/126 | absent | absent | all present |
+| +120 s | 126 | 126/126 | absent | absent | all present |
+
+The ADD hook was demonstrably live: **24 adds observed**, every one on a different entity, none
+on the player entity. **Root cause of the disagreement:** the 2026-10-10 capture is still on
+disk (`.azoth/captures/probes/player-components-1791660475.jsonl`) and its own `top` record says
+`"physics_asked": {"CharacterPhysicsComponent": "null", "GameRigidBodyComponent": "null"}` and
+lists BOTH in **`lost_named`** — the bucket for components asked about and NOT found. The atlas
+entry written from it (`local_player_components_step0_20261010`) read `asked_named` as if it were
+the found list. That capture also read an entity with only **hits=21**, the short-lived/freed
+126-component entity, not the live one. The entry is corrected and marked superseded. Evidence:
+`physics_components_absent_RESOLVED_20261012`.
+
+**Position: the authoritative path is replicated STATE, not an RMI — and the facets are missing.**
+Measured on the live entity, of the whole position family only the bare component is there:
+`PlayerPositionTrackingComponent` present, but `PlayerPositionTrackingComponent{Client,Server}Facet`,
+`PositionInTheWorldComponent{Client,Server}Facet`, `PositionalTicketingComponent{Client,Server}Facet`,
+`CameraComponent` and `IPositionReceiver` **all absent**. Static confirms why no RMI can be the
+authoritative path: `PlayerPositionTrackingComponent` has only three messages and all are AI
+spawn-manager **debug** (wires 357, 2780, 6635); `PositionInTheWorldComponent{Client,Server}Facet`
+have **no registered messages at all**; and `PositionInTheWorldComponentServerFacet::InitializeReplicatedFields`
+exists, so the position travels as **replicated state** (`MB::PositionInTheWorldReplicatedState`)
+on the AOI state-record path. This is the same failure class as the 23
+`GlobalStorageComponentClientFacet_ReceiveStorageSearchItems` facet errors and as the missing
+`IPositionReceiver`: **the client-side facets are not created on the local player entity.**
+Evidence: `position_facets_absent_on_the_live_entity_20261012` and
+`position_state_may_arrive_as_replicated_state_not_rmi_20261012`. Stop looking for a message to
+send.
+
+**Next concrete step.** Find what makes the client create/bind a client-side facet for a
+replicated component — most likely the server-side replicated component state arriving in a
+state bundle — and identify which of the spawn record's 48 captured fragments declares the
+position component's replicated fields.
+
 ## 2026-10-12 (cont. 4) — the live player entity's 126 components are now named, and the physics claim does not reproduce
 
 **The component resolution bug is fixed and the list is complete.** Every component of the live

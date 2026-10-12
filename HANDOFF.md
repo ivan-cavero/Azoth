@@ -128,51 +128,46 @@ is better rebuilt from the install than committed, because it is a game file.
 
 ### Latest measured results (2026-10-12, live + static)
 
-- **The live player entity's 126 components are dumped and named.** The old probes rejected
-  126/126 components by checking `inCode(vtable)`; on this build the vtable is in `.rdata` and
-  the function pointer inside it in `.text`, so check the FUNCTION POINTER. Fixed, run
-  `comp-083309` resolved 126/126 with zero failures. Probe
-  `reverse/probes/client/frida-player-components-full.py`. Atlas:
-  `player_entity_component_list_measured_20261012`.
-- **`PlayerPositionTrackingComponent` IS on the entity** (index 95, GUID `62620B33-…`), along
-  with `CharacterComponent`, `Transform`, `TraversalComponent`, `CameraLockComponent`,
-  `PlayerInputFiltersComponent`, `MotionParameterSmoothingComponent`, `PlayerAOIComponent`,
-  `SpectatedPlayerComponent`, `SpectatorModeComponent` and more.
-- **`CharacterPhysicsComponent` / `GameRigidBodyComponent` do NOT reproduce on the live
-  entity** (~4 s after spawn), by the component-list dump AND by asking the client's own
-  lookup (both byte orders, controls positive). This is an UNRESOLVED disagreement with
-  `local_player_components_step0_20261010`, not a retraction; the deciding experiment is to
-  re-dump at spawn+4 s / +30 s / +2 min while logging every ADD (`FUN_1413789c0`). Atlas:
-  `physics_components_absent_on_the_live_player_entity_20261012`.
-- **Frida itself is a crash source**: one crash's faulting module was
-  `frida-agent.dll_unloaded` at `0x9c7e0`. Attach as late as possible, prefer hooks-only
-  probes, and treat a death as invalid unless the faulting module is `NewWorld.exe`. Atlas:
-  `frida_agent_unload_is_a_crash_source_20261012`.
+- **Physics components are ABSENT on the live player entity — RESOLVED.** Three instants of the
+  same entity (~4 s, +30 s, +120 s after spawn) all show 126 components, 126/126 resolved, with
+  `CharacterPhysicsComponent` and `GameRigidBodyComponent` absent and all controls present; the
+  ADD hook was live (24 adds, none on the player entity). The committed record
+  `local_player_components_step0_20261010` misread its own capture: that capture says
+  `physics_asked: {..."null"}` and lists both in `lost_named`, and it read an entity with only
+  hits=21 (the short-lived one). Corrected and superseded. Atlas:
+  `physics_components_absent_RESOLVED_20261012`. Probe:
+  `reverse/probes/client/frida-physics-timeline.py`.
+- **The position path is replicated STATE, not an RMI, and its facets are missing.** On the live
+  entity only the bare `PlayerPositionTrackingComponent` is present; `PositionInTheWorldComponent{Client,Server}Facet`,
+  `PlayerPositionTrackingComponent{Client,Server}Facet`, `PositionalTicketingComponent{Client,Server}Facet`,
+  `CameraComponent` and `IPositionReceiver` are ALL absent. Static: `PlayerPositionTrackingComponent`
+  has only AI-debug messages; `PositionInTheWorldComponent{Client,Server}Facet` have no messages at
+  all; and `PositionInTheWorldComponentServerFacet::InitializeReplicatedFields` exists, so the
+  position travels as replicated state (`MB::PositionInTheWorldReplicatedState`). Same failure class
+  as the unbound `GlobalStorageComponentClientFacet` and the missing `IPositionReceiver`: the
+  client-side facets are not created. Atlas: `position_facets_absent_on_the_live_entity_20261012`,
+  `position_state_may_arrive_as_replicated_state_not_rmi_20261012`.
+- **`ActorMover` is server-side hub migration, NOT locomotion.** Atlas:
+  `actormover_is_hub_migration_not_locomotion_20261012`.
 - **The player position is measured with the client's own accessor**: `nw_getPlayerPosition`'s
   handler `0x141015b30` calls `FUN_140fddfa0(&holder)` and reads
   `*(float*)(holder+0x14c/0x15c/0x16c)`. Probes `frida-player-position.py`,
-  `frida-position-validate.py` (validated by calling the client's own handler). Atlas:
-  `player_position_accessor_and_console_commands_20261012`.
+  `frida-position-validate.py`. Atlas: `player_position_accessor_and_console_commands_20261012`.
 - **W does NOT move the player — measured, 667/667 identical samples** at 0.2 s over 136 s
   containing a 10 s W hold and a 4 s S control; input reached the game (server logged 8184
   app-data events carrying 7804 channel-1 records). Atlas:
   `w_does_not_move_the_player_measured_with_the_client_accessor_20261012`.
-- **`ActorMover` is server-side hub migration, NOT locomotion.** The position plumbing is
-  `PlayerPositionTrackingComponent` / `PositionInTheWorldComponent` /
-  `PositionalTicketingComponent` / `CameraPositionListener`. Atlas:
-  `actormover_is_hub_migration_not_locomotion_20261012`.
-- **The `IPositionReceiver` is never created**: `installer=0` and `register=0` in every sample
-  of a whole session (18 min in-world). Atlas:
-  `position_receiver_never_created_in_a_full_session_20261012`.
-- **The blocker is reframed: our replay delivers to unbound client facets generally** (23 of
-  the 13041 facet errors are `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`).
-  Atlas: `replay_sends_to_unbound_client_facets_20261012`.
+- **The `IPositionReceiver` is never created** (`installer=0`, `register=0` for a whole session).
+  Atlas: `position_receiver_never_created_in_a_full_session_20261012`.
+- **`CharacterComponent`/`Transform`/`PlayerPositionTrackingComponent` are on the entity; 36 of the
+  126 GUIDs have no atlas name.** The old probes rejected 126/126 components by checking
+  `inCode(vtable)` — the vtable is in `.rdata`, the function pointer in `.text`; check the POINTER.
+  Atlas: `player_entity_component_list_measured_20261012`.
+- **A repeatable crash comes from Frida itself**: faulting module `frida-agent.dll_unloaded`.
+  Attach late (character select), prefer hooks-only probes, and attribute deaths by faulting
+  module. Atlas: `frida_agent_unload_is_a_crash_source_20261012`.
 - **The 20-minute exit did not arm with gap 4 (replicated)**: 22 min 12 s in-world with
   `ActorContainerDisconnect` 0. Atlas: `exitA_gap4_replication_20261012`.
-- **The IPositionReceiver machinery is data-driven**: interface vtable `0x1482eb160` referenced
-  by exactly ONE site (installer `0x143f983d0`, slot +0x28 of base vtable `0x1482ea4e8`); the
-  base vtable's slot +0x20 is `ret 0`. Atlas: `ipositionreceiver_vtable_layout_20261012`,
-  `az_interface_decoupler_mechanism_20261012`.
 - **Type names are recoverable from the binary** (`typeindex.json` + `.rdata` RTTI strings);
   `0x635` = `ActionListComponentServerFacet_ReceiveInputFromClient`, `0x1096`/`0x1097` =
   `TimeComponentClientFacet_SyncTimeChange`/`SyncDayPhase`, and the earlier "dispatch fixed"
@@ -211,19 +206,20 @@ Evidence: `local_player_components_step0_20261010` and
 
 ### Current experiment order
 
-1. **Resolve the physics-component disagreement.** Re-dump the same live player entity at
-   spawn+4 s, +30 s and +2 min in ONE session while logging every ADD (`FUN_1413789c0`), so a
-   late physics addition is caught. Use the corrected resolution (check the resolved function
-   pointer, not the vtable) and prefer hooks-only probes attached at character select.
-2. **Build the position work on `PlayerPositionTrackingComponent`** (on the entity) and
-   `PositionInTheWorldComponent` / `PositionalTicketingComponent` / `CameraPositionListener`,
-   NOT on the `ActorMover` family.
-3. **Find which client object would create the `IPositionReceiver` instance** (installer and
-   register both read 0); several client facets are unbound, so this is the incomplete
-   local-player object graph.
-4. **Measure every movement claim with the validated accessor** (`frida-player-position.py`);
-   the client's other console commands (`nw_findLocalEntity`, `nw_getPlayerHealth`) give the
-   same treatment to other questions.
+1. **Find what makes the client create/bind a client-side facet for a replicated component.**
+   The position is replicated state (`PositionInTheWorldComponentServerFacet::InitializeReplicatedFields`
+   + `MB::PositionInTheWorldReplicatedState`) and the live player entity has NONE of the position
+   facets, which is the same failure class as the unbound `GlobalStorageComponentClientFacet` and
+   the missing `IPositionReceiver`. Identify which of the spawn record's 48 captured fragments
+   declares the position component's replicated fields.
+2. **Do not write another RMI payload for position.** `PlayerPositionTrackingComponent` carries only
+   AI spawn-manager debug messages; `PositionInTheWorldComponent{Client,Server}Facet` carry none.
+   Do not re-run `StartMovementCommunicationMsg` either (measured not to bind anything).
+3. **Measure every movement claim with the validated accessor** (`frida-player-position.py`); the
+   client's other console commands (`nw_findLocalEntity`, `nw_getPlayerHealth`) give the same
+   treatment to other questions.
+4. **Arm-side 20-minute fix only if it ever arms** (hook `FUN_14107fb40`). With the 4 ms default it
+   does not arm at all (replicated twice).
 3. Trace the missing `IPositionReceiver`/facet target for reliable type 4216.
    The reader runs, but `RMIDispatch` says its `targetLocalId` does not exist;
    decoding alone is not a successful position update.
