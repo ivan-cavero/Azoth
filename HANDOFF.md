@@ -23,11 +23,14 @@ Working directory: the repository root. Branch `main`.
 
 ## Repository state
 
-- Branch `main`, **7 commits ahead of `origin/main`** (`4b03eb4`). Working tree
-  clean. Run `git log --oneline -8` to see them; each is a reviewable work unit.
+- At the 2026-10-11 review snapshot, branch `main` was aligned with
+  `origin/main`, but the worktree had local edits and untracked probes/reports.
+  Inspect `git status --short` before starting; do not assume those findings are
+  committed or shared.
 - Build in scope: `8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e`
   (Steam `Bin64/NewWorld.exe`, 179,204,176 B, `[RETAIL].Javelin.1.400.6031.6004151`).
-- Tests: **113 world**, **24 gateway**.
+- Most recently documented: **120 world**, **24 gateway** tests passed. This is
+  a recorded result, not a claim that the current uncommitted tree was retested.
 - Decompilation corpus: 423,579 `.pdata` ranges, **423,542 ok / 37 fail**
   (20 timeouts, 10 mid-function varnode fragments, 6 payload-cap, 1
   address-space). It does **not** cover 13,943 leaf functions in `.text` that
@@ -105,16 +108,14 @@ is better rebuilt from the install than committed, because it is a game file.
   missing, writing a registry with every `in_type_table: false`. It now refuses
   to write. Both scanners previously told you to run `python az.py disk`, which is
   not a command that exists; they now name the launcher instead.
-## What is SOLVED (do not re-investigate)
+## What is confirmed (do not repeat the old diagnosis)
 
-1. **World entry, possession, rendered world.** Gates 1-8b in
-   `research/docs/PRIVATE-CLIENT-RUNBOOK.md`.
-2. **Session stability.** A run holds the world for **2 h 06 min** with
-   `transportError` 0 and `disconnected from REP` 0 (previous best 0.6 min,
-   long history of drops at ~27-35 s). Three causes, all server-side:
-   output coupled to input (`Pearson 0.995 -> 0.180`); the UDP loop stalling
-   itself (log reopen per event, 1:1 ACKs, heartbeat retried to its cap); and
-   the activity clock waiting for the replay (gates 8e/8f).
+1. **World entry and possession reproduce.** The private client renders the
+   world and possesses the player. The red ALC/HUD warning remains visible.
+2. **REP transport survived one 2 h 06 min run** with `transportError` 0 and
+   `disconnected from REP` 0. This is transport uptime, not user-visible
+   connection success: the ALC door remains closed, its input stamp stops, and
+   a separate ~20-minute return-to-menu path remains open.
 3. **The protocol container, decoded.** The prefix varint, the byte-exact
    type-0x08 state bundle, the record sequence, and the two-varint fragment
    header. `services/world/src/azoth_world/javelin/varint.py` and `bundle.py`,
@@ -125,94 +126,153 @@ is better rebuilt from the install than committed, because it is a game file.
 
 ## What is OPEN — and the reframe that matters
 
-**Movement is not a feature to implement. It is the last thing that falls out**
-once the replication protocol is complete, and every piece of that protocol is
-shared with NPCs, other players and every world object. Do not plan around
-"doing movement": plan around completing one mechanism.
+### Latest measured results (2026-10-12, live + static)
+
+- **The live player entity's 126 components are dumped and named.** The old probes rejected
+  126/126 components by checking `inCode(vtable)`; on this build the vtable is in `.rdata` and
+  the function pointer inside it in `.text`, so check the FUNCTION POINTER. Fixed, run
+  `comp-083309` resolved 126/126 with zero failures. Probe
+  `reverse/probes/client/frida-player-components-full.py`. Atlas:
+  `player_entity_component_list_measured_20261012`.
+- **`PlayerPositionTrackingComponent` IS on the entity** (index 95, GUID `62620B33-…`), along
+  with `CharacterComponent`, `Transform`, `TraversalComponent`, `CameraLockComponent`,
+  `PlayerInputFiltersComponent`, `MotionParameterSmoothingComponent`, `PlayerAOIComponent`,
+  `SpectatedPlayerComponent`, `SpectatorModeComponent` and more.
+- **`CharacterPhysicsComponent` / `GameRigidBodyComponent` do NOT reproduce on the live
+  entity** (~4 s after spawn), by the component-list dump AND by asking the client's own
+  lookup (both byte orders, controls positive). This is an UNRESOLVED disagreement with
+  `local_player_components_step0_20261010`, not a retraction; the deciding experiment is to
+  re-dump at spawn+4 s / +30 s / +2 min while logging every ADD (`FUN_1413789c0`). Atlas:
+  `physics_components_absent_on_the_live_player_entity_20261012`.
+- **Frida itself is a crash source**: one crash's faulting module was
+  `frida-agent.dll_unloaded` at `0x9c7e0`. Attach as late as possible, prefer hooks-only
+  probes, and treat a death as invalid unless the faulting module is `NewWorld.exe`. Atlas:
+  `frida_agent_unload_is_a_crash_source_20261012`.
+- **The player position is measured with the client's own accessor**: `nw_getPlayerPosition`'s
+  handler `0x141015b30` calls `FUN_140fddfa0(&holder)` and reads
+  `*(float*)(holder+0x14c/0x15c/0x16c)`. Probes `frida-player-position.py`,
+  `frida-position-validate.py` (validated by calling the client's own handler). Atlas:
+  `player_position_accessor_and_console_commands_20261012`.
+- **W does NOT move the player — measured, 667/667 identical samples** at 0.2 s over 136 s
+  containing a 10 s W hold and a 4 s S control; input reached the game (server logged 8184
+  app-data events carrying 7804 channel-1 records). Atlas:
+  `w_does_not_move_the_player_measured_with_the_client_accessor_20261012`.
+- **`ActorMover` is server-side hub migration, NOT locomotion.** The position plumbing is
+  `PlayerPositionTrackingComponent` / `PositionInTheWorldComponent` /
+  `PositionalTicketingComponent` / `CameraPositionListener`. Atlas:
+  `actormover_is_hub_migration_not_locomotion_20261012`.
+- **The `IPositionReceiver` is never created**: `installer=0` and `register=0` in every sample
+  of a whole session (18 min in-world). Atlas:
+  `position_receiver_never_created_in_a_full_session_20261012`.
+- **The blocker is reframed: our replay delivers to unbound client facets generally** (23 of
+  the 13041 facet errors are `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`).
+  Atlas: `replay_sends_to_unbound_client_facets_20261012`.
+- **The 20-minute exit did not arm with gap 4 (replicated)**: 22 min 12 s in-world with
+  `ActorContainerDisconnect` 0. Atlas: `exitA_gap4_replication_20261012`.
+- **The IPositionReceiver machinery is data-driven**: interface vtable `0x1482eb160` referenced
+  by exactly ONE site (installer `0x143f983d0`, slot +0x28 of base vtable `0x1482ea4e8`); the
+  base vtable's slot +0x20 is `ret 0`. Atlas: `ipositionreceiver_vtable_layout_20261012`,
+  `az_interface_decoupler_mechanism_20261012`.
+- **Type names are recoverable from the binary** (`typeindex.json` + `.rdata` RTTI strings);
+  `0x635` = `ActionListComponentServerFacet_ReceiveInputFromClient`, `0x1096`/`0x1097` =
+  `TimeComponentClientFacet_SyncTimeChange`/`SyncDayPhase`, and the earlier "dispatch fixed"
+  result was a false fix. Atlas: `wire_type_names_from_binary_20261012`,
+  `input_stream_is_action_list_facet_call_20261012`,
+  `position_reply_timecomponent_target_is_a_false_fix_20261012`.
+
+Movement is the immediate user-visible deliverable. Keep the first slice narrow:
+find why the existing local-player entity does not respond to input, then build
+the reusable replication/authority behavior demonstrated by that trace. Avoid
+starting a generic payload-codec campaign without evidence it blocks this slice.
 
 Moving the player requires five things to be true at once, and four of them are
 the same work the rest of the world needs:
 
 | # | layer | state |
 | --- | --- | --- |
-| 1 | **spawn** — the entity exists client-side | works for the player; NPCs use the same path |
-| 2 | **replication** — entity and component STATE flows as records and fragments | container decoded, payload codecs not written |
-| 3 | **physics** — the entity has a body | nothing started |
-| 4 | **input** — the client produces movement intent | the client produces nothing at all today |
-| 5 | **movement family** — the server asserts and confirms position | wire types known, bodies not |
+| 1 | **spawn** — the entity exists client-side | world entry and possession reproduce |
+| 2 | **physics components** — relevant types exist on the live player | `CharacterPhysicsComponent` and `GameRigidBodyComponent` found on the 126-component entity; activation is unknown |
+| 3 | **input** — input reaches client movement logic | channel-1 `0x635` streams, but W produced no movement-family message; consumer/state change unknown |
+| 4 | **connection UX** — client ALC conversation is current | red HUD warning; `+0xAA0` closed and `+0xAA8` stamp stops |
+| 5 | **movement exchange** — position reaches the correct client target and server authority | reliable 4216 decodes, then dispatch fails for missing facet target |
 
-So the real objective is: **implement record/fragment replication for the
-component types that matter, in priority order.** Movement, NPCs, world state and
-other players are all the same mechanism applied to different types. That is why
-this is one body of work and not five.
+The working plan has separate connection and movement acceptance gates. Detailed
+order and pass criteria live in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-### Step 0 — re-verify the diagnosis first (cheap, one session)
+### Closed measurement — corrected player component list (2026-10-10)
 
-The claim "the local player has no physics component" (`local_player_has_no_physics_20261004`)
-was measured by searching for a list of component GUIDs that is **shifted by one
-entry**, and `physics_component_guids_corrected_20261005` fixed only four of them.
-`CharacterPhysicsComponent` was recorded as `{B1237004-14E1-4327-8774-D2C5796230E7}`,
-which **does not exist in this build at all**. So the conclusion is **UNPROVEN**:
-we do not actually know that physics is missing. Use
-`research/atlas/az-type-registry.json`.
+The old claim that physics was absent used a component GUID list shifted by one
+entry and is refuted. The corrected live dump found `CharacterPhysicsComponent`
+and `GameRigidBodyComponent`; the client's own lookup finds both on the 126-
+component player entity. This proves component presence only. It does not prove
+that the body/controller is active or identify why W does not move the player.
+Evidence: `local_player_components_step0_20261010` and
+`reverse/probes/client/frida-player-components.py`.
 
-Re-dump the live player entity component list with the corrected GUIDs. Both
-outcomes are useful: if physics really is missing, we now know exactly which GUID
-to hunt for; if it is present, the blocker is the body gate and input filtering,
-and the physics payload work may not be needed at all. An existing probe can do
-this, so it costs one session.
+### Current experiment order
 
-### The ranked experiments, cheapest first
+1. **Resolve the physics-component disagreement.** Re-dump the same live player entity at
+   spawn+4 s, +30 s and +2 min in ONE session while logging every ADD (`FUN_1413789c0`), so a
+   late physics addition is caught. Use the corrected resolution (check the resolved function
+   pointer, not the vtable) and prefer hooks-only probes attached at character select.
+2. **Build the position work on `PlayerPositionTrackingComponent`** (on the entity) and
+   `PositionInTheWorldComponent` / `PositionalTicketingComponent` / `CameraPositionListener`,
+   NOT on the `ActorMover` family.
+3. **Find which client object would create the `IPositionReceiver` instance** (installer and
+   register both read 0); several client facets are unbound, so this is the incomplete
+   local-player object graph.
+4. **Measure every movement claim with the validated accessor** (`frida-player-position.py`);
+   the client's other console commands (`nw_findLocalEntity`, `nw_getPlayerHealth`) give the
+   same treatment to other questions.
+3. Trace the missing `IPositionReceiver`/facet target for reliable type 4216.
+   The reader runs, but `RMIDispatch` says its `targetLocalId` does not exist;
+   decoding alone is not a successful position update.
+4. Implement one behavior justified by those traces. Re-run with one variable
+   changed; preserve negative results as well as wins.
+5. Prove user-visible connection (red HUD warning cleared, no REP disconnect,
+   in-world past 20 minutes; then a 2-hour soak) and movement (measured transform
+   changes with W, stops on release, and the movement exchange succeeds).
 
-| # | experiment | what it settles | new tooling? |
-| --- | --- | --- | --- |
-| 0 | Re-dump the live player component list with the corrected GUIDs | whether physics is actually missing | no, probe exists |
-| 1 | Hook the vtable slot that would call the body gate; log what has to be present | what triggers `FUN_141763b70` — the hard unknown | small probe |
-| 2 | Perturb each of the 48 fragments in the spawn record, one at a time, and observe the client | which fragment is position, which is physics | no, container now buildable |
-| 3 | Hook the type reader (vtable `+0x90`) per type | the payload format, type by type | template exists |
+Only if the measurements show an unknown component payload is on this path should
+we perturb the 48 spawn fragments or expand per-type codec work.
 
-Experiment 2 is only possible **because** the container is now understood: we can
-rebuild a bundle with one changed payload and the client will still parse it. That
-turns "which of 47 types is position" from a guess into a search.
-
-### What the codec work actually looks like
+### Deferred codec inventory (not the active blocker)
 
 The spawn record carries 48 fragments: 48 distinct keys, 47 distinct types. By
 measured size, 13 are 16 bytes or less, 15 are 17-64 bytes, 5 are 65-512 bytes,
-10 are 513 bytes to 4 KB, and 4 exceed 4 KB (17176, 5913, 4843, 4754 bytes).
-**28 of 48 are 64 bytes or smaller** — likely plain scalars and vectors, the
-tractable end. The four large ones will be the expensive ones.
-
-All 47 types **do exist in the executable** (verified: 47 of 47 are present), so
-they are real client types. What is missing is their **names**: these descriptors
-use a different layout from the component and message regions, so the name is not
-recoverable by adjacency, and only 1 of the 47 currently has a name. Without names
-we cannot tell which type carries position and which carries physics — which is
-what makes experiment 2, an empirical search, more valuable than more scanning.
+10 are 513 bytes to 4 KB, and 4 exceed 4 KB. All 47 type IDs exist in the
+executable; only one currently has a name. Keep this inventory for targeted
+follow-up, but do not infer that an unnamed fragment contains movement state.
+Only decode a fragment after a live transform/input/ALC trace shows it lies on
+the failing path.
 
 ### One shortcut that is closed
 
 The capture is a short login session: 24 of its 79 bundles are the **same 46 KB
 spawn record re-sent**, and the other 54 are one-off records (sizes 78-7167 bytes,
 none sharing a payload). There is **no ongoing per-entity state stream** in it,
-which matches the live measurements — the channel-1 player stream never changes and
-the client emits no movement message in either direction.
+which matches the measured W-hold sample: channel-1 `0x635` showed no measured position change, and the client emitted no movement-family message in that window.
 
-Careful with the conclusion: this does **not** prove that no captured record carries
-position, because the 47 spawn types are still unidentified and we cannot rule any of
-them out. What it does mean is that there is no authoritative updating position to
-mine from the capture, so a physics or position fragment must be **constructed**
-rather than replayed. That is exactly why the payload codecs are the crux.
+This capture does not identify every fragment meaning, but the missing names do not prove that broad payload-codec work is the current blocker. The next measurements are the actual player transform/body-controller state, channel-1 `0x635` input consumer, ALC door, and reliable 4216 facet binding. Construct or decode a payload only when one of those traces names it.
 
-### Where the difficulty actually is
+### Current blocker, based on live evidence
 
-- The container was the part blocked on **unknowns**, and it is done. Bundles can
-  now be built, so every further experiment is a measurement rather than a guess.
-- The remaining work is a **semantics layer**: what the 47 types mean and how each
-  serializes. A long tail, but a searchable one.
-- The **body gate** is the one piece with no visible path yet: `FUN_141763b70` is
-  reached by a dispatch nothing points at, and an unreached gate means no body
-  regardless of how correct the payloads are. Experiment 1 targets exactly this.
+- The local player entity already has `CharacterPhysicsComponent` and
+  `GameRigidBodyComponent`; their presence does not prove active simulation.
+- The ALC door `+0xAA0` stayed closed and the HUD response stamp `+0xAA8`
+  stopped advancing. Input-response traffic and `StartMovementCommunicationMsg`
+  did not open the conversation.
+- W produced no movement-family messages in the sampled run. Read the transform
+  directly and trace the channel-1 `0x635` consumer before choosing a fix.
+- Reliable wire 4216 reaches the reader but fails RMI dispatch because its
+  `targetLocalId` has no facet target. Reader success is not position
+  application.
+- `FUN_141763b70` is one historical lead: it ran only before world entry in a
+  sampled trace. Corrected live enumeration found physics component types on the
+  entity, so this gate alone does not prove the body is absent or cause movement.
+
+The current connection/movement pass criteria and experiment order are in
+[`docs/ROADMAP.md`](docs/ROADMAP.md) and [`STATUS.md`](STATUS.md).
 
 ## The three message systems (conflating them is what made this look opaque)
 
@@ -236,12 +296,11 @@ rather than replayed. That is exactly why the payload codecs are the crux.
 - **Ghidra renders the 3-byte varint branch big-endian.** That would make
   `d9 a9 05` equal 1384633, larger than the 46407-byte message containing it. The
   data falsifies it; the continuation bytes are little-endian.
-- **The old physics GUID list is shifted by one entry**, and the earlier
-  "correction" fixed only four. `CharacterPhysicsComponent` was recorded as
-  `{B1237004...}`, which does not exist in this build. Use
-  `research/atlas/az-type-registry.json`. The conclusion "the player has no
-  physics component" is therefore **UNPROVEN** — it came from searching for ids
-  that do not exist.
+- **The old physics GUID list was shifted by one entry**, and the earlier
+  "correction" fixed only four. The corrected live dump refuted the absence
+  claim: the player entity has `CharacterPhysicsComponent` and
+  `GameRigidBodyComponent`. Use `research/atlas/az-type-registry.json`; component
+  presence still does not prove active simulation.
 - **A loose `name\0...bare-guid` scan pairs names with unrelated neighbours.** It
   maps `Transform` to `{5D9958E9...}` (the AZ math struct) when the
   entity-component Transform is `{484AE67D...}`. Use the brace-wrapped form.
@@ -265,8 +324,8 @@ rather than replayed. That is exactly why the payload codecs are the crux.
 
 ```powershell
 $env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'   # gate 6: player possessed
-$env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'           # gate 7: no red cable
-$env:AZOTH_CHUNK_GAP_MS             = '20'          # gate 8: no post-spawn drop
+$env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'           # replays 0x1096/0x1097; not an ALC/HUD fix
+# Leave AZOTH_CHUNK_GAP_MS unset for the 4 ms default unless an A/B isolates a need to change it.
 $env:AZOTH_RESEND_INTERVAL_S        = '1.0'         # gate 8b: no resend storm
 python az.py dev                                    # start the stack
 
@@ -284,43 +343,36 @@ Attach a probe BEFORE entering the world:
 `nohup python az.py probe frida-read-sequence --timeout 500 &`
 
 Verify a session with `Game.log` in `%LOCALAPPDATA%\AGS\New World\` (the game
-ignores the launcher's log override and uses the real AppData). A healthy
-session: `player spawn succeeds` 1, `transportError` 0, `disconnected from REP` 0.
+ignores the launcher's log override and uses the real AppData). A transport-only
+pass is `player spawn succeeds` 1, `transportError` 0, `disconnected from REP` 0.
+It does not pass the HUD/ALC or movement gates.
 
 For anything visual, use the `azoth-computer-use` skill: `python az.py shot`,
 then `python scripts/shrink-image.py` — never read the raw PNG. For movement
 tests, `scripts/focus-window.py` FIRST and refuse to send input if focus fails,
-then `scripts/hold-key.py` and `scripts/bmp-diff.py`. The "no movement" threshold
-is a motion ratio of ~0.12x.
+then `scripts/hold-key.py`. Do not use the old `bmp-diff.py` motion ratio as a
+movement pass/fail signal; it produced a false positive. Read the live player
+transform directly.
 
 ## Suggested order for the next session
 
-Work the protocol, not "movement". They are the same task, and the protocol one
-is the one that also gives you NPCs, world state and other players.
-
-1. `git log --oneline -10` and read the commits; then `STATUS.md` and this file.
-2. Read `research/docs/JAVELIN-PROTOCOL.md` sections 2d-2g and
-   `services/world/src/azoth_world/javelin/bundle.py`. That is the container, and
-   everything else builds on it.
-3. **Step 0 above**: re-dump the player component list with the corrected GUIDs.
-   One session, existing probe, and it decides whether physics work is even needed.
-4. **Experiment 1**: hook the vtable slot that would reach the body gate. This is
-   the other hard unknown and it is independent of the codec work, so it can run
-   in parallel with it.
-5. **Experiment 2**: perturb the 48 spawn fragments one at a time. This is how the
-   47 types get identified without names, and it is cheap now that bundles can be
-   built.
-6. Then the per-type payload codecs (experiment 3), starting with `record_id` 1 and
-   the small fragments — 28 of 48 are 64 bytes or less.
-7. Objective 3 opportunistically: a real character UUID, stop the facet RMI misses,
-   the two unresolved wire types.
+1. Read `AGENTS.md`, current `STATUS.md`, and run `git status --short`; distinguish
+   committed work from the local probes/reports.
+2. Reproduce the ALC HUD warning and exit timer on a fresh client; save a correctly
+   framed screenshot and direct ALC/transport measurements.
+3. Measure transform and body/controller state while W is held and released.
+4. Trace channel-1 `0x635` input consumption and reliable 4216 facet resolution.
+5. Implement the smallest supported fix, then repeat connection and movement
+   acceptance. Update the atlas, short status, handoff, and public roadmap before
+   reporting the result.
 
 ## Summary
 
-**Solved.** The private client enters the world, possesses the player, renders the
-world with NPCs and the full HUD, and holds the session for **over two hours** with
-zero transport errors. Three server-side causes of the old ~27 s disconnect were
-found and fixed, each measured live. The Javelin container is fully decoded —
+**Confirmed.** The private client enters the world and possesses the player; one
+REP transport run lasted 2 h 06 min without a transport error or REP disconnect.
+The red ALC/HUD warning and the 20-minute return-to-menu path are still open. Three
+server-side causes of the old ~27 s transport disconnect were found and fixed,
+each measured live. The Javelin container is fully decoded —
 prefix varint, byte-exact state bundle, record sequence, and a two-varint fragment
 header — with tests, and the server can now **build** a bundle rather than only
 replay one. Three registries map the protocol: 144 Javelin messages with wire
@@ -329,15 +381,12 @@ scanner that refuses to write if its hand-verified facts stop reproducing. Sever
 atlas facts were corrected along the way, including a systematic one-entry shift in
 the physics GUID list.
 
-**Open, and reframed.** The goal is not "movement" but the completion of
-record/fragment replication; movement is what falls out when it is done, and the
-same mechanism gives NPCs, world state and other players. Two things stand between
-here and there: the **per-type payload codecs** (a searchable long tail, 47 types,
-28 of them 64 bytes or smaller) and the **body gate** `FUN_141763b70`, which is
-reached by a dispatch nothing points at and has no visible path yet. And before
-either, one cheap correction: the claim that the player has no physics component
-rests on a GUID list that is shifted by one entry, so it is unproven and needs
-re-measuring.
+**Open.** Movement is the immediate deliverable. The old “no physics component”
+claim was refuted: the live player entity has `CharacterPhysicsComponent` and
+`GameRigidBodyComponent`, although active simulation is not proven. W currently
+produces no movement-family message, and reliable position type 4216 decodes but
+fails facet-target dispatch. The ALC stamp/door and the 20-minute exit also remain
+open. The next experiments and pass criteria are in `docs/ROADMAP.md`.
 
 **Method note.** Twice this session a model passed every check it was given and was
 still wrong, because "consumes the body exactly" is necessary but not sufficient — a

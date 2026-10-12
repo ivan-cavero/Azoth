@@ -28,6 +28,7 @@ import ctypes
 import ctypes.wintypes as wt
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -43,32 +44,41 @@ PATCHES = (
     "patch-predicate-flag.py",    # ClientContext::Initialize gets the ok flag
     "patch-timeout-watchdog.py",  # never force the InGame disconnect
     "patch-spawn-gate.py",        # NOP the spawn gate's null check
+    # The 20-minute "exit to main menu" delegate. NOPing 0x141004230 was NOT
+    # enough (measured 2026-10-11): that is only the ActorContainerDisconnect
+    # notification, and the same delegate continues to the real exit at
+    # 0x14100425F. This patch targets that call. See
+    # .azoth/night/subagent-20min-exit-real-path.md.
+    "patch-exit-to-menu.py",
 )
 
 # Play button as a fraction of the client rect (measured 2026-10-07, 1366x768).
+# The fractions are resolution-independent, but they are only correct if the rect
+# belongs to the GAME window: until 2026-10-10 the lookup matched a browser tab
+# titled "Azoth - Servidor privado de New World", so every click went elsewhere.
 PLAY_X_FRAC = 1185 / 1366
 PLAY_Y_FRAC = 662 / 768
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from winwindow import game_windows  # noqa: E402
+
+
 def find_window(title_sub: str = "New World") -> list[tuple[int, str]]:
-    user32 = ctypes.windll.user32
-    found: list[tuple[int, str]] = []
-    proc = ctypes.WINFUNCTYPE(ctypes.c_bool, wt.HWND, ctypes.c_void_p)
+    """Windows of NewWorld.exe only -- never a window that merely says "New World".
 
-    def cb(hwnd, _):
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        n = user32.GetWindowTextLengthW(hwnd)
-        if n <= 0:
-            return True
-        buf = ctypes.create_unicode_buffer(n + 1)
-        user32.GetWindowTextW(hwnd, buf, n + 1)
-        if title_sub.lower() in buf.value.lower():
-            found.append((hwnd, buf.value))
-        return True
-
-    user32.EnumWindows(proc(cb), None)
-    return found
+    Delegate to scripts/winwindow.py, which filters by process image name. A
+    substring match on the title also matches a browser tab (measured), which made
+    this script click the wrong window and then report a false
+    "character select not reached". The title filter is applied INSIDE the game
+    process only.
+    """
+    wins = game_windows(title_sub)
+    if wins:
+        return wins
+    # The client appends "(Not Responding)" when it hangs; a caller's title filter
+    # would then exclude the only window that matters.
+    return game_windows("")
 
 
 def client_size(hwnd: int) -> tuple[int, int]:

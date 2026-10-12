@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Log every component the client creates BY NAME during world entry (read-only).
 
-WHY. Movement is blocked because the local player has no physics components. The
-player's 124 components come from the local slice, not the wire; the open question
-is whether the client EVER tries to create GameRigidBody/CharacterController and,
-if so, for which entity. This hooks the by-name reflected-component add
-(FUN_141416740, hashes a NUL-terminated name; see DECOMP-BACKLOG / levers.md) plus
-the cluster entry and the transform spawners, so we can read the component names
-the client actually requests.
+WHY. Movement is blocked, and the earlier explanation ("the local player has no
+physics components", local_player_has_no_physics_20261004) is UNPROVEN: it was
+measured against a component-GUID list that is shifted by one entry (see
+az_type_registry_verified_20261010). What is still proven is only that the player
+PREFAB ships no physics component. The player's 124 components come from the local
+slice, not the wire; the open question is whether the client EVER tries to create
+GameRigidBody/CharacterController and, if so, for which entity. This hooks the
+by-name reflected-component add (FUN_141416740, hashes a NUL-terminated name; see
+DECOMB-BACKLOG / levers.md) plus the cluster entry and the transform spawners, so
+we can read the component names the client actually requests. Pair it with
+frida-player-components.py, which reads the live component list by type id.
 
 Private runtime only (no EAC). All hooks are read-only.
 
@@ -21,10 +25,14 @@ from __future__ import annotations
 import argparse
 import ctypes
 import json
+import sys
 import time
 from pathlib import Path
 
 import frida
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _paths import probe_capture  # noqa: E402
 
 HOOKS = (
     ("byname", 0x141416740),          # add reflected component by NAME (args[2]=char*)
@@ -83,8 +91,7 @@ def main() -> int:
 
     session = frida.attach(pid.value)
     script = session.create_script(JS.replace("%HOOKS%", json.dumps([list(h) for h in HOOKS])))
-    out_path = here.parent / "sessions" / f"component-names-{int(time.time())}.jsonl"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path = probe_capture(f"component-names-{int(time.time())}.jsonl")
     out = out_path.open("a", encoding="utf-8")
 
     def on_message(message, data):

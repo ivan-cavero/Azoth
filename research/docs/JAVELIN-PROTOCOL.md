@@ -94,6 +94,38 @@ The 1-byte msgId is the **last** payload byte.
 | 7 | CT_CONN_CONTROL |
 | 8 | CT_BANDWIDTH |
 
+### 1f. The client's own record container (measured 2026-10-11)
+
+Every non-chunked DATA record the CLIENT sends on channels 0 and 1 is:
+
+```
+u32 BE  crc32(payload)
+u32 BE  len(payload)
+payload = [16-byte target id][00 01][prefix-varint wire type][body]
+```
+
+Verified over one live session: 285/294 channel-0 records and **40 279/40 279**
+channel-1 records satisfy BOTH the CRC and the length field. The nine channel-0
+exceptions are the 1115 B / 239 B entries, which are MF_CHUNKS transfers with a
+different header. Hand-checked examples: a 36 B channel-0 record whose 28-byte
+payload has `crc32 = 0x2b0bc565` (bytes `2b 0b c5 65`) and `len = 0x0000001c`; a
+119 B channel-1 record with `crc32 = 0x3f331f2d` and `len = 0x0000006f`.
+
+The SERVER does not use this container. Its records are
+`[vlq32 len][00 01][type][body]` — the form the official capture's server used —
+and the client accepts that form on channel 0. Which container a *channel-1* reply
+needs is settled by experiment: sending `ReceivePlayerPositionClientMsg` (4216) in
+the client container on channel 1 still produces **0** calls into the client's own
+reader (`frida-position-consumer`), exactly like the server container on channel 0.
+See `position_reply_containers_refuted_20261011` in `client-functions.json`.
+
+What the client itself streams, by channel and wire type (one session, 2026-10-11):
+
+| channel | types seen | volume |
+| --- | --- | --- |
+| 1 | **only** `0x635` (GUID `01346CCD-785E-448D-A429-4B281972B1D7`) | 17 912 records, 92-153 B, 17 698 of them 119 B |
+| 0 | `0x15d` (client ping, target id zero) plus typed requests | 294 records |
+
 ## 2. Message-type registry
 
 ### 2a. The 10 inline types (`FUN_146b6f190`, GUID compare)

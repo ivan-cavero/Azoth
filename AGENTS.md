@@ -106,6 +106,12 @@ Use these rules for code, research, and runtime work in this repository.
   `docs/sessions/` material remains in Spanish.
 - Keep `STATUS.md` short and current. Put detailed evidence in the atlas,
   symbol registry, or a focused reference; do not copy it between documents.
+- `site/public/roadmap.json` is the public roadmap display on the landing
+  page. Update it after milestones (state, evidence, new points, reorder),
+  but it is not the work tracker: planning and current status stay in
+  `STATUS.md` and `docs/ROADMAP.md`. The canonical public roadmap source is
+  `site/src/data/roadmap-full.ts`; regenerate its display copy with
+  `node site/scripts/gen-roadmap.mjs`. See `site/README.md` for evidence rules.
 - Close every successful experiment: write down the winning behavior, why it
   worked, its side effects, and the evidence; keep one implementation of the
   supported behavior; remove failed alternatives from runtime code and tool
@@ -114,11 +120,35 @@ Use these rules for code, research, and runtime work in this repository.
 - Use the existing `unittest` suites for code changes when validation is
   requested or needed before a commit. Do not add a test framework.
 
+## Agent work and durable handoffs
+
+- A contribution is not complete when the work exists only in a chat summary.
+  Before handing it back, document the result in its canonical repository home:
+  implementation in code, protocol/client facts in `research/atlas/`, the active
+  blocker in the short `STATUS.md`, and sequencing in `docs/ROADMAP.md`. Update
+  the public roadmap only when a milestone or its evidence changes.
+- Every handoff must state what changed or was learned, the files/artifacts,
+  exact build and experiment/capture identifiers, what was directly observed vs
+  inferred or guessed, validation performed (or not performed), failed
+  hypotheses, side effects, and the next concrete blocker.
+- Every completed public-roadmap deliverable needs a clear description and a
+  unique, authentic capture that demonstrates that specific result. Curated,
+  public-safe evidence images may live under `site/public/evidence/`; never
+  reuse an unrelated screenshot or treat a planned/active item's image as
+  proof of completion. If a real capture does not exist yet, leave it marked
+  pending and capture it when the acceptance condition is met.
+- The coordinating agent checks each handoff against its evidence, resolves
+  conflicts with existing records, and updates the canonical docs before
+  declaring the task done. Preserve useful negative results. Raw captures and
+  secrets stay in the ignored research-session paths.
+
 ## Repository hygiene
 
 - Do not commit or push unless the user explicitly asks.
 - Keep certificates, local game files, raw captures, generated decompile
-  workspaces, logs, and screenshots out of Git.
+  workspaces, logs, and raw screenshots out of Git. The only screenshot
+  exception is a deliberately curated public-roadmap proof under
+  `site/public/evidence/`; never copy raw captures or secrets there.
 - Read `docs/ADMIN.md` before changing Windows host routing. Do not start
   privileged operations as part of static repository work.
 - Do not delete or archive a research tool until its callers, evidence, and

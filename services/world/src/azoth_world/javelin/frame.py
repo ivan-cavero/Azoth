@@ -133,8 +133,16 @@ def parse_datagram(data: bytes, *, start_bit: int = 0) -> ParseResult:
                 channel = stream.read_u8()
             else:
                 channel = prev_channel
-            if channel > 4:
-                result.error = f"invalid channel {channel} (max 4)"
+            if channel > 3:
+                # Valid channels are 0..3 (marshal_record enforces the same).
+                # This guard read `> 4` while per_seq/per_rel hold four slots,
+                # so a bogus channel 4 indexed past the end and raised
+                # IndexError out of parse_datagram. Live 2026-10-11: a
+                # compressed client datagram parsed as raw records produced
+                # channel 4, the IndexError propagated to the UDP loop's
+                # feed-error handler, the peer was dropped and the client
+                # logged transportError 4.
+                result.error = f"invalid channel {channel} (max 3)"
                 return result
             prev_channel = channel
 

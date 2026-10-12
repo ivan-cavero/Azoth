@@ -3,6 +3,11 @@
 orca's click does not reach the game window, so this drives it with SendInput:
 window-local (x, y) -> screen coords, focus, then a real left click.
 
+The window is selected by PROCESS IMAGE NAME (see scripts/winwindow.py). Matching
+on the title alone also matches a browser tab titled
+"Azoth - Servidor privado de New World" -- measured 2026-10-10, that made a run
+click the wrong window and report a false failure.
+
 Usage: python scripts/click-window.py <title-substring> <x> <y> [clicks]
 """
 
@@ -13,6 +18,10 @@ import ctypes
 import sys
 import time
 from ctypes import wintypes
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from winwindow import game_windows  # noqa: E402
 
 user32 = ctypes.windll.user32
 
@@ -36,24 +45,13 @@ SW_RESTORE = 9
 
 
 def find_windows(title_sub: str) -> list[tuple[int, str]]:
-    out: list[tuple[int, str]] = []
-
-    def cb(hwnd: int, _: object) -> bool:
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        n = user32.GetWindowTextLengthW(hwnd)
-        if n <= 0:
-            return True
-        buf = ctypes.create_unicode_buffer(n + 1)
-        user32.GetWindowTextW(hwnd, buf, n + 1)
-        if title_sub.lower() in buf.value.lower():
-            out.append((hwnd, buf.value))
-        return True
-
-    user32.EnumWindows(
-        ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, ctypes.c_void_p)(cb), 0
-    )
-    return out
+    """NewWorld.exe windows only, optionally narrowed by a title substring."""
+    wins = game_windows(title_sub)
+    if wins:
+        return wins
+    # "New World (Not Responding)" would fail a caller's exact filter, and a hung
+    # client is exactly when clicking it matters.
+    return game_windows("")
 
 
 def _origin(hwnd: int) -> tuple[int, int]:
@@ -65,7 +63,7 @@ def _origin(hwnd: int) -> tuple[int, int]:
 def click(title_sub: str, x: int, y: int, clicks: int = 1) -> str:
     wins = find_windows(title_sub)
     if not wins:
-        raise SystemExit(f"no window matching {title_sub!r}")
+        raise SystemExit(f"no NewWorld.exe window matching {title_sub!r}")
     hwnd, name = wins[0]
     user32.ShowWindow(hwnd, SW_RESTORE)
     user32.SetForegroundWindow(hwnd)

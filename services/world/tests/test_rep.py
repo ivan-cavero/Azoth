@@ -12,6 +12,7 @@ import socket
 import sys
 import time
 import unittest
+import unittest.mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -22,6 +23,7 @@ from azoth_world.javelin import (
     parse_datagram,
     parse_envelope,
 )
+from azoth_world import rep
 from azoth_world.rep import v3_response_datagram
 
 HAVE_PYOPENSSL = False
@@ -653,7 +655,12 @@ class TestActivityClockSurvivesTheReplay(unittest.TestCase):
         session = PeerSession.__new__(PeerSession)
         session.gone = False
         session.v3_responded = True
-        session.greetings_after_replay = True
+        # The honest state WHILE the replay is still streaming: the queue is not
+        # empty and `greetings_after_replay` ("replay fully streamed") is NOT
+        # set. This used to be pre-set True, which made the tests below pass
+        # against an implementation that still waited for the drain -- the
+        # regression that produced a 104-warning burst on a live run.
+        session.greetings_after_replay = False
         session.replay_queue = ["still delivering the replay"]
         session.heartbeat_tick = 0
         session.heartbeat_next_at = 0.0
@@ -706,7 +713,9 @@ class TestActivityClockSurvivesTheReplay(unittest.TestCase):
         if not HEARTBEAT_ENABLED:
             self.skipTest("heartbeat disabled in this environment")
         session = self._session()
-        session.greetings_after_replay = False
+        # The gate is the post-V3 flight, NOT "the replay drained": a heartbeat
+        # must not go out before the V3 response has armed the client.
+        session.v3_responded = False
         PeerSession.maybe_heartbeat(session, None)
         self.assertEqual(session.sent, [])
 
@@ -1203,8 +1212,229 @@ class TestStateStream(unittest.TestCase):
             importlib.reload(rep_module)
 
 
+class TestClientRecordContainer(unittest.TestCase):
+    """The client's own record container, measured live, and the reply framing.
+
+    Every non-chunked client->server DATA record on channels 0 and 1 is
+    `[u32 BE crc32(payload)][u32 BE len(payload)][payload]`; 40 279/40 279
+    channel-1 records and 285/294 channel-0 records satisfy both fields. The
+    server historically replies in the capture's `[vlq32 len]` form, which the
+    client accepts on channel 0. Which container a channel-1 reply needs is the
+    open question, so the framing is selectable and both forms are asserted here.
+    """
+
+    def test_crc_and_length_match_the_client_form(self):
+        import zlib
+
+        payload = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e00001b518fbde4b9a600d42")
+        wrapped = rep.client_container(payload)
+        self.assertEqual(len(wrapped), len(payload) + 8)
+        self.assertEqual(int.from_bytes(wrapped[0:4], "big"), zlib.crc32(payload) & 0xFFFFFFFF)
+        self.assertEqual(int.from_bytes(wrapped[4:8], "big"), len(payload))
+        self.assertEqual(wrapped[8:], payload)
+
+    def test_real_captured_channel1_record_round_trips(self):
+        """A real 119 B channel-1 record must satisfy the container exactly."""
+        import zlib
+
+        record = bytes.fromhex(
+            "3f331f2d0000006f1a954abc4b3185bfbe37c3d8592618e00001b518fbde4b9a6"
+            "00d428fbf85314bbc4a951a00000000003c00000135000000000007ffff01200c"
+            "3d3e000000000f01f7080000d7e04f40200f01013300808080803d4ccccdc02c"
+            "107e800000004611f5c4452e61c42c09030000000101"
+        )
+        self.assertEqual(len(record), 119)
+        tag = int.from_bytes(record[0:4], "big")
+        length = int.from_bytes(record[4:8], "big")
+        payload = record[8:]
+        self.assertEqual(length, len(payload))
+        self.assertEqual(tag, zlib.crc32(payload) & 0xFFFFFFFF)
+
+    def test_position_reply_body_layout(self):
+        actor = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+        body = rep.position_reply_body(actor, 100.0)
+        self.assertEqual(len(body), 36)
+        self.assertEqual(body[0:16], actor)
+        self.assertEqual(body[16:24], (0).to_bytes(8, "big"))
+
+    def test_wrap_reply_server_and_client_containers(self):
+        """Both containers must be self-describing and differ only in framing."""
+        import zlib
+
+        actor = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+        body = rep.position_reply_body(actor, 100.0)
+        server = rep.wrap_reply("server", actor, rep.POSITION_REPLY_TYPE, body)
+        client = rep.wrap_reply("client", actor, rep.POSITION_REPLY_TYPE, body)
+        # server: [vlq32 len][00 01][varint type][body] -> 1 + 2 + 2 + 36
+        self.assertEqual(len(server), 41)
+        self.assertEqual(server[0], len(server) - 1)
+        self.assertEqual(server[1:3], b"\x00\x01")
+        # client: [crc32 BE][len BE][16-byte target][00 01][type][body] -> 8 + 56
+        self.assertEqual(len(client), 64)
+        inner = client[8:]
+        self.assertEqual(int.from_bytes(client[0:4], "big"), zlib.crc32(inner) & 0xFFFFFFFF)
+        self.assertEqual(int.from_bytes(client[4:8], "big"), len(inner))
+        self.assertEqual(inner[0:16], actor)
+        self.assertEqual(inner[16:18], b"\x00\x01")
+
+    def test_start_movement_body_layout(self):
+        actor = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+        body = rep.start_movement_body(actor, 1)
+        self.assertEqual(len(body), 20)
+        self.assertEqual(body[0:16], actor)
+        self.assertEqual(int.from_bytes(body[16:20], "big"), 1)
+
+
+class TestCompressedDatagramDoesNotCrashTheLoop(unittest.TestCase):
+    """Live 2026-10-11: a compressed (0x81) client datagram killed the session.
+
+    `PeerSession.on_app_data` parsed the *raw* (still LZ4) body as Carrier
+    records, so the garbage produced a channel 4, `parse_datagram` indexed past
+    `per_seq` (four slots, guard said `> 4`) and raised IndexError. The UDP
+    loop's feed-error handler dropped the peer and the client logged
+    `transportError 4` ~18.7 min into an otherwise clean session. The datagram
+    below is the exact one captured from that run (world.log raw_full).
+    """
+
+    CAPTURED = bytes.fromhex(
+        "81014567fc0101002404000400c3e7e3930000001c000100ff07019d0500036fda"
+        "dca4dd4401002403ff03ffdc2d11782b000931a10a132b007ffe03fe2b4ad43c2b"
+        "000931656f492b007ffd03fdba9fb33d2b00093129d47f2b007ffc03fc868a6365"
+        "2b000850d9ee39b544"
+    )
+
+    def test_raw_body_no_longer_raises(self):
+        from azoth_world.javelin.lz4 import decompress_lz4_block
+
+        env, body = parse_envelope(self.CAPTURED)
+        self.assertTrue(env.is_compressed)
+        # Parsing the compressed body must return an error, never raise.
+        result = parse_datagram(body)
+        self.assertIsNotNone(result.error)
+        self.assertEqual(result.messages, [])
+        # The decompressed body is the real stream: five ch0 records.
+        dec = parse_datagram(decompress_lz4_block(body))
+        self.assertIsNone(dec.error)
+        self.assertEqual(len(dec.messages), 5)
+        self.assertTrue(all(r.channel == 0 for r in dec.messages))
+
+    def test_on_app_data_decompresses_before_parsing(self):
+        """on_app_data must feed decompressed bytes to the Carrier parse."""
+        import inspect
+
+        source = inspect.getsource(rep.PeerSession.on_app_data)
+        self.assertIn("is_compressed", source)
+        self.assertIn("decompress_lz4_block", source)
+
+
 if __name__ == "__main__":
     unittest.main()
 
 
 
+
+
+class TestPositionReplyIsReliableByDefault(unittest.TestCase):
+    """The measured movement fix must not be able to regress silently.
+
+    Live 2026-10-11: an unreliable (flags 0x20) channel-0 position reply is
+    Carrier-ACKed but never handed to the client's inbound decoder, so the
+    reader never runs and the log stays clean — the signature that was misread
+    three times as "wire type 4216 is not receivable". As RELIABLE (flags
+    0x21) the resolver and reader both run for 4216. This only proves decode:
+    Game.log then reports missing facet-target dispatch, and no movement was
+    demonstrated. Keep reliable as the decode-tested variant.
+    """
+
+    def test_reliable_default_is_on(self):
+        self.assertTrue(
+            rep.POSITION_REPLY_RELIABLE,
+            "reliable is the working variant; flags 0x20 is dropped by the client",
+        )
+
+    def test_reliable_flag_is_0x21(self):
+        flags = 0x21 if rep.POSITION_REPLY_RELIABLE else 0x20
+        self.assertEqual(flags, 0x21)
+        self.assertTrue(flags & 0x01, "MF_RELIABLE must be set")
+        self.assertTrue(flags & 0x20, "MF_DATA_CHANNEL must be set")
+
+    def test_channel_defaults_to_the_capture_channel_zero(self):
+        self.assertEqual(rep.POSITION_REPLY_CHANNEL, 0)
+
+    def test_maybe_position_reply_has_one_framing_implementation(self):
+        """No second inline container builder: it drifted once already."""
+        import inspect
+
+        source = inspect.getsource(rep.PeerSession.maybe_position_reply)
+        self.assertIn("wrap_reply(", source)
+        self.assertNotIn("client_container(inner)", source)
+
+
+class TestPositionReplyTargetIsTheMeasuredOne(unittest.TestCase):
+    """The reply must be addressed to an RMI target the client actually has.
+
+    Measured live 2026-10-11 (probe reverse/probes/client/frida-rmi-targets.py):
+    the client's RMI target registry holds 37063 entries and the actor id the server
+    sent (`1a954abc4b3185bf`) is NOT one of them (601 lookups, 0 hits -> the
+    `facet target ID couldn't be found` Game.log line), while the blob the capture's
+    own input-response messages carry (`93a3e477cb5fd51ebf85314bbc4a951a`) IS
+    (136 lookups, 136 hits). This test pins the knob's semantics; the live A/B that
+    decides whether the position then applies is separate.
+    """
+
+    CAPTURE_TARGET = "93a3e477cb5fd51ebf85314bbc4a951a"
+
+    def test_default_is_the_actor_id(self):
+        actor = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+        with unittest.mock.patch.object(rep, "POSITION_REPLY_TARGET", ""):
+            self.assertEqual(rep.position_reply_target(actor), actor)
+
+    def test_override_replaces_the_blob_everywhere(self):
+        actor = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+        blob = bytes.fromhex(self.CAPTURE_TARGET)
+        with unittest.mock.patch.object(rep, "POSITION_REPLY_TARGET", self.CAPTURE_TARGET):
+            target = rep.position_reply_target(actor)
+            self.assertEqual(target, blob)
+            body = rep.position_reply_body(target, 100.0)
+            self.assertEqual(body[0:16], blob)
+            client = rep.wrap_reply("client", target, rep.POSITION_REPLY_TYPE, body)
+            self.assertEqual(client[8:24], blob)
+            server = rep.wrap_reply("server", target, rep.POSITION_REPLY_TYPE, body)
+            self.assertEqual(server[3:5], b"\xb8\x41")  # varint 4216
+
+    def test_a_malformed_override_is_refused_not_sent(self):
+        actor = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+        for bad in ("zz", "1a954abc4b3185bf"):  # not hex / not 16 bytes
+            with unittest.mock.patch.object(rep, "POSITION_REPLY_TARGET", bad):
+                self.assertIsNone(rep.position_reply_target(actor))
+
+
+class TestStartMovementIsReliableOnChannelZero(unittest.TestCase):
+    """StartMovementCommunicationMsg must use the same framing as the position reply.
+
+    Measured 2026-10-11: the first attempt at this message went out unreliable
+    (`flags 0x20`) on channel 1, and an unreliable channel-0 record is Carrier-ACKed but
+    never handed to the client's inbound decoder `FUN_146b6eb70` (the rule measured for
+    wire 4216). Its clean log was therefore weak evidence. The body was never the
+    problem: it is byte-verified against the client's own reader FUN_146a55240
+    (16-byte raw blob + u32 BE = 20 bytes).
+    """
+
+    def test_defaults_are_reliable_and_channel_zero(self):
+        self.assertTrue(rep.START_MOVEMENT_RELIABLE)
+        self.assertEqual(rep.START_MOVEMENT_CHANNEL, 0)
+
+    def test_body_is_twenty_bytes_and_actor_first(self):
+        actor = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+        body = rep.start_movement_body(actor, 1)
+        self.assertEqual(len(body), 20)
+        self.assertEqual(body[0:16], actor)
+        self.assertEqual(int.from_bytes(body[16:20], "big"), 1)
+
+    def test_send_uses_the_reliable_flag_and_tracks_the_record(self):
+        import inspect
+
+        source = inspect.getsource(rep.PeerSession.maybe_position_reply)
+        self.assertIn("flags_override=0x21 if START_MOVEMENT_RELIABLE else 0x20", source)
+        self.assertIn("track_reliable=START_MOVEMENT_RELIABLE", source)
+        self.assertIn('"reliable": START_MOVEMENT_RELIABLE', source)

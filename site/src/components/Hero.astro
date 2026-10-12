@@ -66,20 +66,5 @@ const headline = [
       ))}
     </div>
 
-    <!-- product screenshot card: our own world, captured from the private client -->
-    <div class="shot-card mx-auto mt-14 max-w-[1080px]">
-      <img
-        src={`${import.meta.env.BASE_URL.replace(/\/+$/, "")}/game-shot.jpg`}
-        alt={s.hero.shotCaption}
-        width="2156"
-        height="1214"
-        loading="eager"
-      />
-      <div class="shot-caption flex items-center gap-3">
-        <span class="pill mono border border-graphite bg-void/70 text-[11px] text-mist backdrop-blur">
-          {s.hero.shotCaption}
-        </span>
-      </div>
-    </div>
   </div>
 </section>

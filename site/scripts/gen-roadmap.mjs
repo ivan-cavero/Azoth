@@ -1,6 +1,4 @@
-// One-off generator: emits public/roadmap.json from src/data/roadmap-full.ts.
-// Roadmap maintenance happens directly in public/roadmap.json (see README);
-// this script exists only to bootstrap that file.
+// Generate the public display copy from its canonical TypeScript source.
 import { roadmapGroups } from "../src/data/roadmap-full.ts";
 import { writeFileSync } from "fs";
 const payload = { updatedAt: new Date().toISOString(), groups: roadmapGroups };

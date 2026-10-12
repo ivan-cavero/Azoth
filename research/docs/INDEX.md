@@ -5,20 +5,23 @@
 - [Method lessons](LESSONS.md) — how to avoid repeating failed experiments.
 - [Development loop](DEVELOPMENT-LOOP.md) — choosing and measuring a decisive
   experiment.
+- [Four-day progress review](PROGRESS-REVIEW-2026-10-11.md) — commit trajectory,
+  why visible connection/movement did not advance, corrected roadmap gates, and
+  durable handoff expectations.
 - [Decompilation](DECOMPILATION.md) — tools and static analysis workflow.
 - [Decompilation backlog](DECOMP-BACKLOG.md) — remaining naming, data, and
   protocol work.
 - [EAC boundary](EAC.md) — rules for official and private client processes.
-- [Private client runbook](PRIVATE-CLIENT-RUNBOOK.md) — cold setup, the five
-  gates a private run crosses, patch policy (disk vs Frida, when to apply),
-  and where each artifact actually lands.
+- [Private client runbook](PRIVATE-CLIENT-RUNBOOK.md) — cold setup, historical
+  gates, patch policy (disk vs Frida, when to apply), current ALC/HUD and
+  movement blockers, and where each artifact actually lands.
 - [Server contract](SERVER-CONTRACT.md) — phase-by-phase list of what the
   client expects from the server, the REP message registry both directions,
   and what is still missing (movement authority).
 - [Javelin message GUIDs](JAVELIN-MESSAGE-GUIDS.md) — the 156 named message
   types with their AZ type GUIDs, including the movement family.
-- [Session 2026-10-07/08](SESSION-2026-10-07.md) — autonomous overnight run:
-  gates 5-8 closed, stable session, protocol mapped, warning inventory.
+- [Session 2026-10-07/08](SESSION-2026-10-07.md) — historical overnight run:
+  world entry, transport experiments, protocol mapping, and warning inventory.
 
 ## Protocol and client
 

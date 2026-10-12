@@ -283,6 +283,22 @@ def _start(name: str, command: list[str], cwd: Path, marker: str, log: Path,
     return 0
 
 
+def _refresh_live() -> int:
+    """Refresh the landing page's public/live.json (best effort, never fatal)."""
+    script = ROOT / "site" / "scripts" / "update_live.py"
+    if not script.exists():
+        return 0
+    try:
+        return subprocess.call(
+            [app_python(), str(script)],
+            cwd=ROOT,
+            env=local_env(),
+            stdout=subprocess.DEVNULL,
+        )
+    except OSError:
+        return 0
+
+
 def _stop(name: str) -> bool:
     record = _read_record(name)
     if not record:
@@ -355,6 +371,18 @@ def _service_command(name: str) -> tuple[list[str], Path, str, Path, dict[str, s
             str(exe),
             LOGS / "caddy.log",
             env,
+        )
+    if name == "web":
+        dist = ROOT / "site" / "dist"
+        if not (dist / "index.html").is_file():
+            raise FileNotFoundError("site/dist is missing; run `npm run build` in site/")
+        port = os.environ.get("AZOTH_WEB_PORT", "8090")
+        return (
+            [python, "-u", "-m", "http.server", port, "--bind", "127.0.0.1"],
+            dist,
+            f"http.server {port}",
+            LOGS / "web.log",
+            None,
         )
     raise ValueError(name)
 
@@ -483,18 +511,16 @@ def _status() -> int:
 
 def _tests(service: str) -> int:
     python = app_python()
-    if service == "gateway":
-        tests = ROOT / "services" / "gateway" / "tests" / "test_gateway.py"
-        return subprocess.call([python, str(tests)], cwd=ROOT, env=local_env())
-    if service == "world":
-        tests = ROOT / "services" / "world" / "tests"
-        result = subprocess.call(
-            [python, "-m", "unittest", "discover", "-s", str(tests)],
-            cwd=ROOT,
-            env=local_env(),
-        )
-        return result
-    return 2
+    # Discover the whole tests directory for every service. Naming one file here
+    # silently skipped the rest of the suite (gateway ran 19 of its 24 tests).
+    tests = ROOT / "services" / service / "tests"
+    if not tests.is_dir():
+        return 2
+    return subprocess.call(
+        [python, "-m", "unittest", "discover", "-s", str(tests)],
+        cwd=ROOT,
+        env=local_env(),
+    )
 
 
 def _mode(args: list[str]) -> int:
@@ -600,14 +626,18 @@ def main() -> int:
         return _status()
     if head == "stop":
         _game_action("stop", [])
-        for name in ("world", "gateway", "caddy"):
+        for name in ("world", "gateway", "caddy", "web"):
             _stop(name)
+        _refresh_live()
         return 0
-    if head in {"gateway", "world", "caddy"}:
+    if head in {"gateway", "world", "caddy", "web"}:
         action = rest[0] if rest else "start"
         if action == "test":
             return _tests(head)
-        return _service_action(head, action)
+        code = _service_action(head, action)
+        if head == "web" and action in {"start", "stop", "restart"}:
+            _refresh_live()
+        return code
     if head == "dev":
         action = rest[0] if rest else "start"
         if action == "status":
@@ -617,6 +647,7 @@ def main() -> int:
         if action == "stop":
             for name in ("caddy", "world", "gateway"):
                 _stop(name)
+            _refresh_live()
             return 0
         if action not in {"start", "restart"}:
             print("usage: python az.py dev [start|stop|restart|status]")
@@ -632,7 +663,9 @@ def main() -> int:
             if code:
                 for started_name in reversed(started):
                     _stop(started_name)
+                _refresh_live()
                 return code
+        _refresh_live()
         return 0
     if head == "game":
         action = rest[0] if rest and not rest[0].startswith("--") else "start"

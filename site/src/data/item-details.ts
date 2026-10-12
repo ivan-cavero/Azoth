@@ -15,7 +15,14 @@ export interface ItemDetail {
     notes: string[];
     /** evidence references (files, measurements) */
     evidence: string[];
-    /** optional images served from /research-shots/ */
+    /** optional authentic, item-specific screenshots served from /evidence/ */
+    images?: { src: string; caption: string }[];
+  };
+  /** for active items: a partial result that must not read as completed */
+  progress?: {
+    date: string;
+    notes: string[];
+    evidence: string[];
     images?: { src: string; caption: string }[];
   };
   /** wiki / docs links shown in the modal */
@@ -23,6 +30,71 @@ export interface ItemDetail {
 }
 
 export const itemDetails: Record<string, ItemDetail> = {
+  // ============================================================ bootstrap milestones
+  "G0.1": {
+    what: "Establish one supported command entry point for setup, local lifecycle, status, and project tooling. Keep caches, runtimes, and generated analysis under repository-local ignored paths so a fresh checkout has a documented operating path.",
+    how: "Use az.py and its PowerShell launcher to route setup and development commands; keep the root README and operator docs aligned with those commands.",
+    completion: {
+      date: "2026-09-12",
+      notes: ["The project bootstrap, az.py command surface, and documented local toolchain are in place."],
+      evidence: ["README.md", "az.py", "az.ps1"],
+    },
+  },
+  "G0.2": {
+    what: "Create a reproducible evidence base from the official client's session traffic and Game.log. These captures establish observed requests and state transitions; raw payloads and secrets remain local and are not public artifacts.",
+    how: "Use the repository capture tools and private-client runbook, then curate protocol facts into the atlas instead of treating raw files as documentation.",
+    completion: {
+      date: "2026-09-20",
+      notes: ["Session-capture tooling and Game.log ingestion support repeatable protocol analysis."],
+      evidence: ["research/tools/capture/", "research/docs/PRIVATE-CLIENT-RUNBOOK.md", "research/atlas/"],
+    },
+  },
+  "G0.3": {
+    what: "Serve the pre-world HTTP contract used by the client, including login, hub discovery, and certificate responses. Passing this layer gets the client to the world connection path; it does not prove world transport or in-game connection health.",
+    how: "Implement the routes in the Python gateway and compare their status, headers, and response shapes with observed client traffic.",
+    completion: {
+      date: "2026-09-24",
+      notes: ["The local HTTP gateway handles the documented pre-world routes and certificate flow."],
+      evidence: ["services/gateway/", "services/gateway/traffic.jsonl", "research/atlas/openapi.json"],
+    },
+  },
+  "G0.4": {
+    what: "Bring up the private world endpoint over DTLS and run an authoritative server tick independently of inbound packet frequency. This is the protocol runtime foundation; client-visible ALC health and player movement are separate acceptance gates.",
+    how: "Use the world service and supported az.py lifecycle commands; keep network parsing, session state, and periodic emitters observable in logs and measurements.",
+    completion: {
+      date: "2026-10-01",
+      notes: ["The Python world server accepts the private-client DTLS path and runs its own tick loop."],
+      evidence: ["services/world/", "STATUS.md — authoritative tick and transport measurements"],
+    },
+  },
+  "G0.5": {
+    what: "Reproduce the private-client launch and the verified entry gates through world rendering and local-player possession. This closes the entry path only; the red ALC/HUD warning, the separate return-to-menu path, and controllable movement remain open.",
+    how: "Follow the private-client runbook on a fresh process and record the build, gate transitions, Game.log boundary, and visible result.",
+    completion: {
+      date: "2026-10-06",
+      notes: ["The client enters the world and possesses the local player on a clean run; this does not establish active physics or movement."],
+      evidence: ["research/docs/PRIVATE-CLIENT-RUNBOOK.md", "research/sessions/gate6_possession_20261007/"],
+    },
+  },
+  "G0.6": {
+    what: "Decode and document the Javelin typed-message registry, varint framing, and the 0x08 StateBundle record/fragment container. The container and message inventory are protocol findings; application dispatch and the movement path remain separate work.",
+    how: "Cross-check captured fixtures with client reflection and live reader probes, then preserve the verified schemas and round-trip results in the atlas and codecs.",
+    completion: {
+      date: "2026-10-09",
+      notes: ["The registry contains 144 typed messages; the bundle parser and movement-family schema have independent client and fixture evidence."],
+      evidence: ["research/atlas/javelin-messages.json", "services/world/src/azoth_world/javelin/bundle.py", "research/atlas/client-functions.json"],
+    },
+  },
+  "G0.7": {
+    what: "Measure how long REP transport stays alive under a sustained private-client run. The 2 h 06 min result had no transportError or REP disconnect, while the red ALC/HUD warning remained; the client-visible connection is therefore still open.",
+    how: "Run a fresh client against the local stack, retain time-correlated server and client evidence, and check transport counters separately from ALC/HUD state and the return-to-menu timer.",
+    completion: {
+      date: "2026-10-10",
+      notes: ["REP transport lasted 2 h 06 min with transportError 0 and disconnected-from-REP 0.", "The warning stayed red and a separate ~20-minute return-to-menu path remains unresolved."],
+      evidence: ["research/docs/PROGRESS-REVIEW-2026-10-11.md", "research/atlas/client-functions.json — ALC/HUD measurements", "research/sessions/2026-10-10/"],
+    },
+  },
+
   // ============================================================ A
   A1: {
     what: "The client connects to the world server over DTLS (UDP with TLS 1.2, cookie exchange, ticket-based resumption) and then speaks the REP protocol: length-prefixed Javelin frames multiplexed over channels. Session setup involves ClientHello with a pinned server certificate, a login token from the gateway, and Carrier chunk replay of the world state snapshot.",
@@ -30,17 +102,13 @@ export const itemDetails: Record<string, ItemDetail> = {
     completion: {
       date: "2026-10-10",
       notes: [
-        "Initial sessions died at ~27 s: the client's watchdog fired because heartbeat (0x15d) and input-response (0x1096/0x1097) were gated behind the replay queue, which takes ~22 s to flush.",
-        "Fix 1: heartbeat and input-response now run concurrently with the replay, exactly as the official capture shows.",
-        "Fix 2: 16-bit wire fields (sequence numbers) wrapped via _u16() — a silent OverflowError had killed emission for 2 h (7,395 consecutive tick errors).",
-        "Measured result: 2 h 06 min session, transportError 0, disconnected-from-REP 0, warnings down from 22 to 1.",
+        "A measured run kept REP transport alive for 2 h 06 min with transportError 0 and disconnected-from-REP 0. This proves transport uptime only: the client still shows a red ALC/HUD warning and cannot move.",
+        "Heartbeat/input-response scheduling and 16-bit sequence wrapping fixed earlier transport failures; they did not establish the client-visible ALC conversation.",
       ],
       evidence: [
-        "STATUS.md — 'The session is stable, and two more causes of the ~27 s drop are fixed (2026-10-10)'",
-        "research/sessions/2026-10-10/ — stable session captures",
-      ],
-      images: [
-        { src: "research-shots/world-possessed.jpg", caption: "World rendered in the private client during the stable session (Windsward, player possessed, full HUD)." },
+        "research/atlas/client-functions.json — hud_cable_icon_is_not_the_log_20261010",
+        "research/atlas/client-functions.json — alc_pointer_never_opens_live_20261011",
+        "research/sessions/2026-10-10/ — transport-soak captures",
       ],
     },
     links: [
@@ -108,8 +176,13 @@ export const itemDetails: Record<string, ItemDetail> = {
     ],
   },
   A6: {
-    what: "82 AOI traits with 2,276 trait/message pairs govern entity and component replication (Amazon::Hub::Aoi). Each trait owns state types and registers client messages. The server needs a complete map: which traits exist, what records they carry, which client messages they register, and which we can skip.",
-    how: "aoi-trait-registry.json already enumerates traits and pairs. The remaining work is classifying each trait: emulated now, later, or never (client-only cosmetics).",
+    what: "The client registers 82 AOI traits with 2,276 trait/message pairs. The registry closes the inventory of names and pairings; it does not mean those server behaviors are implemented. Remaining work is to classify traits against supported features and emulate only the required state paths.",
+    how: "Generate the layout-independent map with scan-trait-registry.py, preserve the raw symbol-derived evidence in the atlas, and classify each trait as required now, later, or client-only.",
+    completion: {
+      date: "2026-10-10",
+      notes: ["The build-scoped AOI registry records 82 traits and 2,276 pairs from layout-independent client symbol names.", "This completes the inventory only; per-feature server support remains open."],
+      evidence: ["research/atlas/aoi-trait-registry.json", "research/atlas/client-functions.json — aoi_trait_registry_20261010", "reverse/tools/scan-trait-registry.py"],
+    },
     links: [
       { label: "aoi-trait-registry.json", href: "https://github.com/ivan-cavero/Azoth/blob/main/research/atlas/aoi-trait-registry.json" },
     ],
@@ -133,6 +206,14 @@ export const itemDetails: Record<string, ItemDetail> = {
       { label: "datasheet.py", href: "https://github.com/ivan-cavero/Azoth/blob/main/reverse/tools/datasheet.py" },
     ],
   },
+  A10: {
+    what: "REP has survived a measured 2 h 06 min run without a transport error, but the client still shows its red ALC/HUD warning. ALC field +0xAA0 never opens and the +0xAA8 input stamp stops refreshing; input-response messages and StartMovementCommunicationMsg did not fix that. A separate 20-minute return-to-menu path also remains open.",
+    how: "Trace the client-side producer/consumer and the server contract that opens the ALC door and refreshes the stamp. Change one supported message at a time in a fresh process. Acceptance is the real HUD warning clearing, no transport disconnect, and remaining in-world beyond the 20-minute threshold; then repeat for a 2-hour soak.",
+    links: [
+      { label: "STATUS.md — current blockers", href: "https://github.com/ivan-cavero/Azoth/blob/main/STATUS.md" },
+      { label: "client-functions.json — measured ALC/HUD findings", href: "https://github.com/ivan-cavero/Azoth/blob/main/research/atlas/client-functions.json" },
+    ],
+  },
 
   // ============================================================ B
   B1: {
@@ -141,35 +222,37 @@ export const itemDetails: Record<string, ItemDetail> = {
     completion: {
       date: "2026-10-06",
       notes: [
-        "Gates 1-8b of the runbook all pass on a clean checkout: Caddy CA trust, DTLS pin, ClientContext predicate, spawn env, red-cable fixes, replay pacing.",
-        "The runbook documents every gate with the env variable that flips it (AZOTH_REPLAY_LOCAL_PLAYER_UUID, AZOTH_REPLAY_INPUT_RESPONSE, AZOTH_CHUNK_GAP_MS, AZOTH_RESEND_INTERVAL_S).",
+        "World entry and possession pass on a clean run after CA trust, DTLS, ClientContext predicate, and local-player identity gates. The ALC/HUD warning and movement checks remain open.",
+        "The runbook documents world entry and possession. Its older claim that AZOTH_REPLAY_INPUT_RESPONSE clears the red HUD warning is superseded by the ALC measurements; transport uptime, HUD state, and movement are separate gates.",
       ],
       evidence: ["research/docs/PRIVATE-CLIENT-RUNBOOK.md", "research/sessions/gate6_possession_20261007/"],
-      images: [
-        { src: "research-shots/world-possessed.jpg", caption: "Gate 6→7: world rendered, player possessed, quest tracker and HUD visible." },
-      ],
     },
     links: [
       { label: "PRIVATE-CLIENT-RUNBOOK.md", href: "https://github.com/ivan-cavero/Azoth/blob/main/research/docs/PRIVATE-CLIENT-RUNBOOK.md" },
     ],
   },
   B2: {
-    what: "The earlier conclusion 'the player has no physics component' was measured against a GUID list shifted by one entry — GameRigidBodyClientFacetConfig was matched to GameRigidBodyConfig's GUID, etc. The corrected registry exists; the live measurement must be redone before any physics work builds on it.",
-    how: "Re-run the live component dump with the brace-wrapped GUIDs from az-type-registry.json (4,814 names, only the brace-wrapped form is trustworthy).",
+    what: "The old 'no physics component' conclusion used a GUID list shifted by one entry and was wrong. A corrected live dump of the 126-component player entity found both CharacterPhysicsComponent and GameRigidBodyComponent; the client's own lookup finds both. This confirms presence, not that the body/controller is active or moving.",
+    how: "Use the corrected brace-wrapped GUID registry and the early-attach player probe. Treat the result as a component-presence fact; measure activation and transform movement separately.",
+    completion: {
+      date: "2026-10-10",
+      notes: ["The corrected early player-entity dump found both physics component types among 126 components and verified each type through the client's lookup.", "The finding retracts the earlier missing-component diagnosis; body activation and movement are still unmeasured."],
+      evidence: ["research/atlas/client-functions.json — local_player_components_step0_20261010", "reverse/probes/client/frida-player-components.py", "research/atlas/az-type-registry.json"],
+    },
     links: [
       { label: "az-type-registry.json", href: "https://github.com/ivan-cavero/Azoth/blob/main/research/atlas/az-type-registry.json" },
     ],
   },
   B3: {
-    what: "PhysicsTrait alone registers 76 messages (RegisterCharacterMsg, RegisterCharacterWithRepulsorsMsg, RequestCharacterSetPositionMsg…). The client's movable-body gate (FUN_141763b70) ran exactly once at process startup and was never reached during login — a server message must trigger the delegate that creates GameTransformComponent and the body. Until then, nothing moves: measured, holding W for 2 s produces zero movement messages in either direction.",
-    how: "Replicate PhysicsTrait state as records/fragments (via A5) so the client creates the rigid body; then the client itself starts simulating and emitting movement.",
+    what: "The player has physics component types, but holding W still produces no movement-family message and the scene does not translate. The open question is whether the body/controller is active and which client input/ALC path consumes type 0x635. The older claim that the player entity lacks physics is retracted.",
+    how: "On a fresh run, attach before world entry and measure the player's transform, body/controller state, and input consumer while pressing and releasing W. Do not assume generic PhysicsTrait replication is the missing fix.",
     links: [
       { label: "STATUS.md — movement blocker analysis", href: "https://github.com/ivan-cavero/Azoth/blob/main/STATUS.md" },
     ],
   },
   B4: {
-    what: "Once the body exists, the client emits the movement family: StartMovementCommunicationMsg, AckMovementMsg, CommitMovementMsg, MoveActorMsg, ReceivePlayerPositionClientMsg. All 12 movement wire types are already derived and verified from two independent derivations — the wiring is blocked only on B3.",
-    how: "Route the client's movement records through the server's authoritative tick, echo the acks, and validate deltas.",
+    what: "The 12 movement wire types are registered, but W currently produces no movement-family messages. A reliable ReceivePlayerPositionClientMsg (4216) reaches the reader, then fails RMI dispatch because targetLocalId has no facet target. Both the input path and this receiver binding must be understood before calling movement implemented.",
+    how: "Trace the channel-1 type 0x635 consumer and the correct IPositionReceiver/facet target. Prove success by measuring local transform delta while holding/releasing W, then route and validate the resulting movement through the authoritative tick.",
   },
   B5: {
     what: "Server-side anti-cheat baseline for movement: clamp per-tick position deltas to max velocity, reject collisions client-side but verify server-side, flag teleports. The client is the renderer; the server is the referee.",
@@ -272,9 +355,6 @@ export const itemDetails: Record<string, ItemDetail> = {
         "POI composition is data-driven per grid region (24 r_+XX_+YY_pois slices) — territories_master.dynamicslice holds the bounds.",
       ],
       evidence: ["pak: sharedassets/coatlicue/newworld_vitaeeterna (29,980 files)"],
-      images: [
-        { src: "research-shots/world-possessed.jpg", caption: "Aeternum rendering from the private server session." },
-      ],
     },
   },
   E2: {
@@ -450,13 +530,13 @@ export const itemDetails: Record<string, ItemDetail> = {
 
   // ============================================================ I
   I1: {
-    what: "Chat channels: local (proximity), group, company, world, plus system messages. ChatComponentServerFacet + ChatMessageTypeToState + cross-world subscription debug show the shape; ChatPersistentData persists state.",
+    what: "The target social layer includes proximity, group, company, and world chat plus system messages. The prototype currently routes only a subset of channels; company and whisper delivery, durable history, membership checks, and permissions are not complete.",
     how: "Channel service in the tick loop; proximity chat resolved via AOI.",
-    completion: {
+    progress: {
       date: "2026-10-10",
       notes: [
-        "Channel model implemented in the prototype (local/group/world routing through the session).",
-        "Company and whisper channels pending I5.",
+        "The prototype routes local, group, and world chat through the session.",
+        "Company and whisper channels, membership enforcement, and persistence remain open.",
       ],
       evidence: ["services/world — chat routing in rep.py"],
     },
@@ -708,18 +788,15 @@ export const itemDetails: Record<string, ItemDetail> = {
         "Timeline with horizontal scroll, ranges (7 days/month/all) and a NOW marker.",
       ],
       evidence: ["site/ — this repository's landing"],
-      images: [
-        { src: "research-shots/world-possessed.jpg", caption: "The hero card shows our own captured world." },
-      ],
     },
   },
   N2: {
-    what: "Full EN/ES bilingual UI: / (Spanish) and /en/ (English) with a language switcher; the roadmap content stays English.",
-    completion: {
+    what: "The landing interface is available at / and /en/ with a language switcher, and its navigation and service labels are localized. Roadmap content remains English, so this is partial interface localization rather than a fully bilingual site.",
+    progress: {
       date: "2026-10-11",
       notes: [
-        "All UI chrome localized via src/data/i18n.ts; per-component locale props.",
-        "Live badge and service labels localized through data-attributes consumed by the status script.",
+        "Landing UI chrome, live badge, and service labels use the localization tables and locale props.",
+        "Roadmap titles, descriptions, and evidence remain English.",
       ],
       evidence: ["site/src/data/i18n.ts", "site/src/pages/en/index.astro"],
     },
@@ -779,9 +856,10 @@ export const ganttCodeToItemId: Record<string, string> = {
   "G0.4": "A1",
   "G0.5": "B1",
   "G0.6": "A2",
-  "G0.7": "A4",
+  "G0.7": "A1",
   N1: "N1",
   A5: "A5",
+  A10: "A10",
   B3: "B3",
   B4: "B4",
   C3: "C3",

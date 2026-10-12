@@ -9,6 +9,17 @@ the phase-by-phase server obligations are in
 [SERVER-CONTRACT.md](SERVER-CONTRACT.md).
 Build analyzed: `8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e`.
 
+## Current user-visible state (2026-10-11)
+
+This runbook records historical setup gates; passing them does not mean the
+client connection is currently usable. REP transport survived 2 h 06 min with
+no `transportError` or REP disconnect, while the real red ALC/HUD icon remained
+visible. The ALC door (`+0xAA0`) stayed closed and its input stamp (`+0xAA8`)
+stopped updating. A separate ~20-minute return-to-menu path also remains open.
+The player entity has `CharacterPhysicsComponent` and `GameRigidBodyComponent`,
+but W still produces no movement-family messages. See `STATUS.md` and
+`docs/ROADMAP.md` for acceptance criteria and the next experiments.
+
 This file answers one question: **"I asked for a private run and it did not
 behave; which layer is lying?"** Read it before touching hosts, certs, patches,
 or Frida.
@@ -18,8 +29,8 @@ or Frida.
 ```powershell
 # world-server environment (gates 6, 7, 8) — export BEFORE starting the stack
 $env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'   # the world renders + player possessed
-$env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'           # no red cable, no InGame timeout
-$env:AZOTH_CHUNK_GAP_MS             = '20'          # no post-spawn transport drop
+$env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'           # replays 0x1096/0x1097; NOT an ALC/HUD fix
+$env:AZOTH_CHUNK_GAP_MS             = '4'           # measured default; slower 20 ms is not a fix
 $env:AZOTH_RESEND_INTERVAL_S        = '1.0'         # no post-spawn resend storm (see gate 8b)
 python az.py dev
 
@@ -34,11 +45,11 @@ python scripts/private-run.py
 python scripts/patch-dtls-disk.py restore
 ```
 
-With that block a run reaches `player spawn succeeds`, the world renders with a
-possessed player, and the session stays up with **0**
-`OnLocalNetworkConnectionWarning`, **0** `State(InGame) is timeout`, and **0**
-`transportError`. Everything below explains why each line is needed and what
-breaks without it.
+This procedure has reached `player spawn succeeds` and rendered the world; a
+separate measured run maintained REP transport for a long time. It is **not**
+evidence that the real HUD warning cleared: direct icon and ALC measurements show it remains red. Treat
+transport errors, the ALC/HUD state, the 20-minute exit, and movement as separate
+results. Everything below explains historical setup failures and measurements.
 
 ## Before the gates: the launcher must start at all
 
@@ -66,9 +77,50 @@ A private run crosses five independent gates. A failure at any gate looks like
 | 4 | REP trust | DTLS handshake accepted | `@mm_csdkerr_transport_security_error (2)`, `tlsv1 alert unknown ca` |
 | 5 | ClientContext | `Initialize()` without a following `Cleanup()` | world loads, screen stays black, `deferred actions` errors |
 | 6 | Local-player possession | `replay_local_player_uuid=character` on the world server | context lives, world loads, screen still black, no player |
-| 7 | Post-replay server traffic | `replay_input_response=1` on the world server | player and world render, but the red cable appears and `State(InGame) is timeout` repeats |
-| 8 | Transport burst | pace the replay (`AZOTH_CHUNK_GAP_MS`) | `transportError 4` ~16 s after spawn, then the retry cannot recreate the context |
+| 7 | Captured input-response traffic | optional replay of `0x1096`/`0x1097` | historical timeout symptom may change; the real red ALC/HUD icon remains and its input stamp is stale |
+| 8 | Replay pacing | default 4 ms; measure each fresh run | 4/8 ms runs had no transport error in the recorded A/B; 20 ms was slower and risked the watchdog; neither proves ALC or movement |
 | 8b | **Resend storm** | `AZOTH_RESEND_INTERVAL_S=1.0` (default 0.3) | `transportError 4` ~38 s after spawn: `OnLocalNetworkConnectionWarning` climbs, then `Unexpected client disconnect! {"transportError":4}` |
+
+## Gate 8g — the warning burst is the REPLAY DURATION (measured 2026-10-10)
+
+`OnLocalNetworkConnectionWarning` is a Game.log REP-watchdog counter, not the
+left-center red ALC/HUD cable. The measured 2026-10-10 A/B found this counter
+tracks replay duration: the client has not re-stamped its REP activity clock while
+the replay is streaming, so the burst lasts as long as the replay. This result does
+not explain or clear the separate ALC indicator.
+
+Four paired runs, same build, no Frida attached, one variable at a time
+(`scripts/measure-run.py`, raw rows in `.azoth/logs/ab-runs.jsonl`):
+
+| run | `AZOTH_CHUNK_GAP_MS` | activity stream | replay | warnings | transportError |
+| --- | --- | --- | --- | --- | --- |
+| A2 | 20 | off | 76 s (2155 chunks) | **80** | **1** + `disconnected from REP` |
+| B2 | 20 | **on** | 29 s | **82** | 0 |
+| C | 8 | off | 15 s | **0** | 0 |
+| D | *unset* (default 4) | off | 10 s | **0** | 0 |
+
+One caveat on reading the table: the totals are not effort-matched. A2's replay ran
+76 s, so its 80 warnings accumulated over a much longer window — but the burst is not
+a slow trickle, it climbs 1 -> 80 within the first ~27 s and then stops. The
+defensible statement is therefore the qualitative one: **the burst lasts as long as
+the replay**, and a run whose replay is short (<=15 s) has none at all.
+
+Three conclusions:
+
+1. **The type-`0x1b88` activity stream does NOT help** (80 vs 82 at the same gap), so
+   the hypothesis that it refreshes the clock is refuted. It is not the knob.
+2. **The recipe above is wrong**: the code default is 4 ms
+   (`REPLAY_CHUNK_GAP_MS = os.environ.get("AZOTH_CHUNK_GAP_MS", "4")`) while this
+   runbook told operators to set 20. At 20 ms the replay is ~26 s — right on the
+   client's ~27 s watchdog.
+3. **32 heartbeats before the drain did not save A2.** A conflict-free post-replay
+   stream is not enough to avoid the ~27 s kill on its own.
+
+The trade is real and unresolved: a fast replay is warning-free but D logged a
+`Cleanup()` ~3 min in; a slow one is calmer but risks the 27 s kill. **Do not treat
+`AZOTH_CHUNK_GAP_MS=20` as the fixed answer** — measure the replay duration and the
+warning count together (`python scripts/measure-run.py --label <name>`), because a
+run's total warning count means nothing without knowing how long its replay took.
 
 ## Gate 8d — the server emits on its own tick (authoritative clock)
 
@@ -234,13 +286,14 @@ compares that UUID against the character UUID in its option store. With the
 setting off, gates 1–5 can all pass and the screen stays black. See
 `atlas/levers.md` (`AZOTH_REPLAY_LOCAL_PLAYER_UUID`).
 
-Gate 7 is also a server setting. The replay answers the client's player-state
-stream once and then goes quiet; the client's HUD cable and its per-state
-watchdog react to that silence. `AZOTH_REPLAY_INPUT_RESPONSE=1` re-sends the two
-captured reply bodies (`0x1096`/`0x1097`) on a 1 s period. Measured A/B: cable
-warnings 1 → 0, `State(InGame) is timeout` lines → 0, red HUD pixels 86 → 0, and
-a 13+ minute session stayed `InGame` with no `OnConnectionFail`. See
-`atlas/levers.md` (`AZOTH_REPLAY_INPUT_RESPONSE`).
+The old Gate 7 model is superseded. On 2026-10-07, replaying `0x1096`/`0x1097`
+correlated with fewer `State(InGame) is timeout` lines and fewer pixels in a
+top-left band. The band did not measure the actual cable icon. Direct icon
+measurement on 2026-10-10 found it red for 14 minutes while input responses and
+REP traffic continued. A 2026-10-11 probe found `+0xAA0` stayed closed and the
+`+0xAA8` input stamp stopped refreshing. The ALC producer/consumer remains the
+connection blocker; do not call input-response a cable or connection fix. See
+`atlas/levers.md` and the linked entries in `client-functions.json`.
 
 ## Gate 2 — the local CA (the silent one)
 
@@ -419,25 +472,26 @@ one redacted 16-byte span per large state bundle. Server log evidence:
 it, so export it there (or use a wrapper); `python az.py dev` started earlier
 will not pick it up.
 
-## Gate 7 — keep talking after the replay drains (the red cable)
+## Historical Gate 7 — input-response traffic (not the ALC red cable)
 
-Measured 2026-10-07. The replay delivers the captured world state once and then
-the server only pings `0x15d`. The client's HUD then shows the red cable
-(`OnLocalNetworkConnectionWarning`) and the per-state watchdog logs
-`State(InGame) is timeout` every 30 s. The capture's server did not go quiet: it
-answered the client's local-player state stream (type `0x635`, channel 1) with
-`0x1096` (80 B) and `0x1097` (24 B). Re-sending those two captured bodies on a
-1 s period (`AZOTH_REPLAY_INPUT_RESPONSE=1`) removed the cable and the timeout
-entirely.
+This 2026-10-07 A/B is historical and its HUD conclusion was wrong. It replayed
+the captured responses `0x1096`/`0x1097` to type `0x635` and reported fewer
+timeout lines and fewer pixels in a top-left band. That band did not measure the
+actual cable icon. The direct 2026-10-10 icon measurement found the cable still
+red while input responses and REP traffic continued; on 2026-10-11, `+0xAA0`
+stayed closed and `+0xAA8` stopped refreshing. The ALC producer/consumer remains
+unknown.
 
-| Session | `INPUT_RESPONSE` | cable warnings | timeout lines | red HUD px |
+| Session | `INPUT_RESPONSE` | warning callbacks | timeout lines | top-left band px (not the icon) |
 | --- | --- | --- | --- | --- |
 | 20:44 | off | 1 | 40+ | 86 |
 | 21:21 | on | **0** | **0** | **0** |
 
-This rides channel 0 (the typed stream). It fixes stability, **not movement**.
+These replies ride channel 0. They may affect a separate state-watchdog symptom,
+but do not clear the measured ALC warning, establish user-visible connection
+health, or move the player.
 
-## The movement frontier is a missing server reply, not a client bug
+## Movement: the client streams input; the position reply has no valid client-side target
 
 Measured on the same session, after `InGame`:
 
@@ -446,13 +500,140 @@ Measured on the same session, after `InGame`:
 | client → server (`app-data`) | 1 | **3573** |
 | server → client (`outbound-app-data`) | 1 | **0** |
 
-The client broadcasts its local-player state on channel 1 (type `0x635`); our
-replay server never answers on channel 1/2. The capture does not contain that
-reply stream, so it has to be constructed server-side. This is the same finding
-recorded as the movement blocker in `STATUS.md`; it is repeated here only to
-mark where the private-run gates end and the protocol work begins.
+The client streams channel-1 input continuously at ~20×/s and **that stream is now
+identified**: wire `0x635` = index 1589 =
+**`ActionListComponentServerFacet_ReceiveInputFromClient`**. Measured 2026-10-12 over a
+whole session: **19676/19676** channel-1 records carry a valid `[crc32][len]` container,
+all with target = the full 16-byte actor id `1a954abc4b3185bfbe37c3d8592618e0` and type
+`0xC35`. Channel 0 carries the client's own ping (type 669, all-zero target) plus typed
+requests, every one addressed to the same actor id. **StartMovementCommunicationMsg
+(0x2D6) is absent from both channels.** So the input direction already works; what is
+missing is an authoritative reply landing on a client object that implements
+`IPositionReceiver`.
 
-## Gate 8 — the transport burst (intermittent ~16 s post-spawn disconnect)
+Method note (a trap): calling the server's `parse_datagram` on the logged `raw` fails with
+`payload truncated: need 2048 bits, have 896`. The logged `raw_full` must go through
+`parse_envelope` first, LZ4-decompressed when the envelope is `0x81`.
+
+### Type names are recoverable from the binary
+
+`private-client/runtime/typeindex.json` gives `typeIndex[wire index] = GUID`, and for each
+GUID the client's `.rdata` holds it as a dashed lowercase string immediately preceded by a
+NUL-terminated AZ RTTI name. This corrected two standing mislabels:
+
+| wire | index | real name |
+| --- | --- | --- |
+| `0x635` | 1589 | `ActionListComponentServerFacet_ReceiveInputFromClient` |
+| `0x1096` | 4246 | `TimeComponentClientFacet_SyncTimeChange` |
+| `0x1097` | 4247 | `TimeComponentClientFacet_SyncDayPhase` |
+| `0x2d6` | 726 | `StartMovementCommunicationMsg` |
+| `0x1078` | 4216 | `ReceivePlayerPositionClientMsg` |
+
+So `AZOTH_REPLAY_INPUT_RESPONSE` replays **time sync** messages, not input responses.
+
+### The position reply's target is wrong, and the interface is not instantiated
+
+The `RMIDispatch: The facet target ID couldn't be found` failure is real, and the previously
+reported "fix" was a **false fix**: the blob that makes the dispatch succeed
+(`93a3e477cb5fd51e`) is the client's `TimeComponentClientFacet` local id, so the position is
+delivered to a time-sync facet. `FUN_143f97bf0` still returns 0 and nothing is applied.
+
+The client **does** implement the interface: QueryInterface `FUN_143fadd00` (returns `this`
+on a GUID match) at slot `+0x20` of vtable **`0x1482eb160`**, installed by the 6-byte
+function at `0x143f983d0`; the interface is registered by name by `FUN_143f98300`; the RTTI
+descriptor is `IPositionReceiver` at `0x1482ea920` with GUID
+`{17C00FC6-074F-47EB-9640-9743D890ED6F}`. The blocker is that **no client-side RMI target
+is an instance of it** (37063 targets, 225 distinct vtables, 0 positives). Probe:
+`python az.py probe frida-position-target`.
+
+`StartMovementCommunicationMsg` was re-run **reliably on channel 0** (the earlier attempt
+was unreliable on channel 1, which the client never decodes — its body was already correct
+at 20 bytes, verified against the client's own reader `FUN_146a55240`). Result: still no
+receiver bound, and the actor-id reply still fails with **1581** facet errors. The client
+never sends `0x2D6` either. Do not re-run it as a binding fix.
+
+### Measuring the transform: use the client's own accessor
+
+The client ships `nw_getPlayerPosition` ("print player position to the screen"). Its handler
+`0x141015b30` calls **`FUN_140fddfa0(&holder)`** and prints
+`*(float*)(holder+0x14c)`, `+0x15c`, `+0x16c` — the local player position in the client's own
+format. `teleport` (handler `0x141020a40`) reaches `FUN_140fbf3b0`, so the client can also set
+its own position. Use `python az.py probe frida-player-position`; validate with
+`frida-position-validate`, which calls the client's own command handler and watches its printer
+fire. Do NOT diff the `Transform` component's bytes: its head is a pointer/counter header, and
+a 4 s W-hold changes nothing there — that measures the wrong bytes.
+
+Measured 2026-10-12 (run `rcv2-073512`, in-world): **667/667 identical samples** at 0.2 s over
+136 s, containing a 10 s W hold and a 4 s S control — position stayed
+`(9343.6416, 2786.7327, 87.538)` — while the server logged 8184 app-data events carrying 7804
+channel-1 records in the same window. Input leaves the client; the position does not change.
+
+**The `ActorMover` family is NOT locomotion.** Its strings are server-side hub migration
+(`Sending CommitMovement for actor`, `Destination hub timed out before receiving CommitMovement
+or AbortMovement…`, `DelayMigrationsMsg`, `MoveActorToHubMsg`). The local-player plumbing is
+`PlayerPositionTrackingComponent` (GUID `62620B33-6F37-418B-9C4F-62AD6058D54D`),
+`PositionInTheWorldComponent`, `PositionalTicketingComponent`, `CameraPositionListener`.
+
+**The `IPositionReceiver` is never created** (`installer 0x143f983d0` and `register 0x143f98300`
+read 0 across a whole session), so no target id can apply a position.
+
+### The live player entity's components (measured 2026-10-12)
+
+`python az.py probe frida-player-components-full` dumps all 126 components and names them. The
+entity carries `PlayerPositionTrackingComponent` (GUID `62620B33-6F37-418B-9C4F-62AD6058D54D`),
+`CharacterComponent`, `Transform`, `TraversalComponent`, `CameraLockComponent`,
+`PlayerInputFiltersComponent`, `MotionParameterSmoothingComponent`, `PlayerAOIComponent`,
+`SpectatedPlayerComponent`, `SpectatorModeComponent`, `SkinnedMeshComponent`,
+`FootstepComponent`, `PlayerSaveData` and more.
+
+**Method trap that cost real time:** a component's VTABLE lives in `.rdata` (`r--`) while the
+function pointer stored in it lives in `.text`. Checking `inCode(vtable)` therefore rejects
+**every** component (126/126) as `badVtbl`. Check the resolved **function pointer** instead.
+
+**Unresolved disagreement:** at ~4 s after spawn, `CharacterPhysicsComponent` and
+`GameRigidBodyComponent` are NOT on the entity, by the component-list dump and by asking the
+client's own lookup `FUN_1413fb700` for both GUIDs (controls positive). The committed record
+`local_player_components_step0_20261010` claims the lookup found both. Re-dump at spawn+4 s,
++30 s and +2 min while logging every ADD (`FUN_1413789c0`) to settle it.
+
+**Frida is a crash source on this build.** One crash's faulting module was
+`frida-agent.dll_unloaded` at `0x9c7e0`. Attach as late as possible (at character select via
+`private-run.py --no-play`), prefer hooks-only probes, and treat a session death as an invalid
+attempt unless the faulting module is `NewWorld.exe`.
+
+## The 20-minute return-to-menu path is ARMED BY THE REPLAY GAP (measured 2026-10-12)
+
+`services/launcher/runtime-tools/patch-exit-to-menu.py` NOPs the correct call site:
+`0x141004230` is one statement inside the teardown delegate `FUN_141004100`, and the
+statement that leaves the world is the next virtual call, `0x14100425F`
+(`call qword ptr [rax+0x1d8]` -> `FUN_141037b20`). One-variable A/B, no Frida in either run:
+
+| run | `AZOTH_CHUNK_GAP_MS` | replay | 20-minute exit |
+| --- | --- | --- | --- |
+| `exitA-gap20-012032` | 20 | 29 s | **fired at 20:00.398** |
+| `exitval2-202053` | 4 (default) | 10 s | did not arm (session ended 26:33 by a REP disconnect) |
+
+With the patch applied the delegate ran and the patched call was skipped:
+`exiting to main menu` 0 and `Cleanup()` 0, where the pre-patch runs logged both.
+**It is still not a session fix.** The same delegate tears the connection down at
+`0x141004230` *before* the patched call, so the client stopped sending traffic at
+20:00.398 — zero server-side events after that — and a screenshot taken 5 minutes later
+still showed the world, i.e. a frozen last frame. To keep a session past 20 minutes the
+**arm** must be prevented. `FUN_146420610` (`CGame::ActorContainerDisconnect`) has **11
+callers**, so its log line marks *some* caller, not the delegate; only its absence is
+decisive about the delegate. Atlas: `exitA_gap20_run_outcome_20261011`,
+`chunk_gap_decides_the_20minute_arm_20261011`, `exit_delegate_call_site_verified_20261011`.
+
+The HUD red cable was RED at every 20 s sample of every recent run, including past the
+20-minute mark. No run has yet reached the 30-minute acceptance.
+
+**Launch trap re-confirmed 2026-10-12:** starting the client while Caddy is still binding
+makes the CMS manifest return 502, and the client then stalls on the Aeternum splash with
+`Channel Service data provider: Unexpected response code: 502 ... All attempts (5)
+exhausted` followed by `Auth manager does not exist`. Wait until the manifest answers 200
+(check with PowerShell `Invoke-WebRequest`, Schannel like the game) before launching.
+
+## Historical Gate 8 — the transport burst (intermittent ~16 s post-spawn disconnect)
 
 Measured 2026-10-07. Some sessions die with `Unexpected client disconnect!
 {"transportError":4}` a very consistent **15–17 seconds after spawn**. The
@@ -476,44 +657,46 @@ The rate is what differs between a session that survives and one that does not:
 | 23:03 (failed) | 1093 / 12 s = **91/s** | 508 / 12 s | ~200/s | **no** | `transportError 4` at 15.6 s |
 
 The failing run pushed roughly 3× the outbound rate and had not finished the
-replay when the client gave up. Working conclusion: **the replay burst starves
-the client's network thread**, and the client's own transport watchdog then
-fires.
+replay when the client gave up. This was a useful correlation from two runs, not
+a general pacing rule; later A/Bs and the compressed-envelope server bug changed
+the diagnosis. REP transport can survive, while the ALC warning and 20-minute
+menu exit remain separate open issues.
 
 Mitigation levers:
 
 | Lever | Default | Effect measured 2026-10-07 |
 | --- | --- | --- |
-| `AZOTH_CHUNK_GAP_MS` | 4 | **The decisive one.** 20 fixed the drop: `transportError 4` 0, `is timeout` 0, replay completed, world rendered. |
+| `AZOTH_CHUNK_GAP_MS` | 4 | 20 ms passed one old run but was slow and risky in later A/Bs. Recorded 4/8 ms runs had no transport error; a 4 ms run also had a later `Cleanup()`. No value is a universal fix. |
 | `AZOTH_RESEND_INTERVAL_S` | 0.3 | Minimum seconds before the same reliable datagram is retransmitted. 1.0 lowered the resend peak from 650/s to 478/s and the transient cable burst from 4 warnings to 3. Modest; keep 0.3 unless tuning. |
 
 Note the replay takes longer to drain with a larger gap, so increase any wait
 before interpreting a run.
 
-**Verified 2026-10-07**: `AZOTH_CHUNK_GAP_MS=20` gave a run with `player spawn
-succeeds`, `transportError 4` **0**, `State(InGame) is timeout` **0**, and a
-completed replay — the world rendered with the player possessed. Use 20 (not 4)
-for a session that has to survive.
+**Single historical pass, 2026-10-07**: `AZOTH_CHUNK_GAP_MS=20` gave one run
+with `transportError 4` **0** and a completed replay. Do not use that result to
+recommend 20 ms: later paired runs found it slower and closer to the watchdog.
+Use the current default for a baseline and change pacing only when a fresh A/B
+isolates that variable.
 
-**Long-run validation 2026-10-08**: a run with the full recommended config
+**Historical 2026-10-08 run**: a run with the then-recommended config
 (`LOCAL_PLAYER_UUID=character`, `INPUT_RESPONSE=1`, `CHUNK_GAP_MS=20`) stayed
 **InGame for 20 minutes** (02:51:31 -> 03:11:32), server steady at 21 app-data/s
 + 25 outbound/s with **0 resends**, then the client disconnected **cleanly**
-(`ActorContainerDisconnect`, no `transportError`, no `OnConnectionFail`). That is
-the target steady state for any A/B baseline.
+(`ActorContainerDisconnect`, no `transportError`, no `OnConnectionFail`). This
+is an observed 20-minute boundary, not proof that the session remains in-world
+past the separate return-to-menu threshold.
 
 **Tradeoff (measured).** Pacing lengthens the replay drain, and the resend storm
 builds up while it drains. In the verified run the server sent **650 resends in
 one second** at the storm peak (23:12:22), and the client logged **4**
 `OnLocalNetworkConnectionWarning` in a 0.3 s burst at 23:12:24 — the same second
 the replay completed. Immediately after, the server settled to 25 outbound/s and
-**0 resends**, and the session then ran clean. So the cable shows briefly during
-the drain and clears; it is not the escalating counter of gate 7. A run is
-healthy if the warnings stop once `replay-complete-quiet` appears.
+**0 resends**. That callback burst is distinct from the actual ALC/HUD icon,
+which later measurements found remained red. Do not infer icon health from the
+callback count or the server's resend rate.
 
-This is separate from gates 6 and 7: those decide whether the world renders and
-whether the HUD cable appears; this one decides whether the session survives at
-all.
+This is separate from world entry and the ALC/HUD gate. Record transport errors,
+replay pacing, actual icon color, and session duration as separate results.
 
 ## The working sequence (cold setup → world attempt)
 
@@ -552,10 +735,13 @@ Note: `OnCampfireLoginComplete` fires during the **initial** load, before the
 splash gate, so it is not a character-select marker. The script waits a fixed
 settle window instead and retries the click.
 
-Confirmed end to end on 2026-10-07: with steps 1–10 the world rendered and the
-player was possessed (`Initialize()` without `Cleanup()`, `player spawn
-succeeds, in game`, `InGame`, physics active), and with step 3's second variable
-the session ran 25 minutes with **0 warnings and 0 timeouts**.
+Historical 2026-10-07 result: with steps 1-10 the world rendered and the player
+was possessed (`Initialize()` without `Cleanup()`, `player spawn succeeds, in
+game`, `InGame`). The old phrase "physics active" was not backed by a transform or
+controller measurement. A recorded 25-minute run with zero Game.log warnings is
+not proof that the real HUD cable cleared or that the separate session-lifetime
+gate passes; later runs measured a red ALC/HUD cable and an approximately
+20-minute return-to-menu path. Treat this as the entry/possession baseline only.
 
 Use `scripts/shot.py` for the window screenshot: the client can open on a
 secondary monitor, and a full-screen capture then comes back black.
@@ -580,7 +766,7 @@ proves the target window is actually foreground before a key is sent.
 | `Initialize()` alone, world loads, still black, no player | Gate 6 — world server `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character` |
 | `Exceeded max recursion for deferred actions` | Gate 5 symptom, not a separate bug |
 | `WaitingForPlayerSpawn is timeout` | watchdog patch, at char select |
-| Red cable in the HUD, `State(InGame) is timeout` repeating | Gate 7 — world server `AZOTH_REPLAY_INPUT_RESPONSE=1` |
+| Red cable in the HUD | ALC input stamp/door: inspect `+0xAA8`/`+0xAA0`; input-response replay is not a fix |
 | Two gateway/world processes by command line | process hygiene — kill duplicates |
 | APPCRASH `c0000005` in `ntdll` at startup | Frida attached during mapping — use the disk patch |
-| `transportError 4` ~15–17 s after spawn, then `clientContext == nullptr` | Gate 8 — replay burst too fast; raise `AZOTH_CHUNK_GAP_MS` |
+| `transportError 4` or REP disconnect | Check the current server error and decompression/loop path in `STATUS.md`; do not increase replay gap without a fresh A/B that isolates it |

@@ -1,10 +1,10 @@
 {
-  "agentRunning": true,
+  "agentRunning": false,
   "lastHeartbeat": null,
   "services": {
-    "caddy": true,
-    "gateway": true,
-    "world": true
+    "caddy": false,
+    "gateway": false,
+    "world": false
   },
   "mode": "local"
 }

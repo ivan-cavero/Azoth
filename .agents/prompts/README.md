@@ -1,20 +1,26 @@
 # Azoth agent prompts
 
-These prompts define focused roles for work in this repository. Copy the
-selected prompt into the task and fill in its `Task input` fields. A prompt is
-an assignment template; it does not replace the repository rules or authorize
+These prompts define reusable workflows for work in this repository. Paste
+the autonomous driver into a fresh session without filling in a task field; it
+uses the user's current request. For a focused role prompt, fill in its `Task
+input` fields. A prompt does not replace the repository rules or authorize
 actions that the task did not request.
 
 ## Choose a role
 
 | Prompt | Use it for | Main output |
 | --- | --- | --- |
+| [Azoth session driver](autonomous-driver.md) | Any Azoth task in any session; selects the matching focused prompt/skill, coordinates up to two useful subagents, and drives work to verified acceptance | An Azoth-specific result with canonical documentation, authentic roadmap evidence, and a concise handoff |
 | [Code refactoring](refactor.md) | Simplifying or reorganizing existing implementation and docs | A smaller, clearer design that preserves confirmed behavior |
 | [Full project audit](project-audit.md) | A whole-repo merge-readiness review (self-containment, broken references, suites, evidence) | A verdict with severity-grouped findings and unambiguous fixes applied |
 | [Decompilation review](decompilation-review.md) | Building, auditing, naming, or organizing a build-specific decompilation | A hash-scoped corpus with coverage, evidence, confidence, and unresolved gaps |
 | [Protocol analysis](protocol-analysis.md) | Establishing exact client/server messages and state transitions | Atlas-backed wire facts and a traceable flow description |
 | [Server feature development](server-developer.md) | Implementing a client-visible feature such as world entry, movement, or combat | A minimal server behavior with protocol-backed acceptance criteria |
 | [Live client analysis](live-analysis.md) | A specifically requested experiment using a private client process, memory, or hooks | A reproducible, time-correlated trace and independently checked finding |
+
+Use the autonomous driver as the session-level prompt. It selects one focused
+role prompt below when the task calls for it; do not stack role prompts that
+cover the same work.
 
 For a world feature whose protocol is unknown, use **Protocol analysis** to
 establish the message contract, then **Decompilation review** for unresolved

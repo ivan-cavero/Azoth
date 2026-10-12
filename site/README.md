@@ -37,26 +37,29 @@ python site/scripts/update_live.py   # desde la raíz del repo
 Lee los PIDs de `.azoth/state/` y comprueba con `tasklist` si cada servicio
 (caddy, gateway, world) sigue vivo.
 
-## Roadmap público (solo display, NO es el tracker de trabajo)
+## Public roadmap (display only; not the work tracker)
 
-`public/roadmap.json` es el roadmap visible en la web. La página lo relee cada
-60 s: editar ese fichero basta, **sin rebuild**.
+`src/data/roadmap-full.ts` is the canonical source. Regenerate
+`public/roadmap.json` with `node site/scripts/gen-roadmap.mjs`; the landing page
+re-fetches that JSON every 60 seconds, so no rebuild is needed for data-only
+updates.
 
-Reglas para agentes y humanos:
-
-- **El roadmap NO es la fuente de trabajo.** El trabajo real se planifica y
-  registra en `STATUS.md`, `HANDOFF.md` y `docs/ROADMAP.md`, como siempre.
-  Este JSON es un espejo público.
-- **Cuándo tocarlo:** al cerrar un hito (marcar `done` con evidencia), al
-  descubrir algo nuevo que cambie el plan (añadir puntos con su `evidence`),
-  o al reordenar prioridades. No como lista de tareas diarias.
-- **Cómo:** edita `public/roadmap.json` directamente. Cada punto lleva
-  `state` (`done|active|planned|investigating|blocked`), `evidence`
-  (obligatorio para `done`: tipo del cliente, mundo del PAK o doc pública) y
-  `effort` (`S|M|L|XL`, estimación). Actualiza `updatedAt` y el `progress`
-  del grupo. No borres puntos: lo cerrado se marca, no se elimina.
-- **Honestidad ante todo:** si algo está sin confirmar, `investigating`.
-  Los ETA son estimaciones; lo hecho, hecho con evidencia.
+- Keep planning and current status in root `STATUS.md`, `HANDOFF.md`, and
+  `docs/ROADMAP.md`. This JSON is the public display copy.
+- Update the roadmap when a milestone closes, evidence changes, a new finding
+  changes the plan, or sequencing changes. Do not use it as a daily task list.
+- Each group must have a visible, informative `goal`; every item must have a
+  useful `detail`, a state, evidence basis, and effort estimate. Keep completed
+  work separate from partial progress.
+- A `done` item needs durable source evidence and one authentic capture that
+  demonstrates that specific result. Store only curated, public-safe captures
+  under `public/evidence/`, with a precise caption. Never reuse an unrelated
+  image or present a planned feature as implemented.
+- For planned, active, or investigating work without a result capture, show
+  that the capture is pending. Add it when the item's acceptance condition is
+  met; do not fill the gap with concept art or an unrelated game screenshot.
+- Do not delete roadmap items. If a claim is uncertain, keep it
+  `investigating`; dates are estimates, and completion requires evidence.
 
 Servir la web localmente (puerto propio, no el 8080 del gateway):
 

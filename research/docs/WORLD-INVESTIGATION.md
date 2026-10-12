@@ -1,7 +1,7 @@
 # World entry investigation — snapshot 2026-10-02
 
-This is a dated evidence record. The current frontier is local-player movement;
-read [`../../STATUS.md`](../../STATUS.md) and
+This is a dated evidence record. The current frontier is client-visible
+connection and local-player movement; read [`../../STATUS.md`](../../STATUS.md) and
 `research/atlas/client-functions.json` key `gametransform_attach_ab` first.
 The sections below record the possession fix. They are not the next experiment.
 

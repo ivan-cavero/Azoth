@@ -1,0 +1,120 @@
+{
+ "sources": {
+  "wiki_pages": 122,
+  "client_types": 4818,
+  "pak_subworlds": 44,
+  "pak_datasheets": 2250,
+  "gamemodes": 53,
+  "decoded_datasheets": {
+   "javelindata_territorydefinitions": {
+    "rows": 161,
+    "cols": 37
+   },
+   "javelindata_pvpbalance_war": {
+    "rows": 12,
+    "cols": 12
+   },
+   "javelindata_pvpbalance_outpostrush": {
+    "rows": 12,
+    "cols": 12
+   },
+   "javelindata_encumbrancelimits": {
+    "rows": 11,
+    "cols": 52
+   },
+   "javelindata_mutationdifficulty": {
+    "rows": 3,
+    "cols": 51
+   },
+   "javelindata_factiondata": {
+    "rows": 4,
+    "cols": 9
+   },
+   "javelindata_housetypes": {
+    "rows": 5,
+    "cols": 7
+   },
+   "javelindata_mounts": {
+    "rows": 62,
+    "cols": 42
+   },
+   "javelindata_invasiondefinitions": {
+    "rows": 1,
+    "cols": 6
+   },
+   "javelindata_loottables": {
+    "rows": 5237,
+    "cols": 113
+   },
+   "javelindata_gamemodes": {
+    "rows": 53,
+    "cols": 181
+   },
+   "javelindata_schedules": {
+    "rows": 34,
+    "cols": 10
+   },
+   "javelindata_territorygovernance": {
+    "rows": 46,
+    "cols": 24
+   },
+   "javelindata_warboardaggregates": {
+    "rows": 21,
+    "cols": 8
+   },
+   "javelindata_dungeongrammars": {
+    "rows": 45,
+    "cols": 9
+   },
+   "javelindata_statuseffects": {
+    "rows": 0,
+    "cols": 328
+   },
+   "javelindata_itemdefinitions_weapons": {
+    "rows": 563,
+    "cols": 101
+   },
+   "javelindata_weaponmastery": {
+    "rows": 20,
+    "cols": 9
+   },
+   "javelindata_gatherables": {
+    "rows": 1779,
+    "cols": 49
+   },
+   "javelindata_perks": {
+    "rows": 659,
+    "cols": 38
+   },
+   "javelindata_socketables": {
+    "rows": 1,
+    "cols": 3
+   },
+   "javelindata_territoryprogression": {
+    "rows": 50,
+    "cols": 22
+   },
+   "javelindata_seasondata": {
+    "rows": 10,
+    "cols": 8
+   },
+   "javelindata_owg_bounty": {
+    "rows": 5,
+    "cols": 13
+   },
+   "javelindata_randomencounters": {
+    "rows": 1,
+    "cols": 2
+   }
+  }
+ },
+ "docs": [
+  "BLUEPRINT.md",
+  "DATASHEETS.md",
+  "GAMEMODES.md",
+  "wiki-facts.json",
+  "expedition-bosses.json",
+  "steam-final-state.json",
+  "facet-map.json"
+ ]
+}

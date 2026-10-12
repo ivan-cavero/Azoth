@@ -135,35 +135,6 @@ body {
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
-/* Product screenshot card — the only imagery, framed like Linear does it */
-.shot-card {
-  position: relative;
-  border-radius: 12px;
-  box-shadow:
-    rgb(35, 37, 42) 0 0 0 1px inset,
-    rgba(8, 9, 10, 0.6) 0 4px 32px 0px;
-  overflow: hidden;
-  background: var(--color-carbon);
-}
-.shot-card img {
-  display: block;
-  width: 100%;
-  filter: saturate(0.92) brightness(0.96);
-}
-.shot-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(8, 9, 10, 0.08) 0%, rgba(8, 9, 10, 0) 30%, rgba(8, 9, 10, 0.35) 100%);
-  pointer-events: none;
-}
-.shot-caption {
-  position: absolute;
-  left: 16px;
-  bottom: 14px;
-  z-index: 1;
-}
-
 /* Hero atmospheric floor — gradient only, no photo */
 .hero-floor {
   position: absolute;

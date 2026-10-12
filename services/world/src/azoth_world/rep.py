@@ -197,21 +197,16 @@ HEARTBEAT_TICK_START = int(
     os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK", "0x6ef8c888af44"), 0
 )
 HEARTBEAT_TICK_STEP = int(os.environ.get("AZOTH_REPLAY_HEARTBEAT_TICK_STEP", "1000000000"), 0)
-# Post-replay activity stream (type 0x1b88). The InGame activity clock
-# (FUN_146445e10) reads processor+0x608 and the message dispatcher
-# FUN_146b6f190 only refreshes that clock on its "miss" path: a message
-# whose GUID is NOT one of its ten known singletons. The 0x15d ping hits a
-# singleton that does not stamp and the ch3 keepalive never reaches the
-# dispatcher, so once the replay drains the clock goes stale:
-# OnLocalNetworkConnectionWarning climbs (the red cable icon appears within
-# seconds of spawn, which is what Ivan sees) and the first clean session
-# died with transportError 4 just 19 s after spawn (2026-10-04 19:25 UTC).
-# The capture's only verbatim repeatable bodies are the 23 IDENTICAL
-# type-0x1b88 messages (42 bytes, no redaction, seqs 0x0c..0x24,
-# pre-snapshot). Whether their GUID takes the stamp path is UNPROVEN
-# (ingame_activity_timer in research/atlas/client-functions.json), so this is an
-# experiment: serve the real captured body with a fresh envelope seq and
-# watch the warning counter. Do NOT extend this to 0x08: re-sending the
+# Historical post-replay activity-stream experiment (type 0x1b88), not a
+# current connection or red-cable fix. The 2026-10-04 A/B included one
+# 40-minute REP session followed by a disconnect; it did not prove that this
+# message refreshed the relevant clock or deliver a stable user-visible ALC
+# connection. Later live ALC probes found +0xAA0 stayed closed and the HUD
+# +0xAA8 response stamp stopped advancing, while REP transport and the HUD
+# indicator could disagree. Keep this experiment opt-in and document its
+# results in research/atlas/client-functions.json. The capture contains 23
+# identical 42-byte 0x1b88 bodies; whether their GUID takes the old miss-path
+# clock update remains unproven. Do NOT extend this to 0x08: replaying the
 # captured tail bundles already cost the ClientContext once
 # (AZOTH_REPLAY_STATE_STREAM lesson).
 ACTIVITY_STREAM_ENABLED = os.environ.get("AZOTH_REPLAY_ACTIVITY_STREAM", "0") == "1"
@@ -306,6 +301,117 @@ INPUT_RESPONSE_TYPES = (0x1096, 0x1097)
 CHANNEL1_ECHO_ENABLED = os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO", "0") == "1"
 CHANNEL1_ECHO_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO_PERIOD_S", "0.5"))
 CHANNEL1_ECHO_MAX_BODY = int(os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO_MAX_BODY", "256"))
+# EXPERIMENTAL (default off): answer the client's channel-1 local-player state stream
+# with a real, TYPED movement message instead of an echo.
+#
+# WHY THIS IS THE BEST CANDIDATE YET. The measured asymmetry is the strongest signal
+# in the whole protocol: the client sends its local-player state on channel 1 about
+# 20 times a second and the server has NEVER answered on channel 1 or 2. The client's
+# own cvars name the contract that is missing:
+#
+#     javelin.alc-server-timeout-for-input / -for-ui / -for-ui-high
+#     javelin-server.enable-alc-movement-reporting
+#     javelin-server.alc-movement-reporting-period-seconds
+#     javelin-server.ALC-max-input-to-combine
+#     javelin-server.alc-update-parametric-blend-params-on-server
+#
+# ALC = Actor Local Control: the client sends INPUT, the server COMBINES it and
+# answers with authoritative position. Without that answer the client has no
+# authority to move, which is exactly what is observed.
+#
+# WHAT IS SENT. `ReceivePlayerPositionClientMsg` (wire type 4216, GUID
+# 39ca8bca-2ee8-4104-b0e9-7c2a51b52fb4). Its wire layout was decoded statically from
+# the client's own object-vtable marshal (FUN_143f97c70) and unmarshal
+# (FUN_143f97d10), which agree, so the 36 bytes below are the client's format and not
+# a guess:
+#
+#     8 bytes  u64 BE   \ 16-byte actor id (the player entity) split in two
+#     8 bytes  u64 BE   /
+#     8 bytes  u64 BE      local-player key
+#     4 bytes  u32 BE   \  position group
+#     4 bytes  u32 BE    |
+#     4 bytes  u32 BE   /
+#
+# Framing is the same typed envelope the ch0 stream uses: `[00 01 <prefix-varint>]`
+# then the body. The default channel is 1, because that is the channel the client's
+# own input stream uses.
+#
+# The three u32s are the position group by static evidence (they are handed to a
+# 16-byte compound that a transform-like setter consumes); their SCALE and AXIS ORDER
+# are unknown, so this is an experiment to be A/B'd, not a finished feature. A wrong
+# scale cannot crash the client: the unmarshal reads fixed widths in this order.
+POSITION_REPLY_ENABLED = os.environ.get("AZOTH_REPLAY_POSITION_REPLY", "0") == "1"
+POSITION_REPLY_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_POSITION_REPLY_PERIOD_S", "0.1"))
+POSITION_REPLY_CHANNEL = int(os.environ.get("AZOTH_REPLAY_POSITION_REPLY_CHANNEL", "0"))
+POSITION_REPLY_TYPE = 0x1078  # ReceivePlayerPositionClientMsg
+# RELIABLE BY DEFAULT: required for the client to decode wire 4216. This is
+# NOT a measured movement fix; the client currently fails the RMI facet lookup.
+#
+# Every position reply before that date went out with
+# `flags_override = 0x20` (unreliable), and the client's Carrier ACKs an
+# unreliable channel-0 record but never hands it to the inbound message decoder
+# `FUN_146b6eb70`. The observable signature was a CLEAN client log plus ZERO
+# calls into the client's own reader `FUN_143f97d10`, which was misread three
+# times as "wire type 4216 is not receivable". It is receivable: with
+# `flags 0x21` the typed dispatcher resolves index 4216 and the reader runs
+# 1:1 with the sends. An earlier claim that this moved the player used an invalid
+# screenshot-diff metric and was retracted. Game.log now shows 4216 dispatch
+# failing because targetLocalId has no facet target. Keep reliable as the
+# decode-tested variant; do not describe it as movement until transform motion
+# and successful facet delivery are measured.
+POSITION_REPLY_RELIABLE = os.environ.get("AZOTH_REPLAY_POSITION_REPLY_RELIABLE", "1") == "1"
+# Fixed point or float, selected by env so the scale can be A/B'd without a code edit.
+POSITION_REPLY_SCALE = float(os.environ.get("AZOTH_REPLAY_POSITION_REPLY_SCALE", "100"))
+# The u64 "local-player key" slot (body offset 16). "0" keeps the placeholder;
+# "actor" copies the actor id's first 8 bytes, which is the cheapest way to test
+# whether the client matches the reply to the local player by that field.
+POSITION_REPLY_KEY = os.environ.get("AZOTH_REPLAY_POSITION_REPLY_KEY", "0").lower()
+# The position group. "offset" (default) sends a small constant offset so a visible
+# move is attributable; "zero" sends the origin; "raw" passes
+# POSITION_REPLY_XYZ as three integer triplets (scale applies).
+POSITION_REPLY_MODE = os.environ.get("AZOTH_REPLAY_POSITION_REPLY_MODE", "offset").lower()
+# EXPERIMENTAL (default off): send StartMovementCommunicationMsg (wire 726,
+# 0x2d6, 20 bytes = 16-byte actor blob + u32 BE) once, right before the first
+# position reply. Static layout is in
+# .azoth/night/subagent-movement-codecs.md §2.3; the real server is expected to
+# open the movement channel before it asserts positions.
+START_MOVEMENT_ENABLED = os.environ.get("AZOTH_REPLAY_START_MOVEMENT", "0") == "1"
+START_MOVEMENT_TYPE = 0x2D6  # StartMovementCommunicationMsg
+# RELIABLE ON CHANNEL 0 BY DEFAULT, like the position reply, and for the same measured
+# reason: the client's inbound decoder only sees a Carrier record with MF_RELIABLE set.
+# The first attempt at this message (2026-10-11) went out unreliable (`flags 0x20`) on
+# channel 1, so it was Carrier-ACKed and never decoded -- which is why its "accepted
+# without error" reading was weak evidence (an undecoded message is dropped silently).
+# Body layout is byte-verified against the client's own reader FUN_146a55240 (16-byte raw
+# blob + u32 BE = 20 bytes, `.azoth/night/subagent-movement-codecs.md` 2.3), so the body
+# was never the problem; the framing was.
+START_MOVEMENT_CHANNEL = int(os.environ.get("AZOTH_REPLAY_START_MOVEMENT_CHANNEL", "0"))
+START_MOVEMENT_COMM = int(os.environ.get("AZOTH_REPLAY_START_MOVEMENT_COMM", "1"))
+START_MOVEMENT_RELIABLE = os.environ.get("AZOTH_REPLAY_START_MOVEMENT_RELIABLE", "1") == "1"
+# The record container the reply is wrapped in.
+#
+# "server" (default): `[vlq32 len][00 01][type][body]`, the form the capture's own
+#   server->client stream uses. The client accepts it on channel 0.
+# "client": `[u32 BE crc32][u32 BE len][16-byte target][00 01][type][body]`, which is
+#   what the client itself puts on channels 0 and 1. Verified over one live session:
+#   285/294 channel-0 records and 40279/40279 channel-1 records satisfy BOTH the CRC
+#   and the length field. The client's streaming channel (1, type 0x635) uses this
+#   container exclusively, so a reply that must be read as a channel-1 record has to
+#   use it too.
+POSITION_REPLY_CONTAINER = os.environ.get("AZOTH_REPLAY_POSITION_REPLY_CONTAINER", "server").lower()
+# The message's 16-byte target blob (body[0:16] and, in the "client" container, the
+# record target). Empty = the client's actor id from the replay.
+#
+# MEASURED 2026-10-11 (probe reverse/probes/client/frida-rmi-targets.py, live client):
+# the RMI target id of this message is its body's first 8 bytes, and the client's
+# target registry holds 37063 entries (capacity 131072). The actor id the server has
+# been sending (`1a954abc4b3185bf`) is NOT one of them: 601 lookups, 0 hits, which is
+# the `facet target ID couldn't be found` line in Game.log. The 16-byte blob that the
+# capture's own input-response messages carry (`93a3e477cb5fd51ebf85314bbc4a951a`)
+# IS registered: 136 lookups, 136 hits, same session. So this knob exists to send the
+# position reply to a target the client actually has; it is a one-variable A/B, not a
+# finished feature. See `rmi_dispatch_facet_target_registry_20261011` in the atlas.
+POSITION_REPLY_TARGET = os.environ.get("AZOTH_REPLAY_POSITION_REPLY_TARGET", "").strip().lower()
 # Controlled replay A/B for the six explicitly redacted 36-byte UUID slots.
 # off preserves the capture; character|session fills only the allowlisted
 # offsets in javelin.replay_store. Never inferred from arbitrary body text.
@@ -546,6 +652,120 @@ def heartbeat_body(tick: int) -> bytes:
     return bytes((0x00, 0x01, 0x9D, 0x05, 0x00, 0x03)) + (
         tick & 0xFFFFFFFFFFFF
     ).to_bytes(6, "big")
+
+
+def position_reply_body(actor: bytes, scale: float) -> bytes | None:
+    """36-byte body for `ReceivePlayerPositionClientMsg` (wire type 4216).
+
+    The layout is the client's own, read from the marshal it uses to SEND this type
+    and cross-checked against the unmarshal it uses to RECEIVE it (both agree):
+
+        8 bytes  u64 BE   [ the 16-byte actor id, split in two
+        8 bytes  u64 BE   ]
+        8 bytes  u64 BE      local-player key (0 here: the client's own key is not
+                             known to the server, and the actor id already selects it)
+        4 bytes  u32 BE   [  position group
+        4 bytes  u32 BE    |
+        4 bytes  u32 BE   ]
+
+    Every integer is BIG-endian: the client writes them with `htonl`/
+    `bswap64` (FUN_140876cd0 / FUN_1408770e0) and reads them back with the
+    matching byte-swapping readers. The position's SCALE and axis order are unknown,
+    so `scale` is a knob for the experiment, not a decoded constant.
+    """
+    if len(actor) != 16:
+        return None
+    x = y = z = 0
+    if POSITION_REPLY_MODE == "zero":
+        pass
+    elif POSITION_REPLY_MODE == "offset":
+        # A small non-zero probe offset, scaled; keeps the value representable and
+        # distinct from zero so a visible move would be attributable to this message.
+        if scale:
+            x = int(1.0 * scale)
+            y = int(0.0 * scale)
+            z = int(1.0 * scale)
+    body = bytearray()
+    body += actor[0:8]          # u64 BE
+    body += actor[8:16]         # u64 BE
+    if POSITION_REPLY_KEY == "actor":
+        body += actor[0:8]      # u64 BE, the actor's first half as the key
+    else:
+        body += (0).to_bytes(8, "big")   # u64 BE, local-player key placeholder
+    body += (x & 0xFFFFFFFF).to_bytes(4, "big")
+    body += (y & 0xFFFFFFFF).to_bytes(4, "big")
+    body += (z & 0xFFFFFFFF).to_bytes(4, "big")
+    return bytes(body)
+
+
+def position_reply_target(actor: bytes) -> bytes | None:
+    """The 16-byte target blob for a position reply.
+
+    Default: the actor id (the previous behaviour). With POSITION_REPLY_TARGET set,
+    that hex blob is used instead, so the reply can be addressed to a target the
+    client has registered (measured: the capture's input-response blob).
+    """
+    if not POSITION_REPLY_TARGET:
+        return actor if len(actor) == 16 else None
+    try:
+        blob = bytes.fromhex(POSITION_REPLY_TARGET)
+    except ValueError:
+        return None
+    return blob if len(blob) == 16 else None
+
+def start_movement_body(actor: bytes, comm: int = 1) -> bytes | None:
+    """20-byte body for `StartMovementCommunicationMsg` (wire type 726, 0x2d6).
+
+    Layout decoded statically (`.azoth/night/subagent-movement-codecs.md` §2.3),
+    shared with `MoveActorToHubMsg`:
+
+        16 bytes  raw blob   actor id
+        4 bytes   u32 BE     communication id (meaning guessed)
+    """
+    if len(actor) != 16:
+        return None
+    return bytes(actor) + (comm & 0xFFFFFFFF).to_bytes(4, "big")
+
+
+def client_container(payload: bytes) -> bytes:
+    """Wrap a typed payload the way the CLIENT wraps its own records.
+
+    Measured over one live session: every non-chunked client->server DATA record on
+    channels 0 and 1 is `[u32 BE crc32(payload)][u32 BE len(payload)][payload]`, with
+    `payload = [16-byte target id][00 01][prefix-varint wire type][body]`. 40 279 of
+    40 279 channel-1 records and 285 of 294 channel-0 records satisfy both fields.
+
+    The server's own container (`[vlq32 len][00 01][type][body]`) is what the capture's
+    server used; the client accepted it on channel 0. Which container a *channel-1*
+    reply must use is exactly the open question this helper exists to A/B.
+    """
+    import zlib
+
+    return (zlib.crc32(payload) & 0xFFFFFFFF).to_bytes(4, "big") + len(payload).to_bytes(
+        4, "big"
+    ) + payload
+
+
+def wrap_reply(container: str, actor: bytes, wire_type: int, msg_body: bytes) -> bytes:
+    """Frame one typed reply in the selected container.
+
+    "server": the capture's form, `[vlq32 len][00 01][type][body]`. The client
+        accepts it on channel 0.
+    "client": `[u32 BE crc32][u32 BE len][16-byte target][00 01][type][body]`, the
+        form every client record uses on channels 0 and 1.
+
+    Single-sourced on purpose: an earlier version logged the container from the env
+    var while the body was still built by the other branch, so the log claimed
+    "client" for a 41-byte server-framed message. One function, one truth.
+    """
+    from .javelin.varint import encode as encode_prefix_varint
+    from .javelin.wire import encode_vlq32
+
+    if container == "client":
+        inner = bytes(actor) + b"\x00\x01" + encode_prefix_varint(wire_type) + msg_body
+        return client_container(inner)
+    inner = b"\x00\x01" + encode_prefix_varint(wire_type) + msg_body
+    return encode_vlq32(len(inner)) + inner
 
 
 def self_ident_body() -> bytes:
@@ -997,6 +1217,15 @@ class PeerSession:
         self.channel1_last_body: bytes | None = None
         self.channel1_echo_next_at = 0.0
         self.channel1_echo_sent = 0
+        # Experimental typed position reply (see POSITION_REPLY_* above).
+        self.position_reply_next_at = 0.0
+        self.position_reply_sent = 0
+        # Experimental StartMovementCommunicationMsg, sent once before the first
+        # position reply (see START_MOVEMENT_* above).
+        self.start_movement_sent = 0
+        # The 16-byte actor id parsed out of the client's own channel-1 record, so the
+        # reply addresses the actor the client is actually talking about.
+        self.client_actor_id: bytes | None = None
 
     def feed(self, server, data: bytes) -> None:
         """Feed one datagram in; send everything OpenSSL produced."""
@@ -1030,6 +1259,20 @@ class PeerSession:
             inbound_env, inbound_body = parse_envelope(app)
         except ValueError:
             return
+        # Envelope 0x81 is LZ4-compressed (handle_app_data decompresses it too).
+        # The raw body is NOT a record stream, so parsing it directly yielded
+        # garbage: on 2026-10-11 a compressed client datagram decoded a bogus
+        # channel 4, raised IndexError inside parse_datagram, and the UDP loop's
+        # feed-error handler dropped the peer — the client then logged
+        # `transportError 4`. Decompress before the Carrier parse so the ACK
+        # decode and the channel-1 capture below see the client's real records.
+        if inbound_env.is_compressed:
+            from .javelin.lz4 import decompress_lz4_block
+
+            try:
+                inbound_body = decompress_lz4_block(inbound_body)
+            except ValueError:
+                inbound_body = b""
         event = describe_datagram(app)
         event.update(event="app-data", peer=f"{self.peer[0]}:{self.peer[1]}")
         # Full plaintext hex (no truncation): the V3 request (~832B) and
@@ -1060,6 +1303,11 @@ class PeerSession:
                     and 0 < len(rec.payload) <= CHANNEL1_ECHO_MAX_BODY
                 ):
                     self.channel1_last_body = rec.payload
+                    # The client's channel-1 body carries its actor id at offset 8
+                    # (measured: [hash4][0000][0x6f][16-byte entity UUID]...). Keep it
+                    # so a position reply can address the same actor.
+                    if len(rec.payload) >= 24:
+                        self.client_actor_id = bytes(rec.payload[8:24])
         # describe_datagram() already transparently decompresses envelope
         # 0x81, which the raw Carrier parse above cannot do. Use its decoded
         # identity so compressed live V3 retries can key replay remapping.
@@ -1159,6 +1407,7 @@ class PeerSession:
         self.maybe_state_stream(server)
         self.maybe_input_response(server)
         self.maybe_channel1_echo(server)
+        self.maybe_position_reply(server)
         now_mono = time.monotonic()
         if now_mono - self.last_resend_pump >= RESEND_PUMP_MIN_INTERVAL_S:
             self.last_resend_pump = now_mono
@@ -1437,10 +1686,22 @@ class PeerSession:
         00:29:47Z.
 
         The real server pings while it streams, so running these concurrently
-        with the replay is what the capture shows. They only need to wait for
-        the post-V3 greetings, which is what `greetings_after_replay` marks.
+        with the replay is what the capture shows.
+
+        REGRESSION, measured 2026-10-10 on a live run (this predicate used to
+        return `self.greetings_after_replay`, which is NOT "the post-V3 flight
+        went out"): that flag is only set when the replay queue drains, so the
+        concurrency fix above was a silent no-op and the failure returned. The
+        run logged replay-chunk 19:30:40Z..19:31:09Z (29 s), `replay-complete-
+        quiet` at 19:31:09Z, and the FIRST heartbeat at 19:31:09Z -- i.e. not
+        one ping for the whole replay window -- while the client's
+        OnLocalNetworkConnectionWarning burst 1 -> 104 between 19:30:44Z and
+        19:31:07Z. The honest predicate is `v3_responded`: the V3 registration
+        has been answered, so the flight is out and the state watchdog is
+        armed. `greetings_after_replay` keeps its real meaning and is still
+        used by `maybe_state_stream`, which MUST wait for the drain.
         """
-        return self.greetings_after_replay
+        return self.v3_responded
 
     def maybe_heartbeat(self, server) -> None:
         """Continue the captured 0x15d ping/pong once the replay is drained.
@@ -1494,13 +1755,13 @@ class PeerSession:
     def maybe_activity_stream(self, server) -> None:
         """Serve the captured 0x1b88 body periodically once the replay drains.
 
-        Rationale in ACTIVITY_STREAM_* above: the InGame activity clock is
-        only refreshed by messages the dispatcher does NOT recognize, and
-        nothing in our post-replay stream qualifies. The 42-byte 0x1b88 body
-        is real capture data, sent verbatim (its own typed preamble is
-        inside the body, like every replayed message); only the Carrier
-        envelope seq is new, which keeps the client's replication dedup
-        (FUN_14643e7b0) happy.
+        Replay the historical 0x1b88 A/B as an opt-in wire experiment. Its
+        temporary session improvement did not prove a stable user-visible
+        connection: later ALC tracing still found the connection pointer
+        closed and the HUD response stamp stale. It does not clear the cable
+        or establish movement; see the dated evidence in
+        research/atlas/client-functions.json. The 42-byte body is captured
+        verbatim; only the Carrier envelope seq is fresh.
         """
         if not ACTIVITY_STREAM_ENABLED or self.activity_body is None:
             return
@@ -1674,6 +1935,109 @@ class PeerSession:
                 "size": len(body),
             }
         )
+
+    def maybe_position_reply(self, server) -> None:
+        """EXPERIMENTAL: answer the channel-1 input stream with a position message.
+
+        See POSITION_REPLY_* above for why this is the best-supported candidate and
+        for the decoded wire layout. The body is built here from the client's own
+        actor id so the reply addresses the actor the client is streaming about.
+        """
+        if not POSITION_REPLY_ENABLED or self.gone or not self.v3_responded:
+            return
+        # Keep it behind the drained replay: the replay is the only state the client
+        # has been observed to accept wholesale, and overlapping them makes an A/B
+        # unreadable.
+        if self.replay_queue or not self.greetings_after_replay:
+            return
+        now = time.monotonic()
+        if now < self.position_reply_next_at:
+            return
+        self.position_reply_next_at = now + POSITION_REPLY_PERIOD_S
+
+        actor = self.client_actor_id or bytes.fromhex(
+            "1a954abc4b3185bfbe37c3d8592618e0"
+        )
+        target = position_reply_target(actor)
+        if target is None:
+            return
+        body = position_reply_body(target, POSITION_REPLY_SCALE)
+        if body is None:
+            return
+        # One framing implementation: `wrap_reply`. It reads
+        # POSITION_REPLY_CONTAINER itself, so the log and the bytes cannot
+        # disagree (see its docstring).
+        def wrap(wire_type: int, msg_body: bytes) -> bytes:
+            return wrap_reply(POSITION_REPLY_CONTAINER, target, wire_type, msg_body)
+
+        # Open the movement channel once, before the first position assertion. The
+        # static layout says this is the message that starts the client's movement
+        # communication; without it a bare position update may be ignored.
+        if START_MOVEMENT_ENABLED and not self.start_movement_sent:
+            mv_body = start_movement_body(actor, START_MOVEMENT_COMM)
+            if mv_body is not None:
+                mv_payload = wrap(START_MOVEMENT_TYPE, mv_body)
+                mv_seq = self.out_msg_seq
+                self.out_msg_seq = (mv_seq + 1) & 0xFFFF
+                mv_rel = self.out_rel_seq
+                self.out_rel_seq = (mv_rel + 1) & 0xFFFF
+                self._send_datagram(
+                    server,
+                    [
+                        MessageRecord(
+                            channel=START_MOVEMENT_CHANNEL,
+                            payload=mv_payload,
+                            sequence=mv_seq,
+                            reliable_sequence=mv_rel,
+                            reliable=START_MOVEMENT_RELIABLE,
+                            connecting=False,
+                            flags_override=0x21 if START_MOVEMENT_RELIABLE else 0x20,
+                        )
+                    ],
+                    track_reliable=START_MOVEMENT_RELIABLE,
+                )
+                self.start_movement_sent += 1
+                log_event(
+                    {
+                        "event": "start-movement",
+                        "channel": START_MOVEMENT_CHANNEL,
+                        "type": hex(START_MOVEMENT_TYPE),
+                        "size": len(mv_payload),
+                        "actor": actor.hex(),
+                        "reliable": START_MOVEMENT_RELIABLE,
+                    }
+                )
+
+        payload = wrap(POSITION_REPLY_TYPE, body)
+        seq = self.out_msg_seq
+        self.out_msg_seq = (seq + 1) & 0xFFFF
+        rel = self.out_rel_seq
+        self.out_rel_seq = (rel + 1) & 0xFFFF
+        rec = MessageRecord(
+            channel=POSITION_REPLY_CHANNEL,
+            payload=payload,
+            sequence=seq,
+            reliable_sequence=rel,
+            reliable=POSITION_REPLY_RELIABLE,
+            connecting=False,
+            # The client's own channel-1 records use unreliable+DATA_CHANNEL (0x20).
+            flags_override=0x21 if POSITION_REPLY_RELIABLE else 0x20,
+        )
+        self._send_datagram(server, [rec], track_reliable=POSITION_REPLY_RELIABLE)
+        self.position_reply_sent += 1
+        if self.position_reply_sent <= 5 or self.position_reply_sent % 100 == 0:
+            log_event(
+                {
+                    "event": "position-reply",
+                    "sent": self.position_reply_sent,
+                    "channel": POSITION_REPLY_CHANNEL,
+                    "type": hex(POSITION_REPLY_TYPE),
+                    "size": len(payload),
+                    "actor": actor.hex(),
+                    "target": target.hex(),
+                    "container": POSITION_REPLY_CONTAINER,
+                }
+            )
 
     def _send_replay_message(self, server, msg) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.
@@ -2073,6 +2437,19 @@ class RepServer:
                 "chunk_gap_ms": REPLAY_CHUNK_GAP_MS,
                 "heartbeat": HEARTBEAT_ENABLED,
                 "heartbeat_period_s": HEARTBEAT_PERIOD_S,
+                # Experimental levers. Logged so an A/B run can be attributed
+                # from the log alone: on 2026-10-11 a run set
+                # AZOTH_REPLAY_START_MOVEMENT=1 but the config event did not
+                # record it, and the missing `start-movement` event could not be
+                # told apart from "the env never reached the world process".
+                "position_reply": POSITION_REPLY_ENABLED,
+                "position_reply_channel": POSITION_REPLY_CHANNEL,
+                "position_reply_container": POSITION_REPLY_CONTAINER,
+                "position_reply_reliable": POSITION_REPLY_RELIABLE,
+                "position_reply_target": POSITION_REPLY_TARGET or "actor",
+                "start_movement": START_MOVEMENT_ENABLED,
+                "start_movement_channel": START_MOVEMENT_CHANNEL,
+                "start_movement_reliable": START_MOVEMENT_RELIABLE,
                 # Post-replay continuation levers. These decide whether the
                 # client keeps seeing server traffic after the replay drains,
                 # which is what the HUD cable and the state watchdog react to.
@@ -2192,11 +2569,23 @@ class RepServer:
             try:
                 session.feed(self, data)
             except Exception as exc:  # noqa: BLE001 — never kill the UDP loop
+                # Log the TRACEBACK, not just the message. Measured 2026-10-11:
+                # a live session died with `transportError: 4` on the client and a
+                # bare `feed-error: IndexError: list index out of range` here, with
+                # no way to tell which parse step raised — the same blindness that
+                # kept the 16-bit overflow hidden for two hours (see the tick-error
+                # note). The loop must survive the error, so the exception is still
+                # swallowed; it just has to be identifiable next time.
+                import traceback
+
                 log_event(
                     {
                         "event": "feed-error",
                         "peer": f"{peer[0]}:{peer[1]}",
                         "error": f"{type(exc).__name__}: {exc}"[:200],
+                        "traceback": traceback.format_exc()[-1200:],
+                        "datagram_size": len(data),
+                        "datagram_head": data[:32].hex(),
                     }
                 )
                 self.drop(peer)

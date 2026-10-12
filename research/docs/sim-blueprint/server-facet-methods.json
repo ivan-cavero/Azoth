@@ -1,0 +1,107 @@
+{
+ "PlayerHousingComponent": [
+  "ClearFastTravelCooldown",
+  "ClientRequestCancelFastTravel",
+  "ClientRequestFastTravelHome",
+  "ClientRequestFastTravelTerritoryLandmark",
+  "ClientRequestRemoveAllFurniture",
+  "ClientRequestResetCooldown",
+  "ClientRequestTaxesDue",
+  "DebugClearHasPurchasedHouse",
+  "DebugForceHandshake",
+  "DebugReloadBuffItems",
+  "InteractWithHousingItem",
+  "RequestTerritoryResidentData",
+  "SendFastTravelTimeoutTelemetry"
+ ],
+ "P2PTradeComponent": [
+  "CancelTrade",
+  "ConfirmTrade",
+  "LockInOffer",
+  "UpdateOfferedCoin"
+ ],
+ "FactionComponent": [
+  "DEBUG_SetNearbyPlayerCount",
+  "DEBUG_SyncDispersalData",
+  "Debug_ForcePvpTime",
+  "Debug_ResetFactionCooldown",
+  "Debug_SetFactionChangeCount",
+  "Debug_ToggleFFACountdown",
+  "Debug_ToggleFFAFlag",
+  "Debug_TogglePvpFlag"
+ ],
+ "ChatComponent": [
+  "DebugRequestCrossWorldChatSubscriptions"
+ ],
+ "GameMasterComponent": [
+  "GiveGoldToPlayer",
+  "ResetClaimOwnership",
+  "ResetDailyWarCountForAllPlayers",
+  "ResetDailyWarCountForPlayer",
+  "TeleportPlayerToMeByCharacterId",
+  "TeleportToPlayerByCharacterId"
+ ],
+ "CraftingComponent": [
+  "Debug_ClearCooldown",
+  "Debug_GiveRecipeItems",
+  "Debug_SetRequiredLevelLimit",
+  "InitiateSalvageByClass",
+  "SalvageItemsInInventory"
+ ],
+ "CampingComponent": [
+  "RequestDebugInstantBuildCamp",
+  "RequestDebugResetCampBindCooldown",
+  "RequestDemolishCamp",
+  "RequestSetCampSkinId"
+ ],
+ "MountComponent": [
+  "DebugPopulateMountPersistence",
+  "DebugWritePersistenceToFile",
+  "DismissMount",
+  "OnDebugDye",
+  "OnMountDashToggleChanged",
+  "OnMountSlowWalkChanged",
+  "RenameMount",
+  "SummonMount"
+ ],
+ "CategoricalProgressionComponent": [
+  "DebugClearProgression",
+  "DebugMaxAllFactionStanding",
+  "DebugMaxAllProgression",
+  "DebugMaxFactionStanding",
+  "DebugMaxOrClearAffinityProgressions",
+  "DebugMaxRepairParts",
+  "DebugMaxTerritoryStanding",
+  "DebugMaxWeaponMastery",
+  "DebugWritePersistenceToFile"
+ ],
+ "AchievementComponent": [
+  "DebugRequestAllEvaluatedNPAsServerState",
+  "DebugRequestForceEvaluateAllNPAs",
+  "DebugRequestForceEvaluateIndividualNPA",
+  "DebugRequestIndividualNPAServerState",
+  "DebugSetAchievement",
+  "DebugSetAzothStaffAchievement",
+  "DebugSetCampingAchievement",
+  "DebugSetFactionRankAchievements",
+  "RequestEndgameGuideAchievement",
+  "RequestSetAchievementConditional"
+ ],
+ "EntitlementComponent": [
+  "DebugRequestLockGameplayEntitlement"
+ ],
+ "LeaderboardComponent": [
+  "DebugClearProcessedRotations",
+  "DebugGetLastProcessRotations",
+  "DebugGetServerRotationData",
+  "DebugGrantLeaderboardReward",
+  "DebugProcessRotationRewards",
+  "DebugSetPersonalBest",
+  "DebugUpdateLeaderboardOffset",
+  "DebugUpdateStat",
+  "OnClientLeaderboardDataRequest"
+ ],
+ "TransmogComponent": [
+  "DebugConvertData"
+ ]
+}

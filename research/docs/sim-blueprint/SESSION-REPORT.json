@@ -1,0 +1,45 @@
+{
+ "generated": "2026-10-11T01:40:15",
+ "status": "complete",
+ "research": {
+  "wiki_pages_cached": 122,
+  "client_types": 4818,
+  "pak_subworlds": 44,
+  "datasheets": 2250,
+  "key_decoded": [
+   "xpamountsbylevel (70 rows x 51 cols)",
+   "territorydefinitions (161x37)",
+   "pvpbalance_war (12x12)",
+   "pvpbalance_outpostrush (12x12)",
+   "encumbrancelimits (11x52)",
+   "mutationdifficulty (3x51)",
+   "factiondata (4x9)",
+   "housetypes (5x7)",
+   "mounts (62x42)",
+   "invasiondefinitions (1x6)",
+   "loottables (5237x113)",
+   "gamemodes (53x181)",
+   "schedules (34x10)"
+  ],
+  "gamemodes_decoded": 53,
+  "datasheets_sampled": 25,
+  "territory_bounds_decoded": true,
+  "server_rpc_surface": {
+   "components": 390,
+   "methods": 702
+  }
+ },
+ "deliverables": [
+  "roadmap v3 (15 groups, dependency-ordered, English)",
+  "bilingual web EN/ES",
+  "DATASHEETS.md discovery doc",
+  "GAMEMODES.md — definitive 53-mode list",
+  "BLUEPRINT.md — consolidated server-side reference"
+ ],
+ "completed": "2026-10-11T03:54:09",
+ "final_state": {
+  "roadmap": "15 groups / 135 items (EN, dependency-ordered)",
+  "web": "bilingual ES(/) + EN(/en/), live roadmap + live status",
+  "report": "research/docs/sim-blueprint/SESSION-REPORT.md"
+ }
+}

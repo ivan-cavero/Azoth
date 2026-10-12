@@ -20,6 +20,24 @@ const { locale } = Astro.props as { locale: Locale };
     depends: locale === "es" ? "DEPENDE DE" : "DEPENDS ON",
     doneLabel: locale === "es" ? "CÓMO SE COMPLETÓ" : "HOW IT WAS COMPLETED",
     evidence: locale === "es" ? "EVIDENCIA" : "EVIDENCE",
+    itemEvidence: locale === "es" ? "BASE Y EVIDENCIA DEL ELEMENTO" : "ITEM BASIS AND EVIDENCE",
+    progressLabel: locale === "es" ? "AVANCE PARCIAL" : "PROGRESS SO FAR",
+    progressEvidence: locale === "es" ? "REGISTRO DEL AVANCE" : "PROGRESS RECORD",
+    captureDone: locale === "es"
+      ? "Falta publicar una captura real de este hito. Las fuentes enlazadas son la evidencia disponible."
+      : "A real capture for this milestone has not been published. The linked sources are the available evidence.",
+    captureActive: locale === "es"
+      ? "Falta una captura que demuestre el criterio de aceptación. Se añadirá al medir un resultado real."
+      : "A capture demonstrating the acceptance condition is still missing. Add one after measuring a real result.",
+    captureInvestigating: locale === "es"
+      ? "La investigación sigue abierta. La captura del resultado se añadirá cuando la hipótesis se valide."
+      : "Investigation is still open. Add a result capture after the hypothesis is validated.",
+    capturePlanned: locale === "es"
+      ? "La captura se tomará cuando este trabajo produzca un resultado ejecutable y verificable."
+      : "Capture this deliverable when it produces an executable, verifiable result.",
+    captureBlocked: locale === "es"
+      ? "No hay captura de resultado: el elemento está bloqueado y su criterio aún no se ha cumplido."
+      : "There is no result capture: this item is blocked and its acceptance condition is unmet.",
     links: locale === "es" ? "ENLACES" : "LINKS",
   })}
 >
@@ -46,6 +64,7 @@ const { locale } = Astro.props as { locale: Locale };
 
       <!-- body -->
       <div class="flex-1 overflow-y-auto px-6 py-5" id="detail-body">
+        <p id="detail-summary" class="mb-3 hidden text-[12px] leading-relaxed text-ash"></p>
         <div id="detail-what" class="text-[14px] leading-relaxed text-mist"></div>
 
         <div id="detail-how-wrap" class="mt-5 hidden">
@@ -56,6 +75,23 @@ const { locale } = Astro.props as { locale: Locale };
         <div id="detail-depends-wrap" class="mt-5 hidden">
           <div class="mono text-[10px] tracking-[0.08em] text-ash" data-label="depends">DEPENDS ON</div>
           <div id="detail-depends" class="mono mt-2 flex flex-wrap gap-2 text-[12px]"></div>
+        </div>
+
+        <div id="detail-item-evidence-wrap" class="mt-5 hidden">
+          <div class="mono text-[10px] tracking-[0.08em] text-ash" data-label="itemEvidence">ITEM BASIS AND EVIDENCE</div>
+          <p id="detail-item-evidence" class="mono mt-2 text-[11px] leading-relaxed text-ash"></p>
+        </div>
+
+        <div id="detail-progress-wrap" class="mt-6 hidden rounded-lg border border-acid-lime/25 bg-acid-lime/[0.04] p-5">
+          <div class="flex items-center gap-2">
+            <span class="inline-block h-2 w-2 rounded-[2px] bg-acid-lime"></span>
+            <span class="mono text-[10px] tracking-[0.08em] text-acid-lime" data-label="progressLabel">PROGRESS SO FAR</span>
+            <span id="detail-progress-date" class="mono text-[10px] text-ash"></span>
+          </div>
+          <ul id="detail-progress-notes" class="mt-3 space-y-2"></ul>
+          <div class="mono mt-4 text-[10px] tracking-[0.08em] text-ash" data-label="progressEvidence">PROGRESS RECORD</div>
+          <ul id="detail-progress-evidence" class="mt-2 space-y-1.5"></ul>
+          <div id="detail-progress-images" class="mt-4 grid gap-3"></div>
         </div>
 
         <div id="detail-completion-wrap" class="mt-6 hidden rounded-lg border border-pulse-green/25 bg-pulse-green/[0.04] p-5">
@@ -69,6 +105,8 @@ const { locale } = Astro.props as { locale: Locale };
           <ul id="detail-completion-evidence" class="mt-2 space-y-1.5"></ul>
           <div id="detail-completion-images" class="mt-4 grid gap-3"></div>
         </div>
+
+        <p id="detail-capture-status" class="mono mt-5 hidden rounded-md border border-graphite px-4 py-3 text-[11px] leading-relaxed text-ash"></p>
 
         <div id="detail-links-wrap" class="mt-6 hidden">
           <div class="mono text-[10px] tracking-[0.08em] text-ash" data-label="links">LINKS</div>
@@ -87,6 +125,7 @@ const { locale } = Astro.props as { locale: Locale };
     code: document.getElementById("detail-code")!,
     badge: document.getElementById("detail-badge")!,
     title: document.getElementById("detail-title")!,
+    summary: document.getElementById("detail-summary")!,
     what: document.getElementById("detail-what")!,
     howWrap: document.getElementById("detail-how-wrap")!,
     how: document.getElementById("detail-how")!,
@@ -97,6 +136,14 @@ const { locale } = Astro.props as { locale: Locale };
     completionNotes: document.getElementById("detail-completion-notes")!,
     completionEvidence: document.getElementById("detail-completion-evidence")!,
     completionImages: document.getElementById("detail-completion-images")!,
+    itemEvidenceWrap: document.getElementById("detail-item-evidence-wrap")!,
+    itemEvidence: document.getElementById("detail-item-evidence")!,
+    progressWrap: document.getElementById("detail-progress-wrap")!,
+    progressDate: document.getElementById("detail-progress-date")!,
+    progressNotes: document.getElementById("detail-progress-notes")!,
+    progressEvidence: document.getElementById("detail-progress-evidence")!,
+    progressImages: document.getElementById("detail-progress-images")!,
+    captureStatus: document.getElementById("detail-capture-status")!,
     linksWrap: document.getElementById("detail-links-wrap")!,
     links: document.getElementById("detail-links")!,
   };
@@ -113,6 +160,7 @@ const { locale } = Astro.props as { locale: Locale };
     id: string;
     code: string;
     label: string;
+    description?: string;
     state: string;
     evidence?: string;
   }
@@ -128,10 +176,12 @@ const { locale } = Astro.props as { locale: Locale };
       "rounded border px-1.5 py-0.5 text-[9px] tracking-[0.06em] " +
       (stateBadgeCls[p.state] ?? stateBadgeCls.planned);
     els.title.textContent = p.label;
+    els.summary.textContent = p.description ?? "";
+    els.summary.classList.toggle("hidden", !p.description);
     els.what.textContent =
       p.evidence && !d?.what
         ? p.evidence
-        : d?.what ?? p.evidence ?? "";
+        : d?.what ?? p.description ?? p.evidence ?? "";
 
     // localized static labels
     overlay.querySelectorAll<HTMLElement>("[data-label]").forEach((el) => {
@@ -146,6 +196,14 @@ const { locale } = Astro.props as { locale: Locale };
       els.howWrap.classList.remove("hidden");
     } else {
       els.howWrap.classList.add("hidden");
+    }
+
+    if (p.evidence) {
+      els.itemEvidence.textContent = p.evidence;
+      els.itemEvidenceWrap.classList.remove("hidden");
+    } else {
+      els.itemEvidence.textContent = "";
+      els.itemEvidenceWrap.classList.add("hidden");
     }
 
     // depends
@@ -187,6 +245,48 @@ const { locale } = Astro.props as { locale: Locale };
       els.completionWrap.classList.remove("hidden");
     } else {
       els.completionWrap.classList.add("hidden");
+    }
+
+    // Partial work is shown separately so an active item cannot look completed.
+    const progress = d?.progress;
+    if (progress) {
+      els.progressDate.textContent = progress.date ?? "";
+      els.progressNotes.innerHTML = (progress.notes ?? [])
+        .map((n: string) => `<li class="flex gap-2 text-[13px] leading-relaxed text-mist"><span class="text-acid-lime">·</span><span>${esc(n)}</span></li>`)
+        .join("");
+      els.progressEvidence.innerHTML = (progress.evidence ?? [])
+        .map((e: string) => `<li class="mono truncate text-[11px] text-ash" title="${esc(e)}">· ${esc(e)}</li>`)
+        .join("");
+      els.progressImages.innerHTML = (progress.images ?? [])
+        .map((img: { src: string; caption: string }) =>
+          `<figure class="overflow-hidden rounded-lg border border-graphite">
+             <img src="${img.src}" alt="${esc(img.caption)}" class="w-full" loading="lazy" />
+             <figcaption class="px-3 py-2 text-[11px] leading-snug text-ash">${esc(img.caption)}</figcaption>
+           </figure>`,
+        )
+        .join("");
+      els.progressWrap.classList.remove("hidden");
+    } else {
+      els.progressWrap.classList.add("hidden");
+      els.progressNotes.innerHTML = "";
+      els.progressEvidence.innerHTML = "";
+      els.progressImages.innerHTML = "";
+    }
+
+    const images = c?.images ?? progress?.images ?? [];
+    const captureLabel = ({
+      done: "captureDone",
+      active: "captureActive",
+      investigating: "captureInvestigating",
+      planned: "capturePlanned",
+      blocked: "captureBlocked",
+    } as Record<string, string>)[p.state];
+    if (captureLabel && images.length === 0) {
+      els.captureStatus.textContent = labels[captureLabel] ?? "";
+      els.captureStatus.classList.remove("hidden");
+    } else {
+      els.captureStatus.textContent = "";
+      els.captureStatus.classList.add("hidden");
     }
 
     // links

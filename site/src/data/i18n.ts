@@ -29,7 +29,6 @@ export const ui = {
       lead: "Azoth decodifica el protocolo del cliente, levanta un gateway y un mundo DTLS propios, y documenta cada conclusión con evidencia. Aquí puedes ver qué corre ahora, qué está hecho, qué está verificado y cuánto falta — sin humo.",
       cta1: "Ver el progreso en vivo",
       cta2: "Roadmap completo",
-      shotCaption: "cliente privado · Windsward · sesión del 07 oct",
       stats: [
         ["días desde el día 1", "commits", "tests en verde", "tipos de mensaje decodificados", "tipos de cliente mapeados"],
       ][0],
@@ -51,7 +50,7 @@ export const ui = {
     },
     gantt: {
       title: "Timeline de entregables",
-      lead: "Cada línea de trabajo desde el día 1 del proyecto. Las barras lima siguen abiertas: crecen hasta el marcador AHORA mientras el trabajo avanza.",
+      lead: "Las barras abiertas llegan hasta AHORA; en el bloqueo activo no publicamos fecha de fin hasta conocer el camino técnico. Las fechas futuras son una secuencia orientativa, no compromisos.",
       closed: "entregables cerrados",
       search: "Buscar entregables",
       ranges: ["7 DÍAS", "1 MES", "TODO"],
@@ -86,7 +85,7 @@ export const ui = {
     },
     pace: {
       title: "Ritmo y ETA",
-      lead: "Velocidad real medida en el histórico de git. El ritmo marca los ETA: cuando una semana baja, la fecha objetivo se recalcula, no se esconde.",
+      lead: "El ritmo del histórico da contexto, pero no fija el ETA del bloqueo actual. No publicamos fecha de cierre hasta identificar el camino técnico.",
       commitsTitle: "Commits por semana",
       avg: (n: string) => `media ${n} / semana`,
       rows: {
@@ -101,6 +100,7 @@ export const ui = {
       tickValue: "50 Hz actual · 60 Hz objetivo",
       subworldsValue: "44 jugables en el PAK",
       testsValue: "mundo · gateway",
+      nextValue: "Diagnóstico ALC + movimiento · sin ETA",
     },
     versions: {
       title: "Versiones",
@@ -141,7 +141,6 @@ export const ui = {
       lead: "Azoth decodes the client protocol, runs its own gateway and DTLS world server, and documents every conclusion with evidence. Here you can see what is running right now, what is done, what is verified and how much is left — no smoke.",
       cta1: "See live progress",
       cta2: "Full roadmap",
-      shotCaption: "private client · Windsward · Oct 7 session",
       stats: ["days since day 1", "commits", "tests passing", "message types decoded", "client types mapped"],
     },
     live: {
@@ -161,7 +160,7 @@ export const ui = {
     },
     gantt: {
       title: "Deliverables timeline",
-      lead: "Every work line since day 1 of the project. Lime bars are still open: they grow to the NOW marker while the work advances.",
+      lead: "Open bars extend to NOW. We publish no finish date for the active blocker until its technical path is known. Future dates show sequence, not commitments.",
       closed: "deliverables closed",
       search: "Search deliverables",
       ranges: ["7 DAYS", "1 MONTH", "ALL"],
@@ -196,7 +195,7 @@ export const ui = {
     },
     pace: {
       title: "Pace & ETA",
-      lead: "Real velocity measured from git history. Pace drives ETAs: when a week dips, the target date is recalculated, not hidden.",
+      lead: "Historical pace provides context; it does not set an ETA for the current blocker. We will not publish a finish date until its technical path is identified.",
       commitsTitle: "Commits per week",
       avg: (n: string) => `avg ${n} / week`,
       rows: {
@@ -211,6 +210,7 @@ export const ui = {
       tickValue: "50 Hz now · 60 Hz target",
       subworldsValue: "44 playable in the PAK",
       testsValue: "world · gateway",
+      nextValue: "ALC + movement diagnosis · no ETA",
     },
     versions: {
       title: "Versions",

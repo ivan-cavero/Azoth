@@ -66,7 +66,7 @@ const s = t(locale);
     const evidence = item.evidence
       ? `<span class="mono hidden min-w-0 flex-1 truncate text-[11px] text-[#62666d] lg:block" title="${esc(item.evidence)}">${esc(item.evidence)}</span>`
       : `<span class="hidden min-w-0 flex-1 lg:block"></span>`;
-    return `<li class="cursor-pointer flex flex-wrap items-center gap-x-4 gap-y-1 px-6 py-3 transition-colors hover:bg-white/[0.03]" data-item-state="${esc(item.state)}" data-id="${esc(item.id)}" data-title="${esc(item.label)}" data-evidence="${esc(item.evidence ?? "")}" role="button" tabindex="0">
+    return `<li class="cursor-pointer flex flex-wrap items-center gap-x-4 gap-y-1 px-6 py-3 transition-colors hover:bg-white/[0.03]" data-item-state="${esc(item.state)}" data-id="${esc(item.id)}" data-title="${esc(item.label)}" data-description="${esc(item.detail ?? "")}" data-evidence="${esc(item.evidence ?? "")}" role="button" tabindex="0" aria-label="${esc(`${item.label}. ${item.detail ?? ""}`)}">
       <span class="h-2 w-2 shrink-0 rounded-[2px]" style="background:${m.dot}"></span>
       <span class="min-w-0 flex-1 text-[14px] leading-snug" style="color:${m.text}">${esc(item.label)}</span>
       ${evidence}${effort}
@@ -88,7 +88,10 @@ const s = t(locale);
         const pct = Math.round((g.progress ?? 0) * 100);
         return `<div class="card overflow-hidden rm-group">
         <div class="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-graphite/60 bg-obsidian/60 px-6 py-4">
-          <div class="min-w-0 flex-1"><h3 class="text-[17px] font-medium tracking-[-0.012em] text-paper">${esc(g.title)}</h3></div>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-[17px] font-medium tracking-[-0.012em] text-paper">${esc(g.title)}</h3>
+            <p class="mt-1 max-w-4xl text-[12px] leading-relaxed text-fog">${esc(g.goal ?? "")}</p>
+          </div>
           <span class="pill mono border border-graphite text-[11px] text-ash">${esc(g.phase ?? "")}</span>
           <span class="mono text-[11px] text-ash">${esc(g.eta ?? "")}</span>
           <div class="flex w-40 items-center gap-2">
@@ -123,6 +126,7 @@ const s = t(locale);
           id: li.dataset.id!,
           code: li.dataset.id!,
           label: li.dataset.title!,
+          description: li.dataset.description!,
           state: li.dataset.itemState!,
           evidence: li.dataset.evidence!,
         });

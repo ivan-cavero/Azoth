@@ -4,6 +4,12 @@ Build analyzed: `8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8
 Status: **solved and reproducible** as of 2026-10-07 (see
 `../../docs/PRIVATE-CLIENT-RUNBOOK.md`).
 
+Historical note: the older Gate 7 interpretation below attributed the red cable
+to missing `AZOTH_REPLAY_INPUT_RESPONSE` traffic. Direct icon/ALC measurements
+in `client-functions.json` supersede that interpretation: input responses do not
+clear the red ALC/HUD warning. REP transport, ALC/HUD state, and movement are
+separate acceptance gates; see [`../../STATUS.md`](../../STATUS.md).
+
 ## Overview
 
 1. DTLS handshake to `RepAddress` from the queue ticket.
@@ -26,12 +32,14 @@ WaitingForPlayerSpawn         LevelInfoChanged; map load starts
 InGame                        "player spawn succeeds, in game"
 ```
 
-Two server settings are required for this ladder to end in a rendered world:
+The world-entry setting required for this ladder to end in a rendered world is:
 
 - `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character` — without it the context lives and
   the map loads but the screen stays black (gate 6).
-- `AZOTH_REPLAY_INPUT_RESPONSE=1` — without it the session shows the red cable
-  and `State(InGame) is timeout` (gate 7).
+
+`AZOTH_REPLAY_INPUT_RESPONSE=1` replays captured typed responses, but it is not
+a fix for the current red ALC/HUD warning and is not proof of a usable/stable
+client connection. Do not label it Gate 7 completion.
 
 A client-side disk patch is required for the DTLS pin (gate 4).
 

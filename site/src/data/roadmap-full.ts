@@ -1,4 +1,4 @@
-// DEFINITIVE server-side replication roadmap for the Azoth emulator.
+// Canonical public roadmap data for the Azoth project.
 //
 // Sources (every item cites at least one):
 //   client: research/atlas/az-type-registry.json — 4,818 types the shipped client
@@ -12,8 +12,8 @@
 //
 // Build order = dependency order. Groups are phases; within a group items are
 // listed in the order we would implement them. `dependsOn` references item ids
-// across groups. Effort: S (<1 wk), M (1-2 wk), L (2-6 wk), XL (6+ wk) for one
-// senior dev — these are planning aids, not commitments.
+// across groups. Effort is a planning aid, not a delivery commitment. The
+// generated public/roadmap.json is the display copy served by the landing page.
 
 export type ItemState =
   | "done"
@@ -25,7 +25,7 @@ export type ItemState =
 export interface RoadmapItem {
   id: string;
   label: string;
-  detail?: string;
+  detail: string;
   evidence?: string;
   effort?: "S" | "M" | "L" | "XL";
   dependsOn?: string[];
@@ -61,15 +61,15 @@ export const roadmapGroups: RoadmapGroup[] = [
     id: "A",
     title: "A · Protocol core",
     phase: "Phase A",
-    eta: "Active now",
-    goal: "Understand and reproduce the wire protocol. Everything else depends on this layer.",
-    progress: 0.72,
+    eta: "Current focus · no finish date",
+    goal: "Complete the client-visible session contract from DTLS and REP through application state: typed messages, state-bundle handling, and the ALC response that clears the in-game warning. REP transport uptime is measured, but the user-visible connection gate remains open; add component codecs only when movement evidence shows they are needed.",
+    progress: 0.5,
     items: [
       {
         id: "A1",
         label: "DTLS transport + REP session handshake",
         detail: "ClientHello, DTLS pinning, REP channel multiplexing, keepalives.",
-        evidence: "client: services/world DTLS server operational; session record 2 h 06 min",
+        evidence: "transport only: 2 h 06 min without transportError/disconnected-from-REP; red ALC/HUD warning remains open",
         effort: "XL",
         state: "done",
       },
@@ -100,19 +100,19 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "A5",
         label: "Fragment payload codecs per component type",
-        detail: "The long tail: one codec per replicated component type. Start with PhysicsTrait state, then character sheet, inventory, vitals.",
+        detail: "Decode only component fragments shown by live measurements to be needed for player activation or movement. The player already has physics component types, so do not assume generic PhysicsTrait replication is the blocker.",
         evidence: "client: fragment type indexes observed live (47 distinct types, 1:1 key→type binding)",
         effort: "XL",
         dependsOn: ["A3"],
-        state: "active",
+        state: "investigating",
       },
       {
         id: "A6",
         label: "AOI trait registry complete (82 traits, 2,276 trait/message pairs)",
-        detail: "Map every trait to its records + client messages; classify which traits we can emulate vs skip.",
+        detail: "The registry is complete at 82 traits and 2,276 pairs. Per-feature support classification can be recorded as each feature is implemented.",
         evidence: "client: research/atlas/aoi-trait-registry.json",
         effort: "L",
-        state: "planned",
+        state: "done",
       },
       {
         id: "A7",
@@ -125,10 +125,10 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "A8",
         label: "RMI facet dispatch policy (stop calling absent facets)",
-        detail: "The live warning RMIDispatch: facet target not found tells us exactly which facets a real server sends; build the whitelist from capture + registry.",
-        evidence: "client: 1,783 RMIs; live warnings 25 x facet-not-found",
+        detail: "Reliable ReceivePlayerPositionClientMsg (4216) is decoded but fails dispatch because targetLocalId has no facet target. Identify the correct entity/interface binding before changing its body; separately suppress RMIs to facets the client truly lacks.",
+        evidence: "client: reliable 4216 reader/dispatch result; alc_pointer_never_opens_live_20261011; research/atlas/client-functions.json",
         effort: "M",
-        state: "planned",
+        state: "active",
       },
       {
         id: "A9",
@@ -138,6 +138,14 @@ export const roadmapGroups: RoadmapGroup[] = [
         effort: "XL",
         state: "planned",
       },
+      {
+        id: "A10",
+        label: "Client-visible ALC connection and session lifetime",
+        detail: "Open the ALC door (+0xAA0), refresh its input stamp (+0xAA8) so the real HUD warning clears, and trace the separate 20-minute return-to-menu path. Transport uptime alone does not complete this item.",
+        evidence: "client: alc_pointer_never_opens_live_20261011; hud_cable_icon_is_not_the_log_20261010; exit_patch_0x141004230_refuted_20261011",
+        effort: "XL",
+        state: "active",
+      },
     ],
   },
 
@@ -146,9 +154,9 @@ export const roadmapGroups: RoadmapGroup[] = [
     id: "B",
     title: "B · Character body, movement, physics",
     phase: "Phase B — critical path",
-    eta: "Next",
-    goal: "Give the local player a physical body so the client starts simulating and emitting movement.",
-    progress: 0.35,
+    eta: "Current focus · no finish date until the path is known",
+    goal: "Make the possessed local player controllable and server-authoritative. Probes found CharacterPhysicsComponent and GameRigidBodyComponent on the player, but did not establish active simulation. Body/controller activation, the input consumer, and position-receiver binding remain unknown until a live transform moves under W and stops on release.",
+    progress: 0.29,
     items: [
       {
         id: "B1",
@@ -160,29 +168,29 @@ export const roadmapGroups: RoadmapGroup[] = [
       },
       {
         id: "B2",
-        label: "Re-measure local player component list with corrected GUIDs",
-        detail: "The 'no physics component' conclusion was measured against shifted GUIDs — unproven. Re-derive before any physics work.",
-        evidence: "client: research/atlas/az-type-registry.json (4814 names, brace-wrapped GUID form only)",
+        label: "Verify local player physics components with corrected GUIDs",
+        detail: "Complete: the corrected live dump of the 126-component player entity found CharacterPhysicsComponent and GameRigidBodyComponent; the client's own lookup finds both. This proves their presence, not active simulation.",
+        evidence: "client: local_player_components_step0_20261010; reverse/probes/client/frida-player-components.py; research/atlas/az-type-registry.json",
         effort: "M",
-        state: "active",
+        state: "done",
       },
       {
         id: "B3",
-        label: "PhysicsTrait replication (RegisterCharacterMsg, RegisterCharacterWithRepulsorsMsg)",
-        detail: "PhysicsTrait registers 76 messages alone; the client never reaches its movable-body gate (FUN_141763b70 ran once at startup) — a server message must trigger the delegate.",
-        evidence: "client: PhysicsTrait; local_body_gate_never_runs_20261003_2250",
+        label: "Diagnose player body, controller, and input activation",
+        detail: "The player has physics component types, yet W produces no movement-family messages. Measure transform, body/controller activation, and the channel-1 type 0x635 consumer on a fresh run. Do not assume generic PhysicsTrait replication is the fix.",
+        evidence: "client: local_player_components_step0_20261010; zero movement-family messages during W hold; alc_pointer_never_opens_live_20261011",
         effort: "XL",
-        dependsOn: ["A5", "B2"],
+        dependsOn: ["B2", "A10"],
         state: "active",
       },
       {
         id: "B4",
-        label: "Movement message family accepted",
-        detail: "The 12 movement wire types are derived and verified; wire them to the replicated body once B3 lands.",
-        evidence: "client: javelin-messages.json (double-derived); capture: zero movement msgs without body",
+        label: "Player moves end-to-end under input",
+        detail: "Acceptance: holding W changes the measured local transform, releasing stops it, and the client/server movement exchange succeeds. W currently produces no movement-family messages; reliable 4216 decodes but its RMI dispatch fails because targetLocalId has no facet target.",
+        evidence: "client: javelin-messages.json; retracted_movement_claim_20261011; reliable 4216 reader/dispatch result in STATUS.md",
         effort: "L",
-        dependsOn: ["B3"],
-        state: "planned",
+        dependsOn: ["B3", "A10"],
+        state: "investigating",
       },
       {
         id: "B5",
@@ -219,8 +227,8 @@ export const roadmapGroups: RoadmapGroup[] = [
     id: "C",
     title: "C · Persistence & account layer",
     phase: "Phase C",
-    eta: "Parallel with B",
-    goal: "Own database, durable characters, web↔game account link. Prerequisite for everything multiplayer.",
+    eta: "After the player runtime slice (B)",
+    goal: "Add account and character creation, selection, and durable server-owned state, then link the website identity to the game session. This layer underpins inventory, progression, groups, and territory ownership, so it follows the controllable-player runtime slice.",
     progress: 0.08,
     items: [
       {
@@ -293,7 +301,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "D · Combat rules",
     phase: "Phase D",
     eta: "After B",
-    goal: "The rules layer both PvE and PvP sit on: attributes, vitals, damage, abilities, status effects.",
+    goal: "Implement the authoritative rules shared by PvE and PvP: attributes, vitals, damage, abilities, status effects, weapons, and equipment. Use the client's data tables for values and keep the server responsible for validation, cooldowns, mitigation, and outcomes.",
     progress: 0.05,
     items: [
       {
@@ -377,7 +385,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "E · World: regions, settlements, travel",
     phase: "Phase E",
     eta: "After C",
-    goal: "Make Aeternum itself: the 14 territories, towns, forts, travel, weather, day/night.",
+    goal: "Turn the shipped Aeternum regions into server-supported places players can enter and travel through, with settlements, forts, routes, weather, and time-of-day state. PAK subworld names prove that client assets exist; they do not prove that world simulation or travel is implemented.",
     progress: 0.04,
     items: [
       {
@@ -465,7 +473,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "F · NPCs & AI",
     phase: "Phase F",
     eta: "After E",
-    goal: "Populate the world: spawns, behavior trees, navigation, the four enemy families, bosses.",
+    goal: "Populate supported regions with server-spawned NPCs and enemies, then add navigation, behavior, encounters, and bosses. Client assets and type names guide the scope; a feature counts only after spawn, behavior, and combat are observed in a running world.",
     progress: 0.02,
     items: [
       {
@@ -552,7 +560,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "G · Progression & trade skills",
     phase: "Phase G",
     eta: "After D+E",
-    goal: "Levels, XP, missions, the 16 trade skills, territory standing, seasons.",
+    goal: "Build player progression from server-owned XP and levels through quests, territory standing, gathering, crafting, trade skills, and seasonal rewards. Read curves and recipes from the shipped data tables rather than inventing values; no progression feature is complete merely because its table is known.",
     progress: 0.02,
     items: [
       {
@@ -652,7 +660,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "H · Items & economy",
     phase: "Phase H",
     eta: "After G",
-    goal: "Inventory, trading post, coin, taxes, salvage — the player-driven economy.",
+    goal: "Implement inventory and equipment state, item transfers, coin, salvage, taxes, and player-to-player trading with server-side ownership checks. The Trading Post must remain consistent under concurrent orders and persistence; client item definitions are reference data, not a functioning economy.",
     progress: 0.03,
     items: [
       {
@@ -753,7 +761,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "I · Social & grouping",
     phase: "Phase I",
     eta: "After C",
-    goal: "Chat, voice, groups, friends, companies, factions — the glue for multiplayer.",
+    goal: "Connect players through chat, groups, friends, companies, factions, and eventually voice. The prototype currently routes only a subset of chat channels; membership, persistence, permissions, and the remaining social features still require implementation and observable acceptance checks.",
     progress: 0.1,
     items: [
       {
@@ -831,7 +839,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "J · Territory ownership & war",
     phase: "Phase J",
     eta: "The flagship",
-    goal: "Company-owned territories with governance, influence races, 50v50 wars, invasions.",
+    goal: "Add company-owned territory governance, taxes and upkeep, influence races, war scheduling, 50v50 siege battles, and invasions. These systems depend on durable company membership, combat, world instances, and authoritative scoring; the listed client components do not mean the modes are playable.",
     progress: 0.0,
     items: [
       {
@@ -915,7 +923,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "K · Instanced content",
     phase: "Phase K",
     eta: "After F+I",
-    goal: "Expeditions, mutations, arenas, battle royale — every instanced mode the PAK ships.",
+    goal: "Build instance hosting first, then deliver selected expeditions, mutations, trials, arenas, and other modes as separate, testable server experiences. The PAK inventory identifies candidate subworlds and data; each mode still needs its queue or entry path, encounter rules, rewards, and a real completion capture.",
     progress: 0.0,
     items: [
       {
@@ -939,6 +947,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K3",
         label: "Expedition: Amrine Excavation (lvl 25, Windsward)",
+        detail: "Build the first five-player expedition around Simon Grey's dig site, its encounter sequence, and the boss arena. The PAK subworld is evidence of shipped client content only; instance travel, encounters, rewards, and a completion capture remain future work.",
         evidence: "pak: nw_dungeon_windsward_00; wiki: expeditions list",
         effort: "XL",
         dependsOn: ["K1"],
@@ -947,6 +956,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K4",
         label: "Expedition: Starstone Barrows (lvl 35, Everfall)",
+        detail: "Implement the Everfall expedition's ancient-mage encounters and movement puzzles as a separate party instance. The named PAK subworld identifies the client content; it does not demonstrate working puzzles or boss state.",
         evidence: "pak: nw_dungeon_everfall_00",
         effort: "XL",
         dependsOn: ["K1"],
@@ -955,6 +965,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K5",
         label: "Expedition: The Depths (lvl 45, Restless Shore)",
+        detail: "Implement the Restless Shore expedition's corrupted encounters and Captain Thorpe finale, including group entry, encounter transitions, and rewards. The PAK name is a content reference, not proof of a playable instance.",
         evidence: "pak: nw_dungeon_restlessshores_01",
         effort: "XL",
         dependsOn: ["K1"],
@@ -963,6 +974,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K6",
         label: "Expedition: Dynasty Shipyard (lvl 55, Ebonscale Reach)",
+        detail: "Support the Ebonscale Reach shipyard expedition, its Empress storyline, and shipyard boss encounters. It depends on the shared instance framework; the listed world asset alone does not establish server behavior.",
         evidence: "pak: nw_dungeon_dunwood_02",
         effort: "XL",
         dependsOn: ["K1"],
@@ -971,6 +983,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K7",
         label: "Expedition: Lazarus Instrumentality (lvl 60, Reekwater)",
+        detail: "Run the Reekwater expedition through its guardian encounters to Chardis, with party state and reward handling. The PAK subworld locates the shipped content; encounter and completion behavior remain unimplemented.",
         evidence: "pak: nw_dungeon_reekwater_00",
         effort: "XL",
         dependsOn: ["K1"],
@@ -979,6 +992,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K8",
         label: "Expedition: Garden of Genesis (lvl 60, Edengrove)",
+        detail: "Implement the Edengrove expedition's Angry Earth and Blight encounters as an instanced progression with a server-verified finish. The PAK identifier is content evidence only.",
         evidence: "pak: nw_dungeon_edengrove_00",
         effort: "XL",
         dependsOn: ["K1"],
@@ -987,6 +1001,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K9",
         label: "Expedition: Tempest's Heart (lvl 60, Shattered Mountain)",
+        detail: "Support the Shattered Mountain story finale against Isabella, including multi-stage encounter state, party travel, and rewards. The named PAK level does not prove the expedition is runnable.",
         evidence: "pak: nw_dungeon_shattermtn_00",
         effort: "XL",
         dependsOn: ["K1"],
@@ -995,6 +1010,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K10",
         label: "Expedition: Barnacles and Black Powder (lvl 60, Cutlass Keys)",
+        detail: "Build the Cutlass Keys pirate expedition around Admiral Blackpowder and the shipboard encounter chain. It needs its own instance lifecycle and server-side objective and reward handling.",
         evidence: "pak: nw_dungeon_cutlasskeys_00",
         effort: "XL",
         dependsOn: ["K1"],
@@ -1003,6 +1019,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K11",
         label: "Expedition: The Ennead (lvl 60, Brimstone Sands)",
+        detail: "Implement the Brimstone Sands expedition's Ennead guardian encounters and completion flow. The PAK path identifies the client level; party execution, mechanics, and rewards still need proof.",
         evidence: "pak: nw_dungeon_brimstonesands_00",
         effort: "XL",
         dependsOn: ["K1"],
@@ -1011,6 +1028,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K12",
         label: "Expeditions: Empyrean Forge + Savage Divide + Glacial Tarn (Great Cleave)",
+        detail: "Deliver three Great Cleave expedition variants with their own enemy sets, encounter progression, and rewards on top of the shared instance service. The paired PAK paths and public level list identify scope, not implementation.",
         evidence: "pak: nw_dungeon_greatcleave_00/_01; wiki: lvl 65 expeditions",
         effort: "XL",
         dependsOn: ["K1"],
@@ -1028,6 +1046,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K14",
         label: "Seasonal trials (Dracula, Daichi Dojo, Hatchery…)",
+        detail: "Determine which shipped trial subworlds are supported and implement selected seasonal encounters with entry, objective, timer, and reward handling. The PAK contains several trial identifiers; their runtime contract is still under investigation.",
         evidence: "pak: nw_trial_dw_dracula, nw_trial_season_02/_04, nw_trial_season_04_daichidojo/_deviceroom",
         effort: "XL",
         dependsOn: ["K1"],
@@ -1045,6 +1064,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K16",
         label: "Arena 3v3 ranked (matchmaking + roles)",
+        detail: "Create a ranked 3v3 queue that assigns or validates roles, starts isolated matches, records results, and updates rating. The PAK level and client role-selection types show available content, not a functioning matchmaking service.",
         evidence: "pak: nw_arena_3v3_04; client: matchmaking role selection",
         effort: "XL",
         dependsOn: ["K2", "D6"],
@@ -1053,6 +1073,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K17",
         label: "Battle royale mode (event)",
+        detail: "Build the event match lifecycle around the shipped battle-royale levels and loot tables: queue, spawn, loot ownership, elimination, match end, and rewards. The assets are present in the client; server behavior is not.",
         evidence: "pak: nw_battleroyale_01/_02",
         effort: "XL",
         dependsOn: ["K1"],
@@ -1061,6 +1082,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K18",
         label: "Capture the flag mode",
+        detail: "Implement team assignment, flag pickup and return, scoring, match timers, and result delivery for the shipped CTF layouts. The client data names the mode and arenas; no playable mode is claimed yet.",
         evidence: "pak: nw_ctf_002_wide, nw_ctf_003_long",
         effort: "L",
         dependsOn: ["K1"],
@@ -1069,6 +1091,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K19",
         label: "World raid shells (Cutlass Keys, Monarch's Bluffs)",
+        detail: "Use the raid subworld layouts to host large-group open-world encounters with server-owned phases, eligibility, failure, and reward state. The captured PAK names are layout evidence only; no raid encounter is implemented.",
         evidence: "pak: nw_raid_cutlasskeys_00, nw_raid_monarchbluff_00",
         effort: "XL",
         dependsOn: ["K1"],
@@ -1077,6 +1100,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "K20",
         label: "Catacomb subworld",
+        detail: "Investigate the Catacomb world shell, its currency and shop data, and how it relates to the separate roguelite mode in K21. The subworld identifier alone does not prove procedural generation or a working run.",
         evidence: "pak: nw_catacomb_00",
         effort: "L",
         dependsOn: ["K1"],
@@ -1154,7 +1178,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "L · Housing & personal world",
     phase: "Phase L",
     eta: "After H",
-    goal: "Houses, decoration, trophies, storage, visits.",
+    goal: "Let each player own a house in a settlement, save decoration and trophies, manage house storage, and visit other players. The server must persist placement and ownership while the client renders the selected assets; none of these behaviors is currently claimed as implemented.",
     progress: 0.0,
     items: [
       {
@@ -1202,7 +1226,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "M · Events, seasons & live ops",
     phase: "Phase M",
     eta: "After E",
-    goal: "Configurable events the operator can toggle at will: holidays, world events, GM tools.",
+    goal: "Give operators control over timed world events, seasonal content, leaderboards, and game-master actions without hard-coding a calendar into the server. Event schedules and rewards need durable configuration and a real in-world activation check.",
     progress: 0.0,
     items: [
       {
@@ -1273,7 +1297,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "N · Web platform",
     phase: "Phase N",
     eta: "Continuous",
-    goal: "The public face + account portal: this site, player panels, server dashboard.",
+    goal: "Maintain the public landing and live service status, then add secure account linking, player-facing character panels, and an operational server dashboard. The current landing is delivered; account, character, and telemetry panels are still planned, and roadmap copy remains English.",
     progress: 0.2,
     items: [
       {
@@ -1286,8 +1310,8 @@ export const roadmapGroups: RoadmapGroup[] = [
       },
       {
         id: "N2",
-        label: "EN/ES bilingual UI",
-        detail: "Full i18n of the landing; roadmap stays English.",
+        label: "Bilingual landing interface (roadmap content stays English)",
+        detail: "The landing interface and service labels switch between Spanish and English. The roadmap text itself remains English, so this item tracks interface localization rather than a fully translated site.",
         evidence: "site/ i18n layer",
         effort: "M",
         state: "active",
@@ -1336,7 +1360,7 @@ export const roadmapGroups: RoadmapGroup[] = [
     title: "O · Scale & production",
     phase: "Phase O",
     eta: "Last mile",
-    goal: "Rust port, capacity, deploy — production quality.",
+    goal: "Port only measured Python behavior to Rust, prove wire-level parity with shared fixtures, then build representative load and deployment gates. Capacity figures remain targets until sustained runs report workload, latency, tick deadlines, bandwidth, CPU, memory, and reconnect results.",
     progress: 0.0,
     items: [
       {

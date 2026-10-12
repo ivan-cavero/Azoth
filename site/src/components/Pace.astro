@@ -15,8 +15,7 @@ const avg = (
   <div class="mx-auto max-w-[1200px] px-4">
     <h2 class="section-title">{s.pace.title}</h2>
     <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
-      Velocidad real medida en el histórico de git. El ritmo marca los ETA: cuando una
-      semana baja, la fecha objetivo se recalcula, no se esconde.
+      {s.pace.lead}
     </p>
 
     <div class="mt-10 grid gap-4 lg:grid-cols-[1fr_380px]">
@@ -48,7 +47,7 @@ const avg = (
           { k: s.pace.rows.prioritized, v: `${stats.clientFunctionsMapped}` },
           { k: s.pace.rows.tick, v: s.pace.tickValue },
           { k: s.pace.rows.subworlds, v: s.pace.subworldsValue },
-          { k: s.pace.rows.next, v: "PhysicsTrait replication — ETA ~Oct 24" },
+          { k: s.pace.rows.next, v: s.pace.nextValue },
         ].map((row) => (
           <div class="flex items-center justify-between gap-4 px-6 py-4">
             <span class="text-[13px] text-fog">{row.k}</span>
