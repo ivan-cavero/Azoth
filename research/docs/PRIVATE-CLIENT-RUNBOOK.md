@@ -81,6 +81,78 @@ A private run crosses five independent gates. A failure at any gate looks like
 | 8 | Replay pacing | default 4 ms; measure each fresh run | 4/8 ms runs had no transport error in the recorded A/B; 20 ms was slower and risked the watchdog; neither proves ALC or movement |
 | 8b | **Resend storm** | `AZOTH_RESEND_INTERVAL_S=1.0` (default 0.3) | `transportError 4` ~38 s after spawn: `OnLocalNetworkConnectionWarning` climbs, then `Unexpected client disconnect! {"transportError":4}` |
 
+## Gate 6 is not optional, and its DEFAULT is the failing value
+
+`python az.py dev` forwards whatever `AZOTH_*` variables the **calling shell**
+happens to have (this is the same trap as `AZOTH_LOG_RAW`), so a missing variable
+is not an error — it is a silently different experiment. The three below must be
+exported in the **same** shell that starts the stack, before `python az.py dev`:
+
+```powershell
+$env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'   # gate 6; default is 'off'
+$env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'
+$env:AZOTH_RESEND_INTERVAL_S        = '1.0'
+# leave AZOTH_CHUNK_GAP_MS unset (4 ms default) and AZOTH_REPLAY_SPLIT_SEQ unset
+python az.py dev
+```
+
+**These three are now the whole configuration.** The type-0x08 state stream used to be an opt-in
+experiment and is now ON by default, because it is what makes the session correct: it is the local
+player's own state record (record id 1) being re-sent that makes the client simulate the player
+(movement) and keeps the ALC "last response" stamp young (the HUD cable). Measured 2026-10-13, both
+gates met: WASD verified in all four directions with correct geometry, and the cable icon absent, with
+a one-variable A/B (stream OFF -> position frozen at `(9343.6416, 2786.7327, 87.538)`, W does nothing,
+cable RED). See `MOVEMENT_WORKS_state_stream_enables_player_simulation_20261013` and
+`WASD_verified_all_four_directions_20261013`.
+
+**Verify the effective config before interpreting anything.** The world server logs it as the first
+event of every session (`event: config`) and the stream logs `event: state-stream-armed` with `count`,
+`seqs`, `player_bundles` and the two periods. A stream that arms with `count: 0` is a silent no-op -
+that exact bug (an equality against its own sentinel) kept the cable RED while the config event
+happily reported `state_stream: true`.
+
+**Measure the cable with `scripts/measure-cable.py`,** not by hand: it locates the game window,
+captures the screen, crops to the window's CLIENT rect, classifies with the documented box and saves
+the crop. Three separate mistakes were made measuring this icon in one day (whole-desktop capture,
+stale capture, trusting the label over the image), and the tool exists to prevent all three.
+
+Measured 2026-10-12, same build and same disk patch, one variable (the env):
+
+| | with the vars | without them |
+| --- | --- | --- |
+| world renders | **yes**, player possessed | **no**, black frame, no player |
+| `Exceeded max recursion for deferred actions` | **0** | **5** |
+| `replay-local-player-uuid` spans filled | **25** | 0 |
+| client channel-1 records | **1470** | **0** |
+
+So an omitted variable reproduces the Gate 5 symptom set (black screen +
+deferred-action errors) **even though the predicate patch is correctly applied**,
+and it also kills the client's input stream. Do not read that burst as proof that
+the predicate patch failed. Evidence:
+`runbook_env_vars_are_mandatory_and_verifiable_20261012`.
+
+**Verify the config before interpreting any client behaviour.** The world server
+writes its EFFECTIVE configuration as the first event of every session:
+
+```powershell
+python -c "import json;print([json.loads(l[l.find('{'):]) for l in open('.azoth/logs/world.log',encoding='utf-8',errors='replace') if '\"config\"' in l][-1])"
+```
+
+Check `replay_local_player_uuid`, `input_response`, `chunk_gap_ms` and
+`replay_split_seq`. There is one `config` event **per session**, so an accumulated
+`world.log` needs the **last** one — reading the first one gave a wrong diagnosis on
+2026-10-12. `.azoth/logs/world.log` accumulates every session ever run (671k lines
+here); split on `listening-dtls` or delete it before measuring. Evidence:
+`config_event_is_the_effective_config_20261012`.
+
+**A Frida detach can kill the client silently.** `attach → measure → detach` is a
+potentially fatal sequence on this build: `frida-agent.dll_unloaded` at offset
+`0x9c7e0` (`BEX64`, `c0000005`) has now been reproduced by a second, unrelated probe,
+and the client logs **nothing** — no `Cleanup()`, no `exiting to main menu`, no
+`Disconnected from REP`. Read the faulting module in Windows Application event 1001
+(P4/P7/P8) before reading a session death as client behaviour. Evidence:
+`frida_agent_unload_crash_reproduced_20261012`.
+
 ## Gate 8g — the warning burst is the REPLAY DURATION (measured 2026-10-10)
 
 `OnLocalNetworkConnectionWarning` is a Game.log REP-watchdog counter, not the

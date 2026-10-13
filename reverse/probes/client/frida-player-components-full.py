@@ -34,7 +34,7 @@ from pathlib import Path
 
 import frida
 
-from _paths import probe_capture
+from _paths import probe_capture, safe_shutdown
 
 LOOKUP = 0x1413FB700   # component lookup by AZ type id; args[0] IS an entity
 
@@ -212,6 +212,9 @@ if (mod === null) {
       if (key === null) return { error: 'no entity tracked yet' };
       return { entity: key, results: probeCandidates(ptr(key)) };
     },
+    // Required for a non-kill shutdown: this probe hooks the HOT component lookup,
+    // which is what makes a bare detach crash the client (see _paths.safe_shutdown).
+    teardown() { try { Interceptor.detachAll(); return true; } catch (e) { return String(e); } },
   };
 }
 """
@@ -223,9 +226,13 @@ def main() -> int:
     ap.add_argument("--poll", type=float, default=5.0)
     ap.add_argument("--min-components", type=int, default=100)
     ap.add_argument("--process", default="NewWorld.exe")
+    ap.add_argument("--shutdown", choices=["kill", "detach"], default="kill",
+                    help="kill (default) ends the client deliberately and avoids the "
+                         "frida-agent unload race; detach attempts an orderly teardown")
     args = ap.parse_args()
 
-    session = frida.get_local_device().attach(args.process)
+    device = frida.get_local_device()
+    session = device.attach(args.process)
     script = session.create_script(
         JS.replace("%CANDIDATES%", json.dumps(CANDIDATES))
           .replace("%MIN%", str(args.min_components))
@@ -271,10 +278,8 @@ def main() -> int:
                 continue
             time.sleep(args.poll)
 
-    try:
-        session.detach()
-    except Exception:  # noqa: BLE001
-        pass
+    safe_shutdown(session, script, kill=(args.shutdown == "kill"), device=device,
+                  log=lambda m: print(f"[pc] {m}", flush=True))
     print(f"[pc] done; capture {capture}", flush=True)
     return 0
 

@@ -953,10 +953,19 @@ class TestDtlsHandshake(unittest.TestCase):
 class TestStateStream(unittest.TestCase):
     """Post-replay 0x08 state-bundle stream (see STATE_STREAM_* in rep.py).
 
-    The capture's steady state is R-direction type 0x08 bundles right up to
-    seq 0xb0, and the real server never stopped sending them. Our replay does,
-    and the client's activity warning counter climbs until it drops REP
-    (2026-10-03: 1 -> 117 warnings, then `disconnected from REP`).
+    The capture's steady state is R-direction type 0x08 bundles right up to seq 0xb0, and
+    the real server never stopped sending them. Our replay does, and the client's ALC
+    "last response" stamp then ages out - which IS the red HUD cable.
+
+    MEASURED 2026-10-13, and these tests encode that measurement:
+      * the LOCAL PLAYER's own state is record_id 1, and in the capture it lives only in
+        the four 7154-byte bundles at seq 0x98/0x9A/0x9C/0x9E - all BELOW the old floor of
+        0xA0, so the stream used to re-send everybody else's state and never the player's;
+      * with the floor at 0xA0 the ALC stamp NEVER moved (1 change in 140 s, age growing to
+        262 s, cable RED); with the player's record re-sent 4x/s the stamp moved 225 times,
+        age never above 100 ms, and the cable icon disappeared.
+    So the stream is ON by default, the floor reaches the player's bundles, and the
+    player's record gets its own faster timer.
     """
 
     def _session(self, *, now: float = 1_000.0):
@@ -976,8 +985,12 @@ class TestStateStream(unittest.TestCase):
         session.out_rel_seq = 1
         session.state_stream_all = []
         session.state_stream_queue = []
+        session.state_stream_player = []
+        session.state_stream_player_queue = []
         session.state_stream_next_at = 0.0
+        session.state_stream_player_next_at = 0.0
         session.state_stream_sent = 0
+        session.state_stream_player_sent = 0
         session.state_stream_seq = 54
         session.sent: list = []
 
@@ -1012,23 +1025,93 @@ class TestStateStream(unittest.TestCase):
             has_redaction=False,
         )
 
-    def test_captured_tail_is_single_datagram_bundles(self):
-        """Every armed bundle must stay under REPLAY_CHUNK_SIZE so the
-        continuation never takes the chunked path (chunking a bundle that the
-        client did not ask for is the untested part)."""
-        from azoth_world.rep import REPLAY_CHUNK_SIZE, STATE_STREAM_MIN_SEQ, replay_store
+    def test_stream_is_on_by_default_and_reaches_the_player_record(self):
+        """The measured fix: ON by default, floor at the player's bundles, record 1.
+
+        This is a deliberate change from the old default. The stream used to break the
+        connection (2026-10-04: REP dropped at +23 s) because the replication counter was
+        rewritten by overwriting one raw byte, which corrupted the body. With the rewrite
+        going through the verified varint parser the same stream is what keeps the ALC
+        stamp young, so OFF is now the broken configuration.
+        """
+        import importlib
+        import os
+
+        from azoth_world import rep as rep_module
+
+        saved = {
+            k: os.environ.pop(k, None)
+            for k in (
+                "AZOTH_REPLAY_STATE_STREAM",
+                "AZOTH_REPLAY_STATE_STREAM_SEQ",
+                "AZOTH_REPLAY_STATE_STREAM_MIN_SEQ",
+                "AZOTH_REPLAY_STATE_STREAM_PLAYER_RECORD",
+            )
+        }
+        try:
+            importlib.reload(rep_module)
+            self.assertTrue(rep_module.STATE_STREAM_ENABLED)
+            self.assertTrue(rep_module.STATE_STREAM_REWRITE_SEQ)
+            self.assertEqual(rep_module.STATE_STREAM_MIN_SEQ, 0x94)
+            self.assertEqual(rep_module.STATE_STREAM_PLAYER_RECORD, 1)
+            armed = [
+                m
+                for m in rep_module.replay_store().messages
+                if m.type_id == 0x08
+                and m.seq >= rep_module.STATE_STREAM_MIN_SEQ
+                and rep_module._state_stream_record_id(m)
+                == rep_module.STATE_STREAM_PLAYER_RECORD
+            ]
+            self.assertEqual(
+                [m.seq for m in armed],
+                [0x98, 0x9A, 0x9C, 0x9E],
+                "the local player's own state bundles must be in the armed set",
+            )
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+            importlib.reload(rep_module)
+
+    def test_stream_can_be_forced_off_for_an_ab(self):
+        import importlib
+        import os
+
+        from azoth_world import rep as rep_module
+
+        previous = os.environ.get("AZOTH_REPLAY_STATE_STREAM")
+        os.environ["AZOTH_REPLAY_STATE_STREAM"] = "0"
+        try:
+            importlib.reload(rep_module)
+            self.assertFalse(rep_module.STATE_STREAM_ENABLED)
+        finally:
+            if previous is None:
+                os.environ.pop("AZOTH_REPLAY_STATE_STREAM", None)
+            else:
+                os.environ["AZOTH_REPLAY_STATE_STREAM"] = previous
+            importlib.reload(rep_module)
+
+    def test_armed_tail_parses_and_is_in_capture_order(self):
+        """Every armed bundle must be a real, parseable 0x08 bundle, in order.
+
+        The old version of this test also asserted that none of them exceeds
+        REPLAY_CHUNK_SIZE. That no longer holds and must not: the floor now reaches the
+        player's bundles, which are 7167 bytes, and the REPLAY already sends those same
+        bodies through the chunked path successfully - so chunking them here is the
+        already-exercised path, not a new risk.
+        """
+        from azoth_world.javelin import bundle as javelin_bundle
+        from azoth_world.rep import STATE_STREAM_MIN_SEQ, replay_store
 
         store = replay_store()
         queue = [
             m
-            for m in store.replay_messages_after_v3(0xB0, include_redacted=True)
+            for m in store.messages
             if m.type_id == 0x08 and m.seq >= STATE_STREAM_MIN_SEQ
         ]
         self.assertGreater(len(queue), 0, "no captured tail bundles to continue")
         for msg in queue:
-            self.assertLessEqual(
-                len(msg.body), REPLAY_CHUNK_SIZE, f"seq {msg.seq:#x} would chunk"
-            )
+            javelin_bundle.decode_bundle(msg.body)
         self.assertEqual([m.seq for m in queue], sorted(m.seq for m in queue))
 
     def test_stream_waits_for_the_replay_and_greetings(self):
@@ -1040,9 +1123,9 @@ class TestStateStream(unittest.TestCase):
             self._waits_for_the_replay_and_greetings(PeerSession)
 
     def _waits_for_the_replay_and_greetings(self, PeerSession):
-        from unittest import mock
         session = self._session()
         first = self._bundle(0xA0)
+        session.state_stream_all = [first]
         session.state_stream_queue = [first]
         session.greetings_after_replay = False
         PeerSession.maybe_state_stream(session, None)
@@ -1057,7 +1140,7 @@ class TestStateStream(unittest.TestCase):
         PeerSession.maybe_state_stream(session, None)
         self.assertEqual([m.seq for m in session.sent], [first.seq])
 
-    def test_stream_sends_one_per_period_in_capture_order(self):
+    def test_stream_sends_one_world_bundle_per_period_in_capture_order(self):
         from unittest import mock
 
         from azoth_world.rep import PeerSession, STATE_STREAM_PERIOD_S
@@ -1069,6 +1152,7 @@ class TestStateStream(unittest.TestCase):
         from unittest import mock
         session = self._session()
         first, second = self._bundle(0xA0), self._bundle(0xA1)
+        session.state_stream_all = [first, second]
         session.state_stream_queue = [first, second]
         clock = {"now": 1_000.0}
         with mock.patch("azoth_world.rep.time.monotonic", lambda: clock["now"]):
@@ -1079,6 +1163,46 @@ class TestStateStream(unittest.TestCase):
             PeerSession.maybe_state_stream(session, None)
         self.assertEqual([m.seq for m in session.sent], [first.seq, second.seq])
         self.assertEqual(session.state_stream_sent, 2)
+
+    def test_player_record_gets_its_own_faster_timer(self):
+        """The measured fix: the player's own state is refreshed faster than the world's.
+
+        The cable clears only when the ALC stamp is refreshed more often than the amber
+        threshold (~2 s). Streaming the whole captured tail at one rate gives a refresh
+        every (tail / player_bundles) periods - measured 12 refreshes in 140 s, cable
+        YELLOW. The player's record therefore has its own timer.
+        """
+        from unittest import mock
+
+        from azoth_world.rep import (
+            PeerSession,
+            STATE_STREAM_PLAYER_PERIOD_S,
+            STATE_STREAM_PERIOD_S,
+        )
+
+        session = self._session()
+        world = self._bundle(0xA0)
+        p1, p2 = self._bundle(0x98), self._bundle(0x9A)
+        session.state_stream_all = [world, p1, p2]
+        session.state_stream_queue = [world]
+        session.state_stream_player = [p1, p2]
+        session.state_stream_player_queue = [p1, p2]
+        clock = {"now": 1_000.0}
+        with mock.patch("azoth_world.rep.time.monotonic", lambda: clock["now"]), \
+                mock.patch("azoth_world.rep.STATE_STREAM_ENABLED", True):
+            PeerSession.maybe_state_stream(session, None)   # player p1 + world
+            self.assertEqual([m.seq for m in session.sent], [p1.seq, world.seq])
+            clock["now"] += STATE_STREAM_PLAYER_PERIOD_S
+            PeerSession.maybe_state_stream(session, None)   # player p2 only
+            self.assertEqual([m.seq for m in session.sent], [p1.seq, world.seq, p2.seq])
+            # the player queue refilled from the armed player list when it emptied
+            self.assertEqual(session.state_stream_player_queue, [p1, p2])
+            self.assertEqual(session.state_stream_player_sent, 2)
+        self.assertLess(
+            STATE_STREAM_PLAYER_PERIOD_S * 2,
+            STATE_STREAM_PERIOD_S,
+            "the player's cycle must be faster than one world send",
+        )
 
     def test_stream_loops_through_the_capture(self):
         """One pass is not enough: the real server streamed 0x08 forever, so
@@ -1107,34 +1231,23 @@ class TestStateStream(unittest.TestCase):
         self.assertEqual([m.seq for m in session.sent], [first.seq, first.seq])
         self.assertEqual(session.state_stream_sent, 2)
 
-    def test_wire_seq_rewrite_is_off_by_default(self):
-        """Rewriting body[4] corrupts the bundle; the default must be OFF.
+    def test_wire_seq_is_rewritten_by_default(self):
+        """The counter must continue above the client's high-water, or the bundle is dropped.
 
-        Measured 2026-10-09, three live A/B runs, same build and config:
-          FLOOR=0x80 (old default) -> 32 `Failed to unmarshal` (ValidationError)
-          FLOOR=0x36               -> 32 `Failed to unmarshal`
-          REWRITE=OFF              ->  0 `Failed to unmarshal`, 7.4 min stable
-        The value written does not matter, so any write to that byte breaks the
-        AZ deserializer. The error is a deserialization failure, not the dedup
-        rejection the rewrite was meant to fix.
+        Measured 2026-10-13: with the rewrite OFF a session sent 697 `state-stream` events,
+        the client logged ZERO errors, and the world behaved exactly as if nothing had been
+        sent - because the replication gate discards a bundle whose counter is not strictly
+        greater than m_lastUnreliableReplicationSeq. "No errors" does not mean "applied".
+
+        The rewrite is safe because it re-encodes the varint through the verified parser.
+        The earlier corruption (32 `Failed to unmarshal`, 2026-10-09) came from overwriting
+        one raw byte, which widens a one-byte varint into two and shifts every fragment.
         """
         from azoth_world.rep import STATE_STREAM_REWRITE_SEQ
 
-        self.assertFalse(
-            STATE_STREAM_REWRITE_SEQ,
-            "rewriting body[4] corrupts the bundle; see DECOMP-BACKLOG 12.2",
-        )
+        self.assertTrue(STATE_STREAM_REWRITE_SEQ)
 
-    def test_wire_seq_is_rewritten_when_explicitly_enabled(self):
-        """With the rewrite explicitly ON the counter continues above the
-        capture. Kept as a lever: re-enable only with new evidence that the
-        client drops the unrewritten bundles as already-seen.
-
-        The client drops a replication message whose seq is not strictly
-        greater than m_lastUnreliableReplicationSeq, so a re-sent captured
-        bundle would need a continued counter (measured: high-water 53 while
-        the bundles carried their original 37..53).
-        """
+    def test_wire_seq_rewrite_continues_the_counter(self):
         from unittest import mock
 
         from azoth_world.rep import (
@@ -1162,9 +1275,38 @@ class TestStateStream(unittest.TestCase):
             PeerSession.maybe_state_stream(session, None)
         self.assertEqual(session.sent[0].body[STATE_STREAM_SEQ_OFFSET], 54)
         self.assertEqual(session.sent[1].body[STATE_STREAM_SEQ_OFFSET], 55)
-        # the rest of the body is untouched
         self.assertEqual(session.sent[0].body[:4], first.body[:4])
         self.assertEqual(len(session.sent[0].body), len(first.body))
+
+    def test_negative_only_record_means_no_filter(self):
+        """`ONLY_RECORD=-1` must select everything, not nothing.
+
+        Real bug, 2026-10-13: the filter was written as an equality against the sentinel, so
+        the default -1 matched no bundle. The stream armed with ZERO bundles while the config
+        event still reported `state_stream: True` and the arming event looked normal - a
+        silent no-op, and the cable stayed RED with nothing in the logs to explain it.
+        """
+        from azoth_world.rep import (
+            STATE_STREAM_MIN_SEQ,
+            _state_stream_record_id,
+            _state_stream_selected,
+            replay_store,
+        )
+
+        bundles = [
+            m
+            for m in replay_store().messages
+            if m.type_id == 0x08 and m.seq >= STATE_STREAM_MIN_SEQ
+        ]
+        self.assertGreater(len(bundles), 0)
+        from unittest import mock as mock_module
+
+        with mock_module.patch("azoth_world.rep.STATE_STREAM_ONLY_RECORD", -1):
+            self.assertTrue(all(_state_stream_selected(m) for m in bundles))
+        with mock_module.patch("azoth_world.rep.STATE_STREAM_ONLY_RECORD", 1):
+            selected = [m for m in bundles if _state_stream_selected(m)]
+            self.assertEqual([m.seq for m in selected], [0x98, 0x9A, 0x9C, 0x9E])
+            self.assertTrue(all(_state_stream_record_id(m) == 1 for m in selected))
 
     def test_stream_does_not_loop_an_empty_arm(self):
         from azoth_world.rep import PeerSession
@@ -1172,44 +1314,6 @@ class TestStateStream(unittest.TestCase):
         session = self._session()
         PeerSession.maybe_state_stream(session, None)
         self.assertEqual(session.sent, [])
-
-    def test_stream_is_off_by_default(self):
-        """Measured 2026-10-04: with the stream on, the client dropped REP at
-        +23 s, reconnected, never re-created its ClientContext and then skipped
-        758 state bundles. With it off the same build kept ONE spawn, one skipped
-        bundle and no disconnect. The default must stay off; the env switch is
-        only for a deliberate re-test."""
-        import importlib
-        import os
-
-        from azoth_world import rep as rep_module
-
-        previous = os.environ.pop("AZOTH_REPLAY_STATE_STREAM", None)
-        try:
-            importlib.reload(rep_module)
-            self.assertFalse(rep_module.STATE_STREAM_ENABLED)
-        finally:
-            if previous is not None:
-                os.environ["AZOTH_REPLAY_STATE_STREAM"] = previous
-            importlib.reload(rep_module)
-
-    def test_stream_can_be_forced_on_for_an_ab(self):
-        import importlib
-        import os
-
-        from azoth_world import rep as rep_module
-
-        previous = os.environ.get("AZOTH_REPLAY_STATE_STREAM")
-        os.environ["AZOTH_REPLAY_STATE_STREAM"] = "1"
-        try:
-            importlib.reload(rep_module)
-            self.assertTrue(rep_module.STATE_STREAM_ENABLED)
-        finally:
-            if previous is None:
-                os.environ.pop("AZOTH_REPLAY_STATE_STREAM", None)
-            else:
-                os.environ["AZOTH_REPLAY_STATE_STREAM"] = previous
-            importlib.reload(rep_module)
 
 
 class TestClientRecordContainer(unittest.TestCase):

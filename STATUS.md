@@ -1,5 +1,599 @@
 # Live status
 
+## 2026-10-13 (cont. 5) — **WASD VERIFIED: all four directions, correct geometry, stops on release**
+
+Position sampled at 0.2 s with the client's own accessor, each sample wall-clock stamped and each key
+phase bounded by a recorded marker. Keys sent as real scan codes. Env: **the mandatory three only** —
+the state stream is ON by default and needs no variables.
+
+| phase | samples | net move | path | delta (dx, dy, dz) |
+| --- | --- | --- | --- | --- |
+| baseline (no input) | 28 | **0.000 u** | 0.000 | (0, 0, 0) |
+| **W** held 5 s | 27 | **22.998 u** | 23.039 | (+10.079, −20.672, +0.013) |
+| **S** held 5 s | 37 | **18.975 u** | 18.980 | (−8.341, +17.043, +0.003) |
+| **A** held 5 s | 37 | **4.515 u** | 5.412 | (+4.018, +2.060, +0.158) |
+| **D** held 5 s | 38 | **9.359 u** | 9.793 | (−8.212, −4.488, −0.131) |
+| after release | 10 | **0.003 u** | 0.003 | ~0 |
+
+```
+angle W vs S = 179.9 deg   (opposite)        angle W vs A = 91.2 deg   (perpendicular)
+angle A vs D = 178.5 deg   (opposite)        angle W vs D = 87.3 deg   (perpendicular)
+vertical drift over ~23 u of horizontal travel: within 0.16 u
+```
+
+Four independent properties say this is real movement and not a canned or random displacement:
+the opposing keys are near-exactly anti-parallel; the perpendicular pair is near-exactly orthogonal
+to forward; **path ≈ net in every phase** (23.039 vs 22.998) so the motion is straight with no jitter
+or rubber-banding; and the player is **still with no input and stops again within 2 s of release**.
+Same session, no probe attached: **cable absent, red 0.0 %**. Evidence:
+`WASD_verified_all_four_directions_20261013`, `research/sessions/session-20261013T2205Z-WASD-verified/`.
+
+**The config is now three variables:**
+
+```powershell
+$env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'
+$env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'
+$env:AZOTH_RESEND_INTERVAL_S        = '1.0'
+python az.py dev
+```
+
+**Still outstanding, and it is only duration:** movement is verified over 5 s windows inside a session
+that ran ~22 min. No 30-minute proof and no 2-hour soak yet. Soak runs must be **probe-free** — the
+last client crash was `frida-agent.dll` at `0x9c7f4`, caused by a measurement probe.
+
+## 2026-10-13 (cont. 4) — **BOTH GATES MET: the player MOVES and the red cable is GONE**
+
+**The player moves, and one missing record explains both symptoms.** For the whole history of this
+project the local position was frozen at exactly `(9343.6416, 2786.7327, 87.538)` and W did nothing —
+667/667 identical samples in the most thorough earlier measurement. It moves now.
+
+**Movement, measured three times (position via the client's own accessor, 0.2 s sampling):**
+
+| run | no input | W held | result |
+| --- | --- | --- | --- |
+| movement (21:20Z) | frozen, net 0.0 u | **92 distinct positions, net 83.026 u** | moves |
+| **repro (21:47Z)** | 2 samples, net **0.0 u — STILL** | **55 samples, 53 distinct, net 20.784 u** | **moves** |
+| **A/B, stream OFF (21:55Z)** | — | **5 samples, 1 distinct position** = the old frozen constant | **does not move** |
+
+The two moving runs displace in **different world directions** (`(-10.3, +82.4)` vs `(+9.3, -18.6)`),
+which is what WASD-relative forward looks like when the character faces a different way — evidence the
+motion is the player's own movement, not one canned offset.
+
+**The A/B is one variable and it settles causation:**
+
+| | `state_stream=ON` | `state_stream=OFF` |
+| --- | --- | --- |
+| W held 10 s | **moves 20.8 u** | **frozen at `(9343.6416, 2786.7327, 87.538)`** |
+| HUD cable | **icon absent** | **RED (3.7% red)** |
+| ALC stamp | refreshing (225 changes / 140 s, age ≤ 100 ms) | frozen, age grows |
+
+**Mechanism.** The client only simulates the local player while it is receiving the player's own AOI
+state. Our server replayed the capture once and then stopped. Resuming it was not enough either,
+because with the old floor of `0xA0` the stream re-sent only **other** entities' records
+(`0xA0..0xB0` carry ids 22, 29, 10, 30, 60, 79, 87, 44, 88, 58, 89, 72, 90, 35, 91, 92, 70) and never
+**record id 1 — the local player**. The floor is now `0x94`, which includes the four record-1 bundles
+(seq `0x98/0x9A/0x9C/0x9E`), and they are additionally re-sent at **4 Hz** so the ALC stamp stays
+younger than its ~2 s amber threshold. **The same missing record explains both symptoms.**
+
+**The state stream is now the correct default, not an experiment.** It was OFF by default because a
+2026-10-04 version broke REP at +23 s; that was the counter rewrite writing **one raw byte**, which
+widens a one-byte varint into two and shifts every fragment. The rewrite now re-encodes through the
+verified parser, and it defaults ON. A silent bug was found and fixed while doing this:
+`AZOTH_REPLAY_STATE_STREAM_ONLY_RECORD` was an **equality against its own sentinel**, so the default
+`-1` matched **no** bundle — the stream armed with `count: 0` while the config event still said
+`state_stream: True`. Fixed, tested, and the arming event now logs `count`/`seqs`/`player_bundles` so an
+empty arm is visible.
+
+**Config that works (the state stream needs no variables at all now):**
+
+```powershell
+$env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'
+$env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'
+$env:AZOTH_RESEND_INTERVAL_S        = '1.0'
+python az.py dev
+```
+
+**Not yet proven, and next:** movement was measured over 10-12 s windows inside sessions that lived
+~22 min; there is no 2-hour soak yet, and the session still dies on a client crash (the last one was
+`frida-agent.dll` at `0x9c7f4`, caused by **my own probe** — the movement the user observed was in a
+clean session with no probe attached). Evidence:
+`MOVEMENT_WORKS_state_stream_enables_player_simulation_20261013`,
+`state_stream_defaults_are_the_fix_not_an_experiment_20261013`, and bundles
+`research/sessions/session-20261013T2120Z-MOVEMENT-and-cable-fixed/`,
+`.../session-20261013T2155Z-AB-state-stream-off/`.
+
+## 2026-10-13 (cont. 3) — **THE RED CABLE IS FIXED**, and the position is no longer frozen
+
+**The red cable is fixed, and it was one record id.** The cable is a pure client-side age of the ALC
+local client's `+0xAA8` stamp (`age = clock() - *(alc+0xAA8)`; amber ~2 s, red ~15 s). A new probe
+(`frida-alc-stamp.py`) learned the ALC object and logged every change of that stamp:
+
+| what the server sent | stamp changes in ~140 s | max age seen | cable |
+| --- | --- | --- | --- |
+| replay + input-response (the old default) | **1** | **262 000 ms** | RED |
+| + state stream from seq `0xA0` | **1** | 250 000 ms | RED |
+| + state stream from seq `0x94` | 12 | ~100 ms | YELLOW |
+| **+ stream = ONLY record id 1, 4/s** | **225** | **100 ms** | **icon GONE** |
+
+**What refreshes it is the local player's own state record.** In the capture that is `record_id 1`
+and it appears only in the four 7154-byte bundles at replay seq **0x98/0x9A/0x9C/0x9E** — all *below*
+the stream's old default floor of `0xA0`, so the stream was re-sending **everybody else's** state and
+never the player's. The fixed run's own arming event proves it:
+`{"count": 4, "seqs": ["0x98","0x9a","0x9c","0x9e"], "only_record": 1, "period_s": 0.25, "loop": true}`.
+
+Config that fixes it (on top of the mandatory `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`,
+`AZOTH_REPLAY_INPUT_RESPONSE=1`, `AZOTH_RESEND_INTERVAL_S=1.0`):
+
+```
+AZOTH_REPLAY_STATE_STREAM=1
+AZOTH_REPLAY_STATE_STREAM_SEQ=1
+AZOTH_REPLAY_STATE_STREAM_MIN_SEQ=0x94
+AZOTH_REPLAY_STATE_STREAM_ONLY_RECORD=1     # NEW lever (rep.py)
+AZOTH_REPLAY_STATE_STREAM_PERIOD_S=0.25
+```
+
+**Also, for the first time, server-sent data changed the player's position.** Every previous session
+had the position frozen at exactly `(9343.6416, 2786.7327, 87.538)`. With the record-1 stream active
+it reads `(9354.0039, …)` and drifts through **50 distinct values** before settling. **But movement is
+NOT solved:** the honest control in the same run gave `[0.0,0.0,0.0]` with no input over 10 s **and**
+`[0.0,0.0,0.0]` with **W held for 10 s**. The drift was a one-time convergence onto the state we send;
+the player is then static and W still does nothing. What is new is that the client now **applies** the
+local player's replicated state — which is the mechanism the server would use to move the player.
+
+**Next experiment (now possible):** take a record-1 bundle, modify its position field, send it, and see
+whether the player goes there. If it does, the server becomes authoritative over the position.
+Evidence: `RED_CABLE_FIXED_record1_state_stream_refreshes_the_alc_stamp_20261013`,
+`local_player_position_is_no_longer_frozen_once_record1_state_is_streamed_20261013`, bundle
+`research/sessions/session-20261013T2039Z-cable-fixed/`.
+
+## 2026-10-13 (cont. 2) — the runner was calling HUNG LOADING SCREENS "player possessed"; baseline red cable measured properly
+
+**I spent most of a session measuring a hung client, and the reason is an instrument defect worth more
+than any result here.** `scripts/private-run.py` printed `verdict: InGame reached, player possessed` on
+the strength of the state machine, and a client **hung on a loading screen** satisfies that: it logs
+`player spawn succeeds` and `Update state WaitingForPlayerSpawn to new state InGame` and then sits
+there. Measured, two sessions on this build:
+
+| session | post-spawn non-boilerplate lines | `[WARNING] Slice:` | what it really was |
+| --- | --- | --- | --- |
+| ch1 server-container (17:44Z) | 5 | **0** | loading screen, window said "(Not Responding)" |
+| baseline (19:11Z) | 35 | **26** | **world rendered** — character, village, full HUD |
+
+One of those hung sessions was the "~60 minutes alive" I reported: the **network stack and the server
+kept running normally while the client was frozen**, and Game.log accumulated nothing but connection
+warnings. That is why it looked like a long stable session and was not one.
+
+**Fixed in the runner:** it now waits up to `--render-timeout` (default 90 s) after the spawn marker
+for the first `[WARNING] Slice:` line, reports the count in the verdict, and **exits 1** with a loud
+verdict when the state machine says InGame but no slice lines were seen. From now on the mechanical
+"did it render" signal is the slice count, never `InGame`. Evidence:
+`in_game_state_machine_does_not_mean_the_world_rendered_20261013`.
+
+**Baseline red cable, measured on a session that really rendered** (26 slice lines, state machine to
+InGame, **0 timeouts**): **RED (disconnected)**, red 3.66%, yellow 1.77%, screenshot kept. Two
+measurement traps recorded because both gave false readings first: a desktop capture must be cropped to
+the game window's client rect before the documented indicator box is applied (otherwise it reads
+`absent/other`), and a loading screen does not draw the cable at all. Evidence:
+`red_cable_reproduced_on_a_rendered_session_20261013`.
+
+**Channel-1 container A/B, executed and attributed.** Answering the client's channel-1 input stream on
+**channel 1**: with the **capture's server container** the client reaches InGame with **0 timeouts**;
+with the **client's own `[crc32][len][target]` container** it stalls at `WaitingForActorGameConnection`
+with repeated timeouts and never spawns — and logs no unmarshal/CRC/unknown-type error, so it fails
+silently. So the container was the poison, not the channel.
+
+**Also this session:** the ALC stamp writer is still not found, and two more candidate explanations for
+the red cable are now measured out (delivered input responses; the state stream). The remaining
+candidate with support is that the stamp is refreshed by **`MB::ALCReplicatedState`** — whose replicated
+field list includes `worldPosRel`/`worldPosAbs`, so the state that would clear the cable is also the
+state that carries the position.
+
+**Gates: still not met.** The red cable is reproduced on a properly rendered session; movement is
+unmeasured this session. What improved is that the experiment stopped lying about whether a session was
+alive.
+
+## 2026-10-13 — the ALC reply IS delivered and the cable still goes red; the "wrong target" theory is refuted
+
+**This session's result is a correction, and it removes the leading theory for the cable.**
+
+**1. The position is INSIDE the ALC's replicated state.** The `ALCReplicatedStateAllocator` descriptor
+carries its replicated field names, and they include **`worldPosRel` / `worldPosAbs`, `rotation`,
+`lookDir`, `timeOffsetRel`/`Abs`, `slayerSeqTimeRel`/`Abs`, `scopeData`, `forbiddenBounds`** — so the
+player's world position is a field of `MB::ALCReplicatedState`, the object `FUN_142a3b050` allocates by
+name at **0x1560** bytes. The cable's clock and the position being missing are therefore the *same*
+replicated state, which is why one thing is missing and not two.
+
+**2. The ALC reply is delivered at 2/s for the whole session — and the cable still turns red.** This
+is the decisive measurement:
+
+| fact | value |
+| --- | --- |
+| `input-response` events the server sent | **414** (828 messages) |
+| client `facet target ID couldn't be found` for `TimeComponentClientFacet_Sync*` | **4**, all in one millisecond |
+| when those 4 happened | **one millisecond BEFORE `player spawn succeeds`** |
+| the id in the error | `10638597947943539998` = **`0x93a3e477cb5fd51e`** |
+| is that id registered in our session? | **YES** — `TimeComponentClientFacet` holds four local ids and that is one of them |
+
+So the only failures are the pre-spawn ones, and **every later reply was dispatched without error** —
+and the cable still went RED. Two conclusions: **(a) the red cable is not caused by the client failing
+to receive our input response**; **(b) `0x1096`/`0x1097` are NOT what refreshes the ALC stamp.** The
+lever's own docstring ("our replay sends them once, then the client HUD's *time since last response*
+climbs") is measured to be wrong about the refresh — sending them 2/s changes nothing. Evidence:
+`alc_reply_is_delivered_and_the_cable_still_goes_red_20261013`.
+
+**3. The "wrong target" theory is refuted, and yesterday's label corrected.** The capture's id is
+registered here, so re-addressing the reply to it is not "a target the client does not have". What
+survives for the movement work is the part that matters: delivering a position to a
+`TimeComponentClientFacet` still does not apply it. `position_reply_timecomponent_target_is_a_false_fix_20261012`
+now carries that correction.
+
+**4. The `+0xAA8` writer is still not found, and the reason is recorded.** Of the 42 functions writing
+`[reg+0xAA8]`, the one that also calls a clock is a **constructor** where `+0xAA0`/`+0xAA8` are a
+`std::string`'s capacity/size pair (`0xf`, `0`), and its clock call stores into a different field
+(`+0xB18`). The `lea [reg+0xAA8]` site near the HUD is a **debug formatter** building an array of field
+*addresses* to log. So the stamp's writer must be found **by class**, not by offset — `+0xAA8` is shared
+by several classes and is inside a string triple in some. Evidence:
+`alc_stamp_writer_not_findable_by_displacement_20261013`.
+
+**Next step, now much better constrained.** The ALC stamp is refreshed by the **ALC replicated state**,
+not by a typed message. That makes the whole problem one thing: find the record/fragment that carries
+`MB::ALCReplicatedState` (its own field list includes `worldPosRel`/`worldPosAbs`) and whether the
+capture contains it. The capture's steady-state tail carries record ids 22, 29, 10, 30, 60, 79, 87, 44,
+88, 58, 89, 72, 90, 35, 91, 92, 70 — and **the local player's actor id appears only in the spawn
+record (record 1), never in the state flood**, which is why streaming those bundles could not have
+delivered the player's position (measured: the stream does not move the player, cont. 10).
+
+**Gates: still not met.** Movement unchanged; cable still red. What changed is that the cable's cause is
+now narrowed to one missing piece of replicated state, with the two most popular theories (wrong
+target; needs a typed response) both measured out.
+
+**5. The ALC state's registration and allocation are located.** `FUN_142a3d460` registers
+`ALCReplicatedState` (descriptor `{0x8000, 0x1570, 0x1570, ...}` — note **`0x1570 == 0x1560 + 0x10`**,
+the object size plus alignment), `FUN_142a43b30` allocates an **array** of them at `0x1570` stride, and
+`FUN_142a3b050` allocates one by name. So the engine tracks **multiple** `ALCReplicatedState` instances
+— one per actor — which is a concrete reason the local player's own state cannot be assumed to be "the"
+ALC state. Evidence: `alc_replicated_state_registration_and_allocator_20261013`.
+
+**A method correction, again worth more than the result.** The first search for these users was a
+whole-`.text` linear Capstone sweep that reported **0** references to the `ALCReplicatedState` name —
+while the function that creates the object plainly contains `142a3b117 lea rdx,[rip+0x56c3c72]`
+pointing at it. A linear sweep over 132 MB desynchronises on data, and one bad byte silently swallows
+every later reference, so the failure looks like a confident negative. New tool
+`reverse/tools/find-rip-lea.py` matches the RIP-relative LEA *opcode pattern* instead and cannot
+desync; it reproduces the by-hand result and found the complete reference sets.
+
+**New tooling this session:** `reverse/probes/client/frida-facet-target-id.py` (reads the client's own
+RMI target registry and names each target by its AZ type, so a facet's per-session local id is a lookup
+instead of a guess; `--publish` writes an id to `.azoth/state/alc-target.txt` for the server), the
+`AZOTH_REPLAY_INPUT_RESPONSE_TARGET` lever (`file` re-reads the id every send, so a live probe can
+re-address the reply mid-session), `retarget_typed_body()` with 4 new unit tests, and
+`scripts/prejoin-smoke.py`.
+
+## 2026-10-12 (cont. 10) — the red cable is IDENTIFIED as the ALC, the ALC state is replicated state, and the state stream is ruled out
+
+**Three results, and the first two are the strongest the cable work has had.**
+
+**1. The red cable IS the ALC's `server-timeout-for-input`. Confirmed three ways.** (a) `FUN_140208350`
+initialises a block at `0x149f20ee8` whose first field is the pointer to the string
+`javelin.alc-server-timeout-for-input` (`0x147fd8ec0`), followed by
+`javelin.alc-server-timeout-for-ui`. (b) The per-frame HUD function `FUN_14486c740` reads its two cable
+thresholds out of the **same** block (`_DAT_149f20f90` amber, `_DAT_149f21048` red). (c) The string
+`ALCLocalClient` has **exactly one xref in the whole image**, at `0x14486d833`, **inside
+`FUN_14486c740`** — so that function *is* the ALC local client, and its
+`age = clock() - *(u64*)(self+0xAA8)` comparison against those thresholds *is* the cable. The icon is a
+pure client-side age of one timestamp, and that timestamp belongs to the ALC. Evidence:
+`red_cable_is_the_alc_server_timeout_for_input_20261012`.
+
+**2. The ALC's authoritative state is AOI REPLICATED STATE, like the position.** The image contains
+`InstallRegistrationHook<MB::ALCReplicatedState>` — the same mechanism already recorded for
+`VPositionInTheWorldReplicatedState` — and `FUN_142a3b050` allocates the object **by name** through the
+AZ reflection registry with the `ALCReplicatedState` RTTI, size **0x1560** (5472 bytes). So the
+hypothesis that now fits BOTH symptoms is: *the cable going red and the player not moving are the same
+missing thing — the server never delivers the ALC/position replicated state.* That is a hypothesis with
+a specific test, not a conclusion: identify the trait that owns `ALCReplicatedState` (its record id /
+fragment key), the way `PhysicsTrait` owns its state type. Evidence:
+`alc_state_is_replicated_state_not_a_message_20261012`.
+
+**3. The state stream is RULED OUT, in both forms.** The lever's own comment asked for the run with the
+seq rewrite on. Measured:
+
+| run | `state-stream` sent | client errors | cable | W held |
+| --- | --- | --- | --- | --- |
+| rewrite OFF | 697 | `Failed to unmarshal` 0 | — | — |
+| rewrite **ON** | 126 | `Failed to unmarshal` 0, `recursion` 0 | **RED** (3.23% red) | position **unchanged** |
+
+With the rewrite off the client reported no errors and the world behaved exactly as if nothing had been
+sent — which confirms that **"no errors" does not mean "applied"**. With it on, the cable stayed red and
+a 10 s W hold left the position at `(9343.6416, 2786.7327, 87.538)`, the same value as every run before
+it. **Honest limitation:** the new gate probe (`frida-repl-gate.py`) reported
+`calls=261 accepted=261 rejected=0 distinctSeqs=1` — the field at `msg+0x28` is constant, so it is not
+the per-message sequence and **per-bundle acceptance is still unmeasured**. Do not claim the stream
+applied. Evidence: `state_stream_does_not_clear_the_cable_or_move_the_player_20261012`.
+
+**The cable instrument was broken, and that invalidates earlier readings.** `watch-indicator.py` is the
+only instrument for the icon, and it had **three** defects that each produced a wrong verdict silently:
+(1) it classified a **stale** capture when `shot.py` failed — a 3-minute run reported `absent/other` with
+0% red while a fresh capture of the same second showed the icon plainly RED, reading a file written 40
+minutes earlier; (2) it did not scale its box, so a 1920x1080 capture sampled the wrong region; (3) its
+red rule required `g < 110` while the icon's own pixels measure `(229,113,106)`, so the brightest half of
+the cable was excluded. All three are fixed and the fix is verified against a case whose answer is known
+by eye. Evidence: `hud_indicator_classifier_had_three_defects_20261012`.
+
+**Next concrete step (bounded, static).** Identify the trait that owns `MB::ALCReplicatedState` and the
+record id / fragment key that carries it, then check whether the capture contains it. That is the same
+analysis that mapped `PhysicsTrait`, and it is what decides whether the ALC/position state is obtainable
+from the capture at all. `reverse/tools/find-disp-writes.py` and
+`reverse/tools/scan-wire-names.py` (1833 of 7052 wire types now named, 8 hand-verified anchors
+reproduced) are the tools for it.
+
+**Still not met: both gates.** Movement: unchanged through W in every session measured. Connection: the
+cable goes red, now with a mechanism and a class attached to it. What this session produced is the
+identification of the thing to fix, not the fix.
+
+## 2026-10-12 (cont. 9) — the red cable, read from the code: it is a client-side age, and the field is NOT findable by offset
+
+**The cable verdict is computed in one function, and the comparison is now exact.** `FUN_14486c740`
+does:
+
+```
+now  = FUN_141413890();
+age  = now - *(u64*)(hud + 0xAA8);
+if (age > red_threshold)   state = 2;      // red
+else                       state = (age > amber_threshold);   // 1 amber, 0 clear
+FUN_1433d4660(0xc1fd05e0, &state, 1);
+```
+
+The two thresholds are client cvars read through `_DAT_149f20f90` (amber) and `_DAT_149f21048`
+(red). So the icon is a **pure client-side age of one 64-bit timestamp field** — no server verdict
+appears anywhere in it. That turns the earlier *observed* thresholds (amber ~2 s, red ~15 s) into a
+code-level fact, and it means the reported sequence (clear → amber → red) is exactly what happens
+when nothing refreshes `hud+0xAA8`: the age grows monotonically on its own. The previous live
+finding that the stamp "moved once (at replay-complete-quiet) then froze" is therefore the whole
+story so far — written at least once, never refreshed. Evidence:
+`hud_cable_state_is_computed_in_code_with_exact_thresholds_20261012`.
+
+**Why earlier attempts never found the writer — and this is the useful part.** `+0xAA8` is **not
+unique to that class**. A displacement search over the image finds **10 functions writing a qword**
+there and **68 `lea` sites** computing an address with that displacement; at least six of the writers
+are the same constructor pattern (`lea rax,[rip+const]; mov qword [rdi+0xAA8], rax`) initialising a
+**pointer** field in unrelated classes. Worked example of the trap, hit this session: the two most
+promising candidates (`mov qword [rdi+0xAA8], rax`, i.e. "store now") turned out to be a
+**profiler settings initialiser** whose neighbours are the cvars `profile_additionalsub` (stored at
+`+0xA88`) and `profile_filter` (at `+0xAA8`). None of the 10 writers calls the HUD clock. So a
+displacement search, or a Frida hook on the raw offset, catches unrelated classes and **cannot**
+identify the ALC field. The correct next step is to identify the **class** of the HUD object from
+the HUD function's two callers (`0x14485d663` calls `FUN_14486c740(param_1 - 0x160)`, so the HUD
+object is a base subobject of a larger one) and hook that class's specific writer. New reusable tool:
+`reverse/tools/find-disp-writes.py <disp>` (general; dedupes REX-prefix shadow decodings and groups
+hits by containing `.pdata` function).
+
+**The ALC conversation is visible in the capture, and its reply is identified.** Reconstructing the
+177-message capture as one ordered timeline: the client's channel-1 input burst is **seq 110-114**
+(five consecutive `0x635` = `ActionListComponentServerFacet_ReceiveInputFromClient`), and the server
+answers **immediately after** with `0x8` state, then `0x1096`/`0x1097` (`SyncTimeChange`/`SyncDayPhase`),
+then a continuous `0x8` state flood (seq 119-176) interleaved with `0x15d` pings. So the reply to the
+client's input stream *is* the time-sync pair plus fresh state — which is why the wire names ("time
+sync") and the protocol role ("the ALC reply") are both right and neither is a misnomer. Also
+confirmed: `0x15d` is `PingMsg`, 10× R (12 B) then 10× W (36 B), i.e. server pings, client pongs.
+And a fixture limit worth recording: **the capture does not record the datagram channel** (137/137
+server bodies begin with the typed marker, and `raw` is a message body), so no claim about which
+channel the real server used can be measured from it — that is an inference from our own sender.
+Evidence: `capture_records_bodies_not_channels_and_the_alc_reply_pair_20261012`.
+
+**Honest state of the two gates: still not met, and this session added no server-side fix.** Movement:
+W/S still produce no position change. Connection: the cable still goes red, and the code above shows
+why it will keep doing so until `hud+0xAA8` is refreshed. The one thing that would settle it is
+naming the HUD object's class and finding that class's stamp writer — a bounded static task, then a
+single targeted hook. No live run was made in this session; the three earlier runs already showed
+that the client dies ~7 min in on an ntdll access violation, which limits what any one session can
+measure.
+
+## 2026-10-12 (cont. 8) — WHY FRIDA KILLS THE CLIENT (and the fix, with its limit); the client's own `teleport` does not move the player
+
+**Frida: the mechanism is identified, and so is a fix — but the fix is not a session fix.**
+
+The crash is Windows `Event Name: BEX64`, `P4: frida-agent.dll_unloaded`, `P7: 0x9c7e0`,
+`P8: c0000005`, and the field that names it is **`P9: 8`** — an **execute** violation (DEP), not a
+read or write. `frida-agent.dll` is on disk for every attach (`.azoth/tmp/frida-<hash>/x86_64/`,
+and the hashes matched the probe times exactly). Disassembling it at `0x9c7e0` shows that is the
+**first instruction of a function** (`mov rax, rsp` of a big prologue; `.pdata` gives
+`0x9c7e0..0x9cbd7`). So a client thread branched to a function entry inside a module that had
+already been unmapped — a plain **execute-after-unload race**: `session.detach()` unloads the agent
+while hooks installed by the script are still reachable. The client logs *nothing* for it, which is
+why it was misread as the 20-minute timer.
+
+**The fix.** `reverse/probes/client/_paths.py::safe_shutdown()` now offers `kill=True` (end the
+client deliberately — usually right, since every world A/B needs a fresh process anyway) and an
+orderly path: `Interceptor.detachAll()` → settle → `script.unload()` → settle → `session.detach()`,
+which removes hook routing *before* the module can go away. Hot-hook probes export `teardown()` and
+take `--shutdown kill|detach`.
+
+**Its limit, measured — do not overstate this.** Two orderly teardowns were followed by a live
+client (checked at 19:18:19 and 19:20:38), against three same-day crashes at ~23 s with a bare
+detach, so the `frida-agent` BEX64 signature did **not** recur. **The client still died ~7 minutes
+after spawn (19:22:16Z) — and the WER event says it was a different failure:** `APPCRASH`,
+`ntdll.dll`, `c0000005`, **`P8: 0x165497`**, `P9` empty (read/write, not execute). That is the same
+family as the already-recorded `ntdll` crashes (`0x1662b7` ×3, `0xc4a0f`), at a new offset. So the
+orderly teardown removes *this* crash source and is **not** a session fix; the real long-session
+blocker remains the ntdll access violation. Evidence:
+`frida_unload_crash_mechanism_and_the_fix_20261012`.
+
+**The client's own `teleport` does not move the player — the first measurement past "input has no
+effect".** `teleport`'s handler (`FUN_141020a40`) parses three floats via `IConsoleCmdArgs` and
+calls the dispatcher `FUN_140fbf3b0(&{0x14057148c, 0}, &vec3)`, which iterates a manager list calling
+`fn(obj->[5] + off, &vec3)`; `0x14057148c` is a virtual-call thunk. Reproducing that call with the
+client's own arguments:
+
+| measurement | result |
+| --- | --- |
+| position before / after (client's own accessor) | identical, 3 runs |
+| does the dispatcher visit an entity? | **yes — `visited: 1`**, object `0x2110c932ca8`, our vec3 `[1,2,3]` |
+| is that object an AZ-reflected component? | **no** — slot 0 is not the type getter (garbage GUID), vtable RVA `0x8535968` has **zero** pointers to it in the image |
+
+So the empty-list hypothesis is refuted, and the open fork is precise: either (a) that object is not
+the local player (`FUN_141029f90` has **125 callers** — an ubiquitous context, not a player manager),
+so `teleport` is simply not aimed at the player and this says nothing about whether the client *can*
+move it; or (b) the write lands but does not take, because it is issued from a Frida **remote
+thread** instead of the client's own console/game thread. The discriminator is already in the probe
+(`--probe-dispatch` dumps the object's vtable, `+0x28` target and GUID). This matters because the
+project's own note calls `teleport` the command that "actually sets the player rotation correctly".
+Evidence: `client_teleport_command_does_not_move_the_player_20261012`.
+
+**Honest state of the two acceptance gates: neither is closer to passing.** Movement: W and S still
+produce no position change on a session that renders (re-confirmed this session), and now even the
+client's own debug write path does not move it — one more dead end ruled out, not progress toward
+movement. Connection: the HUD cable was **RED** again in this session, and the session ended ~7 min
+in on an ntdll crash. What this session produced is *understanding* (facet creation is not the
+blocker; the replay never carries the position; Frida's failure is an unload race with a fix) and
+one new, sharper question (what object `teleport` writes). Evidence bundle:
+`research/sessions/session-20261012T1913Z-teleport-test/`.
+
+## 2026-10-12 (cont. 7) — the black screen was a MISSING ENV VAR, not the client; movement re-measured on a rendering session; the Frida crash reproduced
+
+**Three results from this session, one of them a correction of this session's own first conclusion.**
+
+**1. The world renders. The black screen was my own omitted environment variables.**
+`python az.py dev` forwards whatever `AZOTH_*` variables the calling shell has, and
+`AZOTH_REPLAY_LOCAL_PLAYER_UUID` defaults to **`off`** — the documented failing value for gate 6.
+A run without it logged `Initialize()` → `GDERenderManager Init()` → **five**
+`Context: Exceeded max recursion for deferred actions ... The rest will be dropped`, spawned the
+player, and rendered **black** (verified mechanically: the game window's client area had 0
+non-black pixels while a desktop capture had content, so neither the monitor nor the GPU was at
+fault). With `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character AZOTH_REPLAY_INPUT_RESPONSE=1
+AZOTH_RESEND_INTERVAL_S=1.0` the world renders with the player possessed and `private-run.py`
+prints `verdict: InGame reached, player possessed`:
+
+| | with the vars | without them |
+| --- | --- | --- |
+| world renders | **yes**, player possessed | **no**, black frame, no player |
+| `Exceeded max recursion for deferred actions` | **0** | **5** |
+| `replay-local-player-uuid` spans filled | **25** | 0 |
+| client channel-1 records | **1470** | **0** |
+
+So the Gate 5 symptom set (black frame + deferred-action burst) is reproduced by a missing env var
+**with the predicate patch correctly applied**, and the omission also kills the client's input
+stream. `AZOTH_REPLAY_SPLIT_SEQ=0x25` was **not** needed: every session on 2026-10-10 that rendered
+used `split=off`. The runbook now shows the exact exports and how to verify the effective config —
+the world server logs a `config` event as the first line of every session, and reading the **last**
+one of an accumulated log is required (reading the first one produced a wrong diagnosis this
+session). Evidence: `runbook_env_vars_are_mandatory_and_verifiable_20261012`,
+`config_event_is_the_effective_config_20261012`.
+
+**2. W still does not move the player — now measured on a session that provably renders.**
+The client's own accessor returned holder `0x20f3f50ca80` at
+`(9343.6416, 2786.7327, 87.538)` — byte-identical to the previously recorded value, so the
+instrument reproduces across machines. A **10 s W hold and a 5 s S control produced zero change in
+every sample**, while the server received **20 channel-1 records per second** at every timestamp
+bucket (wire `0x635` = `ActionListComponentServerFacet_ReceiveInputFromClient`, 5839 for the
+session). The negative half of the movement criterion therefore no longer rests on a black-screen
+session. The **HUD cable was RED** in this same run, on a session whose own log reported
+`transportError` 0, `disconnected from REP` 0 and `OnLocalNetworkConnectionWarning` 0 — the
+documented separation between the icon and the log, now with a matched screenshot and a matched
+clean log. Evidence: `movement_negative_confirmed_on_a_rendering_session_20261012`.
+
+**3. The Frida agent-unload crash is REPRODUCED — detach is not a safe way to end a probe.**
+The existing record had one instance and had to be hedged as correlation. A second, unrelated probe
+(`frida-facet-slots.py`, new) produced the identical signature: WER `BEX64`,
+`P4: frida-agent.dll_unloaded`, `P7: 0x9c7e0`, `P8: c0000005`. The client died **silently** at
+detach — Game.log simply stops at a routine CMS heartbeat, with no `Cleanup()`, no
+`exiting to main menu` and no `Disconnected from REP` — which is why it first looked like the exit
+timer. Read the faulting module in Application event 1001 before reading a session death as client
+behaviour. Evidence: `frida_agent_unload_crash_reproduced_20261012`.
+
+**4. The decisive facet measurement: facets ARE created — the previous blocker was a category error.**
+The facet slot is `component + 0x80` (that is where the by-name factories store the facet), **not** a
+member of the entity's component list. Measured on the live local-player entity (126 components, all
+resolved, probe attached at character select):
+
+| | |
+| --- | --- |
+| components with a bound facet object | **110 / 126** |
+| distinct facet GUIDs | 108 |
+| named ones, of which `*ClientFacet` | **106 / 106** |
+| components with no facet | 16 — TagComponent, PlayerSaveData, Footprint/SkinnedMesh/MotionParameterSmoothing, one unnamed, **eight audio/vegetation** |
+| position components among the 16 | **none** |
+
+`PlayerPositionTrackingComponent` (index 95) **has `PlayerPositionTrackingComponentClientFacet`
+(B74D06BC-…) bound at `+0x80`** — the exact class `position_facets_absent_on_the_live_entity_20261012`
+recorded as absent. That entry searched the entity's **component list** for facet class names, and
+`IPositionReceiver` is an **interface**, not a component; three different kinds of object were
+conflated. Its conclusion "the client-side facets are not created on the local player entity" is
+**false**, and it is no longer a valid reason for the movement blocker. What survives, restated: of
+the position family only `PlayerPositionTrackingComponent` is a **component** of this entity
+(`PositionInTheWorldComponent`, `PositionalTicketingComponent`, `CameraComponent` are not components
+of it at all), and there is no `GlobalStorage` component either — so the 23 unbound
+`GlobalStorageComponentClientFacet` errors are the same shape of mistake (a class absent from *this*
+entity), not a broken facet mechanism. Evidence:
+`client_facets_ARE_bound_on_the_live_player_entity_20261012`.
+
+**Also confirmed offline this session (see cont. 6).** Client facets are built by per-class
+by-name factories against the registry at `0x14a313ff8`; the 368 `*ComponentClientFacet` classes
+are enumerated by `reverse/tools/scan-client-facets.py`. The replay provably never carries the
+player position.
+
+**Next experiment.** The movement blocker is no longer "facets are missing". Two candidate
+directions, both cheap and both offline-or-light: (a) `PositionInTheWorldComponent` is not a
+component of the entity although its server facet declares the replicated fields — check whether it
+is *supposed* to be, by looking at a remote player's entity (which does replicate a position) and
+seeing whether that component is on it; (b) the entity's `PlayerPositionTrackingComponent` has a
+live client facet, so instrument what that facet does with the 20 Hz channel-1 input stream. Either
+way, attach probes at character select and prefer hooks-only: a probe that hooks the hot component
+lookup and then detaches has killed the client **three times** in this session. Evidence bundles:
+`research/sessions/session-20261012T1818Z-render-ok/` (rendering run) and
+`research/sessions/session-20261012T1938Z-entertest/` (black-screen run without the vars).
+
+## 2026-10-12 (cont. 6) — client facets are created by per-class by-name factories; the replay provably never carries the position
+
+**Environment warning for a fresh checkout.** The raw live captures the (cont. 2)–(cont. 5)
+sections cite are **not on this machine**: `reverse/sessions/` is absent, `.azoth/night/runs/`
+does not exist, and `.azoth/logs/` plus `.azoth/captures/probes/` stop at **2026-10-10 11:50**.
+So `player-components-1791660475.jsonl`, `player-components-full-1791794008.jsonl`,
+`physics-timeline-1791800300.jsonl` and the run directories `phys-101555`, `comp-083309`,
+`rcv2-073512`, `smC0-054923` are all missing here and those measurements can only be
+re-verified by new runs. Only the committed atlas/docs summaries survive. `services/world/rep_traffic.jsonl`
+is 2.59 GB and is a debugging log, not state.
+
+**What creates a client facet is now located, and it is not a message.** Every client facet is
+built by a **per-class by-name factory**:
+`ReflectionRegistry.CreateByName("<Class>", size, align, …)`, then the new object is stored at
+`<owner> + 0x80` with `<facet> + 8 = <owner>`. The registry is the global at `0x14a313ff8` — the
+same object behind the `IPositionReceiver` register-by-name (`0x143f98300`) and installer
+(`0x143f983d0`). So "create the ClientFacet" and "create the `IPositionReceiver` instance" are
+**one question about one registry**, not two.
+
+The factory per class is reachable offline: each class owns a table in `.rdata` whose tail is
+`[0x1406c7b30][0x1416a1340][FACTORY][0x14171a8b0][0x1417aae90]`. Scanning that signature gives
+**369 tables / 368 distinct names, and 368/368 are `*ComponentClientFacet`**. New tool
+`reverse/tools/scan-client-facets.py --check` (self-verifying) regenerates
+`research/derived/client-facet-factories.json`. The factories are **never called directly**
+(0 callers; the address exists only as the table slot), so creation is table-driven.
+
+**The class is not missing from the build.** `PlayerPositionTrackingComponentClientFacet` →
+`0x142cff160`, `PositionInTheWorldComponentClientFacet` → `0x145c209f0`,
+`PositionalTicketingComponentClientFacet` → `0x142605970`. Whole-family creators exist too:
+`0x142d14d50` and `0x145c94990`. And **22 of the 26 named components on the live entity have a
+registered `*ComponentClientFacet` class** — so "the class does not exist" is excluded.
+`IPositionReceiver` is **not** in the 368 (it is not a client facet), and there is **no
+`CharacterPhysicsComponentClientFacet` in this build at all**, independently corroborating
+(cont. 5). Atlas: `client_facet_creation_is_a_by_name_factory_20261012`.
+
+**The replay provably never carries the player position.** Parsed with the repo's own
+`replay_store` + `bundle` (78/79 bundles decode) and walked with the live-measured fragment sizes,
+the spawn record is `record_id 1 / fragment_count 48 / payload 46393 B`, re-sent 24 times. The
+measured live position `(9343.6416, 2786.7327, 87.538)` appears **nowhere** in any of the 177
+messages in float32, float64, or int16/int32/int64 fixed point at x1/x10/x100/x1000/x1024/x4096.
+What the spawn record *does* carry is identity: the player's 16-byte actor id
+`1a954abc4b3185bfbe37c3d8592618e0` at payload offset `0x7423`, fragment `n=23 key=0 type=10`. Atlas:
+`spawn_record_fragments_do_not_carry_the_local_player_position_20261012`.
+
+**Next measurement (one number per component, no new probe design).** The facet slot is
+`component + 0x80`. Extend `frida-player-components-full.py` to read `[component+0x80]` for each of
+the 126 components of the live local-player entity. If it is **null for all of them**, the local
+player gets **no client facets at all** and the problem is general (hook the table-driven path).
+If it is non-null for most and null only for the position family, the problem is specific and the
+family creator `0x142d14d50` is the thing to hook. That single reading decides which of the two
+very different investigations to run.
+
 ## 2026-10-12 (cont. 5) — physics disagreement RESOLVED; the position path is replicated state, and its facets are missing
 
 **The physics disagreement is settled, and it settles AGAINST the committed record — by that

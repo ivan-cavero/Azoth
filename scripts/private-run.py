@@ -148,13 +148,36 @@ def click_play(hwnd: int) -> str:
     return (result.stdout or result.stderr).strip()
 
 
-def verdict(mark: int) -> str:
+# The world actually STREAMING, measured as log lines the client only emits while it
+# loads world slices. Measured 2026-10-13 by comparing two sessions on this build:
+#
+#   session that rendered the world : 40 post-spawn non-boilerplate lines, 26 `[WARNING] Slice:`
+#   session stuck in a loading screen:  5 post-spawn non-boilerplate lines,  0 `[WARNING] Slice:`
+#
+# and the stuck one still reported `player spawn succeeds` + `Update state ... InGame`, so the
+# state machine saying InGame does NOT mean the world rendered. A runner that only checks the
+# state machine will call a hung loading screen a success, which it did until this was added.
+SLICE_MARKER = "[WARNING] Slice:"
+
+
+def slice_count(mark: int) -> int:
+    return log_text()[mark:].count(SLICE_MARKER)
+
+
+def verdict(mark: int, *, waited_for_render_s: float = 0.0) -> str:
     text = log_text()[mark:]
     if "player spawn succeeds, in game" in text:
         head = text.split("player spawn succeeds")[0]
         if "[ClientContext] Cleanup()" in head[-600:]:
             return "InGame reached but ClientContext was cleaned up (predicate flag missing?)"
-        return "InGame reached, player possessed"
+        slices = text.count(SLICE_MARKER)
+        if slices == 0:
+            return (
+                f"InGame (state machine) but the world NEVER STARTED STREAMING - 0 "
+                f"'{SLICE_MARKER.rstrip()}' lines after {waited_for_render_s:.0f}s; the client is "
+                "most likely hung on a loading screen. Do NOT treat this as a rendered world."
+            )
+        return f"InGame reached, world streaming ({slices} slice lines), player possessed"
     if "transport_security_error" in text:
         return "DTLS rejected (gate 4: run scripts/patch-dtls-disk.py apply)"
     if "connection_player_timeout" in text:
@@ -173,6 +196,9 @@ def main() -> int:
                     help="seconds to wait after the splash key before patching/Play")
     ap.add_argument("--play-attempts", type=int, default=8)
     ap.add_argument("--login-timeout", type=float, default=420.0)
+    ap.add_argument("--render-timeout", type=float, default=90,
+                    help="seconds after spawn to wait for the client to start "
+                         "streaming the world (Slice lines); 0 disables the wait")
     args = ap.parse_args()
 
     if not args.no_launch:
@@ -232,16 +258,32 @@ def main() -> int:
         return 1
 
     print("[run] watching for the world")
+    spawn_at = None
     deadline = time.time() + 180
     while time.time() < deadline:
         text = log_text()[mark:]
         if "player spawn succeeds, in game" in text:
+            spawn_at = time.time()
             break
         if "OnConnectionFail" in text or "Connection fail" in text:
             break
         time.sleep(5)
 
-    print(f"[run] verdict: {verdict(mark)}")
+    # After the spawn marker, give the client a bounded window to actually stream the world.
+    # Without this the slice count is read too early and a working session looks stuck.
+    waited = 0.0
+    if spawn_at is not None:
+        render_deadline = time.time() + args.render_timeout
+        while time.time() < render_deadline:
+            if slice_count(mark) > 0:
+                break
+            time.sleep(5)
+            waited = time.time() - spawn_at
+
+    v = verdict(mark, waited_for_render_s=waited)
+    print(f"[run] verdict: {v}")
+    if v.startswith("InGame (state machine) but the world NEVER STARTED STREAMING"):
+        return 1
     return 0
 
 

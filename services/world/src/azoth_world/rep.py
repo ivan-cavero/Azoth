@@ -238,9 +238,42 @@ ACTIVITY_STREAM_TYPE = 0x1B88
 # captured tail bundles re-triggers the client's login/spawn path and costs the
 # ClientContext. Do not re-enable this as a fix; the cable needs a different
 # continuation (see the ClientContext note below).
-STATE_STREAM_ENABLED = os.environ.get("AZOTH_REPLAY_STATE_STREAM", "0") == "1"
-STATE_STREAM_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_STATE_STREAM_PERIOD_S", "2.0"))
-STATE_STREAM_MIN_SEQ = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_MIN_SEQ", "0xA0"), 0)
+# MEASURED 2026-10-13: this is no longer experimental - it is what makes the session
+# correct. The real server never stopped sending type-0x08 state, and with our replay
+# stopping at 0xb0 the client's ALC "last response" stamp ages out and the HUD cable goes
+# red (see RED_CABLE_FIXED_record1_state_stream_refreshes_the_alc_stamp_20261013).
+# Two measured facts set the defaults:
+#   * the LOCAL PLAYER's own state is record_id 1 and lives only in the bundles at replay
+#     seq 0x98/0x9A/0x9C/0x9E, all BELOW the old floor of 0xA0, so the old default never
+#     re-sent the player's state at all - the floor is now 0x94;
+#   * the cable clears when the player's record is re-sent more often than the amber
+#     threshold (~2 s), so it gets its own faster period while the rest of the world
+#     state keeps the original's ~1/s rate.
+STATE_STREAM_ENABLED = os.environ.get("AZOTH_REPLAY_STATE_STREAM", "1") == "1"
+STATE_STREAM_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_STATE_STREAM_PERIOD_S", "1.0"))
+STATE_STREAM_MIN_SEQ = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_MIN_SEQ", "0x94"), 0)
+# Record id of the local player's own state record (the client logs "Received new local
+# player metadata" for record 1). These bundles are additionally sent on their own, faster
+# timer so the ALC stamp stays young and the cable stays clear.
+STATE_STREAM_PLAYER_RECORD = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_PLAYER_RECORD", "1"), 0)
+STATE_STREAM_PLAYER_PERIOD_S = float(
+    os.environ.get("AZOTH_REPLAY_STATE_STREAM_PLAYER_PERIOD_S", "0.25")
+)
+# MEASURED 2026-10-13: the local player's own state record is what refreshes the ALC
+# local client's "last response" stamp, and that stamp IS the red HUD cable
+# (age = clock() - *(alc + 0xAA8); amber ~2 s, red ~15 s).
+#
+# In the capture the local-player record is `record_id 1` and it appears only in the
+# four 7154-byte bundles at replay seq 0x98/0x9A/0x9C/0x9E (152/154/156/158) - all of
+# which sit BELOW the stream's old default floor of 0xA0, so the stream never re-sent
+# them. Measured consequence: with the floor at 0xA0 the stamp NEVER moved (age grew
+# 110 s -> 250 s, cable RED); with the floor at 0x94 it refreshed 12 times in 140 s and
+# the cable dropped from RED to YELLOW.
+#
+# This knob restricts the stream to bundles whose FIRST record id equals the given
+# value, so every send is a refresh instead of one in 29. 1 = the local-player record.
+# -1 (default) keeps every bundle at or above the floor.
+STATE_STREAM_ONLY_RECORD = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_ONLY_RECORD", "-1"), 0)
 # The client deduplicates replication by seq: FUN_14643e7b0 accepts an unreliable
 # replication message only when `msg.clientContextInstanceId == port[+0x80]` AND
 # `*(u64*)(msg+0x28) > port[+0x78]` (m_lastUnreliableReplicationSeq); FUN_1406d97b0
@@ -269,7 +302,12 @@ STATE_STREAM_MIN_SEQ = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_MIN_SEQ", "
 # parser (`javelin.bundle.with_replication_seq`), which fixes the width problem;
 # the remaining open question is whether re-applying a captured record is
 # idempotent client-side, which needs a live run to settle.
-STATE_STREAM_REWRITE_SEQ = os.environ.get("AZOTH_REPLAY_STATE_STREAM_SEQ", "0") != "0"
+# Default ON: with the rewrite OFF the re-sent bundles keep their captured counter, which
+# is at or below the client's high-water, so the replication gate DISCARDS every one of
+# them (measured: a session sent 697 bundles with zero client-side errors and behaved as if
+# nothing had been sent). The rewrite re-encodes the varint through the verified parser, so
+# it does not have the width bug that made an earlier version corrupt the body.
+STATE_STREAM_REWRITE_SEQ = os.environ.get("AZOTH_REPLAY_STATE_STREAM_SEQ", "1") != "0"
 # Byte offset of the counter in the capture's bundles, where its varint happens
 # to be one byte wide. Kept for the tests and for reading a captured body by
 # eye; the live path decodes the varint instead of indexing this.
@@ -291,6 +329,37 @@ INPUT_RESPONSE_PERIOD_S = float(
     os.environ.get("AZOTH_REPLAY_INPUT_RESPONSE_PERIOD_S", "1.0")
 )
 INPUT_RESPONSE_TYPES = (0x1096, 0x1097)
+# MEASURED 2026-10-13: the captured 0x1096/0x1097 bodies carry a 16-byte TARGET at
+# body offset 4 (right after `00 01 <type varint>`), and it is
+# `93a3e477cb5fd51ebf85314bbc4a951a` - the capture session's own local id for the
+# client's `TimeComponentClientFacet`. Our replay sends that body verbatim, and the
+# client rejects it: `RMIDispatch: The facet target ID couldn't be found
+# {targetLocalId: 10638597947943539998}` (0x93a3e477cb5fd51e). The facet EXISTS in our
+# session (`TimeComponentClientFacet` is bound at `component + 0x80` on component 65,
+# measured), so only its LOCAL id differs: the registry assigns ids per session. This
+# knob re-addresses those two messages to an id discovered at runtime.
+#   unset        -> send the captured target (previous behaviour)
+#   <32 hex>     -> use that 16-byte target
+#   file         -> re-read INPUT_RESPONSE_TARGET_FILE on every send, so a live probe
+#                   (reverse/probes/client/frida-facet-target-id.py) can publish the id
+#                   mid-session without restarting the client
+# MEASURED 2026-10-13: our input-response goes out on CHANNEL 0 in the capture's
+# `[vlq32 len]` container, because that is what `_send_replay_message` does. But the
+# message it answers arrives on CHANNEL 1 (the client's 0x635 stream), and the client's
+# own channel-1 records use a different container and a different field order:
+#     client -> server:  [u32 BE crc32][u32 BE len][16-byte target][00 01][type][body]
+#     capture server -> : [vlq32 len][00 01][type][16-byte target][payload]
+# (measured: 9997 channel-1 records with flags 0x20 in one session, all carrying the
+# crc32+len container). Nobody has yet sent the ALC answer as a proper channel-1
+# record, so these two knobs exist to test exactly that - a one-variable A/B.
+INPUT_RESPONSE_CHANNEL = int(os.environ.get("AZOTH_REPLAY_INPUT_RESPONSE_CHANNEL", "0"), 0)
+INPUT_RESPONSE_CONTAINER = os.environ.get(
+    "AZOTH_REPLAY_INPUT_RESPONSE_CONTAINER", "server"
+).strip().lower()
+INPUT_RESPONSE_TARGET = os.environ.get("AZOTH_REPLAY_INPUT_RESPONSE_TARGET", "").strip().lower()
+INPUT_RESPONSE_TARGET_FILE = os.environ.get(
+    "AZOTH_REPLAY_INPUT_RESPONSE_TARGET_FILE", ".azoth/state/alc-target.txt"
+)
 # EXPERIMENTAL (default off): echo the client's own channel-1 player-state
 # record back on channel 1. The capture has NO server->client channel-1 traffic
 # (see SERVER-CONTRACT.md "The 0x635 stream"), so this is a synthetic probe to
@@ -712,6 +781,77 @@ def position_reply_target(actor: bytes) -> bytes | None:
     except ValueError:
         return None
     return blob if len(blob) == 16 else None
+
+def _state_stream_selected(msg) -> bool:
+    """Whether a bundle passes `STATE_STREAM_ONLY_RECORD`.
+
+    A NEGATIVE value means "no record filter" and must select everything. Writing the
+    filter as a plain equality against the sentinel was a real bug: the default -1 then
+    matched nothing, the stream armed with ZERO bundles, and the cable stayed RED while the
+    config event happily reported `state_stream: True` - a silent no-op, which is the exact
+    failure mode this project keeps hitting.
+    """
+    if STATE_STREAM_ONLY_RECORD < 0:
+        return True
+    return _state_stream_record_id(msg) == STATE_STREAM_ONLY_RECORD
+
+
+def _state_stream_record_id(msg) -> int:
+    """The FIRST record id of a type-0x08 state bundle, or -1 if it is not one.
+
+    A bundle body is `[00 01 08][8-byte prologue][varint payload length][records]`, and a
+    record is `[u8 record_id][u8 fragment_count][fragments...]`. Record id 1 is the
+    local-player metadata slot (the client logs "Received new local player metadata" for
+    it), which is what `STATE_STREAM_ONLY_RECORD=1` selects.
+    """
+    try:
+        body = javelin_bundle.decode_bundle(msg.body).payload
+    except Exception:
+        return -1
+    return body[0] if body else -1
+
+
+def _read_input_response_target() -> bytes | None:
+    """The 16-byte target to re-address 0x1096/0x1097 to, or None to keep the captured one.
+
+    `file` re-reads on every call on purpose: the local id is assigned by the client per
+    session, so a probe can discover it and publish it while the session is live.
+    """
+    value = INPUT_RESPONSE_TARGET
+    if not value:
+        return None
+    if value == "file":
+        try:
+            value = Path(INPUT_RESPONSE_TARGET_FILE).read_text(encoding="utf-8").strip().lower()
+        except OSError:
+            return None
+    try:
+        blob = bytes.fromhex(value)
+    except ValueError:
+        return None
+    return blob if len(blob) == 16 else None
+
+
+def retarget_typed_body(body: bytes, target: bytes) -> bytes | None:
+    """Return ``body`` with its 16-byte target replaced.
+
+    Layout, verified on the capture's own 0x1096/0x1097 (`read_type_marker` puts the
+    target at offset 4 for both): `[00 01][type varint][16-byte target][payload]`.
+    Returns None when the body does not look like that shape, so a caller can fall back
+    to sending it untouched instead of corrupting it.
+    """
+    from .javelin import bundle as _bundle
+
+    if len(target) != 16:
+        return None
+    try:
+        _type_id, offset = _bundle.read_type_marker(body)
+    except Exception:
+        return None
+    if len(body) < offset + 16:
+        return None
+    return body[:offset] + target + body[offset + 16 :]
+
 
 def start_movement_body(actor: bytes, comm: int = 1) -> bytes | None:
     """20-byte body for `StartMovementCommunicationMsg` (wire type 726, 0x2d6).
@@ -1206,7 +1346,11 @@ class PeerSession:
         # Post-replay 0x08 state-bundle stream (see STATE_STREAM_* above).
         self.state_stream_all: list = []
         self.state_stream_queue: list = []
+        self.state_stream_player: list = []
+        self.state_stream_player_queue: list = []
         self.state_stream_next_at = 0.0
+        self.state_stream_player_next_at = 0.0
+        self.state_stream_player_sent = 0
         self.state_stream_sent = 0
         self.state_stream_seq = 0
         # Post-replay 0x1096/0x1097 input-response stream (see INPUT_RESPONSE_*).
@@ -1452,9 +1596,16 @@ class PeerSession:
                 for m in store.replay_messages_after_v3(
                     REPLAY_MAX_SEQ, include_redacted=True
                 )
-                if m.type_id == 0x08 and m.seq >= STATE_STREAM_MIN_SEQ
+                if m.type_id == 0x08
+                and m.seq >= STATE_STREAM_MIN_SEQ
+                and _state_stream_selected(m)
             ]
             self.state_stream_queue = list(self.state_stream_all)
+            self.state_stream_player = [
+                m for m in self.state_stream_all
+                if _state_stream_record_id(m) == STATE_STREAM_PLAYER_RECORD
+            ]
+            self.state_stream_player_queue = list(self.state_stream_player)
             highest = 0
             for msg in self.state_stream_all:
                 # The counter the client's replication gate compares is the
@@ -1474,6 +1625,10 @@ class PeerSession:
                     "count": len(self.state_stream_all),
                     "seqs": [hex(m.seq) for m in self.state_stream_all],
                     "period_s": STATE_STREAM_PERIOD_S,
+                    "only_record": STATE_STREAM_ONLY_RECORD,
+                    "player_record": STATE_STREAM_PLAYER_RECORD,
+                    "player_bundles": len(self.state_stream_player),
+                    "player_period_s": STATE_STREAM_PLAYER_PERIOD_S,
                     "loop": True,
                     "rewrite_seq": STATE_STREAM_REWRITE_SEQ,
                     "seq_base": self.state_stream_seq,
@@ -1793,12 +1948,34 @@ class PeerSession:
         )
 
     def maybe_state_stream(self, server) -> None:
-        """Continue the captured 0x08 state-bundle stream once the replay drains.
+        """Keep the captured 0x08 state flowing after the replay drains.
 
-        See STATE_STREAM_* above: the real server never stopped sending 0x08
-        and our replay stops at seq 0xb0, after which the client's activity
-        warning counter climbs until it drops the REP connection. The bodies
-        are the captured ones, verbatim; only the outbound envelope seq is new.
+        The bodies are the captured ones, verbatim; only the replication counter and the
+        outbound envelope seq are new.
+
+        WHY THIS IS THE DEFAULT AND WHY IT MATTERS (measured 2026-10-13). The real server
+        never stopped sending type-0x08 state; our replay stops at seq 0xb0. Two symptoms
+        followed from that, and both are fixed by this method:
+
+          * MOVEMENT: the client only simulates the local player while it is receiving the
+            player's OWN state. With the stream off, the position sits at the historical
+            constant (9343.6416, 2786.7327, 87.538) and W does nothing; with it on, W/S/A/D
+            move the player in the correct directions.
+          * THE RED HUD CABLE: the icon is a client-side age of the ALC local client's
+            +0xAA8 stamp. The player's own state refreshes that stamp; nothing else we send
+            does (measured: the 0x1096/0x1097 input response is delivered 828 times with the
+            stamp frozen).
+
+        THE RECORD THAT DOES IT is `record_id 1`, the local player's metadata slot, which in
+        the capture lives only in the four 7154-byte bundles at seq 0x98/0x9A/0x9C/0x9E -
+        all BELOW the old default floor of 0xA0. So the old default re-sent every other
+        entity's state and never the player's. Hence the floor is 0x94, and the player's
+        bundles additionally get their own faster timer (`STATE_STREAM_PLAYER_PERIOD_S`)
+        because the cable only clears when the stamp is refreshed faster than its ~2 s amber
+        threshold.
+
+        This must wait for the replay to drain: it re-applies the same captured bundles the
+        replay is still delivering, and double-applying state is not idempotent client-side.
         """
         if not STATE_STREAM_ENABLED or self.gone or not self.v3_responded:
             return
@@ -1808,18 +1985,38 @@ class PeerSession:
         # client-side (see the state-stream notes above).
         if self.replay_queue or not self.greetings_after_replay:
             return  # the replay itself still carries the captured bundles
+        if not (self.state_stream_all or self.state_stream_queue
+                or self.state_stream_player_queue):
+            return
+        now = time.monotonic()
+        # Two rates, because the two kinds of state matter differently (measured):
+        # the LOCAL PLAYER's own record has to keep the ALC stamp younger than the
+        # cable's amber threshold (~2 s), while the rest of the world state only has
+        # to keep flowing at roughly the rate the real server used.
+        if self.state_stream_player_queue and now >= self.state_stream_player_next_at:
+            self.state_stream_player_next_at = now + STATE_STREAM_PLAYER_PERIOD_S
+            player_msg = self.state_stream_player_queue.pop(0)
+            if not self.state_stream_player_queue:
+                self.state_stream_player_queue = list(self.state_stream_player)
+            self._send_state_bundle(server, player_msg, "player")
+        if now < self.state_stream_next_at:
+            return
         if not self.state_stream_queue:
             # The real server never stopped sending 0x08, so loop the captured
             # tail instead of going quiet after one pass.
-            if not self.state_stream_all:
-                return
             self.state_stream_queue = list(self.state_stream_all)
-        now = time.monotonic()
-        if now < self.state_stream_next_at:
-            return
         self.state_stream_next_at = now + STATE_STREAM_PERIOD_S
-        msg = self.state_stream_queue.pop(0)
+        self._send_state_bundle(server, self.state_stream_queue.pop(0), "world")
+
+    def _send_state_bundle(self, server, msg, kind: str) -> None:
+        """Send one captured state bundle with a fresh, gate-passing counter.
+
+        `kind` is "player" or "world" and is only used for the log, so an A/B can tell
+        which of the two rates produced a given send.
+        """
         self.state_stream_sent += 1
+        if kind == "player":
+            self.state_stream_player_sent += 1
         sent_seq = None
         if STATE_STREAM_REWRITE_SEQ:
             # Continue the counter above the client's high-water, or the bundle
@@ -1856,6 +2053,7 @@ class PeerSession:
         log_event(
             {
                 "event": "state-stream",
+                "kind": kind,
                 "seq": hex(msg.seq),
                 "size": len(msg.body),
                 "n": self.state_stream_sent,
@@ -1882,16 +2080,68 @@ class PeerSession:
         if now < self.input_response_next_at:
             return
         self.input_response_next_at = now + INPUT_RESPONSE_PERIOD_S
+        target = _read_input_response_target()
+        retargeted = 0
         for msg in self.input_response_msgs:
-            self._send_replay_message(server, msg)
+            if INPUT_RESPONSE_CONTAINER == "client":
+                if self._send_input_response_client_container(server, msg, target):
+                    retargeted += 1 if target is not None else 0
+                    continue
+                # fall through to the capture container if the body did not parse
+            send = msg
+            if target is not None:
+                body = retarget_typed_body(msg.body, target)
+                if body is not None:
+                    send = replace(msg, body=body)
+                    retargeted += 1
+            self._send_replay_message(server, send)
             self.input_response_sent += 1
         log_event(
             {
                 "event": "input-response",
                 "sent": self.input_response_sent,
                 "types": [hex(m.type_id) for m in self.input_response_msgs],
+                "retargeted": retargeted,
+                "target": target.hex() if target is not None else "captured",
+                "channel": INPUT_RESPONSE_CHANNEL,
+                "container": INPUT_RESPONSE_CONTAINER,
             }
         )
+
+    def _send_input_response_client_container(self, server, msg, target) -> bool:
+        """Send one input response as the CLIENT's own channel-1 record form.
+
+        `[u32 BE crc32][u32 BE len][16-byte target][00 01][type][payload]` on channel 1
+        with flags 0x20 - the exact shape every client channel-1 record uses (measured
+        9997/9997 in one session). The captured body is `[00 01][type][target][payload]`,
+        so the type and payload are lifted out of it and re-framed with the target in
+        front. Returns False (so the caller can fall back) if the body does not parse.
+        """
+        try:
+            wire_type, offset = javelin_bundle.read_type_marker(msg.body)
+        except Exception:
+            return False
+        if len(msg.body) < offset + 16:
+            return False
+        tgt = target if target is not None else msg.body[offset : offset + 16]
+        payload = msg.body[offset + 16 :]
+        inner = wrap_reply("client", tgt, wire_type, payload)
+        seq = self.out_msg_seq
+        self.out_msg_seq = (seq + 1) & 0xFFFF
+        rel = self.out_rel_seq
+        self.out_rel_seq = (rel + 1) & 0xFFFF
+        rec = MessageRecord(
+            channel=INPUT_RESPONSE_CHANNEL,
+            payload=inner,
+            sequence=seq,
+            reliable_sequence=rel,
+            reliable=False,
+            connecting=False,
+            flags_override=0x20,  # unreliable + DATA_CHANNEL, the client's own form
+        )
+        self._send_datagram(server, [rec])
+        self.input_response_sent += 1
+        return True
 
     def maybe_channel1_echo(self, server) -> None:
         """EXPERIMENTAL: echo the client's channel-1 player-state record back.
@@ -2459,6 +2709,9 @@ class RepServer:
                 "activity_stream": ACTIVITY_STREAM_ENABLED,
                 "input_response": INPUT_RESPONSE_ENABLED,
                 "input_response_period_s": INPUT_RESPONSE_PERIOD_S,
+                "input_response_target": INPUT_RESPONSE_TARGET or "captured",
+                "input_response_channel": INPUT_RESPONSE_CHANNEL,
+                "input_response_container": INPUT_RESPONSE_CONTAINER,
                 "channel1_echo": CHANNEL1_ECHO_ENABLED,
                 "replay_enabled": REPLAY_ENABLED,
                 "replay_max_seq": hex(REPLAY_MAX_SEQ),

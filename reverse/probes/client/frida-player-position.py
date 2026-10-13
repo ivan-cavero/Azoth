@@ -97,6 +97,9 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--poll", type=float, default=0.25)
     ap.add_argument("--process", default="NewWorld.exe")
+    ap.add_argument("--all", action="store_true",
+                    help="print every sample (with an epoch timestamp) instead of only "
+                         "changes, so a WASD phase can be segmented exactly by time")
     args = ap.parse_args()
 
     session = frida.get_local_device().attach(args.process)
@@ -126,9 +129,12 @@ def main() -> int:
             if st.get("ok"):
                 vals = tuple(round(v.get("f", float("nan")), 4) for v in st["vals"])
                 changed = last_vals is not None and vals != last_vals
-                if changed or time.time() - last_log > 5:
+                if args.all or changed or time.time() - last_log > 5:
                     flag = "  <-- CHANGED" if changed else ""
-                    print(f"[pp] holder={st['holder']} pos={vals} "
+                    # t= is the wall clock of THIS sample: a movement A/B segments phases
+                    # by time, and the position alone cannot say which phase a sample
+                    # belongs to.
+                    print(f"[pp] t={time.time():.3f} holder={st['holder']} pos={vals} "
                           f"prints={st['prints']} deliver={st['delivers']} "
                           f"dispatch={st['dispatches']}{flag}", flush=True)
                     last_log = time.time()

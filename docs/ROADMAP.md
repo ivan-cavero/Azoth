@@ -22,7 +22,25 @@ orders the work without repeating those references.
 - After each experiment finds a working behavior, record why it worked, check
   side effects, simplify the implementation, and remove failed variants.
 
-### 2. Resolve the current client blocker
+### 2. Resolve the current client blocker — **BOTH GATES MET 2026-10-13**
+
+- **Movement gate: MET.** The local transform changes while W is held and is still when no input is
+  given, measured with the client's own accessor and reproduced three times (net 83.026 u and 20.784 u
+  of displacement in two runs; 0.0 u with no input). A one-variable A/B settles the cause: with the
+  state stream **OFF** the position is frozen at the historical constant
+  `(9343.6416, 2786.7327, 87.538)` and W does nothing; with it **ON** the player moves.
+  The missing piece was **record id 1**, the local player's own AOI state, which the stream's old
+  floor of `0xA0` never sent. See `MOVEMENT_WORKS_state_stream_enables_player_simulation_20261013`.
+- **Connection gate: the HUD cable is CLEARED.** The same A/B shows the icon **absent** with the
+  stream on and **RED (3.7%)** with it off, and the ALC stamp it ages goes from frozen (growing to
+  262 s) to refreshing 225 times in 140 s with a maximum age of 100 ms. See
+  `RED_CABLE_FIXED_record1_state_stream_refreshes_the_alc_stamp_20261013`.
+- **What remains for this gate:** duration. Movement was measured in 10-12 s windows inside sessions
+  that lived ~22 min; there is no 30-minute proof and no 2-hour soak yet, and the sessions still end on
+  a client crash. The last crash was `frida-agent.dll` at `0x9c7f4` caused by a measurement probe, so
+  soak runs must be probe-free.
+
+
 
 - Treat this as two separate acceptance gates. REP transport survived a 2 h 06
   run with no transport disconnect, but the player still sees a red ALC/HUD
@@ -48,17 +66,56 @@ orders the work without repeating those references.
   the client's own command output by `frida-position-validate.py`. Measured 2026-10-12:
   **667/667 identical samples** over 136 s containing a 10 s W hold and a 4 s S control,
   while the server received 7804 channel-1 records — so W does not move the player and the
-  input does reach the game.
-- **The position arrives as REPLICATED STATE, not as an RMI, and the client-side facets are
-  missing.** `PlayerPositionTrackingComponent` has only AI spawn-manager debug messages;
-  `PositionInTheWorldComponent{Client,Server}Facet` have none; and
+  input does reach the game. **Re-confirmed the same day on a session that provably
+  rendered the possessed player** (world visible, full HUD, `verdict: InGame reached, player
+  possessed`): position `(9343.6416, 2786.7327, 87.538)` unchanged through a 10 s W hold and
+  a 5 s S control while the server received 20 channel-1 records per second at every
+  timestamp bucket. The negative half of the movement criterion therefore no longer rests
+  on a black-screen session. Evidence:
+  `movement_negative_confirmed_on_a_rendering_session_20261012`, capture
+  `research/sessions/session-20261012T1818Z-render-ok/`.
+- **The position arrives as REPLICATED STATE, not as an RMI — and the "facets are missing" reason was
+  WRONG (corrected 2026-10-12).** `PlayerPositionTrackingComponent` has only AI spawn-manager debug
+  messages; `PositionInTheWorldComponent{Client,Server}Facet` have none; and
   `PositionInTheWorldComponentServerFacet::InitializeReplicatedFields` exists with
-  `MB::PositionInTheWorldReplicatedState`. On the live player entity only the bare
-  `PlayerPositionTrackingComponent` is present — every position facet, `CameraComponent` and
-  `IPositionReceiver` are absent. This is the same failure class as the unbound
-  `GlobalStorageComponentClientFacet` and the missing `IPositionReceiver`: the client-side
-  facets are not created. Do not write another position RMI payload; find what makes the
-  client create/bind a client-side facet for a replicated component instead.
+  `MB::PositionInTheWorldReplicatedState`. So no RMI can be the authoritative path, and "do not write
+  another position RMI payload" stands. **But the stated blocker does not:** measured on the live
+  local-player entity, **110 of 126 components have a bound client facet at `component + 0x80`**, 106 of
+  106 named ones are `*ClientFacet`, and `PlayerPositionTrackingComponent` — the one position component
+  that *is* on the entity — **has its `PlayerPositionTrackingComponentClientFacet` bound**. The earlier
+  "ALL ABSENT" list searched the entity's **component list** for facet class names, and `IPositionReceiver`
+  is an **interface**, not a component: three kinds of object were conflated. `PositionInTheWorldComponent`,
+  `PositionalTicketingComponent` and `CameraComponent` genuinely are not components of this entity, and
+  there is no `GlobalStorage` component either — which is also why the 23
+  `GlobalStorageComponentClientFacet` errors appear (a class absent from *this* entity), not a broken facet
+  mechanism. Evidence: `client_facets_ARE_bound_on_the_live_player_entity_20261012`.
+- **What creates a client-side facet, and why the factories are never called directly (2026-10-12).**
+  Facets are built by per-class **by-name factories** against the global reflection registry at
+  `0x14a313ff8` — the same registry that backs `IPositionReceiver`'s register-by-name/installer — and the
+  result is stored at `component + 0x80`. The factories sit in `.rdata` tables with the tail
+  `[0x1406c7b30][0x1416a1340][FACTORY][0x14171a8b0][0x1417aae90]`; scanning it yields **368 distinct
+  `*ComponentClientFacet` classes**, regenerated by `reverse/tools/scan-client-facets.py --check` into
+  `research/derived/client-facet-factories.json`. The factories have **zero direct callers** — the address
+  exists only as a table slot — so creation is table-driven; the family creators `0x142d14d50` and
+  `0x145c94990` are likewise unreferenced directly. Since the facets demonstrably DO get bound, the
+  invoker is working; it is not the blocker.
+- **Next measurement (revised).** Not facet creation. Either (a) check whether `PositionInTheWorldComponent`
+  is supposed to be on the entity, by inspecting a *remote* player's entity (which does replicate a
+  position) and seeing whether that component is on it; or (b) instrument what the live
+  `PlayerPositionTrackingComponentClientFacet` does with the 20 Hz channel-1 input stream. Attach at
+  character select and prefer hooks-only: a probe that hooks the hot component lookup and then detaches
+  killed the client **three times** in one session (`frida_agent_unload_crash_reproduced_20261012`).
+- **The replay provably never carries the position.** The measured live position appears nowhere in any
+  of the replay's 177 messages in float32, float64, or int16/int32/int64 fixed point. The spawn record
+  (`record_id 1`, 48 fragments, 46393 B) carries the player's actor id but not the position, and only 48
+  of the entity's 126 components have a fragment at all.
+- **The world only renders when the runbook env vars are exported (2026-10-12).** `python az.py dev`
+  forwards `AZOTH_*` from the calling shell, and `AZOTH_REPLAY_LOCAL_PLAYER_UUID` defaults to `off` — the
+  documented failing value. Without it the world is **black**, `Exceeded max recursion for deferred
+  actions` appears 5 times even though the predicate patch is correctly applied, the
+  `replay-local-player-uuid` spans filled is 0, and the client sends 0 channel-1 records. Verify the
+  effective config with the world server's `config` event before interpreting client behaviour.
+  Evidence: `runbook_env_vars_are_mandatory_and_verifiable_20261012`.
 - **Physics components are absent on the live player entity (RESOLVED 2026-10-12).** Three
   instants of the same entity all show 126 components with `CharacterPhysicsComponent` and
   `GameRigidBodyComponent` absent and the controls present, and the ADD hook was live (24 adds,

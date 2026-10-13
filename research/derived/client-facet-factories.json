@@ -1,0 +1,1850 @@
+{
+  "build_sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
+  "facets": [
+    {
+      "table": "0x148032ff8",
+      "factory": "0x141697ff0",
+      "name": "AoiComponentClientFacet"
+    },
+    {
+      "table": "0x148035010",
+      "factory": "0x141698170",
+      "name": "AoiExceptionComponentClientFacet"
+    },
+    {
+      "table": "0x14803a2b8",
+      "factory": "0x1416982a0",
+      "name": "AoiGhostListenTestComponentClientFacet"
+    },
+    {
+      "table": "0x14803ab00",
+      "factory": "0x1416983d0",
+      "name": "AoiSpatialTestCpuComponentClientFacet"
+    },
+    {
+      "table": "0x14803b300",
+      "factory": "0x141698500",
+      "name": "AoiSpatialTestEventComponentClientFacet"
+    },
+    {
+      "table": "0x14803bba0",
+      "factory": "0x141698630",
+      "name": "AoiTestComponentClientFacet"
+    },
+    {
+      "table": "0x148040430",
+      "factory": "0x141698760",
+      "name": "AsyncRenderTransformComponentClientFacet"
+    },
+    {
+      "table": "0x1480369c8",
+      "factory": "0x141698880",
+      "name": "CharacterComponentClientFacet"
+    },
+    {
+      "table": "0x148037980",
+      "factory": "0x1416989a0",
+      "name": "DetectableComponentClientFacet"
+    },
+    {
+      "table": "0x148038300",
+      "factory": "0x141698af0",
+      "name": "DetectableObjectComponentClientFacet"
+    },
+    {
+      "table": "0x148038ea8",
+      "factory": "0x141698c40",
+      "name": "DetectionVolumeComponentClientFacet"
+    },
+    {
+      "table": "0x148039890",
+      "factory": "0x141698d70",
+      "name": "ExcludeAOIComponentClientFacet"
+    },
+    {
+      "table": "0x14802ee30",
+      "factory": "0x141698ea0",
+      "name": "GameRigidBodyComponentClientFacet"
+    },
+    {
+      "table": "0x14803d5c8",
+      "factory": "0x141698eb0",
+      "name": "GameRigidBodyComponentClientFacet"
+    },
+    {
+      "table": "0x148034038",
+      "factory": "0x141698fc0",
+      "name": "GameTransformComponentClientFacet"
+    },
+    {
+      "table": "0x148031958",
+      "factory": "0x1416990e0",
+      "name": "GridTrackingComponentClientFacet"
+    },
+    {
+      "table": "0x148035a90",
+      "factory": "0x141699200",
+      "name": "InterestComponentClientFacet"
+    },
+    {
+      "table": "0x14803e520",
+      "factory": "0x141699310",
+      "name": "TestFacetedComponentClientFacet"
+    },
+    {
+      "table": "0x1480908d0",
+      "factory": "0x142595fc0",
+      "name": "AbilityInstanceComponentClientFacet"
+    },
+    {
+      "table": "0x148091048",
+      "factory": "0x1425960f0",
+      "name": "AbilityInstanceTrackingComponentClientFacet"
+    },
+    {
+      "table": "0x1480942a8",
+      "factory": "0x1425cd730",
+      "name": "AIManagerComponentClientFacet"
+    },
+    {
+      "table": "0x148094dc0",
+      "factory": "0x1425cd860",
+      "name": "AITargetSelectorComponentClientFacet"
+    },
+    {
+      "table": "0x148096408",
+      "factory": "0x1425cd980",
+      "name": "BlackboardComponentClientFacet"
+    },
+    {
+      "table": "0x1480974a8",
+      "factory": "0x1425cdaa0",
+      "name": "BossPhaseComponentClientFacet"
+    },
+    {
+      "table": "0x14809be90",
+      "factory": "0x142605850",
+      "name": "BehaviorTreeComponentClientFacet"
+    },
+    {
+      "table": "0x14809a668",
+      "factory": "0x142605970",
+      "name": "PositionalTicketingComponentClientFacet"
+    },
+    {
+      "table": "0x1480ab118",
+      "factory": "0x1426c6030",
+      "name": "DarknessControllerComponentClientFacet"
+    },
+    {
+      "table": "0x1480ada48",
+      "factory": "0x1426ec5e0",
+      "name": "ClearEncounterZonesComponentClientFacet"
+    },
+    {
+      "table": "0x1480ae620",
+      "factory": "0x1426ec710",
+      "name": "EncounterComponentClientFacet"
+    },
+    {
+      "table": "0x1480b23b0",
+      "factory": "0x142714610",
+      "name": "EncounterRewardsComponentClientFacet"
+    },
+    {
+      "table": "0x1480b4100",
+      "factory": "0x14272d200",
+      "name": "ParticipantTrackerComponentClientFacet"
+    },
+    {
+      "table": "0x1480bb5d8",
+      "factory": "0x14277dc40",
+      "name": "AmbientTypeComponentClientFacet"
+    },
+    {
+      "table": "0x1480b79d0",
+      "factory": "0x14277dd70",
+      "name": "ArenaComponentClientFacet"
+    },
+    {
+      "table": "0x1480ba1b0",
+      "factory": "0x14277de90",
+      "name": "AttributeComponentClientFacet"
+    },
+    {
+      "table": "0x1480b8e80",
+      "factory": "0x14277dfb0",
+      "name": "PlayerArenaComponentClientFacet"
+    },
+    {
+      "table": "0x1480bdd70",
+      "factory": "0x1427bad90",
+      "name": "AudioProxyComponentClientFacet"
+    },
+    {
+      "table": "0x1480c0190",
+      "factory": "0x1427baeb0",
+      "name": "BlendValueComponentClientFacet"
+    },
+    {
+      "table": "0x1480be880",
+      "factory": "0x1427bafe0",
+      "name": "PlayerAudioProxyComponentClientFacet"
+    },
+    {
+      "table": "0x1480bf118",
+      "factory": "0x1427bb100",
+      "name": "SoundBankComponentClientFacet"
+    },
+    {
+      "table": "0x1480bf918",
+      "factory": "0x1427bb250",
+      "name": "VoiceComponentClientFacet"
+    },
+    {
+      "table": "0x1480c7470",
+      "factory": "0x1427f1ab0",
+      "name": "BotComponentClientFacet"
+    },
+    {
+      "table": "0x1480c8c50",
+      "factory": "0x1427f1bd0",
+      "name": "BotPoiSpawnerComponentClientFacet"
+    },
+    {
+      "table": "0x1480eff58",
+      "factory": "0x1429871f0",
+      "name": "AutoRepairComponentClientFacet"
+    },
+    {
+      "table": "0x1480f0b70",
+      "factory": "0x142987320",
+      "name": "BuildableGridComponentClientFacet"
+    },
+    {
+      "table": "0x1480f1870",
+      "factory": "0x142987440",
+      "name": "BuildableStateComponentClientFacet"
+    },
+    {
+      "table": "0x1480f3668",
+      "factory": "0x1429aa470",
+      "name": "NameComponentClientFacet"
+    },
+    {
+      "table": "0x1480f3e38",
+      "factory": "0x1429aa5a0",
+      "name": "PlacementObstructionComponentClientFacet"
+    },
+    {
+      "table": "0x1480f5358",
+      "factory": "0x1429b98f0",
+      "name": "ProximityCounterClientFacet"
+    },
+    {
+      "table": "0x1480fbeb8",
+      "factory": "0x1429f2450",
+      "name": "ActionConditionCacheComponentClientFacet"
+    },
+    {
+      "table": "0x1480f7a28",
+      "factory": "0x1429f2580",
+      "name": "TerritoryDetectorComponentClientFacet"
+    },
+    {
+      "table": "0x1480f95a8",
+      "factory": "0x1429f26a0",
+      "name": "TerritoryGovernanceComponentClientFacet"
+    },
+    {
+      "table": "0x1480fa8d0",
+      "factory": "0x1429f27d0",
+      "name": "TerritoryInterfaceComponentClientFacet"
+    },
+    {
+      "table": "0x1480f8748",
+      "factory": "0x1429f28f0",
+      "name": "TerritoryProgressionComponentClientFacet"
+    },
+    {
+      "table": "0x1480fb690",
+      "factory": "0x1429f2a20",
+      "name": "ValidateTerrainComponentClientFacet"
+    },
+    {
+      "table": "0x1481021f8",
+      "factory": "0x142a60c30",
+      "name": "PlayerInputFiltersComponentClientFacet"
+    },
+    {
+      "table": "0x148102b60",
+      "factory": "0x142a60d50",
+      "name": "PlayerSettingsComponentClientFacet"
+    },
+    {
+      "table": "0x148131470",
+      "factory": "0x142c87920",
+      "name": "CameraLockComponentClientFacet"
+    },
+    {
+      "table": "0x148130700",
+      "factory": "0x142c87a40",
+      "name": "CameraLockTargetComponentClientFacet"
+    },
+    {
+      "table": "0x1481363c8",
+      "factory": "0x142cc2190",
+      "name": "AISpawnPositionTrackingComponentClientFacet"
+    },
+    {
+      "table": "0x148133a10",
+      "factory": "0x142cc22c0",
+      "name": "CameraStateComponentClientFacet"
+    },
+    {
+      "table": "0x148134858",
+      "factory": "0x142cc23f0",
+      "name": "JavCameraControllerComponentClientFacet"
+    },
+    {
+      "table": "0x148135960",
+      "factory": "0x142cc2510",
+      "name": "PlayCinematicVideoClientFacet"
+    },
+    {
+      "table": "0x148134d40",
+      "factory": "0x142cc2630",
+      "name": "PvPSpectatorCamControllerComponentClientFacet"
+    },
+    {
+      "table": "0x14813a4c0",
+      "factory": "0x142cfeed0",
+      "name": "ContainerTransferComponentClientFacet"
+    },
+    {
+      "table": "0x14813b190",
+      "factory": "0x142cff000",
+      "name": "GlobalStorageComponentClientFacet"
+    },
+    {
+      "table": "0x148139650",
+      "factory": "0x142cff160",
+      "name": "PlayerPositionTrackingComponentClientFacet"
+    },
+    {
+      "table": "0x14813ddb0",
+      "factory": "0x142d3b330",
+      "name": "ItemManagementComponentClientFacet"
+    },
+    {
+      "table": "0x14813eb20",
+      "factory": "0x142d3b460",
+      "name": "LootDropComponentClientFacet"
+    },
+    {
+      "table": "0x148144208",
+      "factory": "0x142d7d660",
+      "name": "AggregateContractCountComponentClientFacet"
+    },
+    {
+      "table": "0x148141bb0",
+      "factory": "0x142d7d780",
+      "name": "PlayerTradeComponentClientFacet"
+    },
+    {
+      "table": "0x1481432e8",
+      "factory": "0x142d7d8d0",
+      "name": "StorageComponentClientFacet"
+    },
+    {
+      "table": "0x14814a410",
+      "factory": "0x142dcd6f0",
+      "name": "ContractsComponentClientFacet"
+    },
+    {
+      "table": "0x14814f080",
+      "factory": "0x142e4d800",
+      "name": "AssemblyComponentClientFacet"
+    },
+    {
+      "table": "0x14814fbb8",
+      "factory": "0x142e4d920",
+      "name": "CraftingComponentClientFacet"
+    },
+    {
+      "table": "0x148153e88",
+      "factory": "0x142e7fac0",
+      "name": "ItemGenerationComponentClientFacet"
+    },
+    {
+      "table": "0x148156288",
+      "factory": "0x142eb1fd0",
+      "name": "ItemRepairComponentClientFacet"
+    },
+    {
+      "table": "0x14815a340",
+      "factory": "0x142eee930",
+      "name": "CutsceneEventListenerComponentClientFacet"
+    },
+    {
+      "table": "0x14815abb0",
+      "factory": "0x142eeea50",
+      "name": "PlayerCutsceneComponentClientFacet"
+    },
+    {
+      "table": "0x14815c7c8",
+      "factory": "0x142eeeb70",
+      "name": "TriggerAreaPlayerCutsceneComponentClientFacet"
+    },
+    {
+      "table": "0x14815d110",
+      "factory": "0x142eeec90",
+      "name": "TriggerPlayerCutsceneComponentClientFacet"
+    },
+    {
+      "table": "0x148161830",
+      "factory": "0x142f31b90",
+      "name": "DebugComponentClientFacet"
+    },
+    {
+      "table": "0x148161f40",
+      "factory": "0x142f31cb0",
+      "name": "DebugConsolePlayerComponentClientFacet"
+    },
+    {
+      "table": "0x148162968",
+      "factory": "0x142f31dd0",
+      "name": "DebugVisualizationComponentClientFacet"
+    },
+    {
+      "table": "0x148160a60",
+      "factory": "0x142f31ef0",
+      "name": "OwnershipDataComponentClientFacet"
+    },
+    {
+      "table": "0x148164668",
+      "factory": "0x142f541f0",
+      "name": "DeteriorationComponentClientFacet"
+    },
+    {
+      "table": "0x148165068",
+      "factory": "0x142f54320",
+      "name": "DifficultyScaledByParticipantsComponentClientFacet"
+    },
+    {
+      "table": "0x148165d30",
+      "factory": "0x142f54460",
+      "name": "LandClaimComponentClientFacet"
+    },
+    {
+      "table": "0x148169100",
+      "factory": "0x142f805a0",
+      "name": "SettlementComponentClientFacet"
+    },
+    {
+      "table": "0x14816bd70",
+      "factory": "0x142ff3e40",
+      "name": "DoorComponentClientFacet"
+    },
+    {
+      "table": "0x14816cab0",
+      "factory": "0x142ff3f60",
+      "name": "DungeonEntranceClientFacet"
+    },
+    {
+      "table": "0x14816dc40",
+      "factory": "0x142ff4080",
+      "name": "DungeonExitClientFacet"
+    },
+    {
+      "table": "0x148173a88",
+      "factory": "0x1430357f0",
+      "name": "EconomyTrackerComponentClientFacet"
+    },
+    {
+      "table": "0x1481754a0",
+      "factory": "0x143035920",
+      "name": "EmoteControllerComponentClientFacet"
+    },
+    {
+      "table": "0x148174978",
+      "factory": "0x143035a70",
+      "name": "EntitlementComponentClientFacet"
+    },
+    {
+      "table": "0x148179da0",
+      "factory": "0x14306cb30",
+      "name": "DetectionVolumeEventComponentClientFacet"
+    },
+    {
+      "table": "0x148177800",
+      "factory": "0x14306cc60",
+      "name": "DynamicScaleCancellingComponentClientFacet"
+    },
+    {
+      "table": "0x148177fa0",
+      "factory": "0x14306cd90",
+      "name": "TriggerAreaEntityComponentClientFacet"
+    },
+    {
+      "table": "0x148178778",
+      "factory": "0x14306cee0",
+      "name": "TriggerEntityComponentClientFacet"
+    },
+    {
+      "table": "0x14817c178",
+      "factory": "0x14308a590",
+      "name": "DetectionVolumeMessageComponentClientFacet"
+    },
+    {
+      "table": "0x14817cbf8",
+      "factory": "0x14308a6c0",
+      "name": "EventRerouterComponentClientFacet"
+    },
+    {
+      "table": "0x148180ac8",
+      "factory": "0x1430afce0",
+      "name": "FactionComponentClientFacet"
+    },
+    {
+      "table": "0x148182970",
+      "factory": "0x1430afe00",
+      "name": "FactionControlComponentClientFacet"
+    },
+    {
+      "table": "0x148186088",
+      "factory": "0x1430e4650",
+      "name": "FactionControlInteractComponentClientFacet"
+    },
+    {
+      "table": "0x1481868d0",
+      "factory": "0x1430e4780",
+      "name": "FactionControlOwnerComponentClientFacet"
+    },
+    {
+      "table": "0x148187768",
+      "factory": "0x1430e48a0",
+      "name": "FishingComponentClientFacet"
+    },
+    {
+      "table": "0x14818b3a0",
+      "factory": "0x143115a30",
+      "name": "FishingHotspotComponentClientFacet"
+    },
+    {
+      "table": "0x14818bed8",
+      "factory": "0x143115b60",
+      "name": "FtueDetectionVolumeComponentClientFacet"
+    },
+    {
+      "table": "0x14818d4e0",
+      "factory": "0x143115dc0",
+      "name": "FtueIslandSpawnerComponentClientFacet"
+    },
+    {
+      "table": "0x14818dfb0",
+      "factory": "0x143115ef0",
+      "name": "FtueMetricComponentClientFacet"
+    },
+    {
+      "table": "0x14818ffd0",
+      "factory": "0x14313e720",
+      "name": "FtuePlayerHealthMonitorComponentClientFacet"
+    },
+    {
+      "table": "0x148191880",
+      "factory": "0x14313e870",
+      "name": "InvasionAgentComponentClientFacet"
+    },
+    {
+      "table": "0x1481920e8",
+      "factory": "0x14313e9b0",
+      "name": "InvasionComponentClientFacet"
+    },
+    {
+      "table": "0x148192a40",
+      "factory": "0x14313eae0",
+      "name": "InvasionObjectiveComponentClientFacet"
+    },
+    {
+      "table": "0x148190bc8",
+      "factory": "0x14313ec00",
+      "name": "ReactivateFtueEntityComponentClientFacet"
+    },
+    {
+      "table": "0x148191348",
+      "factory": "0x14313ed30",
+      "name": "ResetFtueSpawnersComponentClientFacet"
+    },
+    {
+      "table": "0x1481934b0",
+      "factory": "0x14313ee60",
+      "name": "VoidDestroyerComponentClientFacet"
+    },
+    {
+      "table": "0x148195b30",
+      "factory": "0x14315f760",
+      "name": "FxScriptComponentClientFacet"
+    },
+    {
+      "table": "0x148194f60",
+      "factory": "0x14315f880",
+      "name": "VoidDestroyerEyeComponentClientFacet"
+    },
+    {
+      "table": "0x14819ab70",
+      "factory": "0x143187af0",
+      "name": "AchievementComponentClientFacet"
+    },
+    {
+      "table": "0x14819d3d8",
+      "factory": "0x1431bc3f0",
+      "name": "ContributionComponentClientFacet"
+    },
+    {
+      "table": "0x14819de48",
+      "factory": "0x1431bc550",
+      "name": "ContributionTrackerComponentClientFacet"
+    },
+    {
+      "table": "0x14819edb8",
+      "factory": "0x1431bc680",
+      "name": "EventNotificationComponentClientFacet"
+    },
+    {
+      "table": "0x1481a2170",
+      "factory": "0x1431efb30",
+      "name": "GameEventComponentClientFacet"
+    },
+    {
+      "table": "0x1481a7a38",
+      "factory": "0x14324f170",
+      "name": "GameMasterComponentClientFacet"
+    },
+    {
+      "table": "0x1481b59d0",
+      "factory": "0x1432a8a50",
+      "name": "GameModeParticipantComponentClientFacet"
+    },
+    {
+      "table": "0x1481bbfe0",
+      "factory": "0x1432ecb30",
+      "name": "OutpostRushSummoningInteractionComponentClientFacet"
+    },
+    {
+      "table": "0x1481be1e8",
+      "factory": "0x143313d90",
+      "name": "SlayerScriptForwarderClientFacet"
+    },
+    {
+      "table": "0x1481c0a38",
+      "factory": "0x14333e630",
+      "name": "GameModeMutationSchedulerComponentClientFacet"
+    },
+    {
+      "table": "0x1481c42c8",
+      "factory": "0x14336bcc0",
+      "name": "GatherableStateComponentClientFacet"
+    },
+    {
+      "table": "0x1481c72f0",
+      "factory": "0x1433b4730",
+      "name": "DestroyGDEComponentClientFacet"
+    },
+    {
+      "table": "0x1481c7f68",
+      "factory": "0x1433b4870",
+      "name": "GDERootTransformReporterComponentClientFacet"
+    },
+    {
+      "table": "0x1481c8528",
+      "factory": "0x1433b49a0",
+      "name": "GenericInviteComponentClientFacet"
+    },
+    {
+      "table": "0x1481c9538",
+      "factory": "0x1433b4ad0",
+      "name": "PlayerGenericInviteComponentClientFacet"
+    },
+    {
+      "table": "0x1481cd458",
+      "factory": "0x1433e0980",
+      "name": "GroupDataComponentClientFacet"
+    },
+    {
+      "table": "0x1481cea38",
+      "factory": "0x1433e0aa0",
+      "name": "GroupFinderGroupDataComponentClientFacet"
+    },
+    {
+      "table": "0x1481d95f8",
+      "factory": "0x143435c30",
+      "name": "GroupsComponentClientFacet"
+    },
+    {
+      "table": "0x1481e3210",
+      "factory": "0x14349e7c0",
+      "name": "GuildsComponentClientFacet"
+    },
+    {
+      "table": "0x1481e1988",
+      "factory": "0x14349e8e0",
+      "name": "RaidDataComponentClientFacet"
+    },
+    {
+      "table": "0x1481e7988",
+      "factory": "0x1434eb5d0",
+      "name": "HomeComponentClientFacet"
+    },
+    {
+      "table": "0x1481e8480",
+      "factory": "0x1434eb6f0",
+      "name": "PlayerHomeComponentClientFacet"
+    },
+    {
+      "table": "0x1481eb380",
+      "factory": "0x143521870",
+      "name": "HouseDataComponentClientFacet"
+    },
+    {
+      "table": "0x1481f4b18",
+      "factory": "0x143574b20",
+      "name": "PlayerHousingComponentClientFacet"
+    },
+    {
+      "table": "0x1481fa690",
+      "factory": "0x1435c5d30",
+      "name": "ActivateVirtualInputComponentClientFacet"
+    },
+    {
+      "table": "0x1481f9130",
+      "factory": "0x1435c5e60",
+      "name": "HunterSightComponentClientFacet"
+    },
+    {
+      "table": "0x1481fbd50",
+      "factory": "0x1435c6080",
+      "name": "InteractionAnimationComponentClientFacet"
+    },
+    {
+      "table": "0x1481fa230",
+      "factory": "0x1435c61b0",
+      "name": "InteractionConditionComponentClientFacet"
+    },
+    {
+      "table": "0x1481fdfd0",
+      "factory": "0x1435e5710",
+      "name": "InteractWithItemCostComponentClientFacet"
+    },
+    {
+      "table": "0x1482027b0",
+      "factory": "0x1436131c0",
+      "name": "InventoriesComponentClientFacet"
+    },
+    {
+      "table": "0x148209750",
+      "factory": "0x1436514b0",
+      "name": "ItemSkinningComponentClientFacet"
+    },
+    {
+      "table": "0x14820ba88",
+      "factory": "0x1436884d0",
+      "name": "PerkConditionComponentClientFacet"
+    },
+    {
+      "table": "0x148210ab8",
+      "factory": "0x1436c8f00",
+      "name": "LeaderboardComponentClientFacet"
+    },
+    {
+      "table": "0x148213558",
+      "factory": "0x1436f83a0",
+      "name": "InstancedLootComponentClientFacet"
+    },
+    {
+      "table": "0x148214038",
+      "factory": "0x1436f84c0",
+      "name": "LootTableComponentClientFacet"
+    },
+    {
+      "table": "0x14821a7d0",
+      "factory": "0x14374cc00",
+      "name": "ConversationComponentClientFacet"
+    },
+    {
+      "table": "0x148218488",
+      "factory": "0x14374cd20",
+      "name": "LootTrackerComponentClientFacet"
+    },
+    {
+      "table": "0x148219868",
+      "factory": "0x14374ce50",
+      "name": "RewardTrackComponentClientFacet"
+    },
+    {
+      "table": "0x1482204c0",
+      "factory": "0x1437a9ce0",
+      "name": "GlobalMapDataComponentClientFacet"
+    },
+    {
+      "table": "0x14821d9e0",
+      "factory": "0x1437a9e10",
+      "name": "LoreReaderComponentClientFacet"
+    },
+    {
+      "table": "0x14821e4c0",
+      "factory": "0x1437a9f30",
+      "name": "NpcComponentClientFacet"
+    },
+    {
+      "table": "0x14821f228",
+      "factory": "0x1437aa050",
+      "name": "ReadingInteractionComponentClientFacet"
+    },
+    {
+      "table": "0x148225238",
+      "factory": "0x143817c90",
+      "name": "CurrencyComponentClientFacet"
+    },
+    {
+      "table": "0x148225f98",
+      "factory": "0x143817df0",
+      "name": "CurrencyConversionComponentClientFacet"
+    },
+    {
+      "table": "0x148223178",
+      "factory": "0x143817f40",
+      "name": "GlobalMapDataManagerComponentClientFacet"
+    },
+    {
+      "table": "0x148224710",
+      "factory": "0x143818060",
+      "name": "OpenMapClientFacet"
+    },
+    {
+      "table": "0x148229e70",
+      "factory": "0x14384bb80",
+      "name": "MaterialEffectComponentClientFacet"
+    },
+    {
+      "table": "0x148228db0",
+      "factory": "0x14384bcd0",
+      "name": "TradingPostComponentClientFacet"
+    },
+    {
+      "table": "0x14822cde0",
+      "factory": "0x143872870",
+      "name": "AttachmentMeshComponentClientFacet"
+    },
+    {
+      "table": "0x14822b820",
+      "factory": "0x143872990",
+      "name": "MaterialOverrideComponentClientFacet"
+    },
+    {
+      "table": "0x14822c1e0",
+      "factory": "0x143872ab0",
+      "name": "MaterialOverrideTriggerComponentClientFacet"
+    },
+    {
+      "table": "0x1482311f8",
+      "factory": "0x14389efd0",
+      "name": "MetaAchievementComponentClientFacet"
+    },
+    {
+      "table": "0x14822fdc8",
+      "factory": "0x14389f0d0",
+      "name": "RadialMeshComponentClientFacet"
+    },
+    {
+      "table": "0x148230800",
+      "factory": "0x14389f1f0",
+      "name": "SkinnedMeshAttachmentVisibilityComponentClientFacet"
+    },
+    {
+      "table": "0x148236140",
+      "factory": "0x1438e5130",
+      "name": "FishCaughtComponentClientFacet"
+    },
+    {
+      "table": "0x1482368d0",
+      "factory": "0x1438e5270",
+      "name": "FishingBobberPhysicsHackClientFacet"
+    },
+    {
+      "table": "0x1482380b8",
+      "factory": "0x1438e5390",
+      "name": "MountComponentClientFacet"
+    },
+    {
+      "table": "0x14823a090",
+      "factory": "0x1438e54b0",
+      "name": "MountDetectionVolumeBehaviorComponentClientFacet"
+    },
+    {
+      "table": "0x14823d538",
+      "factory": "0x14391e290",
+      "name": "MountTriggerAreaBehaviorComponentClientFacet"
+    },
+    {
+      "table": "0x148241538",
+      "factory": "0x143945590",
+      "name": "MusicalPerformanceComponentClientFacet"
+    },
+    {
+      "table": "0x148243c40",
+      "factory": "0x1439456b0",
+      "name": "MusicalPerformanceIndicatorComponentClientFacet"
+    },
+    {
+      "table": "0x148242750",
+      "factory": "0x1439457d0",
+      "name": "MusicalPerformancePlayerComponentClientFacet"
+    },
+    {
+      "table": "0x1482456f0",
+      "factory": "0x143967b10",
+      "name": "MusicalPerformanceZoneComponentClientFacet"
+    },
+    {
+      "table": "0x148246d48",
+      "factory": "0x1439822b0",
+      "name": "ClientPathingComponentClientFacet"
+    },
+    {
+      "table": "0x148082380",
+      "factory": "0x14399b9a0",
+      "name": "NavigationObstacleMeshComponentClientFacet"
+    },
+    {
+      "table": "0x14824f3a8",
+      "factory": "0x1439cdbb0",
+      "name": "DiegeticObjectivePinsComponentClientFacet"
+    },
+    {
+      "table": "0x14824ea80",
+      "factory": "0x1439cdcd0",
+      "name": "NWTagComponentClientFacet"
+    },
+    {
+      "table": "0x14824e090",
+      "factory": "0x1439cddf0",
+      "name": "NotificationServiceComponentClientFacet"
+    },
+    {
+      "table": "0x14824d030",
+      "factory": "0x1439cdf40",
+      "name": "PathingComponentClientFacet"
+    },
+    {
+      "table": "0x148255320",
+      "factory": "0x143a31420",
+      "name": "ObjectiveDetectionVolumeComponentClientFacet"
+    },
+    {
+      "table": "0x148257be0",
+      "factory": "0x143a31550",
+      "name": "ObjectiveProviderComponentClientFacet"
+    },
+    {
+      "table": "0x148255f58",
+      "factory": "0x143a31680",
+      "name": "ObjectivesComponentClientFacet"
+    },
+    {
+      "table": "0x14825c070",
+      "factory": "0x143a89f20",
+      "name": "ObjectiveAreaTriggerClientFacet"
+    },
+    {
+      "table": "0x14825b940",
+      "factory": "0x143a8a050",
+      "name": "ObjectiveTriggerClientFacet"
+    },
+    {
+      "table": "0x14827f040",
+      "factory": "0x143b3f910",
+      "name": "MeshOutlineComponentClientFacet"
+    },
+    {
+      "table": "0x14827f998",
+      "factory": "0x143b3fa30",
+      "name": "OwnershipAlignmentComponentClientFacet"
+    },
+    {
+      "table": "0x1482806b8",
+      "factory": "0x143b3fb60",
+      "name": "OwnershipMessageComponentClientFacet"
+    },
+    {
+      "table": "0x148282688",
+      "factory": "0x143b63ec0",
+      "name": "AIPathComponentClientFacet"
+    },
+    {
+      "table": "0x1482837b0",
+      "factory": "0x143b63ff0",
+      "name": "AIPatrolComponentClientFacet"
+    },
+    {
+      "table": "0x148284b98",
+      "factory": "0x143b64120",
+      "name": "AITargetCollectorComponentClientFacet"
+    },
+    {
+      "table": "0x148284168",
+      "factory": "0x143b64280",
+      "name": "AITargetableComponentClientFacet"
+    },
+    {
+      "table": "0x148282f18",
+      "factory": "0x143b643a0",
+      "name": "AIWaypointComponentClientFacet"
+    },
+    {
+      "table": "0x148287a80",
+      "factory": "0x143b99510",
+      "name": "NavMeshDebugComponentClientFacet"
+    },
+    {
+      "table": "0x148289370",
+      "factory": "0x143b99630",
+      "name": "PlayerTutorialsComponentClientFacet"
+    },
+    {
+      "table": "0x14828be88",
+      "factory": "0x143bbb620",
+      "name": "AIVariantProviderComponentClientFacet"
+    },
+    {
+      "table": "0x14828c7a0",
+      "factory": "0x143bbb750",
+      "name": "BuffBucketsProviderComponentClientFacet"
+    },
+    {
+      "table": "0x14828b2d8",
+      "factory": "0x143bbb880",
+      "name": "PointsAccumulatorComponentClientFacet"
+    },
+    {
+      "table": "0x148082a08",
+      "factory": "0x143be3e50",
+      "name": "GDELifetimeReporterComponentClientFacet"
+    },
+    {
+      "table": "0x14828f130",
+      "factory": "0x143be3f80",
+      "name": "POIManagerComponentClientFacet"
+    },
+    {
+      "table": "0x148290640",
+      "factory": "0x143be40a0",
+      "name": "PointSpawnerComponentClientFacet"
+    },
+    {
+      "table": "0x1482914d8",
+      "factory": "0x143be41e0",
+      "name": "PrefabSpawnRandomizerClientFacet"
+    },
+    {
+      "table": "0x14828fbf0",
+      "factory": "0x143be4310",
+      "name": "PrefabSpawnerComponentClientFacet"
+    },
+    {
+      "table": "0x148294190",
+      "factory": "0x143c0ee00",
+      "name": "SpawnerComponentClientFacet"
+    },
+    {
+      "table": "0x148295850",
+      "factory": "0x143c0ef20",
+      "name": "SpawnerLifetimeManagerComponentClientFacet"
+    },
+    {
+      "table": "0x1482960a8",
+      "factory": "0x143c0f050",
+      "name": "SpawnerMetricsComponentClientFacet"
+    },
+    {
+      "table": "0x1480833e0",
+      "factory": "0x143c2ca20",
+      "name": "AIConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x148298568",
+      "factory": "0x143c2cb50",
+      "name": "AreaSpawnerComponentClientFacet"
+    },
+    {
+      "table": "0x148297ca0",
+      "factory": "0x143c2cc80",
+      "name": "SpawnerReverseDetectionComponentClientFacet"
+    },
+    {
+      "table": "0x14829a880",
+      "factory": "0x143c48380",
+      "name": "CoordinatedConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x14829b2a0",
+      "factory": "0x143c484b0",
+      "name": "DarknessConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x14829bc08",
+      "factory": "0x143c485e0",
+      "name": "DetectionVolumeConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x14829c678",
+      "factory": "0x143c48710",
+      "name": "LuckConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x14829e5d0",
+      "factory": "0x143c671c0",
+      "name": "NavMeshConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x14829f028",
+      "factory": "0x143c672f0",
+      "name": "PlayerPresenceConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x14829f9f8",
+      "factory": "0x143c67420",
+      "name": "ScheduleConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x1482a03b0",
+      "factory": "0x143c67550",
+      "name": "SpawnCapConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x1480830f0",
+      "factory": "0x143c67680",
+      "name": "SpawnerConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x1482a0c38",
+      "factory": "0x143c677b0",
+      "name": "TerrainConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x1482a1498",
+      "factory": "0x143c678e0",
+      "name": "TimeOfDayConstraintComponentClientFacet"
+    },
+    {
+      "table": "0x1482a2bb8",
+      "factory": "0x143c84bb0",
+      "name": "AreaSpawnerLocationComponentClientFacet"
+    },
+    {
+      "table": "0x1482a33e8",
+      "factory": "0x143c84ce0",
+      "name": "InvasionLaneProviderComponentClientFacet"
+    },
+    {
+      "table": "0x1482a53d0",
+      "factory": "0x143c84e10",
+      "name": "MinionVitalsProviderComponentClientFacet"
+    },
+    {
+      "table": "0x1482a3bb0",
+      "factory": "0x143c84f40",
+      "name": "PathLocationComponentClientFacet"
+    },
+    {
+      "table": "0x1482a4370",
+      "factory": "0x143c85070",
+      "name": "PointLocationComponentClientFacet"
+    },
+    {
+      "table": "0x1482a4bf0",
+      "factory": "0x143c85190",
+      "name": "ShapeLocationComponentClientFacet"
+    },
+    {
+      "table": "0x1482a8790",
+      "factory": "0x143caee60",
+      "name": "CategoricalProgressionComponentClientFacet"
+    },
+    {
+      "table": "0x1482a91e0",
+      "factory": "0x143caefb0",
+      "name": "GraphBasedSpawnNodeComponentClientFacet"
+    },
+    {
+      "table": "0x1482a7c48",
+      "factory": "0x143caf0d0",
+      "name": "OwnershipParameterProviderComponentClientFacet"
+    },
+    {
+      "table": "0x1482af140",
+      "factory": "0x143ce9700",
+      "name": "PlayerQuickCourseComponentClientFacet"
+    },
+    {
+      "table": "0x1482acf28",
+      "factory": "0x143ce9820",
+      "name": "ProgressionComponentClientFacet"
+    },
+    {
+      "table": "0x1482adfd8",
+      "factory": "0x143ce9960",
+      "name": "ProgressionPointComponentClientFacet"
+    },
+    {
+      "table": "0x1482b4120",
+      "factory": "0x143d50e30",
+      "name": "JavelinSampleComponentClientFacet"
+    },
+    {
+      "table": "0x1482b1630",
+      "factory": "0x143d50f50",
+      "name": "RaidSetupComponentClientFacet"
+    },
+    {
+      "table": "0x1482b2430",
+      "factory": "0x143d510a0",
+      "name": "ReusableScoreboardComponentClientFacet"
+    },
+    {
+      "table": "0x1482b3c90",
+      "factory": "0x143d511c0",
+      "name": "RoadStateComponentClientFacet"
+    },
+    {
+      "table": "0x1482bb348",
+      "factory": "0x143dafa10",
+      "name": "SeasonsRewardsComponentClientFacet"
+    },
+    {
+      "table": "0x1482bda08",
+      "factory": "0x143dd9130",
+      "name": "SeasonsRewardsTrackedStatComponentClientFacet"
+    },
+    {
+      "table": "0x1482c17a8",
+      "factory": "0x143df6fa0",
+      "name": "ServerTransferComponentClientFacet"
+    },
+    {
+      "table": "0x1482c2058",
+      "factory": "0x143df7100",
+      "name": "ShakeComponentClientFacet"
+    },
+    {
+      "table": "0x1482c4b88",
+      "factory": "0x143e13530",
+      "name": "ClearContainerOnSiegeWarfareComponentClientFacet"
+    },
+    {
+      "table": "0x1482c5368",
+      "factory": "0x143e13660",
+      "name": "DefensiveStructureInteractionComponentClientFacet"
+    },
+    {
+      "table": "0x1482c5d08",
+      "factory": "0x143e13780",
+      "name": "DestroyOnSiegeWarfareComponentClientFacet"
+    },
+    {
+      "table": "0x1482c6638",
+      "factory": "0x143e138b0",
+      "name": "FortMajorStructureComponentClientFacet"
+    },
+    {
+      "table": "0x1482c8058",
+      "factory": "0x143e2ab80",
+      "name": "FortSpawnDataProviderComponentClientFacet"
+    },
+    {
+      "table": "0x1482c87c0",
+      "factory": "0x143e2acb0",
+      "name": "SiegeWarfareComponentClientFacet"
+    },
+    {
+      "table": "0x1482cb460",
+      "factory": "0x143e4a260",
+      "name": "SiegeWarfareListenerComponentClientFacet"
+    },
+    {
+      "table": "0x1482cbcb0",
+      "factory": "0x143e4a390",
+      "name": "SiegeWarfareVulnerableComponentClientFacet"
+    },
+    {
+      "table": "0x1482cc698",
+      "factory": "0x143e4a4c0",
+      "name": "SiegeWeaponComponentClientFacet"
+    },
+    {
+      "table": "0x1482cfeb8",
+      "factory": "0x143e76430",
+      "name": "ChatComponentClientFacet"
+    },
+    {
+      "table": "0x1482cf490",
+      "factory": "0x143e76550",
+      "name": "WarCampComponentClientFacet"
+    },
+    {
+      "table": "0x1482d1ee8",
+      "factory": "0x143e98de0",
+      "name": "PlayerNameTagComponentClientFacet"
+    },
+    {
+      "table": "0x1482db010",
+      "factory": "0x143edf7f0",
+      "name": "SocialComponentClientFacet"
+    },
+    {
+      "table": "0x1482e2a50",
+      "factory": "0x143f4e040",
+      "name": "TwitchComponentClientFacet"
+    },
+    {
+      "table": "0x1482e3d48",
+      "factory": "0x143f4e170",
+      "name": "VoiceChatComponentClientFacet"
+    },
+    {
+      "table": "0x1482eba20",
+      "factory": "0x143fa72e0",
+      "name": "JavSpectatorCameraComponentClientFacet"
+    },
+    {
+      "table": "0x1482eb268",
+      "factory": "0x143fa7400",
+      "name": "SpectatedPlayerComponentClientFacet"
+    },
+    {
+      "table": "0x1482ef9b0",
+      "factory": "0x143fc3b50",
+      "name": "PercentDmgConditionComponentClientFacet"
+    },
+    {
+      "table": "0x1482ee4c8",
+      "factory": "0x143fc3c80",
+      "name": "SpectatorModeComponentClientFacet"
+    },
+    {
+      "table": "0x1482f3430",
+      "factory": "0x143fe8ba0",
+      "name": "AreaStatusEffectComponentClientFacet"
+    },
+    {
+      "table": "0x1482f2848",
+      "factory": "0x143fe8cc0",
+      "name": "StatMultiplierTableComponentClientFacet"
+    },
+    {
+      "table": "0x1482ef2a8",
+      "factory": "0x143fe8df0",
+      "name": "StateConditionalComponentClientFacet"
+    },
+    {
+      "table": "0x1482f0fd8",
+      "factory": "0x143fe8f20",
+      "name": "StateTransitionComponentClientFacet"
+    },
+    {
+      "table": "0x1482f1828",
+      "factory": "0x143fe9050",
+      "name": "StateTransitionSideEffectComponentClientFacet"
+    },
+    {
+      "table": "0x1482f6b40",
+      "factory": "0x144021ea0",
+      "name": "StatusEffectsComponentClientFacet"
+    },
+    {
+      "table": "0x1482f8740",
+      "factory": "0x144021fc0",
+      "name": "StealthInvisibilityComponentClientFacet"
+    },
+    {
+      "table": "0x1482fc2c8",
+      "factory": "0x14405ffb0",
+      "name": "AreaTemporaryAffiliationComponentClientFacet"
+    },
+    {
+      "table": "0x1482fafb8",
+      "factory": "0x1440600e0",
+      "name": "DetectionVolumeTeleportComponentClientFacet"
+    },
+    {
+      "table": "0x1482fb9c8",
+      "factory": "0x144060230",
+      "name": "InteractTeleportComponentClientFacet"
+    },
+    {
+      "table": "0x1482faba0",
+      "factory": "0x144060360",
+      "name": "TargetingComponentClientFacet"
+    },
+    {
+      "table": "0x1482fcac8",
+      "factory": "0x144060490",
+      "name": "TemporaryAffiliationComponentClientFacet"
+    },
+    {
+      "table": "0x148300a90",
+      "factory": "0x144083170",
+      "name": "PlayerTimeComponentClientFacet"
+    },
+    {
+      "table": "0x1482fede8",
+      "factory": "0x1440832a0",
+      "name": "SnapToTerrainComponentClientFacet"
+    },
+    {
+      "table": "0x1482ff830",
+      "factory": "0x1440833c0",
+      "name": "SurfaceAlignmentComponentClientFacet"
+    },
+    {
+      "table": "0x148300078",
+      "factory": "0x1440834f0",
+      "name": "TerrainInfoComponentClientFacet"
+    },
+    {
+      "table": "0x1483015c0",
+      "factory": "0x144083620",
+      "name": "TimeComponentClientFacet"
+    },
+    {
+      "table": "0x148302eb8",
+      "factory": "0x14409f330",
+      "name": "TippingPoolComponentClientFacet"
+    },
+    {
+      "table": "0x1483039e0",
+      "factory": "0x14409f450",
+      "name": "TrackableComponentClientFacet"
+    },
+    {
+      "table": "0x148306ee0",
+      "factory": "0x1440d42e0",
+      "name": "CampingComponentClientFacet"
+    },
+    {
+      "table": "0x148307f88",
+      "factory": "0x1440d4400",
+      "name": "P2PTradeComponentClientFacet"
+    },
+    {
+      "table": "0x1483090a8",
+      "factory": "0x1440d4520",
+      "name": "TestTransactorComponentClientFacet"
+    },
+    {
+      "table": "0x14830fa48",
+      "factory": "0x144119670",
+      "name": "SlopeSliderComponentClientFacet"
+    },
+    {
+      "table": "0x14830df60",
+      "factory": "0x144119790",
+      "name": "TransactionComponentClientFacet"
+    },
+    {
+      "table": "0x14830e648",
+      "factory": "0x1441198c0",
+      "name": "TransmogComponentClientFacet"
+    },
+    {
+      "table": "0x148313448",
+      "factory": "0x14415d450",
+      "name": "PlayerTurretComponentClientFacet"
+    },
+    {
+      "table": "0x148312980",
+      "factory": "0x14415d580",
+      "name": "TraversalComponentClientFacet"
+    },
+    {
+      "table": "0x148313db8",
+      "factory": "0x14415d6a0",
+      "name": "TurretComponentClientFacet"
+    },
+    {
+      "table": "0x148317148",
+      "factory": "0x144180050",
+      "name": "PlaytestUIComponentClientFacet"
+    },
+    {
+      "table": "0x148316350",
+      "factory": "0x144180180",
+      "name": "TutorialAIComponentClientFacet"
+    },
+    {
+      "table": "0x1483168f0",
+      "factory": "0x1441802b0",
+      "name": "TutorialComponentClientFacet"
+    },
+    {
+      "table": "0x148318500",
+      "factory": "0x14419d650",
+      "name": "RenderGuildFlagComponentClientFacet"
+    },
+    {
+      "table": "0x148318ea0",
+      "factory": "0x14419d770",
+      "name": "UIActionManagerComponentClientFacet"
+    },
+    {
+      "table": "0x148319970",
+      "factory": "0x14419d890",
+      "name": "UITriggerEventComponentClientFacet"
+    },
+    {
+      "table": "0x14831aca0",
+      "factory": "0x1441ecd10",
+      "name": "HUDComponentClientFacet"
+    },
+    {
+      "table": "0x148329670",
+      "factory": "0x1442cc800",
+      "name": "VariationDataComponentClientFacet"
+    },
+    {
+      "table": "0x14832c578",
+      "factory": "0x1442f5720",
+      "name": "WarboardComponentClientFacet"
+    },
+    {
+      "table": "0x14832df78",
+      "factory": "0x1442f5840",
+      "name": "WaterLevelComponentClientFacet"
+    },
+    {
+      "table": "0x14832ff88",
+      "factory": "0x14430e740",
+      "name": "WaypointsComponentClientFacet"
+    },
+    {
+      "table": "0x1483309e0",
+      "factory": "0x14430e880",
+      "name": "WhisperPlayerComponentClientFacet"
+    },
+    {
+      "table": "0x14837b8e0",
+      "factory": "0x1447c7f20",
+      "name": "BuilderComponentClientFacet"
+    },
+    {
+      "table": "0x14837d560",
+      "factory": "0x1447db740",
+      "name": "TerritoryComponentClientFacet"
+    },
+    {
+      "table": "0x148383510",
+      "factory": "0x144803ad0",
+      "name": "TerritoryInteractorComponentClientFacet"
+    },
+    {
+      "table": "0x1483931f0",
+      "factory": "0x1448c9ba0",
+      "name": "ContainerComponentClientFacet"
+    },
+    {
+      "table": "0x148395e20",
+      "factory": "0x1448fcd30",
+      "name": "GatheringComponentClientFacet"
+    },
+    {
+      "table": "0x148397b58",
+      "factory": "0x14490fab0",
+      "name": "InteractorComponentClientFacet"
+    },
+    {
+      "table": "0x148398e78",
+      "factory": "0x14492aa70",
+      "name": "MarkerComponentClientFacet"
+    },
+    {
+      "table": "0x14839ca48",
+      "factory": "0x1449553c0",
+      "name": "ObjectiveInteractorComponentClientFacet"
+    },
+    {
+      "table": "0x1483a3898",
+      "factory": "0x1449a06f0",
+      "name": "InteractorUIComponentClientFacet"
+    },
+    {
+      "table": "0x148464a78",
+      "factory": "0x145c207a0",
+      "name": "AudioSetTriggerOverrideComponentClientFacet"
+    },
+    {
+      "table": "0x148082720",
+      "factory": "0x145c208c0",
+      "name": "DebugRenderComponentClientFacet"
+    },
+    {
+      "table": "0x148465808",
+      "factory": "0x145c209f0",
+      "name": "PositionInTheWorldComponentClientFacet"
+    },
+    {
+      "table": "0x148467f90",
+      "factory": "0x145c20c50",
+      "name": "TimelineControllerComponentClientFacet"
+    },
+    {
+      "table": "0x148477f50",
+      "factory": "0x145d72a00",
+      "name": "AIObjectiveManagerComponentClientFacet"
+    },
+    {
+      "table": "0x148479250",
+      "factory": "0x145d72b30",
+      "name": "HubLocalCacheComponentClientFacet"
+    },
+    {
+      "table": "0x148479898",
+      "factory": "0x145d72c50",
+      "name": "HubLocalCacheSpawnForwarderComponentClientFacet"
+    },
+    {
+      "table": "0x14847a138",
+      "factory": "0x145d72d80",
+      "name": "PerceptionComponentClientFacet"
+    },
+    {
+      "table": "0x14847ad00",
+      "factory": "0x145d72eb0",
+      "name": "StimulusComponentClientFacet"
+    },
+    {
+      "table": "0x14847bf98",
+      "factory": "0x145d72fd0",
+      "name": "TransformLinkChildComponentClientFacet"
+    },
+    {
+      "table": "0x14847c930",
+      "factory": "0x145d73100",
+      "name": "TransformLinkComponentClientFacet"
+    },
+    {
+      "table": "0x14853c780",
+      "factory": "0x1467c4c30",
+      "name": "AbilityComponentClientFacet"
+    },
+    {
+      "table": "0x14852ffa8",
+      "factory": "0x1467c4d50",
+      "name": "AlignToTerrainComponentClientFacet"
+    },
+    {
+      "table": "0x148544428",
+      "factory": "0x1467c4e80",
+      "name": "AttackHeightRetargetComponentClientFacet"
+    },
+    {
+      "table": "0x148544fd0",
+      "factory": "0x1467c4fb0",
+      "name": "AutoSpellComponentClientFacet"
+    },
+    {
+      "table": "0x14854e790",
+      "factory": "0x1467c50e0",
+      "name": "BeamAttackComponentClientFacet"
+    },
+    {
+      "table": "0x14855c128",
+      "factory": "0x1467c5200",
+      "name": "ChargeComponentClientFacet"
+    },
+    {
+      "table": "0x14854d7d8",
+      "factory": "0x1467c5360",
+      "name": "CombatStatusComponentClientFacet"
+    },
+    {
+      "table": "0x14854faa8",
+      "factory": "0x1467c5490",
+      "name": "CombatTextComponentClientFacet"
+    },
+    {
+      "table": "0x14853f080",
+      "factory": "0x1467c55b0",
+      "name": "CooldownTimersComponentClientFacet"
+    },
+    {
+      "table": "0x1485464c0",
+      "factory": "0x1467c56e0",
+      "name": "CriticalHitsComponentClientFacet"
+    },
+    {
+      "table": "0x1485454b0",
+      "factory": "0x1467c5830",
+      "name": "DamageReceiverComponentClientFacet"
+    },
+    {
+      "table": "0x148550628",
+      "factory": "0x1467c5960",
+      "name": "DefenseCollisionComponentClientFacet"
+    },
+    {
+      "table": "0x1485468a8",
+      "factory": "0x1467c5a80",
+      "name": "DetonateTriggerComponentClientFacet"
+    },
+    {
+      "table": "0x14855d848",
+      "factory": "0x1467c5bb0",
+      "name": "GritComponentClientFacet"
+    },
+    {
+      "table": "0x148538320",
+      "factory": "0x1467c5cf0",
+      "name": "HitVolumeComponentClientFacet"
+    },
+    {
+      "table": "0x1485474c8",
+      "factory": "0x1467c5e10",
+      "name": "HomingComponentClientFacet"
+    },
+    {
+      "table": "0x148547c58",
+      "factory": "0x1467c5f30",
+      "name": "HomingTargetComponentClientFacet"
+    },
+    {
+      "table": "0x148554120",
+      "factory": "0x1467c6060",
+      "name": "ImpulseComponentClientFacet"
+    },
+    {
+      "table": "0x148548620",
+      "factory": "0x1467c61b0",
+      "name": "IncapacitatedCharacterComponentClientFacet"
+    },
+    {
+      "table": "0x1485556e8",
+      "factory": "0x1467c62e0",
+      "name": "ItemDropComponentClientFacet"
+    },
+    {
+      "table": "0x148530868",
+      "factory": "0x1467c6410",
+      "name": "LightweightCharacterComponentClientFacet"
+    },
+    {
+      "table": "0x1485562a8",
+      "factory": "0x1467c6540",
+      "name": "LocalPlayerDebugComponentClientFacet"
+    },
+    {
+      "table": "0x1485310c0",
+      "factory": "0x1467c6660",
+      "name": "LookAtTargetComponentClientFacet"
+    },
+    {
+      "table": "0x148531af0",
+      "factory": "0x1467c6780",
+      "name": "LookTargetingComponentClientFacet"
+    },
+    {
+      "table": "0x148540b30",
+      "factory": "0x1467c68a0",
+      "name": "MagicComponentClientFacet"
+    },
+    {
+      "table": "0x148541e10",
+      "factory": "0x1467c69d0",
+      "name": "ManaComponentClientFacet"
+    },
+    {
+      "table": "0x148551760",
+      "factory": "0x1467c6b30",
+      "name": "MomentaryOffenseComponentClientFacet"
+    },
+    {
+      "table": "0x14853fb98",
+      "factory": "0x1467c6c80",
+      "name": "OffenseCollisionComponentClientFacet"
+    },
+    {
+      "table": "0x148538e90",
+      "factory": "0x1467c6db0",
+      "name": "PaperdollComponentClientFacet"
+    },
+    {
+      "table": "0x148557268",
+      "factory": "0x1467c6ed0",
+      "name": "PlayerAOIComponentClientFacet"
+    },
+    {
+      "table": "0x148534110",
+      "factory": "0x1467c7020",
+      "name": "PlayerAppearanceComponentClientFacet"
+    },
+    {
+      "table": "0x1485593c8",
+      "factory": "0x1467c7260",
+      "name": "PlayerDataBroadcastComponentClientFacet"
+    },
+    {
+      "table": "0x14854ac98",
+      "factory": "0x1467c74c0",
+      "name": "ProjectileSpawnerComponentClientFacet"
+    },
+    {
+      "table": "0x14854c048",
+      "factory": "0x1467c7610",
+      "name": "ReactionTrackingComponentClientFacet"
+    },
+    {
+      "table": "0x14854a458",
+      "factory": "0x1467c7740",
+      "name": "RotationComponentClientFacet"
+    },
+    {
+      "table": "0x1485418a8",
+      "factory": "0x1467c7870",
+      "name": "SpellComponentClientFacet"
+    },
+    {
+      "table": "0x14855a348",
+      "factory": "0x1467c7990",
+      "name": "SpellTargetIndicatorManagerComponentClientFacet"
+    },
+    {
+      "table": "0x148542958",
+      "factory": "0x1467c7ab0",
+      "name": "StaminaComponentClientFacet"
+    },
+    {
+      "table": "0x1485549b0",
+      "factory": "0x1467c7bf0",
+      "name": "TranslationComponentClientFacet"
+    },
+    {
+      "table": "0x14855a770",
+      "factory": "0x1467c7d20",
+      "name": "UnstuckComponentClientFacet"
+    },
+    {
+      "table": "0x14853d8c0",
+      "factory": "0x1467c7e40",
+      "name": "VitalsComponentClientFacet"
+    },
+    {
+      "table": "0x14854d1b0",
+      "factory": "0x1467c7f60",
+      "name": "WeaponAccuracyComponentClientFacet"
+    },
+    {
+      "table": "0x14855b568",
+      "factory": "0x1467c8090",
+      "name": "WorldBoundTrackerComponentClientFacet"
+    }
+  ]
+}
