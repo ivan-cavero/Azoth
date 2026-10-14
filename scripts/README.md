@@ -27,6 +27,9 @@ repeatedly. A focused helper without its own command runs as
 | Apply/restore the DTLS disk patch (gate 4) | `patch-dtls-disk.py` |
 | Capture and summarize a world attempt | `capture-world-run.py`, `ack-window.py`, `ack-coverage.py`, `trace-session.py` |
 | Decode client channel-0 traffic | `decode-ch0.py` |
+| Inventory what the client asks the server | `inbound-inventory.py` (`--check`) |
+| Verify the request→response map against the capture | `request-response-map.py` (`--check`) |
+| Audit our ACK ranges and the client's retransmit factor | `ack-audit.py` (`--check`) |
 | Send one test message to a running private world | `world-inject.py` |
 | Start a fresh instrumented client attempt | `run-instrumented-attempt.py` |
 | Compare two game captures | `bmp-diff.py` |
