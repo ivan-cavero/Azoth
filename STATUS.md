@@ -1,5 +1,271 @@
 # Live status
 
+## 2026-10-14 (cont. 4) — `az.py doc` is not a clean "what the client requested" source, and the traffic log has lost records
+
+**Found while regenerating the atlas after this session, and the regeneration was REVERTED rather than
+committed.** `research/atlas/observed-endpoints.json` claims to be "every endpoint family the New World
+client actually requested", and its pipeline is `services/gateway/traffic.jsonl` -> `az.py doc`. Both
+halves are currently untrustworthy:
+
+**1. The log contains requests that are not the game client.** Regenerating ADDED two families with an
+EMPTY example payload: `/v1/models` (2 hits, 2026-09-26) and `/images` (1 hit, 2026-10-09). Neither is
+something the New World client calls; they are local probes that reached the gateway while the log was
+recording. The log also holds **274 records for `azoth-1`**, a test world id, not the real world.
+
+**2. The log has LOST real client records.** Regenerating DROPPED
+`/prod/game/login/queue/v2/enqueue` and the WorldId config-set variants, which HEAD's atlas recorded -
+i.e. a genuine client endpoint disappeared from the tracked file. The log's own `n` counter is
+**non-increasing 82 times** (e.g. `n 1481 -> 1`, and the last line is `n 34` after 15 898 lines), so the
+file has been rebuilt/truncated and is not one coherent history. Its `/ping` total fell from the
+recorded 16 146 to 7 063 for a span whose *first* record is EARLIER, which is only possible if middle
+records were removed.
+
+**3. Consequence for the counts.** Every regenerated per-endpoint `hits` figure is lower than the
+tracked one and the tracked figures cannot be reproduced from the log that exists now. Rewriting them
+would silently discard recorded history while making the file look freshly verified.
+
+**What was done:** both generated files (`observed-endpoints.json`, `openapi.json`) were reverted, so
+the tracked atlas keeps its last reproducible state, and this is recorded instead. **What is needed
+before the next `az.py doc`:** either keep the client's traffic separate from local health/smoke probes
+(the gateway knows the normalised path, so a small allowlist or a source tag at the logger is enough),
+or accept that the log is not append-only-across-runs and stop deriving cumulative totals from it. Until
+then `az.py doc` output must not be committed blindly.
+
+## 2026-10-14 (cont. 3) — the ACK-window session ended at **1 h 06 min 33 s**, by the documented client-initiated REP disconnect
+
+**The session that validated the ACK fix ran 1 h 06 min 33 s (spawn 09:39:07 → disconnect 10:45:40),
+still live when closed by hand, and it ended by the known client-side path — not by a crash and not by
+our code.**
+
+**It was a GRACEFUL CLIENT-INITIATED disconnect, read from the bytes.** The client's final datagram
+carries a system record `SM_DISCONNECT` (id 3): `[ch3 flags 0x21 size 2 sys 3][ch3 flags 0x18 CT_ACKS]`.
+The client then logged `CGame::ActorContainerDisconnect` → `Disconnected from REP` → `Update state
+InGame to new state Disconnected`. The server was emitting normally through that exact second
+(40 heartbeats/min, 192 state-stream/min, 272 replay/unreliable per min) and correctly dropped the
+peer; no server-side event precedes the disconnect by way of a cause.
+
+**It matches the documented REP-disconnect ending, including its signature markers:**
+`exiting to main menu` **0**, `Cleanup()` **0**, `Disconnected from REP` **1**. That is the same
+signature the runbook records for `AZOTH_CHUNK_GAP_MS=4` — where the 20-minute return-to-menu arm
+does **not** fire and the session "ended 26:33 by a REP disconnect". **Our run is that same ending at
+1 h 06 min 33 s, i.e. ~2.5x later**, and with zero connection warnings against 682 in the pre-fix arm.
+The teardown delegate's first statement still tears the connection down even though
+`patch-exit-to-menu.py` successfully skipped the call that would leave the world, which is why the
+world stays rendered: the client keeps the **last frame** after tearing REP down.
+
+**What the user sees, and it is exactly explained by this:** the world still rendered at the spawn
+point with the ALC readout reporting `Time since last response: 11 m 28 s` (10:57:08 minus the
+10:45:40 disconnect) — far past the ~15 s red threshold, hence the red cable — and no movement,
+because there is no REP session left to carry the local player's own state. Same mechanism as every
+earlier cable/movement failure; only the trigger is different.
+
+**Nothing else looked wrong:** 0 `OnLocalNetworkConnectionWarning` in the whole hour, 0
+`transportError`, `[ERROR]` 2 (the spawn−3 ms `GridTracking` artifact plus one client-content
+`CameraLock…Combat Profile is invalid`), and every HTTP call succeeded (credential refresh every 5
+min, last before the disconnect at `10:42:09`, 200).
+
+**Recovery, and it is not optional:** the client does not rebuild its `ClientContext`, so a new
+attempt needs a fresh `NewWorld.exe` — `python az.py world restart` then click Play.
+
+**The next blocker is now precise and it is client-side:** what arms the teardown. The runbook's own
+conclusion stands — "to keep a session past 20 minutes the **arm** must be prevented" — and this run
+shows the arm now fires at ~1 h instead. That, plus the still-open inbound dispatcher, are the two
+remaining items.
+
+## 2026-10-14 (cont. 2) — the end-of-session storm had a server cause: our ACK range grew past half the 16-bit space
+
+**The client's retransmit storm is fixed, and it was our bug — an addressing window, not load.**
+
+**The defect.** The Carrier CT_ACKS is a CONTINUOUS range `[ack_first, ack_last]` carried in two
+**16-bit** fields. `ack_first` was pinned to the session's first inbound envelope sequence, so the
+acknowledged range grew by exactly one per datagram for the entire session. Once the range passes
+**half the 16-bit space (32768)** a wrap-aware reader can no longer tell how wide it is — and the
+client's response to that is not an error, it **retransmits**.
+
+**The onset is exact, to the second, measured in the 34-minute pre-fix session:**
+
+| event | value |
+| --- | --- |
+| last inbound envelope seq below the boundary | `32767` at `08:42:44` |
+| first at/above | `32768` at `08:42:44` (ACK range width `32766`) |
+| first retransmitted client record | reliable seq `1836` at `08:42:45` — records 1-1835 had each been sent **exactly once** |
+
+From there the client re-sent every reliable record it produced: **140 174 inbound channel-0
+records in 10 minutes carrying only 660 distinct sequences — a 212x retransmit factor**, against
+**1.2x** earlier in the same session. The same storm caught wire 3639 (3 133 records, 202 distinct,
+15.5x), which corrects my earlier reading of it as a mysteriously sustained request: it was a
+victim, not a separate phenomenon.
+
+**It is not load, transport, or our reliable stream — three quantities measured constant across the
+onset:** the server's outbound rate (2 626/min), its ACK send rate (665/min), and its own outbound
+reliable-sequence stream (no gap; two reordered pairs, no missing value).
+
+**The fix.** `rep.py::ack_window_first` returns a **sliding** window instead of a pinned one:
+`ack_last - (min(datagrams_seen, ACK_WINDOW) - 1)`, computed in 16-bit wrap space from a
+**monotonic datagram count** so it also survives the 65536 wrap a pinned range could not.
+`ACK_WINDOW` defaults to **16384** — half the safe maximum, and still ~13 minutes of history at the
+measured ~21 inbound datagrams/s. New lever `AZOTH_ACK_WINDOW`.
+
+**Verified live as a one-variable A/B, both arms the same build, env and machine, probe-free:**
+
+| | pre-fix (spawn 08:16:51) | fixed (spawn 09:39:07) |
+| --- | --- | --- |
+| crossed 32768 at | `08:42:44` | `10:05:05` |
+| widest CT_ACKS range | **56210** | **16383** |
+| CT_ACKS at/over 32768 | **7496** | **0** |
+| wire 349 retransmit factor | **64x** (142 088 records / 2 212 distinct) | **1.0x** (1 727 / 1 724) |
+| wire 3639 retransmit factor | **15.5x** | **1.0x** |
+| `OnLocalNetworkConnectionWarning` at ~29 min elapsed | ~100, climbing 0.8/s | **0** |
+| client `[ERROR]` lines | 6 | 2 (the spawn−3 ms GridTracking artifact + one client-content CameraLock) |
+
+`transportError` 0, `State(InGame) is timeout` 0, `Disconnected from REP` 0, and the world server's
+emitter rates unchanged. The client logged **zero connection warnings in 31+ minutes**, where the
+pre-fix run had ~100 by the same point.
+
+**New tool:** `scripts/ack-audit.py` (`--check`) reports the widest CT_ACKS range, whether any
+reached 32768, the envelope crossing, and the per-type retransmit factor. It **exits 1 on the
+pre-fix log** (7 496 ACK ranges at/over the limit, first at `08:42:44` with `first=2 last=32770`)
+and 0 on the fixed one, so the defect and its absence are both reproducible from a log alone.
+
+**Validation:** 157 world tests OK (6 new in `TestAckWindow`, including the exact boundary that
+broke the client and the 16-bit wrap), 24 gateway OK, `ack-audit.py --check` OK,
+`inbound-inventory.py --check` OK, `request-response-map.py --check` OK. Evidence:
+`research/sessions/session-20261014T0939Z-ack-window/` (NOTES.md, ack-audit.txt,
+server-events.jsonl, Game.log). Atlas:
+`ack_range_pinned_to_session_start_breaks_the_client_at_32768_20261014`.
+
+**Not claimed:** that sessions no longer crash. The fix removes a measured storm, and the run above
+lasted **1 h 3 min 7 s** against a 34 min 10 s best for the pre-fix arm — but that duration figure is
+**one run**, and the crash history has at least three distinct signatures. Duration stays open until
+a 2-hour soak.
+
+## 2026-10-14 (cont.) — the response direction is now request-correlated, and the inbound inventory is complete
+
+**The two directions of the typed contract are now measured by tools that fail loudly, not by
+hand-checked tables.**
+
+**Inbound: every client→server type is named, counted and classified.** `scripts/inbound-inventory.py`
+now resolves names from three registries (the build's type table, the Javelin registry, the AZ
+registry), classifies each type (`request` / `notification` / `transport` / `input-stream` /
+`v3-registration` / `unknown`) and self-checks with `--check`. One session: 8909 datagrams,
+**37 distinct client→server types** — 19 requests, 8 transport, 1 input stream, 1 V3
+re-registration, **8 typed-but-unnamed**. Artifact `research/derived/inbound-requests.json`;
+full tables in the new `research/docs/INBOUND-REQUESTS.md`.
+
+**The 8 unnamed types are runtime-registered.** Their GUIDs are absent from the executable as
+dashed text *and* as raw bytes (checked), so no static scan can name them; `typeindex.json` was
+itself produced by a runtime probe. Wire **19** is recovered as `RegistrationRequestV3Msg` — the
+1115-byte `0x13` blobs are the client's V3 re-registration, not a game request. Naming the rest
+needs a live send-side class-name probe.
+
+**Outbound: the drop table is gone, replaced by request correlation.** The old policy decided by
+whether the client *had the facet*; the measurement that actually supports the decision is
+whether the client *sent the request*. The replay is another client's capture, so it answers
+questions ours never asks. `rep.py::_deferred_decision` now holds each captured typed response
+until the client's object graph exists, then sends it only if the client sent the request it
+answers (`RESPONSE_REQUESTS`, pairs derived from the capture's ordering and the family naming).
+It is wrong in both directions and both are fixed:
+
+| response | old | new | why |
+| --- | --- | --- | --- |
+| `0x1067` VoiceChat `OnVoiceChatServiceRegistered` | dropped | **sent** | the client *does* send `0x066B` |
+| `0x16A0` Inventories `OnQueryInventories` | sent unasked | **dropped** | the client never sends `0x169D` |
+| `0x1B88` GlobalStorage `ReceiveStorageSearchItems` | dropped (facet absent) | **dropped** (request never sent) | same outcome, honest reason |
+| `0x0CA4` EventNotification `SyncNotifications` | dropped | **dropped** | the only static drop left: unsolicited + absent facet |
+
+New lever `AZOTH_REPLAY_REQUEST_GATING` (default 1) for the A/B, plus
+`AZOTH_REPLAY_DEFER_TIMEOUT_S` (default 20). New self-verifying tool
+`scripts/request-response-map.py --check` re-derives the pairs from the capture and fails on a
+contradiction. The server now logs `replay-defer-start`, `replay-response-suppressed` (with its
+reason) and one `inbound-request-coverage` line per session that splits the client's inbound
+types into `answerable_by_replay` and `no_replay_response`.
+
+**A naming discrepancy recorded, not silently resolved.** The client reports
+`GridTrackingComponentClientFacet_UpdatePhasing` for the response we send as wire `0x1033`, but
+the wire-name registry pairs that *name* with wire **930**, which the capture does not contain.
+The client's own error is the authority for what it received, so the table keeps `0x1033` and
+the mismatch is documented.
+
+**VERIFIED LIVE, twice (2026-10-14).** Two clean sessions, the second probe-free against the
+final code. `replay-response-scheduling` held **32** responses both times, and the gate decided
+them **identically** in both runs:
+
+| outcome | wire | count | reason |
+| --- | --- | --- | --- |
+| **sent** | `0x08E6` Contracts `OnLookupContractsByParticipant` | 1 | client sent `0x09FC` |
+| **sent** | `0x1033` GridTracking `UpdatePhasing` | 1 | client sent `0x101E`/`0x102E`/`0x102F`/`0x192C` |
+| **sent** | `0x1067` VoiceChat `OnVoiceChatServiceRegistered` | 1 | client sent `0x066B` |
+| **sent** | `0x1096` / `0x1097` Time `Sync{TimeChange,DayPhase}` | 2 | client sent `0x0635`/`0x1098` |
+| suppressed | `0x1B88` GlobalStorage `ReceiveStorageSearchItems` | 23 | `request-not-seen` (`0x1B7F` never sent) |
+| suppressed | `0x16A0` Inventories `OnQueryInventories` | 2 | `request-not-seen` (`0x169D` never sent) |
+| suppressed | `0x136A` GameModeParticipant `OnLeftQueueForGameModeMsg` | 1 | `request-not-seen` (`0x0CED` never sent) |
+| suppressed | `0x0CA4` EventNotification `SyncNotifications` | 1 | `facet-absent` (unsolicited) |
+
+**The client end: exactly 1 `RMIDispatch` error both times**, `GridTracking` at spawn−3 ms — the
+known client-side artifact, unchanged in kind. The two decisive facts are absences:
+**no `VoiceChatComponentClientFacet_*` error although `0x1067` is now sent** (the old policy
+discarded it; the client accepts it) and **no error for `0x16A0` although it is now suppressed**
+(it had been going out unasked and was never needed). After the spawn line: `[ERROR]` 0,
+`transportError` 0, `State(InGame) is timeout` 0, `Disconnected from REP` 0.
+
+**Regressions checked and clear in the same sessions.** Movement: baseline **0.000 u**, W held 5 s
+**23.270 u** with path 23.303 u (straight), **0.000 u** after release. Cable: the client's own
+`Time since last response` read **717 / 431 / 98 ms** on three samples ~10 s apart, far under the
+~2 s amber threshold. World rendered both times (26 slice lines).
+
+The new `inbound-request-coverage` line, measured: `inbound_types 50, request_types 29,
+answerable_by_replay 7, no_replay_response 22` — and the 22 are all channel-0 requests, the
+Carrier noise gone (the first live line had listed 13 channel-3 records as waiting on us, which
+is why `_counts_as_request` was added).
+
+**Two honest corrections and one new observation from this session.** (1) `measure-cable.py`
+reported `absent/other` on the first session, but **its crop landed on wooden beams, not the HUD**,
+so its verdict is unusable for that frame; the ALC readout above is the real instrument. (2) The
+first session died at **11 min 46 s** with WER `BEX64`, `P4: frida-agent.dll_unloaded`, `P7: 0x9c7e0`,
+`P9: 8` — the documented execute-after-unload race, **caused by my own position probe**, which still
+ended with a bare `session.detach()` 8 min 48 s earlier. `frida-player-position.py` now ends through
+`_paths.safe_shutdown()` (`kill` by default, `--keep-process` for the orderly path). Most probes
+under `reverse/probes/client/` still call `session.detach()` directly; that systemic cleanup is
+recorded here, not done silently in this change.
+
+**(3) The probe-free run lasted 34 min 10 s — the longest session measured on this build.**
+Spawn `08:16:51`, last client log line `08:51:01`, with `transportError` 0, `State(InGame) is
+timeout` 0, `Disconnected from REP` 0, and the world server emitting a steady ~59 heartbeats /
+~285 state-stream / ~59 input-response per minute throughout. That exceeds the ~12–22 min range
+`STATUS.md` previously recorded, so the response-gating change did not shorten a session. It is
+**one** session, so it is not a 2-hour soak and does not overturn the crash history.
+
+**New open observation, measured and not diagnosed.** `OnLocalNetworkConnectionWarning
+countReceived` climbs from spawn+1s at ~1 per 16 s, then at **spawn + 27 min 14 s** accelerates
+about **24×** to ~0.7–0.85 s per warning (1→101 took 1633 s; 101→201 took 69 s; 401→682 took
+0.78 s each). It is **not a transport failure**, and that was checked: the client's own derived
+flag is **`Client.ConnectionWarning: 0` in all 19 occurrences** and it keeps re-asserting 0, there
+are 0 timeouts and 0 REP disconnects, the server keeps emitting normally, and the state stream's
+`wire_seq` is monotone with **0 decreases** (128 → 9644, no wrap). So a cumulative counter
+accelerates at ~27 min while the client's own warning flag stays clear. Recorded as an open
+question with one suggested experiment (raise `AZOTH_REPLAY_STATE_STREAM_PLAYER_PERIOD_S` from
+0.25 to ~1.0 and see whether the onset moves), not as a finding.
+
+**The other 5 client errors are not ours:** 2× `SlayerScriptComponent: Attempted to reference an
+unknown entity` and 3× `CameraLockComponentClientFacet: Camera Target Lock Combat Profile is
+invalid` — client content/GDE data, neither in the response-gating path.
+
+**Validation:** 151 world tests OK (6 new cases for the gate: rule coverage, hold-until-request,
+drop-without-request, unsolicited-absent-facet, channel-0-only coverage, and the honest gating-off
+A/B), 24 gateway OK, `inbound-inventory.py --check` OK, `request-response-map.py --check` OK.
+Evidence: `research/sessions/session-20261014T0758Z-response-gating-e2e/` (NOTES.md,
+server-events.jsonl, Game.log, position-samples.log, alc-response-strip.jpg) and
+`research/sessions/session-20261014T0815Z-response-gating-probe-free/` (NOTES.md, server-events.jsonl,
+Game.log). Atlas:
+`inbound_request_inventory_is_complete_and_classified_20261014`,
+`response_scheduling_is_request_correlated_not_facet_correlated_20261014`.
+
+**The gap that remains is unchanged and now visible in every session:** there is still no
+inbound typed dispatcher, so all of them are ignored. Measured per session: **19 requests** in a
+short session, **29** in one that exercises more UI. Next: answer the five a playable world
+needs, starting with `ContractsComponentServerFacet_LookupContractsByParticipant` (2556), whose
+matching `0x08E6` response the capture already contains.
+
 ## 2026-10-14 — completeness audit: the client asks 43 things and we answer none; the replay used to answer questions nobody asked
 
 **Both directions of the client/server contract were broken, and one of them was invisible.**

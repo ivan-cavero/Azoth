@@ -1,4 +1,10 @@
-sessions/*
+# Raw session evidence stays local; only REPORT.md and extracted JSON are tracked.
+# The negations need the DIRECTORIES re-included first: git cannot re-include a file
+# whose parent directory is excluded, so `sessions/*` + `!sessions/**/REPORT.md`
+# silently tracked nothing (verified 2026-10-14: 0 REPORT.md in the index while one
+# existed on disk). `sessions/**` + `!sessions/**/` states the same intent correctly.
+sessions/**
+!sessions/**/
 !sessions/.gitkeep
 !sessions/**/REPORT.md
 !sessions/**/extracted/*.json

@@ -159,10 +159,20 @@ orders the work without repeating those references.
 
 ### 3. Complete the client-visible server contract
 
+- **The outbound half is measured and request-correlated (2026-10-14).** Captured typed
+  responses are sent only when the client sent the request they answer; see
+  [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) and `AZOTH_REPLAY_REQUEST_GATING`.
+  Verify a change to the map with `python scripts/request-response-map.py --check`.
+- **Next: the inbound dispatcher.** There is still no inbound typed-message dispatcher, so all
+  19 requests a session sends are acknowledged at the transport level and ignored. Answer the
+  five a playable world needs, in order: `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient`
+  (2515), `ObjectivesComponentServerFacet_UpdateTrackedObjectives` (1458) /
+  `..._SetObjectiveAutoPinning` (2709), `ContractsComponentServerFacet_LookupContractsByParticipant`
+  (2556, whose `0x08E6` response the capture already contains),
+  `GlobalStorageComponentServerFacet_SetReplicateStorage` (387), and
+  `TimeComponentServerFacet_SyncToClient` (4248).
 - Let new client requests and failed state transitions set the next protocol
   work item; record exact fields and evidence in the atlas.
-- Finish the state and replication path needed for movement before expanding
-  unrelated systems, persistence, or infrastructure.
 - Keep the gateway and world process boundaries until measured requirements
   call for a different deployment shape.
 

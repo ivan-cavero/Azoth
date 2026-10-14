@@ -141,59 +141,67 @@ server→client message on channel 1 (or 2)". It does not: it needs the captured
 keep flowing, which the stream does by default. The `0x1096`/`0x1097` pair is delivered 828
 times per session and does **not** clear the cable.
 
-### Inbound requests: the client asks for 43 things and we answer none
+### Inbound requests: the client asks and we answer none
 
-MEASURED 2026-10-13 with `scripts/inbound-inventory.py`. In one session the client sent
-**43 distinct typed request types**; the server has **no inbound typed-message dispatcher at
-all** (`grep -c dispatch_inbound` -> 0), so every one of them is acknowledged at the transport
-level and then ignored. The server now logs each distinct `(channel, type)` once per session
-(`event: inbound-typed`) so the gap is visible instead of silent.
+MEASURED 2026-10-14 with `scripts/inbound-inventory.py`. The full inventory, the classification
+of every type, the unnamed ones and the request→response map live in
+**[INBOUND-REQUESTS.md](INBOUND-REQUESTS.md)**; this is the summary.
 
-By channel, from the same session: channel 1 carries **13 894** records and they are *all*
-`ActionListComponentServerFacet_ReceiveInputFromClient` (wire 1589) — the ALC input stream;
-channel 0 carries 832, of which 703 are `PingMsg`; channel 3 carries 14 670 system/Carrier
-records.
+In one session the client sent **37 distinct client→server types** (a longer session with more
+UI paths exercises 43): **19 requests** (`*ComponentServerFacet_*`), **8 transport**, **1 input
+stream**, **1 V3 re-registration**, **8 typed-but-unnamed**. The server has **no inbound typed
+message dispatcher at all** (`grep -c dispatch_inbound` -> 0), so every request is acknowledged
+at the transport level and then ignored. By channel: channel 1 = 8412 records and they are *all*
+`ActionListComponentServerFacet_ReceiveInputFromClient` (wire 1589, the ALC input stream);
+channel 0 = 543, of which 431 are `PingMsg`; channel 3 = 8891 Carrier/system records.
 
-The requests that matter for a playable world are the component state the client reports and
-expects an answer to — `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient`,
-`ContractsComponentServerFacet_LookupContractsByParticipant`,
-`ObjectivesComponentServerFacet_UpdateTrackedObjectives`,
-`GlobalStorageComponentServerFacet_SetReplicateStorage`,
-`TimeComponentServerFacet_SyncToClient` — plus the UI-driven queries
-(`MetaAchievementComponentServerFacet_ServerRequest*`, `TwitchComponentServerFacet_*`,
-`GroupsComponentServerFacet_RequestRemoveRaidMember`, ...). None is answered, and none currently
-produces a client-side complaint, which is why the gap was invisible.
+None of the requests currently produces a client-side complaint, which is why the gap was
+invisible for so long. **Visibility fixed:** the server logs each distinct `(channel, type)`
+once per session (`event: inbound-typed`) and, when the held responses are decided, one
+`event: inbound-request-coverage` line splitting the client's types into `answerable_by_replay`
+and `no_replay_response`.
 
-### Response scheduling: we used to answer questions the client never asked
+The requests a playable world needs answered, in order:
+`PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient` (2515),
+`ObjectivesComponentServerFacet_UpdateTrackedObjectives` (1458) /
+`..._SetObjectiveAutoPinning` (2709),
+`ContractsComponentServerFacet_LookupContractsByParticipant` (2556) — the capture contains the
+matching `0x08E6` response —,
+`GlobalStorageComponentServerFacet_SetReplicateStorage` (387), and
+`TimeComponentServerFacet_SyncToClient` (4248).
 
-MEASURED 2026-10-13, and it is a consequence of the replay being **another client's capture**:
-it contains the server's answers to requests our client never makes. A clean session logged
-**29** `RMIDispatch: The facet target ID couldn't be found` errors, all inside a single
-millisecond, 1 ms BEFORE `player spawn succeeds`, while the replay drains 8 s AFTER it.
+### Response scheduling: we answer only the questions the client actually asked
 
-Which action is right depends on whether the client has the facet at all, measured against the
-live entity's 107 bound client facets:
+MEASURED 2026-10-13, CORRECTED 2026-10-14. The replay is **another client's capture**, so it
+contains the server's answers to requests our client never makes. A clean session logged **29**
+`RMIDispatch: The facet target ID couldn't be found` errors, all inside a single millisecond,
+1 ms BEFORE `player spawn succeeds`, while the replay drains 8 s AFTER it.
 
-| response | facet in our session | action |
-| --- | --- | --- |
-| `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems` (23x) | **absent** | **drop** |
-| `EventNotificationComponentClientFacet_SyncNotifications` | **absent** | **drop** |
-| `VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered` | **absent** | **drop** |
-| `TimeComponentClientFacet_Sync{TimeChange,DayPhase}` | present, but not built yet | **defer** |
-| `GameModeParticipant…OnLeftQueueForGameModeMsg` | present | **defer** |
-| `GridTrackingComponentClientFacet_UpdatePhasing` | present | **defer** |
-| `ContractsComponentClientFacet_OnLookupContractsByParticipant` | present | **defer** |
+The first fix classified each response by whether the client has the facet at all (a survey of
+the live entity's bound facets) and dropped the absent ones. That was the right question asked
+with the wrong instrument, and it was wrong in **both** directions:
 
-Dropping is not data loss: those messages answer requests our client never sends (the request
-behind the storage-search replies, wire 7039 `RequestReplicateStorageSearchResults`, is not among
-the 43). The levers are `AZOTH_REPLAY_DROP_UNRECEIVABLE` and `AZOTH_REPLAY_DEFER_CLIENT_FACETS`,
-both on by default; the arming event `replay-response-scheduling` reports what each did.
+| response | facet survey | request correlation | measured why |
+| --- | --- | --- | --- |
+| `0x1B88` GlobalStorage `ReceiveStorageSearchItems` (x23) | drop | **drop** | the client never sends `0x1B7F` |
+| `0x0CA4` EventNotification `SyncNotifications` | drop | **drop** | unsolicited, facet absent — the only static drop left |
+| `0x1067` VoiceChat `OnVoiceChatServiceRegistered` | drop | **send** | the client *does* send `0x066B` |
+| `0x16A0` Inventories `OnQueryInventories` | *(sent unasked)* | **drop** | the client never sends `0x169D` |
 
-**Acceptance, measured: 29 -> 3 -> 1 dispatch error per session.** The remaining one is
-`GridTrackingComponentClientFacet_UpdatePhasing`, and it is **not caused by anything we send**:
-the message we do send arrives **8 s after** the error, and the error appears in every session
-measured, including one where the state stream was off. It is a client-side artifact of its own
-spawn sequence, and it is bounded at one occurrence per session.
+The rule is now `rep.py::_deferred_decision`: a captured typed response is held until the
+client's object graph exists, then sent only if the client sent the request it answers; a
+response with no identifiable request is sent unless its facet was measured absent. The pairs
+are derived from the capture's own ordering and from the family naming, and are verified by
+`scripts/request-response-map.py --check`. Lever `AZOTH_REPLAY_REQUEST_GATING` (default on).
+
+**Acceptance, measured: 29 -> 3 -> 1 dispatch error per session.** The remaining one is the
+client's own `GridTrackingComponentClientFacet_UpdatePhasing`, and it is **not caused by the
+scheduling policy**: it fires at spawn−1 ms while the message we send arrives 8 s later, and it
+appears in every session measured, including one with the state stream off. It is a client-side
+artifact of its own spawn sequence, bounded at one per session. (Note for the reader: the client
+names that message in its `RMIDispatch` error, but the wire-name registry pairs the *name* with
+wire 930, which the capture does not contain; the response we actually send is wire `0x1033`,
+the only unnamed message in the capture at that point.)
 
 ## REP message registry (from the capture)
 
