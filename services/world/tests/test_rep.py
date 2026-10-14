@@ -1386,43 +1386,82 @@ class TestInputResponseReadiness(unittest.TestCase):
 
 
 class TestReplayResponseScheduling(unittest.TestCase):
-    """Client-facet responses are sent only when the client can receive them.
+    """Client-facet responses are sent only when the client can actually receive them.
 
     MEASURED 2026-10-13: a clean session logged 29 `RMIDispatch: The facet target ID couldn't
     be found` errors, ALL inside a single millisecond, 1 ms BEFORE `player spawn succeeds`,
     while the replay drains 8 s AFTER it. The replay blasts responses at a client whose object
     graph does not exist yet, and since each message is sent once, that data is lost for the
-    whole session. Which action is right depends on whether the client has the facet at all,
-    measured against the live entity's 107 bound client facets:
+    whole session.
 
-      present -> DEFER until the replay drains (TimeComponent, GameModeParticipant,
-                 GridTracking, Contracts)
-      absent  -> DROP  (GlobalStorage, EventNotification, VoiceChat)
+    MEASURED 2026-10-14: which action is right is a REQUEST-CORRELATION question, not a facet
+    survey. The replay is another client's capture, so a response exists because some client
+    sent the `*ServerFacet_*` request it answers; if OUR client never sends that request there
+    is no target and no reason to send the answer. RESPONSE_REQUESTS records the pairs measured
+    from the capture's own ordering and from the family naming. Only one type stays a static
+    drop (ABSENT_FACET_RESPONSES), because it is unsolicited and its facet was measured absent.
     """
 
-    def test_measured_tables_are_exactly_the_measured_types(self):
+    @staticmethod
+    def _stub(deferred, seen=(), *, greeting=True, replaying=()):
+        """A PeerSession shell with just the state maybe_pump_deferred touches."""
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.greetings_after_replay = greeting
+        session.replay_queue = list(replaying)
+        session.deferred_replay = list(deferred)
+        session.deferred_replay_sent = 0
+        session.deferred_replay_dropped = 0
+        session.defer_deadline = None
+        session.request_coverage_logged = False
+        session.inbound_types_seen = {(0, t) for t in seen}
+        session.sent = []
+        session._send_replay_message = lambda _s, m: session.sent.append(m)
+        return session
+
+    @staticmethod
+    def _msg(seq, type_id):
+        from azoth_world.javelin.replay_store import ReplayMessage
+
+        return ReplayMessage(seq=seq, type_id=type_id, direction="R", body=b"x",
+                             has_redaction=False)
+
+    def test_every_deferred_type_has_a_decision_rule(self):
+        """No held type may be left without a rule, or it would silently never be decided."""
         from azoth_world.rep import (
+            ABSENT_FACET_RESPONSES,
             DEFERRED_RESPONSE_TYPES,
-            UNRECEIVABLE_RESPONSE_TYPES,
+            RESPONSE_REQUESTS,
         )
 
-        self.assertEqual(
-            set(UNRECEIVABLE_RESPONSE_TYPES),
-            {0x1B88, 0x0CA4, 0x1067},
-            "the drop set is the measured absent-facet set",
-        )
-        self.assertEqual(
-            set(DEFERRED_RESPONSE_TYPES),
-            {0x1096, 0x1097, 0x136A, 0x1033, 0x08E6},
-            "the defer set is the measured present-facet set",
-        )
-        # no type may be in both
-        self.assertEqual(
-            set(UNRECEIVABLE_RESPONSE_TYPES) & set(DEFERRED_RESPONSE_TYPES), set()
-        )
+        for type_id in DEFERRED_RESPONSE_TYPES:
+            self.assertTrue(
+                type_id in RESPONSE_REQUESTS or type_id in ABSENT_FACET_RESPONSES,
+                f"{hex(type_id)} is held but has no decision rule",
+            )
+        # A request-gated response (non-empty request tuple) cannot also be an unconditional
+        # absent-facet drop: one requires a request, the other says no request can justify it.
+        for type_id in ABSENT_FACET_RESPONSES:
+            self.assertEqual(
+                RESPONSE_REQUESTS.get(type_id, ()),
+                (),
+                f"{hex(type_id)} is an absent-facet drop and must be unsolicited",
+            )
+        # Every required request is a plausible wire id.
+        for resp, reqs in RESPONSE_REQUESTS.items():
+            self.assertIsInstance(reqs, tuple)
+            for req in reqs:
+                self.assertGreater(req, 0)
+        # The measured pairs from the capture, kept as a regression against a table edit.
+        self.assertEqual(RESPONSE_REQUESTS[0x08E6], (0x09FC,))
+        self.assertEqual(RESPONSE_REQUESTS[0x1067], (0x066B,))
+        self.assertIn(0x1B7F, RESPONSE_REQUESTS[0x1B88])
 
-    def test_partition_sends_everything_it_did_not_measure(self):
-        """A message outside both tables must pass through untouched.
+    def test_partition_holds_every_measured_response_and_passes_the_rest(self):
+        """A message outside the tables must pass through untouched.
 
         This is the property that makes the change safe: it cannot alter a message it was not
         measured on, so a protocol change cannot be silently swallowed.
@@ -1430,34 +1469,28 @@ class TestReplayResponseScheduling(unittest.TestCase):
         from unittest import mock
 
         from azoth_world.rep import _partition_replay
-        from azoth_world.javelin.replay_store import ReplayMessage
 
-        def msg(seq, type_id):
-            return ReplayMessage(seq=seq, type_id=type_id, direction="R", body=b"x",
-                                 has_redaction=False)
-
-        unknown = msg(1, 0x0663)          # LevelInfo: must be sent as before
-        storage = msg(2, 0x1B88)          # absent facet -> drop
-        timing = msg(3, 0x1096)           # present facet, early -> defer
-        contracts = msg(4, 0x08E6)        # present facet, early -> defer
+        unknown = self._msg(1, 0x0663)      # LevelInfo: must be sent as before
+        storage = self._msg(2, 0x1B88)      # request-gated (0x1B7F)
+        timing = self._msg(3, 0x1096)       # request-gated (0x1098 / 0x0635)
+        contracts = self._msg(4, 0x08E6)    # request-gated (0x09FC)
+        unsolicited = self._msg(5, 0x0CA4)  # unsolicited, facet absent
         with mock.patch("azoth_world.rep.REPLAY_DROP_UNRECEIVABLE", True), \
-                mock.patch("azoth_world.rep.REPLAY_DEFER_CLIENT_FACETS", True):
-            now, defer, drop = _partition_replay([unknown, storage, timing, contracts])
+                mock.patch("azoth_world.rep.REPLAY_DEFER_CLIENT_FACETS", True), \
+                mock.patch("azoth_world.rep.REPLAY_REQUEST_GATING", True):
+            now, defer, drop = _partition_replay(
+                [unknown, storage, timing, contracts, unsolicited]
+            )
         self.assertEqual([m.seq for m in now], [1])
-        self.assertEqual([m.seq for m in defer], [3, 4])
-        self.assertEqual([m.seq for m in drop], [2])
+        self.assertEqual([m.seq for m in defer], [2, 3, 4, 5])
+        self.assertEqual(drop, [], "with gating on, every suppression is decided at drain")
 
     def test_levers_can_disable_each_behaviour(self):
         from unittest import mock
 
         from azoth_world.rep import _partition_replay
-        from azoth_world.javelin.replay_store import ReplayMessage
 
-        def msg(seq, type_id):
-            return ReplayMessage(seq=seq, type_id=type_id, direction="R", body=b"x",
-                                 has_redaction=False)
-
-        items = [msg(1, 0x1B88), msg(2, 0x1096)]
+        items = [self._msg(1, 0x1B88), self._msg(2, 0x1096)]
         with mock.patch("azoth_world.rep.REPLAY_DROP_UNRECEIVABLE", False), \
                 mock.patch("azoth_world.rep.REPLAY_DEFER_CLIENT_FACETS", False):
             now, defer, drop = _partition_replay(items)
@@ -1465,43 +1498,117 @@ class TestReplayResponseScheduling(unittest.TestCase):
         self.assertEqual(defer, [])
         self.assertEqual(drop, [])
 
+    def test_gating_off_reproduces_the_legacy_drop_set(self):
+        """The A/B has to be honest: gating off must behave exactly like the old policy.
+
+        With request gating on, 0x1067 is sent and 0x1B88 is held for its request. With it
+        off, the pre-2026-10-14 static drop set must apply unchanged, or a comparison of the
+        two would be measuring two differences at once.
+        """
+        from unittest import mock
+
+        from azoth_world.rep import LEGACY_UNRECEIVABLE_TYPES, _partition_replay
+
+        items = [
+            self._msg(1, 0x1B88), self._msg(2, 0x1067), self._msg(3, 0x0CA4),
+            self._msg(4, 0x1096),
+        ]
+        with mock.patch("azoth_world.rep.REPLAY_REQUEST_GATING", False), \
+                mock.patch("azoth_world.rep.REPLAY_DROP_UNRECEIVABLE", True), \
+                mock.patch("azoth_world.rep.REPLAY_DEFER_CLIENT_FACETS", True):
+            now, defer, drop = _partition_replay(items)
+        self.assertEqual([m.seq for m in drop], [1, 2, 3])
+        self.assertEqual([m.seq for m in defer], [4])
+        self.assertEqual(now, [])
+        self.assertEqual(set(LEGACY_UNRECEIVABLE_TYPES), {0x1B88, 0x0CA4, 0x1067})
+
+    def test_gated_response_is_dropped_when_its_request_never_arrives(self):
+        """The core of the fix: a response whose request the client never sent is dropped.
+
+        Before this, the replay answered questions nobody asked and the client logged one
+        dispatch error per answer. Contracts (0x08E6) needs 0x09FC; with 0x09FC absent from
+        the session it must be dropped, and the drop must be reported with its reason.
+        """
+        contracts = self._msg(0x43, 0x08E6)
+        session = self._stub([contracts], seen=())
+        session.defer_deadline = -1.0  # the waiting window has already elapsed
+        PeerSession = type(session)
+        PeerSession.maybe_pump_deferred(session, None)
+        self.assertEqual(session.sent, [])
+        self.assertEqual(session.deferred_replay_dropped, 1)
+        self.assertEqual(session.deferred_replay, [])
+
+    def test_gated_response_is_held_until_its_request_arrives(self):
+        """A late request still gets its answer inside the window."""
+        contracts = self._msg(0x43, 0x08E6)
+        session = self._stub([contracts], seen=())
+        PeerSession = type(session)
+        PeerSession.maybe_pump_deferred(session, None)
+        self.assertEqual(session.sent, [], "held, not sent, while the request is missing")
+        self.assertEqual(session.deferred_replay, [contracts], "still waiting")
+        # The client asks (Contracts LookupContractsByParticipant), then the next pump sends it.
+        session.inbound_types_seen.add((0, 0x09FC))
+        PeerSession.maybe_pump_deferred(session, None)
+        self.assertEqual([m.seq for m in session.sent], [0x43])
+        self.assertEqual(session.deferred_replay_sent, 1)
+        self.assertEqual(session.deferred_replay, [])
+
+    def test_request_seen_before_the_drain_sends_immediately(self):
+        """If the client already asked before the replay drained, the answer goes out at once."""
+        timing = self._msg(0x75, 0x1096)
+        session = self._stub([timing], seen=(0x1098,))
+        type(session).maybe_pump_deferred(session, None)
+        self.assertEqual([m.seq for m in session.sent], [0x75])
+
+    def test_unsolicited_absent_facet_response_is_dropped(self):
+        """0x0CA4 has no request in the capture and its facet is measured absent."""
+        sync = self._msg(0x09, 0x0CA4)
+        session = self._stub([sync], seen=())
+        session.defer_deadline = -1.0
+        type(session).maybe_pump_deferred(session, None)
+        self.assertEqual(session.sent, [])
+        self.assertEqual(session.deferred_replay_dropped, 1)
+
     def test_deferred_messages_wait_for_the_replay_to_drain(self):
         """They must not be sent while the replay is still running or before the client's
         context is up - that is the whole point of deferring them."""
-        from azoth_world.rep import PeerSession
-
-        session = PeerSession.__new__(PeerSession)
-        session.gone = False
-        session.v3_responded = True
-        session.greetings_after_replay = False
-        session.replay_queue = ["still replaying"]
-        from azoth_world.javelin.replay_store import ReplayMessage
-
-        held = ReplayMessage(seq=0x75, type_id=0x1096, direction="R", body=b"x",
-                             has_redaction=False)
-        session.deferred_replay = [held]
-        session.deferred_replay_sent = 0
-        sent: list = []
-        session._send_replay_message = lambda _s, m: sent.append(m)
-
+        held = self._msg(0x75, 0x1096)
+        session = self._stub([held], seen=(0x1098,), greeting=False, replaying=["still"])
+        PeerSession = type(session)
         PeerSession.maybe_pump_deferred(session, None)
-        self.assertEqual(sent, [])
+        self.assertEqual(session.sent, [])
 
         session.replay_queue = []
         PeerSession.maybe_pump_deferred(session, None)
-        self.assertEqual(sent, [], "greetings_after_replay gates it too")
+        self.assertEqual(session.sent, [], "greetings_after_replay gates it too")
 
         session.greetings_after_replay = True
         PeerSession.maybe_pump_deferred(session, None)
-        self.assertEqual([m.seq for m in sent], [held.seq])
+        self.assertEqual([m.seq for m in session.sent], [held.seq])
         self.assertEqual(session.deferred_replay_sent, 1)
         self.assertEqual(session.deferred_replay, [], "sent once, then cleared")
 
+    def test_coverage_report_counts_only_channel_0_requests(self):
+        """The coverage line must not call Carrier records unanswered requests.
+
+        Measured 2026-10-14: the first live report listed 13 channel-3 Carrier transport
+        records among the types 'waiting on us', which makes the report misleading. Only
+        channel 0 carries the typed stream, and the heartbeat and V3 registration ride it
+        without being requests.
+        """
+        from azoth_world.rep import _counts_as_request
+
+        self.assertTrue(_counts_as_request(0, 0x09FC))    # Contracts request
+        self.assertTrue(_counts_as_request(0, 0x0A95))    # Objectives request
+        self.assertFalse(_counts_as_request(0, 0x15D))    # PingMsg is transport
+        self.assertFalse(_counts_as_request(0, 0x13))     # V3 re-registration
+        self.assertFalse(_counts_as_request(1, 0x0635))   # channel 1 is the input stream
+        self.assertFalse(_counts_as_request(3, 0x20))     # channel 3 is Carrier
+
     def test_a_real_replay_is_partitioned_by_the_measured_tables(self):
-        """The committed capture must actually contain both classes, or the tables are stale."""
+        """The committed capture must actually contain the held classes, or the tables are stale."""
         from azoth_world.rep import (
             DEFERRED_RESPONSE_TYPES,
-            UNRECEIVABLE_RESPONSE_TYPES,
             _partition_replay,
             replay_store,
         )
@@ -1509,12 +1616,13 @@ class TestReplayResponseScheduling(unittest.TestCase):
         messages = replay_store().messages
         now, defer, drop = _partition_replay(messages)
         self.assertEqual(len(now) + len(defer) + len(drop), len(messages))
-        self.assertTrue(drop, "the capture must contain unreceivable responses")
-        self.assertTrue(defer, "the capture must contain deferrable responses")
-        self.assertTrue(
-            {m.type_id for m in drop} <= set(UNRECEIVABLE_RESPONSE_TYPES)
-        )
+        self.assertTrue(defer, "the capture must contain held client-facet responses")
         self.assertTrue({m.type_id for m in defer} <= set(DEFERRED_RESPONSE_TYPES))
+        # The 23 storage-search copies and the time pair are in the capture and must be held.
+        deferred_types = {m.type_id for m in defer}
+        self.assertIn(0x1B88, deferred_types)
+        self.assertIn(0x1096, deferred_types)
+        self.assertIn(0x08E6, deferred_types)
 
 
 class TestClientRecordContainer(unittest.TestCase):

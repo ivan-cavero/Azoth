@@ -509,21 +509,78 @@ POSITION_REPLY_TARGET = os.environ.get("AZOTH_REPLAY_POSITION_REPLY_TARGET", "")
 # replies, is not one of them.
 REPLAY_DROP_UNRECEIVABLE = os.environ.get("AZOTH_REPLAY_DROP_UNRECEIVABLE", "1") == "1"
 REPLAY_DEFER_CLIENT_FACETS = os.environ.get("AZOTH_REPLAY_DEFER_CLIENT_FACETS", "1") == "1"
+# Request-correlated gating. ON (default) sends a captured typed response only when the
+# client actually sent the request it answers; OFF restores the older static behaviour
+# (defer everything in the table, then send it unconditionally) so the two can be A/B'd.
+REPLAY_REQUEST_GATING = os.environ.get("AZOTH_REPLAY_REQUEST_GATING", "1") == "1"
+# How long a request-gated response is held waiting for its request before it is given up on.
+# The client sends most of its startup requests inside the first seconds after spawn.
+DEFER_DECISION_TIMEOUT_S = float(os.environ.get("AZOTH_REPLAY_DEFER_TIMEOUT_S", "20"))
 
-# wire type -> why. Both sets are the measured ones, named for the log.
-UNRECEIVABLE_RESPONSE_TYPES: dict[int, str] = {
+# ---------------------------------------------------------------------------------------------
+# RESPONSE -> REQUEST: a captured response is only answerable if OUR client asked for it
+# ---------------------------------------------------------------------------------------------
+# MEASURED 2026-10-14. This replaces a static "facet absent -> drop" table with the rule the
+# measurement actually supports: a typed `*ComponentClientFacet_*` response exists because some
+# client sent the `*ComponentServerFacet_*` request it answers, and OUR client is not that
+# client. The replay is another client's capture, so it contains answers to requests ours never
+# makes; the server used to blast them at a client with no target and lose them silently.
+#
+# Pairs are derived two ways and both are recorded in research/docs/INBOUND-REQUESTS.md:
+#   * ORDERING: in the capture the response follows its request. Contracts seq 59 -> 67,
+#     VoiceChat seq 100 -> 101, the input burst seq 110-114 -> the time pair 117/118.
+#   * NAMING: `XComponentServerFacet_M` / `XComponentClientFacet_OnM` in the same component
+#     family (regenerate the name table with reverse/tools/scan-wire-names.py).
+#
+# An EMPTY tuple means the response has no identifiable request in the capture: it is an
+# unsolicited server push, and it is handled by ABSENT_FACET_RESPONSES instead.
+RESPONSE_REQUESTS: dict[int, tuple[int, ...]] = {
+    # response -> request(s) that justify it
+    0x08E6: (0x09FC,),                       # Contracts OnLookup <- LookupContractsByParticipant
+    0x1067: (0x066B,),                       # VoiceChat OnVoiceChatServiceRegistered <- Register
+    0x1096: (0x1098, 0x0635),                # Time SyncTimeChange <- SyncToClient / input stream
+    0x1097: (0x1098, 0x0635),                # Time SyncDayPhase  <- SyncToClient / input stream
+    0x1033: (0x101D, 0x101E, 0x102E, 0x102F, 0x192C),  # GridTracking UpdatePhasing family
+    0x1B88: (0x1B7F,),                       # GlobalStorage Receive <- RequestReplicate...
+    0x136A: (0x0CED,),                       # GameModeParticipant OnLeftQueue <- RequestLeave
+    0x16A0: (0x169D,),                       # Inventories OnQueryInventories <- QueryInventories
+    0x0CA4: (),                              # EventNotification SyncNotifications: unsolicited
+}
+
+# Unsolicited responses whose client facet was measured ABSENT on the live player entity: there
+# is no target and never will be, so no request can justify them. This is the ONLY remaining
+# static drop, and it is one type. (0x1B88 and 0x1067 used to be here; 0x1B88 is now dropped
+# because the client never sends 0x1B7F, and 0x1067 is now SENT because the client does send
+# 0x066B -- a request-correlated rule is a sharper instrument than the facet survey was.)
+ABSENT_FACET_RESPONSES: dict[int, str] = {
+    0x0CA4: "EventNotificationComponentClientFacet_SyncNotifications",
+}
+
+# The PRE-2026-10-14 drop set, kept ONLY so `AZOTH_REPLAY_REQUEST_GATING=0` reproduces the old
+# behaviour exactly for an A/B. With gating on it is not used at all: 0x1B88 is dropped by
+# request correlation and 0x1067 is sent because the client asks for it.
+LEGACY_UNRECEIVABLE_TYPES: dict[int, str] = {
     0x1B88: "GlobalStorageComponentClientFacet_ReceiveStorageSearchItems",
     0x0CA4: "EventNotificationComponentClientFacet_SyncNotifications",
     0x1067: "VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered",
 }
+# Back-compat alias: the name the old code and its tests used for the static drop set.
+UNRECEIVABLE_RESPONSE_TYPES: dict[int, str] = dict(LEGACY_UNRECEIVABLE_TYPES)
+
+# Which captured types are held back from the immediate replay burst: every one of these is a
+# typed `*ClientFacet_*` RMI and the facet does not exist until the client is in the world. The
+# held set is exactly the union of the request-mapped responses and the absent-facet drops.
 DEFERRED_RESPONSE_TYPES: dict[int, str] = {
+    0x1B88: "GlobalStorageComponentClientFacet_ReceiveStorageSearchItems",
+    0x0CA4: "EventNotificationComponentClientFacet_SyncNotifications",
+    0x136A: "GameModeParticipantComponentClientFacet_OnLeftQueueForGameModeMsg",
+    0x16A0: "InventoriesComponentClientFacet_OnQueryInventories",
+    0x08E6: "ContractsComponentClientFacet_OnLookupContractsByParticipant",
+    0x1067: "VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered",
+    0x1033: "GridTrackingComponentClientFacet_UpdatePhasing",
     0x1096: "TimeComponentClientFacet_SyncTimeChange",
     0x1097: "TimeComponentClientFacet_SyncDayPhase",
-    0x136A: "GameModeParticipantComponentClientFacet_OnLeftQueueForGameModeMsg",
-    0x1033: "GridTrackingComponentClientFacet_UpdatePhasing",
-    0x08E6: "ContractsComponentClientFacet_OnLookupContractsByParticipant",
 }
-
 REPLAY_IDENTITY_REMAP = os.environ.get(
     "AZOTH_REPLAY_IDENTITY_REMAP", "off"
 ).lower()
@@ -823,23 +880,73 @@ def position_reply_target(actor: bytes) -> bytes | None:
     return blob if len(blob) == 16 else None
 
 def _partition_replay(messages: list) -> tuple[list, list, list]:
-    """Split a replay into (send now, defer until the replay drains, drop).
+    """Split a replay into (send now, hold until the client can receive it, drop).
 
-    See REPLAY_DROP_UNRECEIVABLE / REPLAY_DEFER_CLIENT_FACETS above for the measurement behind
-    the two tables. Anything not listed is sent exactly as before, so this cannot change a
-    message it was not measured on.
+    Everything in DEFERRED_RESPONSE_TYPES is a typed `*ClientFacet_*` RMI, and the facet does
+    not exist until the client is in the world, so it is held and decided later by
+    `_deferred_decision`. The only immediate drop is the measured absent-facet set, and only
+    when request gating is off; with gating on it is held too, so every suppression is decided
+    and logged in one place. Anything not in a table is sent exactly as before.
     """
     now: list = []
     defer: list = []
     drop: list = []
     for msg in messages:
-        if REPLAY_DROP_UNRECEIVABLE and msg.type_id in UNRECEIVABLE_RESPONSE_TYPES:
+        if (
+            REPLAY_DROP_UNRECEIVABLE
+            and not REPLAY_REQUEST_GATING
+            and msg.type_id in LEGACY_UNRECEIVABLE_TYPES
+        ):
             drop.append(msg)
-        elif REPLAY_DEFER_CLIENT_FACETS and msg.type_id in DEFERRED_RESPONSE_TYPES:
+        elif (
+            (REPLAY_REQUEST_GATING and msg.type_id in ABSENT_FACET_RESPONSES)
+            or (REPLAY_DEFER_CLIENT_FACETS and msg.type_id in DEFERRED_RESPONSE_TYPES)
+        ):
             defer.append(msg)
         else:
             now.append(msg)
     return now, defer, drop
+
+
+def _counts_as_request(channel: int, type_id: int) -> bool:
+    """Whether an inbound record is a typed REQUEST the client may be waiting on.
+
+    Only channel 0 carries the typed stream. Channel 1 is the client's own input stream
+    (wire 1589) and channel 3 is the Carrier/system channel, which is not Javelin-typed at
+    all, so counting either as an unanswered request makes the coverage report misleading -
+    measured 2026-10-14: a raw report listed 13 Carrier transport records among the
+    'waiting on us' types. The heartbeat and the V3 re-registration ride channel 0 but are
+    transport/handshake, not requests.
+    """
+    if channel != 0:
+        return False
+    return type_id not in (0x15D, 0x13)  # PingMsg, RegistrationRequestV3Msg
+
+
+def _deferred_decision(
+    msg, seen_types: set[int], *, now: float, deadline: float
+) -> str:
+    """Decide one held client-facet response: 'send', 'hold', or 'drop'.
+
+    Rules, in order:
+      * the response has a known request -> send once the client has sent it, otherwise hold
+        until the deadline and then drop. This is the "we were answering questions nobody
+        asked" fix, stated as a rule instead of a guess;
+      * no known request but the facet is measured ABSENT -> drop, there is no target and the
+        request cannot arrive;
+      * otherwise -> send (an unsolicited push whose target exists).
+    """
+    if REPLAY_REQUEST_GATING and msg.type_id in RESPONSE_REQUESTS:
+        required = RESPONSE_REQUESTS[msg.type_id]
+        if required:
+            if any(r in seen_types for r in required):
+                return "send"
+            return "drop" if now >= deadline else "hold"
+        if msg.type_id in ABSENT_FACET_RESPONSES:
+            return "drop"
+    elif REPLAY_DROP_UNRECEIVABLE and msg.type_id in LEGACY_UNRECEIVABLE_TYPES:
+        return "drop"
+    return "send"
 
 
 def _state_stream_selected(msg) -> bool:
@@ -1218,7 +1325,9 @@ def handle_app_data(
     Envelope type 0x81 is LZ4-compressed (live client, 2026-09-17 21:04:
     the first V3 is 269B compressed / 1124B decompressed). Parsing the
     compressed body as records produced a stub session token and the
-    client disconnected."""
+    client disconnected.
+
+    """
     from .javelin.lz4 import decompress_lz4_block
 
     try:
@@ -1408,6 +1517,9 @@ class PeerSession:
         # has built its object graph (see REPLAY_DEFER_CLIENT_FACETS above).
         self.deferred_replay: list = []
         self.deferred_replay_sent = 0
+        self.deferred_replay_dropped = 0
+        self.defer_deadline: float | None = None
+        self.request_coverage_logged = False
         self.replay_dropped_unreceivable = 0
         self.state_stream_all: list = []
         self.state_stream_queue: list = []
@@ -1637,14 +1749,18 @@ class PeerSession:
         )
         self.replay_queue, self.deferred_replay, dropped = _partition_replay(armed)
         self.replay_dropped_unreceivable = len(dropped)
+        self.defer_deadline = None
+        self.request_coverage_logged = False
         if dropped or self.deferred_replay:
             log_event(
                 {
                     "event": "replay-response-scheduling",
+                    "request_gating": REPLAY_REQUEST_GATING,
                     "dropped_unreceivable": len(dropped),
                     "dropped_types": sorted({hex(m.type_id) for m in dropped}),
                     "deferred": len(self.deferred_replay),
                     "deferred_types": sorted({hex(m.type_id) for m in self.deferred_replay}),
+                    "absent_facet": sorted({hex(t) for t in ABSENT_FACET_RESPONSES}),
                 }
             )
         self.out_msg_seq = 1
@@ -1982,17 +2098,55 @@ class PeerSession:
             )
 
     def maybe_pump_deferred(self, server) -> None:
-        """Send the held client-facet responses once the replay has drained.
+        """Decide each held client-facet response once the client's object graph exists.
 
         The replay drains ~8 s AFTER the client reports spawn (measured 2026-10-13), which is
         exactly when the client's facets exist; sending these in the pre-spawn burst is what
-        produced 29 `facet target ID couldn't be found` errors in one millisecond.
+        produced 29 `facet target ID couldn't be found` errors in one millisecond. From then on
+        each held message is decided by `_deferred_decision`, so a response whose request the
+        client never sent is dropped instead of aimed at a target that does not exist, and a
+        response whose request it did send goes out. Request-gated messages wait up to
+        DEFER_DECISION_TIMEOUT_S for a late request before being given up on.
         """
         if not self.deferred_replay or self.gone or not self.v3_responded:
             return
         if self.replay_queue or not self.greetings_after_replay:
             return  # the client's object graph is not built yet
+        now = time.monotonic()
+        if self.defer_deadline is None:
+            self.defer_deadline = now + DEFER_DECISION_TIMEOUT_S
+            log_event(
+                {
+                    "event": "replay-defer-start",
+                    "held": len(self.deferred_replay),
+                    "types": sorted({hex(m.type_id) for m in self.deferred_replay}),
+                    "request_gating": REPLAY_REQUEST_GATING,
+                    "deadline_s": DEFER_DECISION_TIMEOUT_S,
+                }
+            )
+        raw_seen = getattr(self, "inbound_types_seen", set())
+        seen = {t for (_channel, t) in raw_seen}
+        held: list = []
         for msg in self.deferred_replay:
+            verdict = _deferred_decision(msg, seen, now=now, deadline=self.defer_deadline)
+            if verdict == "hold":
+                held.append(msg)
+                continue
+            if verdict == "drop":
+                required = RESPONSE_REQUESTS.get(msg.type_id, ())
+                self.deferred_replay_dropped += 1
+                log_event(
+                    {
+                        "event": "replay-response-suppressed",
+                        "seq": hex(msg.seq),
+                        "type": hex(msg.type_id),
+                        "name": DEFERRED_RESPONSE_TYPES.get(msg.type_id, "?"),
+                        "required_requests": [hex(r) for r in required],
+                        "reason": "request-not-seen" if required else "facet-absent",
+                        "n": self.deferred_replay_dropped,
+                    }
+                )
+                continue
             self._send_replay_message(server, msg)
             self.deferred_replay_sent += 1
             log_event(
@@ -2004,7 +2158,36 @@ class PeerSession:
                     "n": self.deferred_replay_sent,
                 }
             )
-        self.deferred_replay = []
+        self.deferred_replay = held
+        if not held:
+            self._log_request_coverage(raw_seen)
+
+    def _log_request_coverage(self, seen: set[tuple[int, int]]) -> None:
+        """One line per session: what the client asked for vs what our replay can answer.
+
+        `seen` is the set of (channel, type) pairs the client has sent. This is the inbound
+        half of the contract made visible. There is still no inbound typed dispatcher, so a
+        request in `no_replay_response` is one the client is waiting on and the server
+        currently ignores; the line makes that measurable per session instead of invisible.
+        It is a report, not a verdict: many `*ServerFacet_*` messages are setters answered by
+        replicated state rather than by a typed reply.
+        """
+        if self.request_coverage_logged:
+            return
+        self.request_coverage_logged = True
+        answerable = {r for reqs in RESPONSE_REQUESTS.values() for r in reqs}
+        requests = {t for (ch, t) in seen if _counts_as_request(ch, t)}
+        log_event(
+            {
+                "event": "inbound-request-coverage",
+                "inbound_types": len(seen),
+                "request_types": len(requests),
+                "answerable_by_replay": sorted(hex(t) for t in requests if t in answerable),
+                "no_replay_response": sorted(hex(t) for t in requests if t not in answerable),
+                "deferred_sent": self.deferred_replay_sent,
+                "deferred_dropped": self.deferred_replay_dropped,
+            }
+        )
 
     def maybe_heartbeat(self, server) -> None:
         """Continue the captured 0x15d ping/pong once the replay is drained.
@@ -2874,6 +3057,8 @@ class RepServer:
                 "replay_enabled": REPLAY_ENABLED,
                 "replay_drop_unreceivable": REPLAY_DROP_UNRECEIVABLE,
                 "replay_defer_client_facets": REPLAY_DEFER_CLIENT_FACETS,
+                "replay_request_gating": REPLAY_REQUEST_GATING,
+                "replay_defer_timeout_s": DEFER_DECISION_TIMEOUT_S,
                 "replay_max_seq": hex(REPLAY_MAX_SEQ),
             }
         )
