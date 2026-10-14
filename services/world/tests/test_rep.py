@@ -1426,6 +1426,7 @@ class TestInputResponseReadiness(unittest.TestCase):
         ]
         session.input_response_sent = 0
         session.input_response_next_at = 0.0
+        session.time_facet_target = None
         session.sent: list = []
         session._send_replay_message = lambda _s, m: session.sent.append(m)
         return session
@@ -1443,6 +1444,51 @@ class TestInputResponseReadiness(unittest.TestCase):
             session.greetings_after_replay = True
             PeerSession.maybe_input_response(session, None)
             self.assertEqual([m.seq for m in session.sent], [0x75])
+
+    def test_the_clients_own_request_addresses_the_time_reply(self):
+        """The learned target must beat the captured id and the probe's file lever.
+
+        MEASURED 2026-10-14: the client's `0x1098 TimeComponentServerFacet_SyncToClient` carries
+        `93a3e477cb5fd51ebf85314bbc4a951a` in its first 16 parameter bytes, and the captured
+        `0x1096` reply body carries the SAME value as its target - which is why the two agree
+        and why the reply can be addressed from the client's own request instead of from the
+        capture or from a Frida probe publishing an id to a file.
+        """
+        from unittest import mock
+
+        from azoth_world.rep import PeerSession, retarget_typed_body
+
+        captured = bytes.fromhex(
+            "0001964293a3e477cb5fd51ebf85314bbc4a951a40c00000bf80000039f5f5b8000053340000"
+            "00000000fe4c0000000000000e10000007080b879fb33482a0b73e2aaaab3e2aaaab3f555555"
+            "3f555555"
+        )
+        self.assertIn(bytes.fromhex("93a3e477cb5fd51ebf85314bbc4a951a"), captured)
+        # A DIFFERENT id, so the test proves substitution rather than coincidence.
+        learned = bytes.fromhex("0102030405060708090a0b0c0d0e0f10")
+        lever = bytes.fromhex("ffeeddccbbaa99887766554433221100")
+        with mock.patch("azoth_world.rep.INPUT_RESPONSE_ENABLED", True), \
+                mock.patch("azoth_world.rep._read_input_response_target", return_value=lever):
+            session = self._session()
+            session.greetings_after_replay = True
+            session.time_facet_target = learned
+            session.input_response_msgs = [
+                type(session.input_response_msgs[0])(
+                    seq=0x75, type_id=0x1096, direction="R", body=captured, has_redaction=False
+                )
+            ]
+            PeerSession.maybe_input_response(session, None)
+
+        self.assertEqual(len(session.sent), 1)
+        body = session.sent[0].body
+        self.assertIn(learned, body, "the reply must carry the facet id the client gave us")
+        self.assertNotIn(lever, body, "the lever must not override the client's own answer")
+        self.assertNotIn(
+            bytes.fromhex("93a3e477cb5fd51ebf85314bbc4a951a"),
+            body,
+            "the captured id must have been replaced, not kept alongside",
+        )
+        self.assertEqual(body, retarget_typed_body(captured, learned))
 
     def test_the_watchdog_predicate_does_not_wait_for_the_replay(self):
         """The other half of the split, asserted on the predicate itself.
@@ -1934,3 +1980,202 @@ class TestStartMovementIsReliableOnChannelZero(unittest.TestCase):
         self.assertIn("flags_override=0x21 if START_MOVEMENT_RELIABLE else 0x20", source)
         self.assertIn("track_reliable=START_MOVEMENT_RELIABLE", source)
         self.assertIn('"reliable": START_MOVEMENT_RELIABLE', source)
+
+
+class TestInboundDispatcher(unittest.TestCase):
+    """The client's typed requests are decoded and the ones we handle are acted on.
+
+    MEASURED 2026-10-14: the server had NO inbound typed dispatcher, so every request the client
+    sent was acknowledged at the transport level and then ignored (19 in a short session, 29 in a
+    richer one). The request shape is uniform and measured, not guessed: after the type marker the
+    first 16 bytes are the target facet's local id, which is the address a reply needs.
+    """
+
+    # A real captured request record: the client container is
+    # `[u32 crc32][u32 len][16-byte target][00 01][type][params]`.
+    CONTRACTS_REQUEST = bytes.fromhex(
+        "ccd597df0000005e1a954abc4b3185bfbe37c3d8592618e00001bc274c0c0ed6478a69dabf85314bbc4a951a"
+        "1a954abc4b3185bfbe37c3d8592618e000000000000000010000000100000000000a0100000001010009fc"
+        "f8bb95e7a148a38273d05409c38805"
+    )
+    # A real captured 0x1098 TimeComponentServerFacet_SyncToClient from a live session: its target
+    # is 93a3e477cb5fd51ebf85314bbc4a951a, the same value the captured 0x1096 reply carries.
+    # A real captured 0x1098 TimeComponentServerFacet_SyncToClient from a live session: its
+    # target is 93a3e477cb5fd51ebf85314bbc4a951a, the same value the captured 0x1096 reply
+    # body carries as its own target - which is the whole point of learning it from here.
+    TIME_SYNC_REQUEST = bytes.fromhex(
+        "23a989f9000000241a954abc4b3185bfbe37c3d8592618e00001984293a3e477cb5fd51ebf85314bbc4a951a"
+    )
+    TIME_TARGET = bytes.fromhex("93a3e477cb5fd51ebf85314bbc4a951a")
+
+    def test_a_real_request_decodes_to_type_target_and_params(self):
+        from azoth_world.rep import parse_inbound_request
+
+        req = parse_inbound_request(self.CONTRACTS_REQUEST)
+        self.assertEqual(req.type_id, 0x09FC)
+        self.assertEqual(req.size, len(self.CONTRACTS_REQUEST))
+        self.assertEqual(req.target.hex(), "4c0c0ed6478a69dabf85314bbc4a951a")
+        # The actor the request is about follows the target.
+        self.assertEqual(
+            req.params[:16].hex(), "1a954abc4b3185bfbe37c3d8592618e0"
+        )
+
+    def test_a_record_that_is_not_typed_is_not_a_request(self):
+        from azoth_world.rep import parse_inbound_request
+
+        self.assertIsNone(parse_inbound_request(b""))
+        self.assertIsNone(parse_inbound_request(b"\xde\xad\xbe\xef"))
+        # A short typed record still decodes, but has no target to address.
+        req = parse_inbound_request(bytes.fromhex("00013e06"))
+        self.assertIsNotNone(req)
+        self.assertIsNone(req.target)
+
+    def _session(self, *, target=TIME_TARGET, type_id=0x1098):
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.inbound_requests = {}
+        session.time_facet_target = None
+        session.inbound_answer_next_at = {}
+        session.inbound_answers_sent = 0
+        session.inbound_answers_suppressed = 0
+        session.contracts_response = None
+        session.gone = False
+        session.sent = []
+        session._send_replay_message = lambda _s, m: session.sent.append(m)
+
+        class _Rec:
+            channel = 0
+            payload = TestInboundDispatcher.CONTRACTS_REQUEST
+
+        rec = _Rec()
+        if type_id == 0x1098:
+            rec.payload = TestInboundDispatcher.TIME_SYNC_REQUEST
+        return session, [rec]
+
+    def test_the_time_facet_target_is_learned_from_the_clients_own_request(self):
+        from azoth_world.rep import PeerSession
+
+        session, records = self._session()
+        PeerSession._dispatch_inbound(session, None, records)
+        self.assertEqual(session.time_facet_target, self.TIME_TARGET)
+        # And it is recorded against the type, for the shape log.
+        self.assertEqual(session.inbound_requests[0x1098]["count"], 1)
+        self.assertEqual(
+            session.inbound_requests[0x1098]["target"], self.TIME_TARGET.hex()
+        )
+
+    def test_an_unknown_type_is_counted_but_never_acted_on(self):
+        from azoth_world.rep import PeerSession
+
+        class _Rec:
+            channel = 0
+            payload = bytes.fromhex(
+                "36994f4f000000451a954abc4b3185bfbe37c3d8592618e00001b73842ffae59ff63091b"
+                "bf85314bbc4a951a9f212a84"
+            )
+
+        session, _ = self._session()
+        PeerSession._dispatch_inbound(session, None, [_Rec()])
+        # 0x0e37 is the unnamed runtime-registered type: counted, no shape log, no action.
+        self.assertEqual(session.inbound_requests[0x0E37]["count"], 1)
+        self.assertIn(
+            "known", session.inbound_requests[0x0E37], "the state records whether we know it"
+        )
+        self.assertFalse(session.inbound_requests[0x0E37]["known"])
+
+    def test_contracts_is_answered_with_the_captured_body(self):
+        from azoth_world.rep import PeerSession, replay_store
+
+        captured = next(
+            m for m in replay_store().messages if m.type_id == 0x08E6 and m.direction == "R"
+        )
+        session, records = self._session(type_id=0x09FC)
+        session.contracts_response = captured
+        PeerSession._dispatch_inbound(session, None, records)
+
+        self.assertEqual(len(session.sent), 1, "the request must be answered")
+        self.assertEqual(session.sent[0].type_id, 0x08E6)
+        self.assertEqual(session.sent[0].body, captured.body)
+        self.assertEqual(session.inbound_answers_sent, 1)
+
+    def test_a_second_ask_within_the_interval_is_throttled_not_dropped_silently(self):
+        from azoth_world.rep import PeerSession, replay_store
+
+        captured = next(
+            m for m in replay_store().messages if m.type_id == 0x08E6 and m.direction == "R"
+        )
+        session, records = self._session(type_id=0x09FC)
+        session.contracts_response = captured
+        PeerSession._dispatch_inbound(session, None, records)
+        PeerSession._dispatch_inbound(session, None, records)
+        self.assertEqual(len(session.sent), 1, "sent once inside the interval")
+        self.assertEqual(session.inbound_answers_sent, 1)
+        self.assertEqual(
+            session.inbound_answers_suppressed, 1, "the suppression is counted, not silent"
+        )
+
+    def test_a_mismatched_target_is_reported_and_the_body_is_left_alone(self):
+        """If the request addresses a different facet than the captured body, do not guess."""
+        import unittest.mock
+
+        from azoth_world.rep import PeerSession, replay_store
+
+        captured = next(
+            m for m in replay_store().messages if m.type_id == 0x08E6 and m.direction == "R"
+        )
+        session, records = self._session(type_id=0x09FC)
+        session.contracts_response = captured
+        with unittest.mock.patch(
+            "azoth_world.rep.REQUEST_TARGET_PREFIX", 16
+        ):
+            # Rewrite the request's target to something the captured body does not carry.
+            rec = records[0]
+            bad = bytearray(rec.payload)
+            # offset 28 is where the 16-byte target starts (24-byte container header plus
+            # the 4-byte typed marker); rewriting 24:40 would destroy the marker instead.
+            bad[28:44] = bytes(16)
+            rec.payload = bytes(bad)
+            PeerSession._dispatch_inbound(session, None, records)
+        self.assertEqual(len(session.sent), 1)
+        self.assertEqual(
+            session.sent[0].body, captured.body, "the captured body is sent unmodified"
+        )
+
+    def test_the_dispatcher_owns_its_responses_out_of_the_replay(self):
+        """`0x08E6` must not be replayed once AND answered per request."""
+        from azoth_world.rep import (
+            CONTRACTS_LOOKUP_RESPONSE,
+            DISPATCHER_OWNED_RESPONSES,
+            PeerSession,
+        )
+
+        self.assertIn(CONTRACTS_LOOKUP_RESPONSE, DISPATCHER_OWNED_RESPONSES)
+        session = PeerSession.__new__(PeerSession)
+        session.replay_queue = []
+        session.deferred_replay = []
+        session.deferred_replay_sent = 0
+        session.deferred_replay_dropped = 0
+        session.defer_deadline = None
+        session.request_coverage_logged = False
+        session.contracts_response = None
+        session.replay_dropped_unreceivable = 0
+        session.out_msg_seq = 1
+        session.out_rel_seq = 1
+        session.replay_next_at = 0.0
+        session.state_stream_all = []
+        session.state_stream_queue = []
+        session.state_stream_player = []
+        session.state_stream_player_queue = []
+        session.state_stream_seq = 0
+        PeerSession._arm_replay(session)
+        replayed = {m.type_id for m in session.replay_queue}
+        self.assertNotIn(
+            CONTRACTS_LOOKUP_RESPONSE,
+            replayed,
+            "the dispatcher owns it, so the replay must not also send it",
+        )
+        self.assertIsNotNone(
+            session.contracts_response,
+            "and the captured body must be kept so the answer is the real one",
+        )

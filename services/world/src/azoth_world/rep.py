@@ -33,7 +33,7 @@ import os
 import socket
 import time
 import traceback
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -604,6 +604,96 @@ DEFERRED_RESPONSE_TYPES: dict[int, str] = {
     0x1096: "TimeComponentClientFacet_SyncTimeChange",
     0x1097: "TimeComponentClientFacet_SyncDayPhase",
 }
+# ---------------------------------------------------------------------------------------------
+# INBOUND TYPED REQUESTS: the client asks, the server answers
+# ---------------------------------------------------------------------------------------------
+# MEASURED 2026-10-14. Until now the server had NO inbound typed dispatcher at all: every typed
+# request the client made was acknowledged at the transport level and then ignored. Measured with
+# scripts/inbound-inventory.py: 19 requests in a short session, 29 in one that exercises more UI.
+#
+# The shape is uniform and was measured, not guessed. Every client->server typed request is
+#
+#     [u32 BE crc32][u32 BE len][16-byte facet target][00 01][prefix-varint type][params]
+#
+# i.e. after the type marker the FIRST 16 BYTES ARE THE TARGET FACET'S LOCAL ID, and that id is
+# exactly what a reply has to address. Two consequences the dispatcher uses:
+#
+#   * `0x1098` TimeComponentServerFacet_SyncToClient carries the TimeComponent client facet's
+#     local id. That is the target the captured 0x1096/0x1097 reply needs, so the client HANDS US
+#     the address instead of us guessing it from the capture or publishing it with a Frida probe.
+#     Measured: the request's target was 93a3e477cb5fd51ebf85314bbc4a951a, the same value the
+#     `frida-facet-target-id.py` probe had to discover live.
+#   * `0x09FC` ContractsComponentServerFacet_LookupContractsByParticipant carries
+#     4c0c0ed6478a69dabf85314bbc4a951a, which is byte-for-byte the target of the captured 0x08E6
+#     response body - so the captured answer is addressed correctly when sent to the requester.
+INBOUND_DISPATCH_ENABLED = os.environ.get("AZOTH_INBOUND_DISPATCH", "1") == "1"
+# The 16-byte facet target that prefixes every request's parameters.
+REQUEST_TARGET_PREFIX = 16
+# Requests whose params we keep for inspection. Nothing here changes wire behaviour by itself.
+INBOUND_KNOWN_REQUESTS: dict[int, str] = {
+    0x0183: "GlobalStorageComponentServerFacet_SetReplicateStorage",
+    0x05B2: "ObjectivesComponentServerFacet_UpdateTrackedObjectives",
+    0x09D3: "PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient",
+    0x09FC: "ContractsComponentServerFacet_LookupContractsByParticipant",
+    0x0A95: "ObjectivesComponentServerFacet_SetObjectiveAutoPinning",
+    0x1098: "TimeComponentServerFacet_SyncToClient",
+}
+# The request that teaches us the TimeComponent client facet's local id, and the replies it serves.
+TIME_SYNC_REQUEST = 0x1098
+TIME_SYNC_REPLIES = (0x1096, 0x1097)
+# The request that asks for contracts, and the captured answer body it gets.
+CONTRACTS_LOOKUP_REQUEST = 0x09FC
+CONTRACTS_LOOKUP_RESPONSE = 0x08E6
+# Responses the DISPATCHER owns: it sends them when the client asks, so the replay must not send
+# them once and forget. Measured: the client asks for contracts twice in a session and for time
+# sync once, and the replay answers each exactly once, ever.
+DISPATCHER_OWNED_RESPONSES: set[int] = {CONTRACTS_LOOKUP_RESPONSE}
+# Floor between two answers to the same request, so a client that asks in a loop cannot make the
+# server flood it (the client asked 15x in one session for SetObjectiveAutoPinning).
+INBOUND_ANSWER_MIN_INTERVAL_S = float(
+    os.environ.get("AZOTH_INBOUND_ANSWER_INTERVAL_S", "0.25")
+)
+
+
+@dataclass(frozen=True)
+class InboundRequest:
+    """One decoded client->server typed request.
+
+    ``target`` is the 16-byte facet local id the request addresses, or None when the record is
+    too short to carry one; ``params`` is everything after it.
+    """
+
+    channel: int
+    type_id: int
+    target: bytes | None
+    params: bytes
+    size: int
+
+
+def parse_inbound_request(payload: bytes, channel: int = 0) -> InboundRequest | None:
+    """Decode one client record into {type, target, params}, or None if it is not typed.
+
+    The client's own container puts the typed marker at offset 24; the server's form has it at 0.
+    Both are tried, exactly as `_note_inbound_typed` does, so a container change shows up as an
+    undecodable record rather than as a crash.
+    """
+    for offset in (0, 24):
+        try:
+            type_id, end = javelin_bundle.read_type_marker(payload[offset:])
+        except Exception:
+            continue
+        rest = payload[offset + end:]
+        target = rest[:REQUEST_TARGET_PREFIX] if len(rest) >= REQUEST_TARGET_PREFIX else None
+        return InboundRequest(
+            channel=channel,
+            type_id=type_id,
+            target=target,
+            params=rest[REQUEST_TARGET_PREFIX:],
+            size=len(payload),
+        )
+    return None
+
+
 REPLAY_IDENTITY_REMAP = os.environ.get(
     "AZOTH_REPLAY_IDENTITY_REMAP", "off"
 ).lower()
@@ -1525,6 +1615,17 @@ class PeerSession:
         # than as a difference of wire sequences so it stays correct across the 16-bit wrap
         # (see ACK_WINDOW).
         self.inbound_count = 0
+        # Inbound typed-request dispatcher (see INBOUND_* above).
+        # type_id -> {count, first_ts, last_ts, target, params} for the requests we know, and
+        # type_id -> count for anything else typed.
+        self.inbound_requests: dict[int, dict] = {}
+        # The TimeComponent client facet's local id, learned from the client's OWN 0x1098
+        # request, so the 0x1096/0x1097 reply is addressed by the client instead of by a guess.
+        self.time_facet_target: bytes | None = None
+        # Per-request answer pacing and counters.
+        self.inbound_answer_next_at: dict[int, float] = {}
+        self.inbound_answers_sent = 0
+        self.inbound_answers_suppressed = 0
         self.v3_responded = False  # V3 response has been sent at least once
         self.v3_session_uuid = ""
         self.v3_character_id = ""
@@ -1569,6 +1670,9 @@ class PeerSession:
         self.deferred_replay_dropped = 0
         self.defer_deadline: float | None = None
         self.request_coverage_logged = False
+        # The captured contracts reply, kept so the dispatcher can answer EVERY time the client
+        # asks rather than once per session (see DISPATCHER_OWNED_RESPONSES).
+        self.contracts_response = None
         self.replay_dropped_unreceivable = 0
         self.state_stream_all: list = []
         self.state_stream_queue: list = []
@@ -1664,6 +1768,8 @@ class PeerSession:
         # "Mixed Nuts" finding) instead of using an independent counter.
         inbound_recs = parse_datagram(inbound_body).messages
         self._note_inbound_typed(inbound_recs)
+        if INBOUND_DISPATCH_ENABLED:
+            self._dispatch_inbound(server, inbound_recs)
         self._process_acks(inbound_recs)
         if CHANNEL1_ECHO_ENABLED:
             # Keep the most recent client player-state body so the echo sends
@@ -1798,6 +1904,28 @@ class PeerSession:
         armed = store.replay_messages_after_v3(
             REPLAY_MAX_SEQ, include_redacted=True
         )
+        # The dispatcher OWNS some responses: it sends them when the client asks, so the replay
+        # must not also send them once and forget. Filtering here rather than inside
+        # `_partition_replay` keeps that function's contract (now / defer / drop) unchanged, and
+        # keeps the captured body so the answer is the real one.
+        if INBOUND_DISPATCH_ENABLED:
+            owned = [m for m in armed if m.type_id in DISPATCHER_OWNED_RESPONSES]
+            if owned:
+                armed = [m for m in armed if m.type_id not in DISPATCHER_OWNED_RESPONSES]
+                self.contracts_response = next(
+                    (m for m in owned if m.type_id == CONTRACTS_LOOKUP_RESPONSE), None
+                )
+                log_event(
+                    {
+                        "event": "inbound-dispatcher-owned",
+                        "types": sorted({hex(m.type_id) for m in owned}),
+                        "count": len(owned),
+                        "requests": sorted(
+                            hex(t) for t in INBOUND_KNOWN_REQUESTS
+                            if t in (CONTRACTS_LOOKUP_REQUEST, TIME_SYNC_REQUEST)
+                        ),
+                    }
+                )
         self.replay_queue, self.deferred_replay, dropped = _partition_replay(armed)
         self.replay_dropped_unreceivable = len(dropped)
         self.defer_deadline = None
@@ -2148,6 +2276,123 @@ class PeerSession:
                 }
             )
 
+    def _dispatch_inbound(self, server, records) -> None:
+        """Decode the client's typed requests and act on the ones we handle.
+
+        The receive half of the contract. Until 2026-10-14 the server had NO inbound typed
+        dispatcher, so every request was acknowledged at the transport level and then ignored,
+        with nothing in any log saying so (measured: 19 requests in a short session, 29 in a
+        richer one).
+
+        Two things happen here, deliberately separable:
+
+        * every KNOWN request type gets its target and params recorded once per session, so the
+          actual wire shape of a request is in the log next to its name instead of nothing;
+        * the requests we can ACT on are acted on. `0x1098` hands us the TimeComponent client
+          facet's local id - the exact address its `0x1096/0x1097` reply needs - and `0x09FC`
+          is queued for the captured contracts answer, every time it is asked rather than once
+          per session.
+
+        Answering happens inline because this genuinely is a response to an inbound datagram;
+        the periodic emitters stay in the tick (see `tick`).
+        """
+        for rec in records:
+            if rec.channel != 0:
+                continue
+            req = parse_inbound_request(rec.payload, rec.channel)
+            if req is None:
+                continue
+            state = self.inbound_requests.get(req.type_id)
+            if state is None:
+                state = {
+                    "count": 0,
+                    "known": req.type_id in INBOUND_KNOWN_REQUESTS,
+                    "target": None,
+                    "params_len": len(req.params),
+                }
+                self.inbound_requests[req.type_id] = state
+                # Log the shape once per session, and only for the types we recognise: the
+                # unnamed runtime-registered types have no schema to check against yet.
+                if state["known"]:
+                    log_event(
+                        {
+                            "event": "inbound-request-shape",
+                            "type": hex(req.type_id),
+                            "name": INBOUND_KNOWN_REQUESTS[req.type_id],
+                            "size": req.size,
+                            "target": req.target.hex() if req.target else None,
+                            "params_len": len(req.params),
+                            "params_head": req.params[:24].hex(),
+                        }
+                    )
+            state["count"] += 1
+            if req.target is not None:
+                state["target"] = req.target.hex()
+
+            if req.type_id == TIME_SYNC_REQUEST and req.target is not None:
+                # The client just told us where its time facet lives. Prefer this over the
+                # captured id and over the file lever: it is per-session and authoritative.
+                if self.time_facet_target != req.target:
+                    self.time_facet_target = req.target
+                    log_event(
+                        {
+                            "event": "inbound-time-target-learned",
+                            "target": req.target.hex(),
+                            "serves": [hex(t) for t in TIME_SYNC_REPLIES],
+                        }
+                    )
+            elif req.type_id == CONTRACTS_LOOKUP_REQUEST:
+                self._answer_contracts_lookup(server, req)
+
+    def _answer_contracts_lookup(self, server, req: InboundRequest) -> None:
+        """Answer `LookupContractsByParticipant` with the captured contracts reply.
+
+        The client asks for contracts 2x in a measured session and the replay answers exactly
+        once, ever, because it sends each captured body a single time. This answers every time.
+        The captured body's target was measured to be byte-for-byte the target of the request
+        that asks for it, so no retargeting is needed; it is asserted rather than assumed, and a
+        mismatch is logged and left alone instead of being sent to the wrong facet.
+        """
+        if not INBOUND_DISPATCH_ENABLED or self.contracts_response is None:
+            return
+        now = time.monotonic()
+        if now < self.inbound_answer_next_at.get(req.type_id, 0.0):
+            self.inbound_answers_suppressed += 1
+            return
+        body = self.contracts_response.body
+        sent = body
+        if req.target is not None:
+            start = len(body)
+            try:
+                _type_id, start = javelin_bundle.read_type_marker(body)
+            except Exception:
+                start = -1
+            if start >= 0 and len(body) >= start + REQUEST_TARGET_PREFIX:
+                captured = body[start : start + REQUEST_TARGET_PREFIX]
+                if captured != req.target:
+                    log_event(
+                        {
+                            "event": "inbound-answer-target-mismatch",
+                            "type": hex(self.contracts_response.type_id),
+                            "captured": captured.hex(),
+                            "request": req.target.hex(),
+                        }
+                    )
+                else:
+                    sent = body
+        self.inbound_answer_next_at[req.type_id] = now + INBOUND_ANSWER_MIN_INTERVAL_S
+        self._send_replay_message(server, replace(self.contracts_response, body=sent))
+        self.inbound_answers_sent += 1
+        log_event(
+            {
+                "event": "inbound-answer",
+                "request": hex(req.type_id),
+                "response": hex(self.contracts_response.type_id),
+                "size": len(sent),
+                "n": self.inbound_answers_sent,
+            }
+        )
+
     def maybe_pump_deferred(self, server) -> None:
         """Decide each held client-facet response once the client's object graph exists.
 
@@ -2472,7 +2717,12 @@ class PeerSession:
         if now < self.input_response_next_at:
             return
         self.input_response_next_at = now + INPUT_RESPONSE_PERIOD_S
-        target = _read_input_response_target()
+        # Address the reply from the client's OWN request when it has told us (measured: its
+        # 0x1098 carries the TimeComponent client facet's local id). That beats both the captured
+        # id and the file lever a Frida probe has to publish, because it is per-session and comes
+        # from the authority on the question. The env/file lever remains the fallback.
+        target = self.time_facet_target or _read_input_response_target()
+        target_source = "client-request" if self.time_facet_target else "lever-or-captured"
         retargeted = 0
         for msg in self.input_response_msgs:
             if INPUT_RESPONSE_CONTAINER == "client":
@@ -2495,6 +2745,7 @@ class PeerSession:
                 "types": [hex(m.type_id) for m in self.input_response_msgs],
                 "retargeted": retargeted,
                 "target": target.hex() if target is not None else "captured",
+                "target_source": target_source,
                 "channel": INPUT_RESPONSE_CHANNEL,
                 "container": INPUT_RESPONSE_CONTAINER,
             }
@@ -3110,6 +3361,8 @@ class RepServer:
                 "replay_defer_client_facets": REPLAY_DEFER_CLIENT_FACETS,
                 "replay_request_gating": REPLAY_REQUEST_GATING,
                 "replay_defer_timeout_s": DEFER_DECISION_TIMEOUT_S,
+                "inbound_dispatch": INBOUND_DISPATCH_ENABLED,
+                "inbound_answer_interval_s": INBOUND_ANSWER_MIN_INTERVAL_S,
                 "replay_max_seq": hex(REPLAY_MAX_SEQ),
                 "ack_window": ACK_WINDOW,
                 "ack_coalesce_s": ACK_COALESCE_S,
