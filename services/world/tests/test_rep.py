@@ -802,6 +802,89 @@ class TestEnvelopeSeqWrapping(unittest.TestCase):
         self.assertEqual(_u16(-1), bytes.fromhex("ffff"))
 
 
+class TestAckWindow(unittest.TestCase):
+    """The continuous ACK range must stay narrower than half the 16-bit space.
+
+    MEASURED 2026-10-14 and it cost a whole session: the range was
+    `[inbound_first, current]` with `inbound_first` pinned for the session, so its width grew by
+    one per datagram. The two fields are 16 bits, so at width 32768 a wrap-aware reader can no
+    longer tell how wide the range is. The client did not error - it started retransmitting
+    every reliable record it sent (~200x each: 140 174 channel-0 records carrying 660 distinct
+    sequences) the second after the inbound envelope sequence crossed 32768
+    (32767 at 08:42:44 -> 32768 at 08:42:44 -> first retransmit 08:42:45).
+    """
+
+    def test_young_session_acknowledges_from_its_first_datagram(self):
+        """While the session is younger than the window, the range starts at its first seq."""
+        from azoth_world.rep import ack_window_first
+
+        start = 1000
+        for count in (1, 2, 50, 4096):
+            with self.subTest(count=count):
+                last = start + count - 1
+                self.assertEqual(ack_window_first(last, count, 4096), start)
+
+    def test_window_never_exceeds_its_width(self):
+        from azoth_world.rep import ACK_WINDOW, ack_window_first
+
+        # Walk a session well past the boundary that broke the client.
+        for last in range(0, 40000, 397):
+            first = ack_window_first(last, last + 1)
+            width = (last - first) & 0xFFFF
+            self.assertLess(width, 0x8000, f"ambiguous range at seq {last}")
+            self.assertLessEqual(width, ACK_WINDOW)
+
+    def test_the_boundary_that_broke_the_client_is_now_safe(self):
+        """The measured onset: the ACK used to be 32766 wide when last became 32768."""
+        from azoth_world.rep import ack_window_first
+
+        old_width = 32768 - 2          # what the pinned range produced
+        self.assertGreaterEqual(old_width, 0x8000 - 2)
+        new_first = ack_window_first(32768, 32768)
+        self.assertEqual((32768 - new_first) & 0xFFFF, 16383)
+        self.assertLess((32768 - new_first) & 0xFFFF, 0x8000)
+
+    def test_window_survives_the_16_bit_wrap(self):
+        """A count-based window stays correct when the wire sequence wraps at 65536."""
+        from azoth_world.rep import ack_window_first
+
+        # last wrapped to 5 after 65542 datagrams; the range must stay a narrow local window.
+        first = ack_window_first(5, 65542)
+        self.assertEqual((5 - first) & 0xFFFF, 16383)
+
+    def test_ack_range_is_encoded_and_stays_inside_u16(self):
+        """The encoded datagram carries exactly the windowed first, not the session's first."""
+
+        from azoth_world.javelin import parse_datagram, parse_envelope
+        from azoth_world.rep import ACK_WINDOW, ack_window_first, ct_acks_datagram
+
+        last = 40000
+        first = ack_window_first(last, last + 1)
+        env, body = parse_envelope(ct_acks_datagram(last, ack_first=first, ack_last=last))
+        cts = [
+            r.payload
+            for r in parse_datagram(body).messages
+            if r.payload and r.payload[0] == 0x40
+        ]
+        self.assertEqual(len(cts), 1)
+        payload = cts[0]
+        encoded_last = int.from_bytes(payload[1:3], "big")
+        encoded_first = int.from_bytes(payload[3:5], "big")
+        self.assertEqual(encoded_last, last)
+        self.assertEqual(encoded_first, first)
+        self.assertEqual((encoded_last - encoded_first) & 0xFFFF, ACK_WINDOW - 1)
+        self.assertLess((encoded_last - encoded_first) & 0xFFFF, 0x8000)
+
+    def test_session_tracks_how_many_datagrams_it_has_seen(self):
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.inbound_first = None
+        session.inbound_count = 0
+        # The counter is what makes the window wrap-safe; it must not be derived from the seq.
+        self.assertEqual(session.inbound_count, 0)
+
+
 class TestClientHelloDetection(unittest.TestCase):
     """A reused source port must reset the DTLS session (2026-09-27).
 

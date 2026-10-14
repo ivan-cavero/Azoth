@@ -142,6 +142,29 @@ TICK_INTERVAL_S = (1.0 / TICK_HZ) if TICK_HZ > 0 else 0.02
 # (`transportError 4`, the red cable). The official capture shows the server
 # sending ~3041 ch0 datagrams for 867 inbound ch0 — it does not answer 1:1.
 ACK_COALESCE_S = float(os.environ.get("AZOTH_ACK_COALESCE_S", "0.05"))
+# Width of the continuous ACK window, in inbound envelope sequences.
+#
+# MEASURED 2026-10-14, and this is a real server bug that costs the session: the CT_ACKS was
+# `[ack_first=inbound_first, ack_last=current]` with `ack_first` PINNED to the session's first
+# sequence, so the acknowledged range grew by one per datagram for the whole session. The two
+# fields are 16 bits, so a wrap-aware reader can only represent a range narrower than half the
+# space (32768); past that the range is ambiguous and the client stops treating its reliable
+# records as delivered. It does not report an error - it RETRANSMITS. Measured in one session:
+#
+#   last envelope seq below 32768 : 32767 at 08:42:44
+#   first at/above                : 32768 at 08:42:44   (ACK width 32766)
+#   first retransmitted client record: relSeq 1836 at 08:42:45
+#
+# From that instant the client re-sent every reliable record ~200 times: 140 174 channel-0
+# ping records in 10 minutes carrying only **660 distinct sequences** (212x), against 1.2x
+# earlier in the same session, with OnLocalNetworkConnectionWarning climbing ~1/s throughout.
+# The server's own outbound rate, ACK range and reliable-sequence stream stayed correct and
+# constant, so this is an addressing-window defect, not a load or transport failure.
+#
+# The fix is a sliding window: acknowledge the most recent ACK_WINDOW sequences instead of
+# everything since the session started. 16384 is half the safe maximum and, at the measured
+# ~21 inbound datagrams/s, still covers ~13 minutes of history.
+ACK_WINDOW = int(os.environ.get("AZOTH_ACK_WINDOW", "16384"), 0)
 # Minimum seconds before the SAME reliable datagram is retransmitted again.
 # 0.3 is the long-standing value. Raising it throttles the in-flight resend
 # storm that peaks while the paced replay drains (measured 650 resends in one
@@ -1230,6 +1253,21 @@ def carrier_state_datagram(seq: int, *, welcome: bytes, ack_first: int, ack_last
     )
 
 
+def ack_window_first(ack_last: int, datagrams_seen: int, window: int = ACK_WINDOW) -> int:
+    """First envelope sequence of the continuous ACK range.
+
+    Sliding, not pinned: while the session is younger than ``window`` this is the session's
+    first sequence (the strongest true claim), and after that it advances so the range never
+    exceeds ``window``. See ACK_WINDOW for the measured reason a pinned range breaks the
+    client at 32768.
+
+    The subtraction is done in 16-bit wrap space, so it stays correct after the envelope
+    sequence wraps at 65536 - which a pinned range could not survive either.
+    """
+    width = max(1, min(datagrams_seen, window))
+    return (ack_last - (width - 1)) & 0xFFFF
+
+
 def ct_acks_datagram(seq: int, *, ack_first: int, ack_last: int) -> bytes:
     """Standalone CT_ACKS (sys6) so the client's reliable V3 is marked
     delivered. Without this, after the first RegistrationResponse the
@@ -1304,6 +1342,7 @@ def handle_app_data(
     v3_done: bool = False,
     v3_last_reply: float = 0.0,
     ack_allowed: bool = True,
+    ack_first: int | None = None,
 ) -> list[bytes]:
     """Server logic for one decrypted datagram -> 0..n reply datagrams.
 
@@ -1327,8 +1366,14 @@ def handle_app_data(
     compressed body as records produced a stub session token and the
     client disconnected.
 
+    ack_first: the first sequence of the CONTINUOUS ACK range. The caller supplies the sliding
+    window (see ACK_WINDOW and `ack_window_first`); when omitted it falls back to
+    `inbound_first`, which is what the tests and the one-shot plain server use.
     """
     from .javelin.lz4 import decompress_lz4_block
+
+    if ack_first is None:
+        ack_first = inbound_first
 
     try:
         env, body = parse_envelope(app)
@@ -1357,7 +1402,7 @@ def handle_app_data(
             carrier_state_datagram(
                 client_env_seq,
                 welcome=welcome,
-                ack_first=inbound_first,
+                ack_first=ack_first,
                 ack_last=client_env_seq,
             )
         )
@@ -1436,7 +1481,7 @@ def handle_app_data(
         replies.append(
             ct_acks_datagram(
                 client_env_seq,
-                ack_first=inbound_first,
+                ack_first=ack_first,
                 ack_last=client_env_seq,
             )
         )
@@ -1476,6 +1521,10 @@ class PeerSession:
         self.handshaken = False
         self.carrier_connected = False  # our acceptance flight has been sent
         self.inbound_first: int | None = None  # first inbound envelope seq
+        # Monotonic count of inbound datagrams. The ACK window is expressed as a count rather
+        # than as a difference of wire sequences so it stays correct across the 16-bit wrap
+        # (see ACK_WINDOW).
+        self.inbound_count = 0
         self.v3_responded = False  # V3 response has been sent at least once
         self.v3_session_uuid = ""
         self.v3_character_id = ""
@@ -1603,6 +1652,7 @@ class PeerSession:
         log_event(event)
         if self.inbound_first is None:
             self.inbound_first = inbound_env.sequence
+        self.inbound_count += 1
         # System handshake (CONNECT_REQUEST -> CLOCK_SYNC+ACK+CT_ACKS) and
         # V3 registration. Replies are logged too: what WE send is half of
         # the ground truth.
@@ -1679,6 +1729,7 @@ class PeerSession:
             v3_done=self.v3_responded,
             v3_last_reply=self.v3_last_time,
             ack_allowed=ack_allowed,
+            ack_first=ack_window_first(inbound_env.sequence, self.inbound_count),
         ):
             log_event(
                 {
@@ -3060,6 +3111,8 @@ class RepServer:
                 "replay_request_gating": REPLAY_REQUEST_GATING,
                 "replay_defer_timeout_s": DEFER_DECISION_TIMEOUT_S,
                 "replay_max_seq": hex(REPLAY_MAX_SEQ),
+                "ack_window": ACK_WINDOW,
+                "ack_coalesce_s": ACK_COALESCE_S,
             }
         )
         # Windows: a sendto() to a client that already closed is answered
