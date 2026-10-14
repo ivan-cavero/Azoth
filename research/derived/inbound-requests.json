@@ -1,12 +1,12 @@
 {
   "session": "last",
   "stats": {
-    "datagrams_parsed": 8909,
+    "datagrams_parsed": 6403,
     "datagrams_unparsed": 0,
     "records_by_channel": {
-      "0": 543,
-      "1": 8412,
-      "3": 8891
+      "0": 442,
+      "1": 5932,
+      "3": 6412
     }
   },
   "types": [
@@ -18,7 +18,7 @@
       "channels": [
         1
       ],
-      "count": 8412,
+      "count": 5932,
       "kind": "input-stream"
     },
     {
@@ -29,7 +29,7 @@
       "channels": [
         0
       ],
-      "count": 431,
+      "count": 312,
       "kind": "transport"
     },
     {
@@ -51,7 +51,7 @@
       "channels": [
         0
       ],
-      "count": 15,
+      "count": 17,
       "kind": "request"
     },
     {
@@ -62,7 +62,7 @@
       "channels": [
         0
       ],
-      "count": 14,
+      "count": 15,
       "kind": "unknown"
     },
     {
@@ -75,6 +75,28 @@
       ],
       "count": 3,
       "kind": "v3-registration"
+    },
+    {
+      "wire_type": 2556,
+      "name": "ContractsComponentServerFacet_LookupContractsByParticipant",
+      "source": "rdata",
+      "guid": "d61428c7-6d83-4dcc-b28c-705c6ce16c8a",
+      "channels": [
+        0
+      ],
+      "count": 3,
+      "kind": "request"
+    },
+    {
+      "wire_type": 4143,
+      "name": null,
+      "source": null,
+      "guid": "81ead9f2-4838-490c-bd12-e9d78b98075f",
+      "channels": [
+        0
+      ],
+      "count": 3,
+      "kind": "unknown"
     },
     {
       "wire_type": 6745,
@@ -100,20 +122,20 @@
     },
     {
       "wire_type": 1458,
-      "name": "ObjectivesComponentServerFacet_UpdateTrackedObjectives",
-      "source": "rdata",
+      "name": null,
+      "source": null,
       "guid": "298436a9-06d0-4bda-8dd9-0708b36e7374",
       "channels": [
         0
       ],
       "count": 3,
-      "kind": "request"
+      "kind": "unknown"
     },
     {
-      "wire_type": 2556,
-      "name": "ContractsComponentServerFacet_LookupContractsByParticipant",
+      "wire_type": 4248,
+      "name": "TimeComponentServerFacet_SyncToClient",
       "source": "rdata",
-      "guid": "d61428c7-6d83-4dcc-b28c-705c6ce16c8a",
+      "guid": "5afea411-9bf6-4dbe-af48-b8cb7ee0f6a3",
       "channels": [
         0
       ],
@@ -121,15 +143,103 @@
       "kind": "request"
     },
     {
-      "wire_type": 4143,
+      "wire_type": 2515,
+      "name": "PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient",
+      "source": "rdata",
+      "guid": "c3ab71f9-3530-41a2-8edc-a417400f5532",
+      "channels": [
+        0
+      ],
+      "count": 2,
+      "kind": "request"
+    },
+    {
+      "wire_type": 4272,
+      "name": "TraversalComponentServerFacet_SyncIsAutoTraversalEnabled",
+      "source": "az-registry",
+      "guid": "6e9c33d1-48f0-45ff-977e-0df99d687b84",
+      "channels": [
+        0
+      ],
+      "count": 2,
+      "kind": "request"
+    },
+    {
+      "wire_type": 4122,
+      "name": "SpectatedPlayerComponentServerFacet_SetIsPublic",
+      "source": "rdata",
+      "guid": "702f8589-bc11-47c9-8425-47a78b09e0b5",
+      "channels": [
+        0
+      ],
+      "count": 2,
+      "kind": "request"
+    },
+    {
+      "wire_type": 6268,
+      "name": "MountComponentServerFacet_OnMountDashToggleChanged",
+      "source": "az-registry",
+      "guid": "cc6e0819-6fe0-4036-8f56-e8a47468331c",
+      "channels": [
+        0
+      ],
+      "count": 2,
+      "kind": "request"
+    },
+    {
+      "wire_type": 6271,
+      "name": "MountComponentServerFacet_OnMountSlowWalkChanged",
+      "source": "az-registry",
+      "guid": "f56e3380-24b5-4676-80f1-91fe2da66b2d",
+      "channels": [
+        0
+      ],
+      "count": 2,
+      "kind": "request"
+    },
+    {
+      "wire_type": 4142,
       "name": null,
       "source": null,
-      "guid": "81ead9f2-4838-490c-bd12-e9d78b98075f",
+      "guid": "5d87aa99-1815-4d49-845b-bb29d1607887",
       "channels": [
         0
       ],
       "count": 2,
       "kind": "unknown"
+    },
+    {
+      "wire_type": 6444,
+      "name": null,
+      "source": null,
+      "guid": "9ff57f0b-9ae9-4a69-9ebf-1bab649ee271",
+      "channels": [
+        0
+      ],
+      "count": 2,
+      "kind": "unknown"
+    },
+    {
+      "wire_type": 4126,
+      "name": null,
+      "source": null,
+      "guid": "c244a8ba-60e1-405e-af25-1eb4148ffed1",
+      "channels": [
+        0
+      ],
+      "count": 2,
+      "kind": "unknown"
+    },
+    {
+      "wire_type": 1643,
+      "name": "VoiceChatComponentServerFacet_RegisterVoiceChatService",
+      "source": "rdata",
+      "guid": "1505d3b1-754a-45e8-8865-b3daa4b4b7b2",
+      "channels": [
+        0
+      ],
+      "count": 2,
+      "kind": "request"
     },
     {
       "wire_type": 387,
@@ -143,114 +253,37 @@
       "kind": "request"
     },
     {
-      "wire_type": 4248,
-      "name": "TimeComponentServerFacet_SyncToClient",
+      "wire_type": 3967,
+      "name": "PlayerComponentServerFacet_OnCullLimitPctChangeRequest",
       "source": "rdata",
-      "guid": "5afea411-9bf6-4dbe-af48-b8cb7ee0f6a3",
+      "guid": "8950b8c3-339d-4b05-92bc-7c4cf54fb872",
       "channels": [
         0
       ],
-      "count": 1,
+      "count": 2,
       "kind": "request"
     },
     {
-      "wire_type": 2515,
-      "name": "PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient",
-      "source": "rdata",
-      "guid": "c3ab71f9-3530-41a2-8edc-a417400f5532",
-      "channels": [
-        0
-      ],
-      "count": 1,
-      "kind": "request"
-    },
-    {
-      "wire_type": 4272,
-      "name": "TraversalComponentServerFacet_SyncIsAutoTraversalEnabled",
-      "source": "az-registry",
-      "guid": "6e9c33d1-48f0-45ff-977e-0df99d687b84",
-      "channels": [
-        0
-      ],
-      "count": 1,
-      "kind": "request"
-    },
-    {
-      "wire_type": 4122,
-      "name": "SpectatedPlayerComponentServerFacet_SetIsPublic",
-      "source": "rdata",
-      "guid": "702f8589-bc11-47c9-8425-47a78b09e0b5",
-      "channels": [
-        0
-      ],
-      "count": 1,
-      "kind": "request"
-    },
-    {
-      "wire_type": 6268,
-      "name": "MountComponentServerFacet_OnMountDashToggleChanged",
-      "source": "az-registry",
-      "guid": "cc6e0819-6fe0-4036-8f56-e8a47468331c",
-      "channels": [
-        0
-      ],
-      "count": 1,
-      "kind": "request"
-    },
-    {
-      "wire_type": 6271,
-      "name": "MountComponentServerFacet_OnMountSlowWalkChanged",
-      "source": "az-registry",
-      "guid": "f56e3380-24b5-4676-80f1-91fe2da66b2d",
-      "channels": [
-        0
-      ],
-      "count": 1,
-      "kind": "request"
-    },
-    {
-      "wire_type": 4142,
+      "wire_type": 41,
       "name": null,
       "source": null,
-      "guid": "5d87aa99-1815-4d49-845b-bb29d1607887",
+      "guid": "c1f8b290-beea-451f-a445-c26e89513c7c",
       "channels": [
-        0
+        3
       ],
       "count": 1,
-      "kind": "unknown"
+      "kind": "transport"
     },
     {
-      "wire_type": 6444,
-      "name": null,
-      "source": null,
-      "guid": "9ff57f0b-9ae9-4a69-9ebf-1bab649ee271",
+      "wire_type": 42,
+      "name": "SpawnRestoredMonikerActorMsg",
+      "source": "javelin-registry",
+      "guid": "5ba02fa9-76cf-49be-9cd0-b0ce9f789c83",
       "channels": [
-        0
+        3
       ],
       "count": 1,
-      "kind": "unknown"
-    },
-    {
-      "wire_type": 4126,
-      "name": null,
-      "source": null,
-      "guid": "c244a8ba-60e1-405e-af25-1eb4148ffed1",
-      "channels": [
-        0
-      ],
-      "count": 1,
-      "kind": "unknown"
-    },
-    {
-      "wire_type": 1643,
-      "name": "VoiceChatComponentServerFacet_RegisterVoiceChatService",
-      "source": "rdata",
-      "guid": "1505d3b1-754a-45e8-8865-b3daa4b4b7b2",
-      "channels": [
-        0
-      ],
-      "count": 1,
-      "kind": "request"
+      "kind": "transport"
     },
     {
       "wire_type": 998,
@@ -330,6 +363,28 @@
       "kind": "request"
     },
     {
+      "wire_type": 2077,
+      "name": "VoiceChatComponentServerFacet_GenerateLoginAccessToken",
+      "source": "rdata",
+      "guid": "4840a5ee-1240-40c7-8d51-9d246033ce7a",
+      "channels": [
+        0
+      ],
+      "count": 1,
+      "kind": "request"
+    },
+    {
+      "wire_type": 72,
+      "name": null,
+      "source": null,
+      "guid": "628ebf0d-1e08-4d9d-87eb-a9f615e715e1",
+      "channels": [
+        3
+      ],
+      "count": 1,
+      "kind": "transport"
+    },
+    {
       "wire_type": 843,
       "name": "MetaAchievementComponentServerFacet_ServerRequestGetPendingMetaAchievements",
       "source": "az-registry",
@@ -341,10 +396,10 @@
       "kind": "request"
     },
     {
-      "wire_type": 12,
-      "name": "wrA",
+      "wire_type": 96,
+      "name": "GhostExTrait::State",
       "source": "rdata",
-      "guid": "cf2b3e22-7fdb-4f06-bc1f-7a4b8912ca73",
+      "guid": "9797bcf3-5758-4b1b-8167-59bc3e178bc3",
       "channels": [
         3
       ],
@@ -352,10 +407,10 @@
       "kind": "transport"
     },
     {
-      "wire_type": 62,
+      "wire_type": 107,
       "name": null,
       "source": null,
-      "guid": "2a3bf0ce-782d-45e1-b717-e4024e2735f4",
+      "guid": "1bd545f9-5123-43d5-bc6d-3649b14af507",
       "channels": [
         3
       ],
@@ -363,21 +418,10 @@
       "kind": "transport"
     },
     {
-      "wire_type": 79,
-      "name": "ShapeCount",
-      "source": "az-registry",
-      "guid": "4508e8b0-558d-4232-42b5-b37e5081ce5a",
-      "channels": [
-        3
-      ],
-      "count": 1,
-      "kind": "transport"
-    },
-    {
-      "wire_type": 112,
-      "name": "ClientActorRoutingAuthorizationTrait",
+      "wire_type": 397,
+      "name": "RegisterFragmentAccessMsg",
       "source": "rdata",
-      "guid": "5bdfe46e-df14-44bf-ba69-9354bd8746ce",
+      "guid": "96a58e69-7bd5-45c5-86e4-daf9f5eb1e86",
       "channels": [
         3
       ],
@@ -385,21 +429,10 @@
       "kind": "transport"
     },
     {
-      "wire_type": 123,
-      "name": "CrossWorldReconnectNotifierTrait::State",
-      "source": "rdata",
-      "guid": "27c27fa4-1fb2-479c-9ca8-a14ce8c72a65",
-      "channels": [
-        3
-      ],
-      "count": 1,
-      "kind": "transport"
-    },
-    {
-      "wire_type": 396,
+      "wire_type": 414,
       "name": null,
       "source": null,
-      "guid": "e37cfd32-ff6c-4086-8b3f-f311ce931cda",
+      "guid": "bd585f42-ca92-4ec6-8be3-f33d4f6a69b8",
       "channels": [
         3
       ],
@@ -407,10 +440,10 @@
       "kind": "transport"
     },
     {
-      "wire_type": 446,
-      "name": "CoatlicueClientMessages::State",
-      "source": "rdata",
-      "guid": "1e718638-0a57-4c40-a31d-e2a3b44245e7",
+      "wire_type": 437,
+      "name": null,
+      "source": null,
+      "guid": "2d2baa3b-52c7-4b22-b2f4-c0ebf2fe263c",
       "channels": [
         3
       ],
@@ -420,10 +453,8 @@
   ],
   "request_types": [
     2709,
-    5463,
-    1458,
     2556,
-    387,
+    5463,
     4248,
     2515,
     4272,
@@ -431,12 +462,15 @@
     6268,
     6271,
     1643,
+    387,
+    3967,
     998,
     2776,
     3970,
     3092,
     2297,
     2617,
+    2077,
     843
   ]
 }

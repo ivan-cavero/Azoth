@@ -630,9 +630,16 @@ INBOUND_DISPATCH_ENABLED = os.environ.get("AZOTH_INBOUND_DISPATCH", "1") == "1"
 # The 16-byte facet target that prefixes every request's parameters.
 REQUEST_TARGET_PREFIX = 16
 # Requests whose params we keep for inspection. Nothing here changes wire behaviour by itself.
+#
+# 0x05B2 is marked UNVERIFIED on purpose. MEASURED 2026-10-14: the wire-name registry used to give
+# this wire the same name as 0x0A4D, because the .rdata descriptor region is
+# `<name>\0<pad>\0<GUID1>\0<GUID2>` for some types - ONE name followed by TWO GUIDs - so an
+# adjacency scan hands the name to both. The name belongs to the FIRST GUID (0x0A4D); 0x05B2's
+# real method name is unknown. The FAMILY is certain (it sits among
+# `ObjectivesComponentServerFacet_*` and shares the Objectives facet target), the method is not.
 INBOUND_KNOWN_REQUESTS: dict[int, str] = {
     0x0183: "GlobalStorageComponentServerFacet_SetReplicateStorage",
-    0x05B2: "ObjectivesComponentServerFacet_UpdateTrackedObjectives",
+    0x05B2: "ObjectivesComponentServerFacet_? (name unverified, see above)",
     0x09D3: "PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient",
     0x09FC: "ContractsComponentServerFacet_LookupContractsByParticipant",
     0x0A95: "ObjectivesComponentServerFacet_SetObjectiveAutoPinning",

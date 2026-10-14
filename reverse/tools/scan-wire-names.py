@@ -126,7 +126,20 @@ def scan(exe: Path, typeindex: Path) -> dict:
 
     # One pass over the image: for every dashed GUID, the longest printable run that
     # precedes it within a short window (skipping NUL padding).
+    #
+    # A NAME MAY BE CLAIMED BY ONLY ONE GUID. The descriptor form is
+    # `<Name>\0<pad>\0<GUID1>\0<GUID2>` for some types - ONE name followed by TWO GUIDs - and the
+    # adjacency rule then gives both GUIDs the same name, because the nearest preceding printable
+    # run for GUID2 is still GUID1's name. MEASURED 2026-10-14: that is how
+    # `ObjectivesComponentServerFacet_UpdateTrackedObjectives` ended up on BOTH wire 2637 (`0xa4d`)
+    # and wire 1458 (`0x5b2`); the .rdata region shows the name at 0x8252a50, GUID1 at 0x8252a88
+    # and GUID2 at 0x8252ab0, so the name belongs to GUID1 and 0x5b2's real method name is
+    # unknown. AZ type names are unique, so a repeat is always a misread: the FIRST GUID keeps
+    # the name (it is the adjacent one) and a later claimant is left unnamed rather than given a
+    # confident wrong answer.
     by_guid: dict[str, str] = {}
+    claimed: dict[str, str] = {}
+    duplicates: list[tuple[str, str, str]] = []
     for m in GUID_RE.finditer(data):
         start = m.start()
         window = data[max(0, start - 0x100) : start]
@@ -136,8 +149,15 @@ def scan(exe: Path, typeindex: Path) -> dict:
             end -= 1
         runs = PRINTABLE_RE.findall(window[:end])
         name = _pick_name(runs)
-        if name:
-            by_guid.setdefault(m.group().decode("ascii"), name)
+        if not name:
+            continue
+        dashed = m.group().decode("ascii")
+        owner = claimed.get(name)
+        if owner is not None and owner != dashed:
+            duplicates.append((name, owner, dashed))
+            continue
+        claimed[name] = dashed
+        by_guid.setdefault(dashed, name)
 
     # Fallback for the types whose descriptor does not carry an adjacent name: the AZ type
     # registry has the same GUID -> name pairing, read from the brace-wrapped descriptor form.
@@ -169,6 +189,9 @@ def scan(exe: Path, typeindex: Path) -> dict:
         "wire_types": len(rows),
         "named": named,
         "names": rows,
+        # One name claimed by two GUIDs is a misread, not a shared name; recorded so the count of
+        # rejected pairings is visible instead of being silently dropped.
+        "ambiguous_names": len(duplicates),
     }
 
 

@@ -1,7 +1,7 @@
 {
   "build_sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
   "wire_types": 7052,
-  "named": 2201,
+  "named": 2055,
   "names": [
     {
       "wire_type": 0,
@@ -36,32 +36,32 @@
     {
       "wire_type": 5,
       "guid": "2bbf39f0-e744-4c00-86a1-806067aa302f",
-      "name": "typeIndex",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 6,
       "guid": "edab248a-ba47-43c8-9fc8-79b74d362e91",
-      "name": "typeIndex",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 7,
       "guid": "560a34b3-9acc-473f-93a4-a62a78de39a2",
-      "name": "typeIndex",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 8,
       "guid": "8a40aec2-ae07-4f92-9bf3-78fc0cc94fdf",
-      "name": "typeIndex",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 9,
       "guid": "fe59b513-ceb7-4bc2-80e6-545a8c492591",
-      "name": "typeIndex",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 10,
@@ -78,14 +78,14 @@
     {
       "wire_type": 12,
       "guid": "cf2b3e22-7fdb-4f06-bc1f-7a4b8912ca73",
-      "name": "wrA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 13,
       "guid": "79c28008-4fc5-4efb-88a1-538f4fb7dde1",
-      "name": "wrA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 14,
@@ -96,8 +96,8 @@
     {
       "wire_type": 15,
       "guid": "0e721c70-2cdb-4e85-bae4-d545fdc6d25b",
-      "name": "typeIndex",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 16,
@@ -168,20 +168,20 @@
     {
       "wire_type": 27,
       "guid": "dafae3c4-68a5-4c6a-95bf-3f63669d2742",
-      "name": "ActorMover::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 28,
       "guid": "a85df621-dce0-409f-8d39-a447ea0807ff",
-      "name": "GuildsComponentClientFacet_OnSetSiegeWindowFailedMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 29,
       "guid": "5566f141-5c23-4bfb-beff-372daf60f713",
-      "name": "PlayerTradeComponentServerFacet_UnequipItem",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 30,
@@ -636,8 +636,8 @@
     {
       "wire_type": 105,
       "guid": "d10a3623-712e-468d-8711-4473ec34986a",
-      "name": "GroupsComponentServerFacet_RequestConfirmGroupFinderApplicationInvite",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 106,
@@ -870,8 +870,8 @@
     {
       "wire_type": 144,
       "guid": "836f5bb7-eb2b-451b-a944-27a6cdcc9eff",
-      "name": "SpawnerNotificationTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 145,
@@ -888,8 +888,8 @@
     {
       "wire_type": 147,
       "guid": "d557c016-d1e8-47dd-bb00-67cd811fb7ce",
-      "name": "PhysicsStatusListener::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 148,
@@ -948,8 +948,8 @@
     {
       "wire_type": 157,
       "guid": "91a9cf78-0214-461b-8471-1b0e96224da9",
-      "name": "REPClient::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 158,
@@ -1188,8 +1188,8 @@
     {
       "wire_type": 197,
       "guid": "088caa4e-5fcf-4965-a64c-8c1a3272b1e7",
-      "name": "PingTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 198,
@@ -1500,8 +1500,8 @@
     {
       "wire_type": 249,
       "guid": "12e2d82a-e082-4a4f-94c9-cbd0f77fd5d3",
-      "name": "ReplicateClient",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 250,
@@ -1614,8 +1614,8 @@
     {
       "wire_type": 268,
       "guid": "cb5fe3ac-8634-4a3e-b882-361d214bc995",
-      "name": "ExecuteDebugCommandMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 269,
@@ -1950,8 +1950,8 @@
     {
       "wire_type": 324,
       "guid": "9891b183-0c59-42d6-8eb8-d2f67eefed29",
-      "name": "CrossWorldReconnectNotifierTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 325,
@@ -2184,8 +2184,8 @@
     {
       "wire_type": 363,
       "guid": "9e6ee43b-15f1-497b-9461-1f97e488aa10",
-      "name": "ExampleComponentServerFacet_ServerGmMethodCallableFromClientFacet",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 364,
@@ -2532,8 +2532,8 @@
     {
       "wire_type": 421,
       "guid": "8c3fe844-a1a7-46f0-9c42-fa424791e4fb",
-      "name": "GridTrackingComponentServerFacet_DebugCondemnPrimaryPhase",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 422,
@@ -2682,8 +2682,8 @@
     {
       "wire_type": 446,
       "guid": "1e718638-0a57-4c40-a31d-e2a3b44245e7",
-      "name": "CoatlicueClientMessages::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 447,
@@ -2700,8 +2700,8 @@
     {
       "wire_type": 449,
       "guid": "bc291efa-72fe-4c7b-b9f6-859ee42fb1a0",
-      "name": "muA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 450,
@@ -2820,8 +2820,8 @@
     {
       "wire_type": 469,
       "guid": "71eddfb0-e7cd-4ce7-8028-a1795b43c467",
-      "name": "ConfigureTestActorsMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 470,
@@ -2880,8 +2880,8 @@
     {
       "wire_type": 479,
       "guid": "342e6d38-7637-472f-8e39-48a888056ea9",
-      "name": "ClientRegistryActor",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 480,
@@ -2958,8 +2958,8 @@
     {
       "wire_type": 492,
       "guid": "118ea477-a77a-4be4-81b5-455fb2a66d49",
-      "name": "muA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 493,
@@ -3018,8 +3018,8 @@
     {
       "wire_type": 502,
       "guid": "ec0fc761-46e9-435f-90bd-eff8b93beb92",
-      "name": "PlayerComponentServerFacet_ReturnToMainWorld",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 503,
@@ -3036,8 +3036,8 @@
     {
       "wire_type": 505,
       "guid": "6e6e9b80-7a9c-4123-95af-e2e9edd65544",
-      "name": "CheckMovementStatusMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 506,
@@ -3054,8 +3054,8 @@
     {
       "wire_type": 508,
       "guid": "5441c881-4805-4389-b912-ef0a6d29aad0",
-      "name": "AcknowledgeTransactionsResponse",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 509,
@@ -3102,8 +3102,8 @@
     {
       "wire_type": 516,
       "guid": "62f68299-7bb2-4e0a-90d9-b664bd363dae",
-      "name": "TraitActorPersistenceData",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 517,
@@ -3456,8 +3456,8 @@
     {
       "wire_type": 575,
       "guid": "d35dd2e7-796b-44da-8ff4-3fbfca04db38",
-      "name": "ClearRegistryMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 576,
@@ -3528,8 +3528,8 @@
     {
       "wire_type": 587,
       "guid": "7f37d39a-d879-4b3d-a3cb-0df0e8751ae4",
-      "name": "DetectionVolumeComponentServerFacet_ToggleDebugRenderEnterExitEvents",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 588,
@@ -3684,8 +3684,8 @@
     {
       "wire_type": 613,
       "guid": "a2693136-197c-41bb-80a1-a57ca9bb4edb",
-      "name": "HubLifecycleStateRequestTrait",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 614,
@@ -4122,8 +4122,8 @@
     {
       "wire_type": 686,
       "guid": "c5975f6a-1350-4d9f-8a68-67e88e2e1c02",
-      "name": "CoatlicueClientMessages::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 687,
@@ -4188,8 +4188,8 @@
     {
       "wire_type": 697,
       "guid": "62843977-2235-4bda-bf74-f6bcb628d0fd",
-      "name": "CoatlicueClientMessages::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 698,
@@ -4242,8 +4242,8 @@
     {
       "wire_type": 706,
       "guid": "92d4a272-073a-4ea6-9193-ffc522447cc1",
-      "name": "MoveAnActorMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 707,
@@ -4290,8 +4290,8 @@
     {
       "wire_type": 714,
       "guid": "b9846915-a9a9-4610-98bb-15275370fe65",
-      "name": "PlayerManagerTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 715,
@@ -4518,8 +4518,8 @@
     {
       "wire_type": 752,
       "guid": "5ab853f9-9533-4ba2-b45a-dc9e09318983",
-      "name": "ProjectileSpawnerComponentServerFacet_DEBUG_FireAtTarget",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 753,
@@ -4536,8 +4536,8 @@
     {
       "wire_type": 755,
       "guid": "e13ce79f-f318-42d2-badd-991aae4f3185",
-      "name": "RoutingSubListener::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 756,
@@ -4596,8 +4596,8 @@
     {
       "wire_type": 765,
       "guid": "63361b9b-156b-428d-8b05-1e4dff308203",
-      "name": "OnTargetSpawnedMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 766,
@@ -5094,8 +5094,8 @@
     {
       "wire_type": 848,
       "guid": "2ae5069e-36ae-4e75-8814-47414bebb7c6",
-      "name": "ClientViewListenerTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 849,
@@ -5790,8 +5790,8 @@
     {
       "wire_type": 964,
       "guid": "7648f73d-776f-4c9b-b642-b6e79844f8a0",
-      "name": "PassiveQueryTrait",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 965,
@@ -5874,8 +5874,8 @@
     {
       "wire_type": 978,
       "guid": "f6e76f4f-b038-4558-8c4d-905d5fca117b",
-      "name": "ToHubDebugMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 979,
@@ -5892,8 +5892,8 @@
     {
       "wire_type": 981,
       "guid": "9e643451-7226-451d-a371-f3753f330664",
-      "name": "ContinueLifecycleStartupMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 982,
@@ -5946,8 +5946,8 @@
     {
       "wire_type": 990,
       "guid": "a2bec1f4-4ae4-4925-a591-abd0dc6f725d",
-      "name": "muA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 991,
@@ -6114,8 +6114,8 @@
     {
       "wire_type": 1018,
       "guid": "9f8599c1-6834-42da-a2f3-b35922f7bb96",
-      "name": "ResponseMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1019,
@@ -6210,14 +6210,14 @@
     {
       "wire_type": 1034,
       "guid": "979e13fb-7a0a-4ddc-922b-d042e16e0be4",
-      "name": "CoatlicueClientMessages::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1035,
       "guid": "e947311b-f5bc-4f51-941c-6cdd446b5b59",
-      "name": "CoatlicueClientMessages::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1036,
@@ -6408,8 +6408,8 @@
     {
       "wire_type": 1067,
       "guid": "0cc7c0c7-f655-4a24-9381-c0050bb4bf61",
-      "name": "SafeClientMessage",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1068,
@@ -7188,8 +7188,8 @@
     {
       "wire_type": 1197,
       "guid": "73436d2b-0bbf-4214-a05f-b37b1abd6e06",
-      "name": "CharacterComponentServerFacet_DebugRequestDisableCollision",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1198,
@@ -7344,8 +7344,8 @@
     {
       "wire_type": 1223,
       "guid": "a0924a87-5031-4279-8cd0-9dd078df8194",
-      "name": "HandlerRegistrySingletonTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1224,
@@ -7758,8 +7758,8 @@
     {
       "wire_type": 1292,
       "guid": "a7b26751-0140-48bd-9a8f-34f59ee80d80",
-      "name": "P2PTradeComponentClientFacet_OnTradeSessionEnded",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1293,
@@ -7878,8 +7878,8 @@
     {
       "wire_type": 1312,
       "guid": "56508acc-f5f8-4e42-a97e-7a8620ff2812",
-      "name": "NavMeshDebugComponentServerFacet_DebugRequestTileGen",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1313,
@@ -8532,8 +8532,8 @@
     {
       "wire_type": 1421,
       "guid": "938691a0-a284-4127-b168-3fc03126cde3",
-      "name": "BotBrokerTrait",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1422,
@@ -8754,8 +8754,8 @@
     {
       "wire_type": 1458,
       "guid": "298436a9-06d0-4bda-8dd9-0708b36e7374",
-      "name": "ObjectivesComponentServerFacet_UpdateTrackedObjectives",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1459,
@@ -9402,8 +9402,8 @@
     {
       "wire_type": 1566,
       "guid": "01ceff40-344d-4b55-9879-ba0d55c50312",
-      "name": "ChatComponentServerFacet_RequestClearChatMuteFromClient",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1567,
@@ -9492,8 +9492,8 @@
     {
       "wire_type": 1581,
       "guid": "9448339a-b6a3-4ea5-bb5c-cb1aacca0ce3",
-      "name": "TileReceiver",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1582,
@@ -9522,8 +9522,8 @@
     {
       "wire_type": 1586,
       "guid": "32f4d298-fb90-4bcb-8d21-92ea70c578e5",
-      "name": "LocalPlayerDebugComponentServerFacet_SetDebugLootTags",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1587,
@@ -9576,8 +9576,8 @@
     {
       "wire_type": 1595,
       "guid": "6b5a4292-1248-4d21-8a18-75fbf09d7dfc",
-      "name": "MatchmakingMatchUpdateMessage",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1596,
@@ -9636,8 +9636,8 @@
     {
       "wire_type": 1605,
       "guid": "169bff60-290a-4d27-a2a3-010394e711c1",
-      "name": "MatchmakingSimulationResultMessage",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1606,
@@ -9798,8 +9798,8 @@
     {
       "wire_type": 1632,
       "guid": "d1c9722f-c440-436a-ba73-95f993b86c74",
-      "name": "PersistenceSpawnerTrait",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1633,
@@ -10032,8 +10032,8 @@
     {
       "wire_type": 1671,
       "guid": "3890e733-acf6-41d0-8150-d07bf6c59b05",
-      "name": "ImGuiComponentInterface",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1672,
@@ -10242,8 +10242,8 @@
     {
       "wire_type": 1706,
       "guid": "f5cef9f2-1fd7-4d0f-9b48-207b1fcfd86f",
-      "name": "IGridLayerCreatorTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1707,
@@ -10320,8 +10320,8 @@
     {
       "wire_type": 1719,
       "guid": "5e2e022c-d062-4d56-9968-67a9c559f85e",
-      "name": "ppPA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1720,
@@ -10386,8 +10386,8 @@
     {
       "wire_type": 1730,
       "guid": "07bb1fdf-2744-4487-885e-3bd1f79f61f4",
-      "name": "GroupsComponentClientFacet_OnSubmitConvertToRaidVoteFailed",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1731,
@@ -10470,8 +10470,8 @@
     {
       "wire_type": 1744,
       "guid": "f351fe96-3a6f-4594-b0a6-1be7943f42bc",
-      "name": "MatchmakingSimulationResultMessage",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1745,
@@ -10602,8 +10602,8 @@
     {
       "wire_type": 1766,
       "guid": "43094dcb-7fd4-4a7a-bb43-92c89c6f16a9",
-      "name": "PassiveCastQueryTrait",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1767,
@@ -10686,8 +10686,8 @@
     {
       "wire_type": 1780,
       "guid": "da0436a2-3cee-4c24-a251-0b6cd08d3af4",
-      "name": "PlayerSpawnPointResponseTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1781,
@@ -10698,8 +10698,8 @@
     {
       "wire_type": 1782,
       "guid": "7ad43e3c-6a87-4699-8ffb-987d71771c5b",
-      "name": "MatchmakingMatchUpdateMessage",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1783,
@@ -10752,8 +10752,8 @@
     {
       "wire_type": 1791,
       "guid": "d96ebf5b-d139-42be-bfd9-847b04e0b924",
-      "name": "GridTrackingComponentServerFacet_DebugCondemnPrimaryPhase",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1792,
@@ -10806,8 +10806,8 @@
     {
       "wire_type": 1800,
       "guid": "68e5cb81-3b5e-4cc0-8ebd-95c70731bcc3",
-      "name": "GroupsComponentServerFacet_DebugJoinRaid",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1801,
@@ -11172,8 +11172,8 @@
     {
       "wire_type": 1861,
       "guid": "376fe212-4a4d-45cd-8c9b-cf4a47cbacd7",
-      "name": "pfLA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1862,
@@ -11346,8 +11346,8 @@
     {
       "wire_type": 1890,
       "guid": "df8485d8-22fe-4aec-b23c-a19462a66944",
-      "name": "PassiveQueryActor",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1891,
@@ -11478,8 +11478,8 @@
     {
       "wire_type": 1912,
       "guid": "2db57da8-4c52-4479-a00c-8bc231d7cd23",
-      "name": "POISpawnerTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1913,
@@ -11634,8 +11634,8 @@
     {
       "wire_type": 1938,
       "guid": "12a0b32c-8138-4305-b122-dcf5c1b1f71e",
-      "name": "PlayerComponentServerFacet_RequestRespawn",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1939,
@@ -11682,8 +11682,8 @@
     {
       "wire_type": 1946,
       "guid": "7cf9a4e6-3b29-4494-a3fa-850ee4fb130e",
-      "name": "GridManagerActor",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1947,
@@ -11706,8 +11706,8 @@
     {
       "wire_type": 1950,
       "guid": "3aa1db24-af81-4bd1-8a0b-fb68412a460e",
-      "name": "SpawnPointResponseTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1951,
@@ -11898,8 +11898,8 @@
     {
       "wire_type": 1982,
       "guid": "94ddd5e5-80e8-4538-b6c4-ad6747755dc1",
-      "name": "EventNotificationComponentServerFacet_RequestSetNotificationsEnabled",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 1983,
@@ -12144,8 +12144,8 @@
     {
       "wire_type": 2023,
       "guid": "1e3bb661-a67b-456c-81ca-496f1827751d",
-      "name": "AoiComponentClientFacet_RequestDebugGridDataResponse",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2024,
@@ -12408,8 +12408,8 @@
     {
       "wire_type": 2067,
       "guid": "5cbcd653-f761-451b-a555-b288bab1542d",
-      "name": "QueuePollingActor",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2068,
@@ -12696,8 +12696,8 @@
     {
       "wire_type": 2115,
       "guid": "03234920-8b26-47d5-b7ab-be6e6f3b8d30",
-      "name": "StubbedNotificationService",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2116,
@@ -12720,8 +12720,8 @@
     {
       "wire_type": 2119,
       "guid": "9f47970a-8bcb-495d-9397-554f33f7528a",
-      "name": "TestFacetedComponentClientFacet_FunctionCalledFromTheServer",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2120,
@@ -12924,8 +12924,8 @@
     {
       "wire_type": 2153,
       "guid": "76ce1fd5-c92a-46e2-8fbd-b6aa694d29f7",
-      "name": "MatchmakingSimulationResultMessage",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2154,
@@ -13146,8 +13146,8 @@
     {
       "wire_type": 2190,
       "guid": "891126d8-5011-4c02-825e-9dc11033c937",
-      "name": "UnstuckComponentClientFacet_OnUnstuckTeleportComplete",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2191,
@@ -13182,8 +13182,8 @@
     {
       "wire_type": 2196,
       "guid": "02aab1c2-4dfd-4a0a-a4ac-938a97633bbd",
-      "name": "GroupsComponentServerFacet_DebugJoinRaid",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2197,
@@ -13218,8 +13218,8 @@
     {
       "wire_type": 2202,
       "guid": "8e1275a1-3047-4a1c-9e46-20fb5e4aedab",
-      "name": "TerrainCollisionMeshProducerTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2203,
@@ -13230,8 +13230,8 @@
     {
       "wire_type": 2204,
       "guid": "ac0c8623-e4d5-48b0-8693-dca60d7f0792",
-      "name": "QueuePollingTrait",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2205,
@@ -13464,8 +13464,8 @@
     {
       "wire_type": 2243,
       "guid": "51713d60-46b8-4ebe-b112-c22059095fe5",
-      "name": "ContinueLifecycleStartupMsg",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2244,
@@ -15084,8 +15084,8 @@
     {
       "wire_type": 2513,
       "guid": "82aa016f-3124-41c5-934d-2b8d4f809d8b",
-      "name": "WeaponStateDurability",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2514,
@@ -15276,8 +15276,8 @@
     {
       "wire_type": 2545,
       "guid": "0e24650c-d6c9-4a4b-9e42-4e85389b65b1",
-      "name": "BotComponentServerFacet_ReceiveMessageCountsRequestFromMyClient",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2546,
@@ -15804,8 +15804,8 @@
     {
       "wire_type": 2633,
       "guid": "3cdcd7f8-578a-4a6a-ba1f-b0cf34498d7e",
-      "name": "IncapacitatedCharacterComponentServerFacet_TestActivate",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2634,
@@ -16626,8 +16626,8 @@
     {
       "wire_type": 2770,
       "guid": "3fcf56ef-07c4-461d-9371-ef7a89f91ae1",
-      "name": "SocialComponentServerFacet_RequestClearSocialBlock",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2771,
@@ -16800,8 +16800,8 @@
     {
       "wire_type": 2799,
       "guid": "5499fd3e-eb51-4611-9b3d-15b7137fcf23",
-      "name": "SocialComponentServerFacet_SetSocialBlock",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2800,
@@ -17238,8 +17238,8 @@
     {
       "wire_type": 2872,
       "guid": "333f2f5d-ec1e-4628-944a-39c157273b47",
-      "name": "GroupsComponentServerFacet_RequestUpdateGroupFinderGroup",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2873,
@@ -17532,8 +17532,8 @@
     {
       "wire_type": 2921,
       "guid": "3b7ca5d2-5f55-4da7-98f8-b538a6a8809a",
-      "name": "ObjectivesComponentServerFacet_AbandonObjectiveDebug",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2922,
@@ -17688,8 +17688,8 @@
     {
       "wire_type": 2947,
       "guid": "cb9d9be8-9c90-494c-9324-f17689b1b635",
-      "name": "VitalsComponentServerFacet_RequestSuicide",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2948,
@@ -17748,8 +17748,8 @@
     {
       "wire_type": 2957,
       "guid": "618fd41e-0259-42fa-aa80-90958a4e2275",
-      "name": "PlayerTradeComponentServerFacet_EquipItem",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 2958,
@@ -18192,8 +18192,8 @@
     {
       "wire_type": 3031,
       "guid": "fa6d78fe-ab68-4b6a-8f12-2fae99e1a75b",
-      "name": "MomentaryOffenseComponentClientFacet_OnDamageDealt",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3032,
@@ -18696,8 +18696,8 @@
     {
       "wire_type": 3115,
       "guid": "9c809a01-e8d1-4cf9-bab6-c0ce3e5cd556",
-      "name": "BotBrokerTrait",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3116,
@@ -18960,8 +18960,8 @@
     {
       "wire_type": 3159,
       "guid": "4cffb04d-e821-48b8-9ae7-e03118f3646b",
-      "name": "CooldownTimersComponentServerFacet_ForceServerSyncRequestedFromClient",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3160,
@@ -19086,8 +19086,8 @@
     {
       "wire_type": 3180,
       "guid": "4a9ee900-aca2-4c59-a749-aec256d2ad19",
-      "name": "BotBrokerActor",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3181,
@@ -19518,8 +19518,8 @@
     {
       "wire_type": 3252,
       "guid": "c1767938-00a4-472c-9aff-d996030693be",
-      "name": "CooldownTimersComponentClientFacet_ClientSyncServerState",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3253,
@@ -19626,8 +19626,8 @@
     {
       "wire_type": 3270,
       "guid": "2009a7b9-d247-4d75-a1cc-14a9d0c87210",
-      "name": "WeaponStateDurability",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3271,
@@ -19638,8 +19638,8 @@
     {
       "wire_type": 3272,
       "guid": "c854cde0-2cb7-4dcf-aa5a-891c48a63375",
-      "name": "GameModeParticipantComponentServerFacet_RequestDebugQuickStart",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3273,
@@ -19746,8 +19746,8 @@
     {
       "wire_type": 3290,
       "guid": "737d86a4-b063-49c1-ae69-e9efa8ed11ec",
-      "name": "gfA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3291,
@@ -20976,8 +20976,8 @@
     {
       "wire_type": 3495,
       "guid": "74111235-a5ad-49af-a034-d20bff86c5ed",
-      "name": "GroupsComponentServerFacet_RequestReplyToGroupInvite",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3496,
@@ -21006,8 +21006,8 @@
     {
       "wire_type": 3500,
       "guid": "a915a93d-4b0b-4c18-a87c-cd6a6018b4ef",
-      "name": "GroupsComponentServerFacet_RequestRemoveRaidMember",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3501,
@@ -21138,8 +21138,8 @@
     {
       "wire_type": 3522,
       "guid": "709ffbcd-973f-48df-890d-0f272cc695b4",
-      "name": "gfA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3523,
@@ -21492,8 +21492,8 @@
     {
       "wire_type": 3581,
       "guid": "be59cc12-9eb9-4e25-85ab-d049aecb38ec",
-      "name": "PlayerTeleportBroker::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3582,
@@ -21984,8 +21984,8 @@
     {
       "wire_type": 3663,
       "guid": "c2938fce-af7a-447e-bae7-afcbfcc852af",
-      "name": "HouseDataComponentServerFacet_DebugPlaceItemUnrestricted",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3664,
@@ -22068,8 +22068,8 @@
     {
       "wire_type": 3677,
       "guid": "6ecec0de-175d-4533-ae7a-a4e9a0a38058",
-      "name": "PlayerHomeComponentServerFacet",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3678,
@@ -22206,8 +22206,8 @@
     {
       "wire_type": 3700,
       "guid": "4aada499-8c3b-4bb3-8078-091b30cdd4d2",
-      "name": "HousingPlotComponentServerFacet_DebugRequestSetTerritoryStanding",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3701,
@@ -22440,8 +22440,8 @@
     {
       "wire_type": 3739,
       "guid": "01817d15-8624-465e-aceb-a2a4b0ed3e07",
-      "name": "HunterSightComponentClientFacet_OnHunterSightEnded",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3740,
@@ -22560,8 +22560,8 @@
     {
       "wire_type": 3759,
       "guid": "71e60cf3-4ad0-4c5c-8be1-70eed5ded65b",
-      "name": "Armor",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3760,
@@ -22602,8 +22602,8 @@
     {
       "wire_type": 3766,
       "guid": "609a5cc0-2e06-4fdd-b177-da31c29cdff3",
-      "name": "ItemSkinningComponentServerFacet_EnableItemSkin",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3767,
@@ -23298,8 +23298,8 @@
     {
       "wire_type": 3882,
       "guid": "c75b1c8f-19c1-4d0f-a262-e63fc02e16ae",
-      "name": "TaskRecipePinned",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3883,
@@ -23364,8 +23364,8 @@
     {
       "wire_type": 3893,
       "guid": "23ddacc3-2785-439d-b360-224cb9f0595b",
-      "name": "TaskTriggerArea",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3894,
@@ -23424,8 +23424,8 @@
     {
       "wire_type": 3903,
       "guid": "3d23be0e-ad7e-432a-b64c-f85e63de463b",
-      "name": "PaperdollComponentServerFacet_DebugSetDurability",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3904,
@@ -23706,8 +23706,8 @@
     {
       "wire_type": 3950,
       "guid": "c9fb82a3-2a3d-480a-91bf-dc72c0f3a277",
-      "name": "PlayerComponentClientFacet_OnPlayerDeath",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 3951,
@@ -24186,8 +24186,8 @@
     {
       "wire_type": 4030,
       "guid": "74e80361-e25b-439a-90ee-18c8be302a93",
-      "name": "gfA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4031,
@@ -24312,8 +24312,8 @@
     {
       "wire_type": 4051,
       "guid": "9cfc9f0e-bfc5-4ad4-8297-c171c636df68",
-      "name": "PlayerTeleportBroker",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4052,
@@ -24414,8 +24414,8 @@
     {
       "wire_type": 4068,
       "guid": "f41f38cd-c181-48cb-a59d-c722c835555c",
-      "name": "DestroyOnSiegeWarfareComponentServerFacet_DEBUG_TestOnSiegeEnded",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4069,
@@ -24426,8 +24426,8 @@
     {
       "wire_type": 4070,
       "guid": "0de9d9a0-d8e5-4539-9b6c-a7991a732dd3",
-      "name": "DestroyOnSiegeWarfareComponentServerFacet_DEBUG_TestOnSiegeEnded",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4071,
@@ -24678,8 +24678,8 @@
     {
       "wire_type": 4112,
       "guid": "abd024d7-27ab-43c4-a887-6fe940f3c2c3",
-      "name": "VitalsComponentServerFacet_Debug_SetReceivingModifiedDamage",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4113,
@@ -24798,8 +24798,8 @@
     {
       "wire_type": 4132,
       "guid": "6aaac15e-ab42-4bbf-ae49-aaf2edd13816",
-      "name": "SocialComponentClientFacet_OnErrorMessage",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4133,
@@ -25476,8 +25476,8 @@
     {
       "wire_type": 4245,
       "guid": "37c7fb29-4ab6-4af8-8a5c-de867e2336f5",
-      "name": "gfA",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4246,
@@ -25524,8 +25524,8 @@
     {
       "wire_type": 4253,
       "guid": "d5148693-d1e1-4a76-a66f-b9b32a5ff547",
-      "name": "P2PTradeComponentClientFacet_OnUpdateOfferedCoinResponse",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4254,
@@ -25668,8 +25668,8 @@
     {
       "wire_type": 4277,
       "guid": "97088352-b53f-4735-ac67-ac21dc937bb0",
-      "name": "GroupFinderApplicationEntry",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4278,
@@ -25818,8 +25818,8 @@
     {
       "wire_type": 4302,
       "guid": "81e1305b-d621-424c-98d4-bb3f89e4f58e",
-      "name": "VitalsComponentServerFacet_DebugRequestSuicide",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4303,
@@ -25926,8 +25926,8 @@
     {
       "wire_type": 4320,
       "guid": "a69aee31-528c-47fd-8758-6ffb801bf4e3",
-      "name": "WaterLevelComponentServerFacet_SetKeepInteraction",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4321,
@@ -25968,8 +25968,8 @@
     {
       "wire_type": 4327,
       "guid": "3eb3a17e-bf9b-4ac5-a2f1-0a2aa1eb933b",
-      "name": "BotBrokerTrait",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4328,
@@ -26148,8 +26148,8 @@
     {
       "wire_type": 4357,
       "guid": "0deab813-0f88-433c-bdd0-47ee9ad15018",
-      "name": "DarknessBrokerActor",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4358,
@@ -26760,8 +26760,8 @@
     {
       "wire_type": 4459,
       "guid": "03cc933b-763b-4bd8-83fd-de9ec4471350",
-      "name": "PlayerTeleportBroker",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4460,
@@ -27090,8 +27090,8 @@
     {
       "wire_type": 4514,
       "guid": "a2bf0937-9de8-49b9-8598-b4464d9a4bd8",
-      "name": "GroupsComponentServerFacet_CancelPing",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 4515,
@@ -31548,8 +31548,8 @@
     {
       "wire_type": 5257,
       "guid": "0ef6eebd-cbbb-48ef-b88f-99bf2b0f8a1a",
-      "name": "BeamAttackData",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5258,
@@ -31854,8 +31854,8 @@
     {
       "wire_type": 5308,
       "guid": "23afc577-0baf-4334-98cc-ab929abf25a2",
-      "name": "GroupsComponentClientFacet_OnInitiateConvertToRaidFailed",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5309,
@@ -31866,14 +31866,14 @@
     {
       "wire_type": 5310,
       "guid": "ac2f4b81-9635-4385-bf7a-27d7adf3a66b",
-      "name": "GroupsComponentClientFacet_OnSubmitConvertToRaidVoteFailed",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5311,
       "guid": "98282d24-b364-4523-952e-ae68c9e56115",
-      "name": "GroupsComponentClientFacet_OnConvertToRaidVoteInitiated",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5312,
@@ -32190,8 +32190,8 @@
     {
       "wire_type": 5364,
       "guid": "21436784-512f-4f19-8138-a473b76180d5",
-      "name": "GroupsComponentServerFacet_DebugGroupFinderFailConversion",
-      "source": "rdata"
+      "name": "a6cbc14fa5ba",
+      "source": "az-registry"
     },
     {
       "wire_type": 5365,
@@ -32232,8 +32232,8 @@
     {
       "wire_type": 5371,
       "guid": "09a64776-d44c-4d8f-b4ca-6d575cf714af",
-      "name": "D>ActorStatusSafeExecutionTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5372,
@@ -32976,8 +32976,8 @@
     {
       "wire_type": 5495,
       "guid": "b50ebef2-adaa-405f-85dc-ce36eac8725f",
-      "name": "GroupsComponentServerFacet_RequestGetGroupFinderGroupListUnfiltered",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5496,
@@ -35250,8 +35250,8 @@
     {
       "wire_type": 5874,
       "guid": "7e714152-34c8-4f73-a9b5-08c1b24ee485",
-      "name": "CharacterComponentServerFacet_DebugChangeCharacterCollider",
-      "source": "rdata"
+      "name": "fbc97f8d",
+      "source": "az-registry"
     },
     {
       "wire_type": 5875,
@@ -35268,14 +35268,14 @@
     {
       "wire_type": 5877,
       "guid": "c47a6a6b-8d45-49e2-a87d-8b5314499160",
-      "name": "GlobalEntityListenerTrait::State",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5878,
       "guid": "1b4702f8-4926-4f92-952b-b0ae37ed903f",
-      "name": "TileReceiver",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5879,
@@ -35460,8 +35460,8 @@
     {
       "wire_type": 5909,
       "guid": "264eda79-9b0a-449c-bd14-4c70e071e715",
-      "name": "RequestResponse",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 5910,
@@ -36204,8 +36204,8 @@
     {
       "wire_type": 6033,
       "guid": "d896c5ba-bee8-47ec-8848-99aa2f9df085",
-      "name": "SampleDungeonMaster",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 6034,
@@ -38784,8 +38784,8 @@
     {
       "wire_type": 6463,
       "guid": "172eb24d-b26d-4e05-bf62-3822bf2ccd31",
-      "name": "PlayerComponentServerFacet_RequestSetIsTransmogStationScreenOpen",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 6464,
@@ -40416,8 +40416,8 @@
     {
       "wire_type": 6735,
       "guid": "b584e900-ac8c-43e1-b2ff-0543d108439c",
-      "name": "DetectionVolumeComponentServerFacet_ToggleDebugRenderEnterExitEvents",
-      "source": "rdata"
+      "name": null,
+      "source": null
     },
     {
       "wire_type": 6736,
@@ -42315,5 +42315,6 @@
       "name": "FailOnEmpty",
       "source": "az-registry"
     }
-  ]
+  ],
+  "ambiguous_names": 162
 }
