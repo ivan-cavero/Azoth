@@ -17,9 +17,15 @@ Hooks:
   0x146af20d0  the record reader (defines the record start offset)
   0x146af2340  the fragment reader (delimits one fragment)
 
-Read-only.
+The record reader's SECOND argument is its `out_u16`, so the record id is available: every
+fragment event carries the record id it belongs to, which is what makes it possible to pick out
+record 1 (the local-player metadata slot) from the flood.
 
-Usage: python az.py probe frida-fragment-grammar [--timeout 240]
+Read-only. Ends through `_paths.safe_shutdown()`: a bare `session.detach()` was measured to kill
+this client minutes later with an execute-after-unload fault, and that has been mistaken for a
+client bug twice.
+
+Usage: python az.py probe frida-fragment-grammar [--timeout 240] [--record 1]
 """
 
 from __future__ import annotations
@@ -30,7 +36,7 @@ import time
 
 import frida
 
-from _paths import probe_capture
+from _paths import probe_capture, safe_shutdown
 
 JS = r"""
 const mod = Process.findModuleByName('NewWorld.exe');
@@ -39,6 +45,7 @@ if (!mod) { send({ev:'error', msg:'no NewWorld.exe'}); } else {
   const off = (va) => base.add(va - 0x140000000);
 
   let recordStart = null;
+  let recordId = null;
   let fragStart = null;
   let fragVarints = [];
   let fragDepth = 0;
@@ -51,8 +58,14 @@ if (!mod) { send({ev:'error', msg:'no NewWorld.exe'}); } else {
         const ctx = args[0].readPointer();
         recordStart = ctx.add(0x10).readPointer();
         fragDepth = 0;
+        recordId = null;
+        this.outId = args[1];
         if (emitted < 40) send({ev:'record-start'});
       } catch (e) {}
+    },
+    onLeave(ret) {
+      // args[1] is the out_u16 the reader fills with the record id.
+      try { recordId = this.outId.readU16(); } catch (e) {}
     }
   });
 
@@ -75,7 +88,7 @@ if (!mod) { send({ev:'error', msg:'no NewWorld.exe'}); } else {
       let offInRecord = null;
       try { offInRecord = fragStart.sub(recordStart).toInt32(); } catch (e) {}
       send({ev:'fragment', n: emitted, offInRecord: offInRecord,
-            varints: fragVarints});
+            recordId: recordId, varints: fragVarints});
     }
   });
 
@@ -108,6 +121,9 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--timeout", type=float, default=240.0)
     parser.add_argument("--out", default="fragment-grammar.jsonl")
+    parser.add_argument("--keep-process", action="store_true",
+                        help="leave the client running on exit (orderly detach) instead of "
+                             "ending it; the default kill is safer")
     args = parser.parse_args()
     out_path = probe_capture(args.out)
     device = frida.get_local_device()
@@ -134,11 +150,9 @@ def main() -> int:
     deadline = time.time() + args.timeout
     while time.time() < deadline:
         time.sleep(5)
-    try:
-        session.detach()
-    except Exception:
-        pass
     handle.close()
+    strategy = safe_shutdown(session, script, kill=not args.keep_process, device=device)
+    print(f"shutdown strategy: {strategy}")
     return 0
 
 

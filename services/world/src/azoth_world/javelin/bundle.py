@@ -96,13 +96,18 @@ __all__ = [
     "STATE_BUNDLE_TYPE",
     "TYPE_MARKER",
     "BundleBody",
+    "Fragment",
     "FragmentHeader",
+    "Record",
     "BundleError",
+    "compose_bundle",
     "encode_type_marker",
     "read_type_marker",
     "decode_bundle",
+    "parse_fragment",
     "read_fragment_header",
     "looks_like_state_bundle",
+    "split_record_payload",
     "with_replication_seq",
 ]
 
@@ -248,3 +253,102 @@ def with_replication_seq(body: bytes, seq: int) -> bytes:
         + varint.encode(len(parsed.payload))
         + parsed.payload
     )
+
+
+@dataclass(frozen=True)
+class Fragment:
+    """One `[varint key][varint type_index][payload]` fragment.
+
+    The grammar was DERIVED FROM THE CLIENT, not guessed: a probe hooked the record reader
+    (`FUN_146af20d0`), the fragment reader (`FUN_146af2340`) and the shared prefix-varint reader
+    (`FUN_14087b5c0`) and logged each fragment's offset from the record start plus the varints read
+    inside it. Across the local-player metadata record the reported (key, type) pairs match a
+    byte-level parse of the payload exactly, and there is NO length field: the payload length is
+    implied by the type. See `research/derived/state-bundle-fragments.json`.
+    """
+
+    key: int
+    type_index: int
+    payload: bytes
+
+    def encode(self) -> bytes:
+        return varint.encode(self.key) + varint.encode(self.type_index) + self.payload
+
+    @property
+    def header_size(self) -> int:
+        return len(varint.encode(self.key)) + len(varint.encode(self.type_index))
+
+
+@dataclass(frozen=True)
+class Record:
+    """One `[u8 record_id][u8 fragment_count][fragments…]` record."""
+
+    record_id: int
+    fragments: tuple[Fragment, ...]
+
+    def encode(self) -> bytes:
+        if not 0 <= self.record_id <= 0xFF:
+            raise BundleError(f"record id {self.record_id} outside a byte")
+        if not 0 <= len(self.fragments) <= 0xFF:
+            raise BundleError(f"{len(self.fragments)} fragments outside a byte")
+        return (
+            bytes((self.record_id, len(self.fragments)))
+            + b"".join(f.encode() for f in self.fragments)
+        )
+
+
+def compose_bundle(replication_seq: int, records: list[Record]) -> bytes:
+    """Build a type-0x08 body from records the SERVER owns.
+
+    This is the difference between forwarding a captured bundle and sending one we composed:
+    the caller supplies the replication counter, the record ids, and every fragment's key, type
+    and payload. `encode_bundle`'s inverse, and verified as such — composing the captured
+    local-player record from its fragments reproduces the captured body byte for byte.
+    """
+    payload = b"".join(r.encode() for r in records)
+    return (
+        encode_type_marker(STATE_BUNDLE_TYPE)
+        + _PROLOGUE_HEAD
+        + varint.encode(replication_seq)
+        + PROLOGUE_TAIL
+        + varint.encode(len(payload))
+        + payload
+    )
+
+
+def split_record_payload(payload: bytes, boundaries: list[int]) -> list[bytes]:
+    """Slice one record's payload into fragments using KNOWN boundaries.
+
+    The boundaries cannot be recomputed from the bytes alone — a fragment carries no length and
+    its payload length is implied by its type — so they come from the client
+    (`research/derived/state-bundle-fragments.json`) or from a caller that knows the layout.
+
+    ``boundaries`` are offsets into ``payload``, in order, where each fragment STARTS; the last
+    fragment runs to the end. They are normally relative to the record, so the first one is the
+    record header's size (2: one byte of record id plus one of fragment count) and the bytes
+    before it are that header, not a fragment. A first boundary of 0 is also accepted, for a
+    caller that passes the fragment region alone.
+    """
+    if not boundaries:
+        raise BundleError("no boundaries given")
+    if boundaries[0] < 0 or boundaries != sorted(boundaries) or len(set(boundaries)) != len(boundaries):
+        raise BundleError("boundaries must be non-negative and strictly ascending")
+    if boundaries[-1] >= len(payload):
+        raise BundleError(
+            f"last boundary {boundaries[-1]} is past the payload ({len(payload)} bytes)"
+        )
+    out = []
+    for i, start in enumerate(boundaries):
+        end = boundaries[i + 1] if i + 1 < len(boundaries) else len(payload)
+        out.append(payload[start:end])
+    return out
+
+
+def parse_fragment(fragment: bytes) -> Fragment:
+    """Decode one fragment sliced by a known boundary into (key, type, payload)."""
+    try:
+        key, after_key = varint.decode(fragment, 0)
+        type_index, after_type = varint.decode(fragment, after_key)
+    except varint.VarintError as exc:
+        raise BundleError(f"fragment header: {exc}") from exc
+    return Fragment(key=key, type_index=type_index, payload=fragment[after_type:])
