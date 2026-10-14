@@ -2179,3 +2179,170 @@ class TestInboundDispatcher(unittest.TestCase):
             session.contracts_response,
             "and the captured body must be kept so the answer is the real one",
         )
+
+
+class TestAuthoritativeStateComposition(unittest.TestCase):
+    """The server composes the player's own state bundle instead of forwarding it.
+
+    MEASURED 2026-10-14. The record-1 bundle is the local player's own state - the record that
+    makes the client simulate the player and refresh the ALC stamp. Its fragment layout was
+    derived FROM THE CLIENT (a probe hooked the record reader, the fragment reader and the shared
+    varint reader and reported each fragment's offset from the record start), and the fragment
+    grammar is `[varint key][varint type][payload]` with NO length field.
+
+    The load-bearing property is the identity: composing the captured record from its own
+    fragments must reproduce the captured body BYTE FOR BYTE, or turning the authoritative path on
+    would silently change what the client receives.
+    """
+
+    @staticmethod
+    def _record1_bodys():
+        from azoth_world.rep import replay_store
+
+        return [
+            m.body
+            for m in replay_store().messages
+            if m.type_id == 0x08 and m.direction == "R" and m.seq in (0x98, 0x9A, 0x9C, 0x9E)
+        ]
+
+    def test_recomposition_is_byte_exact_for_every_captured_copy(self):
+        from azoth_world.rep import STATE_PLAYER_FRAGMENT_BOUNDARIES as BOUNDS
+        from azoth_world.rep import authoritative_player_body
+
+        bodies = self._record1_bodys()
+        self.assertEqual(len(bodies), 4, "the capture must carry all four record-1 bundles")
+        for i, body in enumerate(bodies):
+            with self.subTest(copy=i):
+                composed, report = authoritative_player_body(body, list(BOUNDS), None)
+                self.assertEqual(composed, body, "recomposition must be byte-exact")
+                self.assertTrue(report["identical"])
+                self.assertFalse(report["override_applied"])
+                self.assertEqual(report["record_id"], 1)
+                self.assertEqual(report["fragments"], len(BOUNDS))
+
+    def test_the_boundaries_match_the_record_the_client_parsed(self):
+        """The constant must still describe the capture, or the layout is stale for this build."""
+        from azoth_world.javelin import bundle
+        from azoth_world.rep import STATE_PLAYER_FRAGMENT_BOUNDARIES as BOUNDS
+
+        body = self._record1_bodys()[0]
+        payload = bundle.decode_bundle(body).payload
+        self.assertEqual(payload[0], 1, "record id 1 is the local player's own slot")
+        self.assertEqual(
+            payload[1], len(BOUNDS), "the record's own fragment count must equal the layout's"
+        )
+        frags = [
+            bundle.parse_fragment(f)
+            for f in bundle.split_record_payload(payload, list(BOUNDS))
+        ]
+        self.assertEqual(
+            [(f.key, f.type_index) for f in frags],
+            [(55, 4176), (19, 3133), (73, 5606), (9, 3935), (72, 5485),
+             (74, 5691), (16, 11), (22, 3857), (44, 4236)],
+        )
+
+    def test_the_only_field_that_varies_across_the_capture_is_where_we_expect(self):
+        """`key=16` is the one field the capture proves is live state rather than a constant."""
+        from azoth_world.javelin import bundle
+        from azoth_world.rep import STATE_PLAYER_FRAGMENT_BOUNDARIES as BOUNDS
+
+        bodies = self._record1_bodys()
+        payloads = [bundle.decode_bundle(b).payload for b in bodies]
+        base = payloads[0]
+        differing = {
+            i for p in payloads[1:] for i in range(len(base)) if p[i] != base[i]
+        }
+        self.assertEqual(differing, {5345, 5346, 5347})
+        frags = [
+            bundle.parse_fragment(f)
+            for f in bundle.split_record_payload(base, list(BOUNDS))
+        ]
+        target = frags[6]
+        self.assertEqual((target.key, target.type_index), (16, 11))
+        self.assertEqual(5345, BOUNDS[6] + target.header_size + 8)
+
+    def test_an_override_changes_only_the_targeted_range(self):
+        from azoth_world.rep import STATE_PLAYER_FRAGMENT_BOUNDARIES as BOUNDS
+        from azoth_world.rep import authoritative_player_body
+
+        body = self._record1_bodys()[0]
+        override = (16, 8, bytes.fromhex("010203"))
+        composed, report = authoritative_player_body(body, list(BOUNDS), override)
+        self.assertTrue(report["override_applied"])
+        self.assertTrue(report["override_fragment_found"])
+        self.assertFalse(report["identical"])
+        self.assertEqual(report["override_from"], "0975bf")
+        self.assertEqual(report["override_to"], "010203")
+        self.assertEqual(len(composed), len(body), "the length must not change")
+        # Compare in the RECORD PAYLOAD's coordinate space: the boundary constant and the
+        # measured varying offsets are both in that space (the bundle body has a 13-byte
+        # marker+prologue in front of it, so the same bytes sit at body offset +13).
+        from azoth_world.javelin import bundle as _b
+        before = _b.decode_bundle(body).payload
+        after = _b.decode_bundle(composed).payload
+        changed = {i for i in range(len(before)) if before[i] != after[i]}
+        self.assertEqual(changed, {5345, 5346, 5347}, "nothing else may move")
+
+    def test_an_override_for_an_absent_key_is_reported_not_ignored(self):
+        from azoth_world.rep import STATE_PLAYER_FRAGMENT_BOUNDARIES as BOUNDS
+        from azoth_world.rep import authoritative_player_body
+
+        body = self._record1_bodys()[0]
+        composed, report = authoritative_player_body(body, list(BOUNDS), (999, 0, b"\x01"))
+        self.assertFalse(report["override_applied"])
+        self.assertFalse(report["override_fragment_found"])
+        self.assertTrue(report["identical"], "an unapplied override must change nothing")
+
+    def test_an_override_that_does_not_fit_is_refused(self):
+        from azoth_world.javelin import bundle
+        from azoth_world.rep import STATE_PLAYER_FRAGMENT_BOUNDARIES as BOUNDS
+        from azoth_world.rep import authoritative_player_body
+
+        body = self._record1_bodys()[0]
+        with self.assertRaises(bundle.BundleError):
+            authoritative_player_body(body, list(BOUNDS), (16, 40, bytes(20)))
+
+    def test_a_bundle_with_a_different_fragment_count_is_refused(self):
+        """A stale layout must fail loudly rather than recompose a body it does not describe."""
+        from azoth_world.javelin import bundle
+        from azoth_world.rep import authoritative_player_body
+
+        body = self._record1_bodys()[0]
+        with self.assertRaises(bundle.BundleError):
+            authoritative_player_body(body, [2, 60], None)
+
+    def test_override_spec_parsing_fails_closed(self):
+        from azoth_world.rep import parse_state_override
+
+        self.assertIsNone(parse_state_override(""))
+        self.assertIsNone(parse_state_override("key=16"))
+        self.assertIsNone(parse_state_override("key=16,off=8,hex=zz"))
+        self.assertIsNone(parse_state_override("key=16,off=8,hex="))
+        self.assertIsNone(parse_state_override("key=16,off=-1,hex=01"))
+        self.assertEqual(parse_state_override("key=16,off=8,hex=010203"), (16, 8, b"\x01\x02\x03"))
+        self.assertEqual(parse_state_override(" key=0x10 , off=0x08 , hex=01 "), (16, 8, b"\x01"))
+
+    def test_compose_bundle_refuses_out_of_range_ids(self):
+        from azoth_world.javelin import bundle
+
+        frag = bundle.Fragment(key=1, type_index=2, payload=b"x")
+        with self.assertRaises(bundle.BundleError):
+            bundle.Record(record_id=256, fragments=(frag,)).encode()
+        with self.assertRaises(bundle.BundleError):
+            bundle.Record(record_id=1, fragments=tuple(frag for _ in range(256))).encode()
+
+    def test_split_rejects_bad_boundaries(self):
+        from azoth_world.javelin import bundle
+
+        with self.assertRaises(bundle.BundleError):
+            bundle.split_record_payload(b"\x01" * 10, [])
+        with self.assertRaises(bundle.BundleError):
+            bundle.split_record_payload(b"\x01" * 10, [2, 1])
+        with self.assertRaises(bundle.BundleError):
+            bundle.split_record_payload(b"\x01" * 10, [2, 10])
+        with self.assertRaises(bundle.BundleError):
+            bundle.split_record_payload(b"\x01" * 10, [2, 2])
+        self.assertEqual(
+            [len(f) for f in bundle.split_record_payload(b"\x01" * 10, [0, 4, 7])],
+            [4, 3, 3],
+        )

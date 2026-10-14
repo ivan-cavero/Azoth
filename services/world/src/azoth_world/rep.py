@@ -701,6 +701,74 @@ def parse_inbound_request(payload: bytes, channel: int = 0) -> InboundRequest | 
     return None
 
 
+# ---------------------------------------------------------------------------------------------
+# AUTHORITATIVE STATE: the server composes the player's own bundle instead of forwarding it
+# ---------------------------------------------------------------------------------------------
+# MEASURED 2026-10-14, and this is the first place the server OWNS the bytes rather than replaying
+# them. The record-1 bundle is the local player's own state - the record that makes the client
+# simulate the player and refresh the ALC stamp - and until now the server forwarded the captured
+# body verbatim. Its fragment layout is now known from the CLIENT (a probe hooked the record reader,
+# the fragment reader and the shared varint reader and reported each fragment's offset from the
+# record start; see `research/derived/state-bundle-fragments.json`), so the bundle can be taken
+# apart and put back together by us.
+#
+# Two things are true of the recomposition and both are asserted rather than assumed:
+#   * it is BYTE-EXACT - composing the captured record from its own fragments reproduces the
+#     captured body in all four record-1 bundles, so nothing about the wire changes by accident;
+#   * therefore a change is deliberate: the only way the bytes differ is the override below.
+STATE_AUTHORITATIVE = os.environ.get("AZOTH_STATE_AUTHORITATIVE", "0") == "1"
+# Optional field override, `key=<k>,off=<n>,hex=<bytes>`: replace the byte range starting at
+# `off` bytes into fragment <k>'s PAYLOAD (after its two-varint header) with the given bytes. It
+# only applies to the player's own bundle. Empty = compose and verify, change nothing.
+#
+# The measured candidate: fragment key=16 type=11 of the record-1 bundle is the ONLY field that
+# differs between the captured copies (3 bytes at payload offset 8: `0975bf` -> `0aa7c2`), which
+# makes it the one field the capture proves is live state rather than a constant.
+STATE_OVERRIDE = os.environ.get("AZOTH_STATE_OVERRIDE", "").strip()
+# The record-1 (local-player metadata) bundle's fragment boundaries, DERIVED FROM THE CLIENT.
+#
+# Where they come from: `reverse/probes/client/frida-fragment-grammar.py` hooks the record reader
+# (FUN_146af20d0), the fragment reader (FUN_146af2340) and the shared prefix-varint reader
+# (FUN_14087b5c0), and logs each fragment's offset from the record start plus the varints it read.
+# The same run reproduced these offsets 21 times, and the (key, type) pair it reported for each
+# fragment matches an independent byte-level parse of the payload, so the two agree.
+#
+# Why they are a CONSTANT rather than computed: a fragment carries no length field, so its payload
+# length is implied by its type. The boundaries cannot be recovered from the bytes alone; they are
+# recorded protocol data for this record. Evidence: research/derived/state-bundle-fragments.json.
+STATE_PLAYER_FRAGMENT_BOUNDARIES = (2, 60, 3955, 4295, 4301, 4498, 5335, 5386, 7125)
+
+
+def parse_state_override(raw: str) -> tuple[int, int, bytes] | None:
+    """Parse `key=<k>,off=<n>,hex=<bytes>` into (key, offset, replacement).
+
+    Returns None for an empty or malformed spec, so a typo degrades to "change nothing" instead
+    of corrupting a bundle the client is parsing.
+    """
+    if not raw:
+        return None
+    fields: dict[str, str] = {}
+    for part in raw.split(","):
+        if "=" not in part:
+            return None
+        name, _, value = part.partition("=")
+        fields[name.strip().lower()] = value.strip()
+    try:
+        key = int(fields["key"], 0)
+        off = int(fields["off"], 0)
+        repl = bytes.fromhex(fields["hex"])
+    except (KeyError, ValueError):
+        return None
+    if not repl or off < 0:
+        return None
+    return key, off, repl
+
+
+def state_override_spec() -> tuple[int, int, bytes] | None:
+    """The configured override, or None."""
+    return parse_state_override(STATE_OVERRIDE)
+
+
 REPLAY_IDENTITY_REMAP = os.environ.get(
     "AZOTH_REPLAY_IDENTITY_REMAP", "off"
 ).lower()
@@ -1607,6 +1675,73 @@ def make_self_signed_cert(cert_dir: Path = CERT_DIR) -> tuple[Path, Path]:
     return crt, key
 
 
+def authoritative_player_body(
+    body: bytes,
+    boundaries: list[int],
+    override: tuple[int, int, bytes] | None,
+) -> tuple[bytes, dict]:
+    """Recompose a record-1 bundle from its fragments, applying at most one override.
+
+    Returns ``(new_body, report)``. The report says whether the recomposition reproduced the
+    captured bytes exactly (``identical``), what the override did, and whether the override's
+    fragment was found - so a mis-specified override is visible instead of silently ignored.
+
+    Raises ``BundleError`` when the body is not a single record whose fragment count matches the
+    boundary list, because then the caller's layout does not describe this bundle and sending a
+    recomposed body would be a guess.
+    """
+    parsed = javelin_bundle.decode_bundle(body)
+    payload = parsed.payload
+    if len(payload) < 2:
+        raise javelin_bundle.BundleError("record payload too short for a header")
+    record_id, fragment_count = payload[0], payload[1]
+    if fragment_count != len(boundaries):
+        raise javelin_bundle.BundleError(
+            f"record {record_id} declares {fragment_count} fragments but the layout has "
+            f"{len(boundaries)}"
+        )
+    raw_fragments = javelin_bundle.split_record_payload(payload, boundaries)
+    fragments = [javelin_bundle.parse_fragment(f) for f in raw_fragments]
+
+    report: dict = {
+        "record_id": record_id,
+        "fragments": len(fragments),
+        "override_applied": False,
+        "override_fragment_found": override is None,
+    }
+    if override is not None:
+        key, off, repl = override
+        new_frags = []
+        for frag in fragments:
+            if frag.key != key:
+                new_frags.append(frag)
+                continue
+            payload_frag = frag.payload
+            if off + len(repl) > len(payload_frag):
+                raise javelin_bundle.BundleError(
+                    f"override {len(repl)}B at offset {off} does not fit fragment key {key} "
+                    f"({len(payload_frag)}B)"
+                )
+            replaced = payload_frag[:off] + repl + payload_frag[off + len(repl):]
+            report["override_applied"] = True
+            report["override_fragment_found"] = True
+            report["override_key"] = key
+            report["override_offset"] = off
+            report["override_from"] = payload_frag[off:off + len(repl)].hex()
+            report["override_to"] = repl.hex()
+            new_frags.append(
+                javelin_bundle.Fragment(
+                    key=frag.key, type_index=frag.type_index, payload=replaced
+                )
+            )
+        fragments = new_frags
+
+    record = javelin_bundle.Record(record_id=record_id, fragments=tuple(fragments))
+    composed = javelin_bundle.compose_bundle(parsed.replication_seq, [record])
+    report["identical"] = composed == body
+    return composed, report
+
+
 class PeerSession:
     """Per-peer DTLS connection driven through pyOpenSSL memory BIOs."""
 
@@ -1690,6 +1825,8 @@ class PeerSession:
         self.state_stream_player_sent = 0
         self.state_stream_sent = 0
         self.state_stream_seq = 0
+        # Recomposed player bundles, when STATE_AUTHORITATIVE is on.
+        self.state_authoritative_sent = 0
         # Post-replay 0x1096/0x1097 input-response stream (see INPUT_RESPONSE_*).
         self.input_response_msgs: list = []
         self.input_response_next_at = 0.0
@@ -2400,6 +2537,8 @@ class PeerSession:
             }
         )
 
+
+
     def maybe_pump_deferred(self, server) -> None:
         """Decide each held client-facet response once the client's object graph exists.
 
@@ -2683,6 +2822,38 @@ class PeerSession:
             else:
                 sent_seq = self.state_stream_seq
             self.state_stream_seq += 1
+        # AUTHORITATIVE RECOMPOSITION (see STATE_AUTHORITATIVE): for the local player's own bundle
+        # the server builds the body from its fragments instead of forwarding the captured bytes.
+        # Without an override the result is byte-identical to the capture - that is asserted, not
+        # hoped for - so switching this on cannot change behaviour by accident, and the identity
+        # is logged so a layout that no longer matches the build is visible immediately.
+        if STATE_AUTHORITATIVE and kind == "player":
+            try:
+                composed, report = authoritative_player_body(
+                    msg.body,
+                    list(STATE_PLAYER_FRAGMENT_BOUNDARIES),
+                    state_override_spec(),
+                )
+            except javelin_bundle.BundleError as exc:
+                log_event(
+                    {
+                        "event": "state-authoritative-failed",
+                        "seq": hex(msg.seq),
+                        "error": str(exc)[:200],
+                    }
+                )
+            else:
+                msg = replace(msg, body=composed)
+                log_event(
+                    {
+                        "event": "state-authoritative",
+                        "seq": hex(msg.seq),
+                        "size": len(composed),
+                        "n": self.state_authoritative_sent,
+                        **report,
+                    }
+                )
+                self.state_authoritative_sent += 1
         self._send_replay_message(server, msg)
         log_event(
             {
@@ -3372,6 +3543,9 @@ class RepServer:
                 "inbound_answer_interval_s": INBOUND_ANSWER_MIN_INTERVAL_S,
                 "replay_max_seq": hex(REPLAY_MAX_SEQ),
                 "ack_window": ACK_WINDOW,
+                "state_authoritative": STATE_AUTHORITATIVE,
+                "state_override": STATE_OVERRIDE or None,
+                "state_player_boundaries": list(STATE_PLAYER_FRAGMENT_BOUNDARIES),
                 "ack_coalesce_s": ACK_COALESCE_S,
             }
         )
