@@ -75,16 +75,25 @@ cable and no movement while the readout's `Time since last response` grows.
   responses are sent only when the client sent the request they answer; see
   [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) and `AZOTH_REPLAY_REQUEST_GATING`.
   Verify a change to the map with `python scripts/request-response-map.py --check`.
-- **Next: the inbound dispatcher.** There is still no inbound typed-message dispatcher, so every
-  request the client sends is acknowledged at the transport level and ignored — measured **19** in a
-  short session and **29** in one that exercises more UI, with the server logging one
-  `inbound-request-coverage` line per session that splits them into `answerable_by_replay` and
-  `no_replay_response`. Answer the five a playable world needs, in order: `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient`
-  (2515), `ObjectivesComponentServerFacet_UpdateTrackedObjectives` (1458) /
-  `..._SetObjectiveAutoPinning` (2709), `ContractsComponentServerFacet_LookupContractsByParticipant`
-  (2556, whose `0x08E6` response the capture already contains),
-  `GlobalStorageComponentServerFacet_SetReplicateStorage` (387), and
-  `TimeComponentServerFacet_SyncToClient` (4248).
+- **The inbound dispatcher exists (2026-10-14).** `rep.py::_dispatch_inbound` decodes the client's
+  typed requests and acts on them. The request shape is measured: after the type marker the first 16
+  bytes are the target facet's local id. Two things follow from that: the server **learns the time
+  facet's address from the client's own `0x1098`** (all 151 live `input-response` events report
+  `target_source: client-request`), and it **answers the contracts request once per ask** with the
+  captured `0x08E6`, which the replay could only send once for the whole session. See
+  [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) and
+  `inbound_dispatcher_answers_requests_and_learns_facet_addresses_20261014`.
+- **Next: give the state-carrying requests an authoritative effect.** These are decoded, counted and
+  shape-logged (`inbound-request-shape`) but do nothing yet: `0x9d3`
+  `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient`,
+  `0x5b2`/`0xa95` `ObjectivesComponentServerFacet_UpdateTrackedObjectives`/
+  `..._SetObjectiveAutoPinning`, `0x183` GlobalStorage `SetReplicateStorage`, and `0x1098`
+  `TimeComponentServerFacet_SyncToClient`. The coverage line lists them under `no_replay_response`
+  every session, so the remaining work is visible rather than guessed. Decode each one's params from
+  the wire before deciding what its effect requires — do not emit a plausible reply for a setter
+  without evidence. Ordered by how much a playable world needs them: `0x9d3` PlayerSettings (2515),
+  `0x5b2`/`0xa95` Objectives (1458 / 2709), `0x183` GlobalStorage (387), then `0x1098` Time (4248),
+  whose reply path already works.
 - Let new client requests and failed state transitions set the next protocol
   work item; record exact fields and evidence in the atlas.
 - Keep the gateway and world process boundaries until measured requirements

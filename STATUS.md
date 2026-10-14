@@ -1,5 +1,52 @@
 # Live status
 
+## 2026-10-14 (cont. 5) — the server answers the client now: the inbound dispatcher exists
+
+**The server had NO inbound typed dispatcher. It has one, verified live, and it learns addresses
+from the client instead of guessing them.**
+
+**Why it was needed.** Every typed request the client made was acknowledged at the transport level
+and then ignored, with nothing in any log saying so — measured 19 requests in a short session, 29 in
+one that exercises more UI.
+
+**The request shape is now measured, not guessed.** Every client->server typed request is
+`[u32 crc32][u32 len][16-byte facet target][00 01][varint type][params]`, so after the type marker
+the **first 16 bytes are the target facet's local id** — which is exactly the address a reply needs.
+The server logged the real shape of all six known requests (`inbound-request-shape`), including
+targets and parameter lengths, so the wire layout of a request is now in the record next to its name.
+
+**Two things the dispatcher does that the replay could not:**
+
+| act | evidence |
+| --- | --- |
+| **Learns the time facet's address from the client itself** | `0x1098` carried `93a3e477cb5fd51ebf85314bbc4a951a`, and the captured `0x1096` body carries the same value as its own target. All **151** `input-response` events report `target_source: client-request` — no longer the capture, and no longer a Frida probe publishing an id to a file. |
+| **Answers the contracts request once per ask** | the client asked at `12:08:30` and `12:08:38`; **both** got the captured `0x08E6` (42 B, `inbound-answer n: 1` and `n: 2`). Before, the replay sent each body **once, ever**, so the second ask went unanswered. |
+
+`0x08E6` therefore moved out of the replay's one-shot set into `DISPATCHER_OWNED_RESPONSES`
+(`inbound-dispatcher-owned`), and the held set fell from 32 to **31** — the dispatcher owns exactly
+the one body it took over.
+
+**Client side, unchanged and clean:** 1 `RMIDispatch` error (the spawn−3 ms `GridTracking` artifact),
+0 `OnLocalNetworkConnectionWarning`, 26 slice lines, player possessed. The count is unchanged across
+all four sessions since the deferral fix — the four `TimeComponentClientFacet` errors were removed by
+that fix two commits ago, **not** by the dispatcher, and saying otherwise would overclaim.
+
+**Regressions checked in the same session:** movement 0.000 u baseline → **22.998 u** under W (path
+23.028, straight) → 0.000 u after release; cable readout **498 / 265 / 266 ms** on three samples ~9 s
+apart; ACK window still correct (widest 6637, 0 at/over the limit).
+
+**What it deliberately does NOT do:** the five state-carrying requests (`0x9d3` PlayerSettings,
+`0x5b2`/`0xa95` Objectives, `0x183` GlobalStorage) are decoded, counted and shape-logged but have **no
+authoritative effect** yet. They remain in the coverage line's `no_replay_response`. Inventing a
+reply for a setter without evidence is what this repository forbids, so the next step is decoding each
+one's params and deciding per request what an authoritative effect requires.
+
+**Validation:** 166 world tests OK (8 new for the dispatcher), 24 gateway OK, all three tool
+self-checks OK. `AZOTH_INBOUND_DISPATCH` (default on) and `AZOTH_INBOUND_ANSWER_INTERVAL_S` (0.25)
+are both readable from the session's own `config` event. Evidence:
+`research/sessions/session-20261014T1208Z-inbound-dispatcher/`. Atlas:
+`inbound_dispatcher_answers_requests_and_learns_facet_addresses_20261014`.
+
 ## 2026-10-14 (cont. 4) — `az.py doc` is not a clean "what the client requested" source, and the traffic log has lost records
 
 **Found while regenerating the atlas after this session, and the regeneration was REVERTED rather than
