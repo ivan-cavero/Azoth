@@ -153,27 +153,98 @@ inbound half of the contract made visible: a request in `no_replay_response` is 
 is waiting on and the server currently ignores. It is a **report, not a verdict** — many
 `*ServerFacet_*` messages are setters answered by replicated state rather than a typed reply.
 
-## 3. The gap that remains
+## 3. The state-carrying requests: measured, and why none can have an effect yet
 
-There is still **no inbound typed dispatcher**: every request above is acknowledged at the
-transport level and then ignored. The next concrete step is to answer the requests a playable
-world needs, in this order (each is a setter whose effect is visible in the client):
+This section replaces the earlier "answer the five requests in this order" plan, which turned out
+to be wrong for a reason worth recording: **the protocol has no reply for them, and the client does
+not consume what they report.** Measured 2026-10-14 over four fresh sessions
+(`research/sessions/session-20261014T1354Z-authoritative-effect-negative/`).
 
-1. `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient` (2515)
-2. `ObjectivesComponentServerFacet_UpdateTrackedObjectives` (1458) /
-   `SetObjectiveAutoPinning` (2709)
-3. `ContractsComponentServerFacet_LookupContractsByParticipant` (2556) — the capture contains
-   the matching `0x08E6` response, so this one is answerable from the replay
-4. `GlobalStorageComponentServerFacet_SetReplicateStorage` (387)
-5. `TimeComponentServerFacet_SyncToClient` (4248)
+### Their real shapes
+
+| wire | name | params | shape |
+| --- | --- | --- | --- |
+| `0x9d3` | `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient` | 4 B | `000097c9` — not a float, not a plausible int |
+| `0x5b2` | *name unverified, see below* | 1 B or 49 B | `00`, or three 16-byte ids + `01` |
+| `0xa95` | `ObjectivesComponentServerFacet_SetObjectiveAutoPinning` | 37 B | `24` + 36 `00`/`01` bytes — a 36-flag bitfield |
+| `0x183` | `GlobalStorageComponentServerFacet_SetReplicateStorage` | 16 B | an 8-byte session id + 8 zero bytes |
+| `0x1098` | `TimeComponentServerFacet_SyncToClient` | 0 B | the request IS the message |
+
+The ids inside `0x5b2` and `0x183` are **session-scoped player/objective ids**: they appear neither
+as raw bytes nor as dashed strings in `NewWorld.exe`, so they cannot be resolved statically.
+
+### Why no reply can be built
+
+1. **No client-facet message exists for them.** `PlayerSettingsComponent` has exactly ONE message
+   in the whole registry — the ServerFacet request. `ObjectivesComponent`'s only client facets are
+   `OnObjectiveWarning`, `OnMilestoneCorrection`, `SetObjectiveInstanceDisabled` and a debug one;
+   none is a "here is your state" reply. `GlobalStorage`'s client facets are all storage-search
+   results behind `0x1b7f`, which the client never sends.
+2. **The one family with a real reply is ignored by the client.** `TimeComponent` answers with
+   `0x1096`/`0x1097`, and the client does not take its clock or day phase from them. Measured with
+   the client's own `lc_getTime` command across four conditions:
+
+   | condition | game seconds per wall second | `DayPhase` shown |
+   | --- | --- | --- |
+   | baseline, time sync sent | **12.2×** | `day` |
+   | time sync NOT sent at all | **12.2×** | `day` |
+   | `0x1097` payload forced to `0` | **12.2×** | `day` |
+   | `0x1097` payload forced to `3` | **12.2×** | `day` |
+
+   The forced value was confirmed on the wire (`…00000003` outbound, 241 logged override events), so
+   the client received it and still showed `day`. Both the clock and the day phase are computed
+   locally at a fixed 12.2×.
+
+3. **Byte-identical repeats are not a request for an answer.** `0xa95` is sent 17 times inside two
+   seconds (up to **8 copies in a single datagram**), `0x446` 15 times, always with identical
+   parameters. That is the client's queue flushing duplicates, not a retry loop: the registry has
+   no reply for either, so there is nothing for a reply to satisfy.
+
+### The redirect: the authority channel is replicated state
+
+The one thing ever measured to make the client **apply** server data is **replicated state**: the
+player moves while the record-1 `0x08` bundles flow and stops when they do not. Every typed reply
+we have tried either has no target, no consumer, or no effect.
+
+So an authoritative effect must be expressed as **replicated state**, and the first one to build is
+a change to what the `0x08` bundles carry — not another typed message. This is also what makes
+`docs/ROADMAP.md` item 4's Rust trigger concrete: the first **state bundle the server composes
+itself**, instead of forwarding a captured one.
+
+### A naming caveat that this work exposed
+
+The wire-name registry lists `ObjectivesComponentServerFacet_UpdateTrackedObjectives` for **both**
+`0x5b2` and `0xa4d`. The `.rdata` region explains why:
+
+```
+0x8252a50  "ObjectivesComponentServerFacet_UpdateTrackedObjectives\0"
+0x8252a88  55a7d1e9-9511-4eca-8f10-ea7d79f43f43      <- the name belongs to THIS one (0xa4d)
+0x8252ab0  298436a9-06d0-4bda-8dd9-0708b36e7374      <- 0x5b2, unnamed
+```
+
+The descriptor form is `<Name>\0<pad>\0<GUID1>\0<GUID2>` for some types — one name followed by
+two GUIDs — so an adjacency scan gives both GUIDs the same name. `scan-wire-names.py` now lets a
+name be claimed by **one** GUID only; 146 wire types lost a borrowed name as a result (2201 → 2055
+named) and the eight hand-verified anchors still reproduce. Wire `0x5b2` is therefore reported as
+unnamed, and the server's own name table marks it `(name unverified)`.
 
 ## Evidence
 
 * Inventory tool + classification: `scripts/inbound-inventory.py --check`.
 * Per-session request log: `event: inbound-typed` (`rep.py::_note_inbound_typed`).
+* Per-session request SHAPE (target + params): `event: inbound-request-shape` (`_dispatch_inbound`).
 * Scheduling decisions: `event: replay-response-scheduling`, `replay-defer-start`,
   `replay-response-suppressed`, `replay-deferred-sent`, `inbound-request-coverage`.
+* The dispatcher's answers: `event: inbound-answer`, `inbound-time-target-learned`,
+  `inbound-dispatcher-owned`.
+* The client's own in-game time and day phase: `reverse/probes/client/frida-game-time.py`
+  (`python az.py probe frida-game-time`), which runs the client's own `lc_getTime` command and
+  reads its printed values.
+* The negative result and the four-condition table:
+  `research/sessions/session-20261014T1354Z-authoritative-effect-negative/` (`REPORT.md`,
+  `clock-samples.jsonl`).
 * Capture ordering: `services/world/replay/messages-redacted.txt` via
   `azoth_world.javelin.replay_store.ReplayStore`.
 * Names: `research/derived/wire-type-names.json`, `research/atlas/javelin-messages.json`,
-  `research/atlas/az-type-registry.json`.
+  `research/atlas/az-type-registry.json`. Regenerate the first with
+  `reverse/tools/scan-wire-names.py --check`, which now refuses to give one name to two GUIDs.

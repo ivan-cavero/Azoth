@@ -1,5 +1,73 @@
 # Live status
 
+## 2026-10-14 (cont. 6) — the setters cannot have an authoritative effect yet, and the reason redirects the work
+
+**I set out to give the five state-carrying requests an authoritative effect. The answer is a
+measured negative, and it is worth more than the feature would have been: the client does not consume
+what they report, and the server's authority channel is not the typed reply at all.**
+
+**1. No client-facet reply exists for them.** Checked per family in the wire-name registry:
+`PlayerSettingsComponent` has exactly ONE message (the ServerFacet request). `ObjectivesComponent`'s
+only client facets are `OnObjectiveWarning`, `OnMilestoneCorrection`, `SetObjectiveInstanceDisabled`
+and a debug one — none is a "here is your state" reply. `GlobalStorage`'s client facets are all
+storage-search results behind `0x1b7f`, which the client never sends. So there is no reply message to
+build, and inventing one is exactly what this repository forbids.
+
+**2. The one family that HAS a reply is ignored by the client.** I built an instrument for this —
+`reverse/probes/client/frida-game-time.py` runs the client's own `lc_getTime` console command and
+reads the values it prints (`Current Container Time: h:m:s; t = …; CryTime: h:m; DayPhase: …`),
+through the same printer `nw_getPlayerPosition` uses. The handler addresses are derived from the
+console-command registration shape and calibrated against the hand-verified
+`nw_getPlayerPosition` → `0x141015b30` (`lc_getTime` → `0x141015E80`, `lc_requestTime` → `0x141018E10`).
+Four fresh sessions:
+
+| condition | game seconds per wall second | `DayPhase` shown |
+| --- | --- | --- |
+| baseline, time sync sent | **12.2x** | `day` |
+| time sync NOT sent at all | **12.2x** | `day` |
+| `0x1097` payload forced to `0` | **12.2x** | `day` |
+| `0x1097` payload forced to `3` | **12.2x** | `day` |
+
+The forced value was confirmed ON THE WIRE before drawing the conclusion (`…00000003` outbound, 241
+logged override events), so the client received it and still displayed `day`. **The client's clock and
+day phase are computed locally at a fixed 12.2x and do not come from `0x1096`/`0x1097`** — they
+neither freeze the clock nor set it.
+
+**3. Byte-identical repeats are not a request for an answer.** `0xa95` is sent **17 times inside two
+seconds, up to 8 copies in a single datagram**, always with identical parameters; `0x446` 15 times.
+That is the client's queue flushing duplicates, not a retry loop, and the registry confirms no reply
+exists for either.
+
+**The redirect, which is the actual result.** The one thing ever measured to make the client APPLY
+server data is **replicated state**: the player moves while the record-1 `0x08` bundles flow and stops
+when they do not. Every typed reply tried so far has no target, no consumer, or no effect. So an
+authoritative effect must be expressed as **replicated state**, and the first one to build is a change
+to what the `0x08` bundles carry — not another typed message. That also makes ROADMAP item 4's Rust
+trigger concrete: the first **state bundle the server composes itself** instead of forwarding a
+captured one.
+
+**Two side findings, both acted on.** (a) The request→facet topology is **per-facet and stable**:
+every Objectives request carries the same 16-byte target, every Mount request the same one, and so on
+— which is why the dispatcher's target-learning is general rather than a special case. (b) The
+wire-name registry was giving **one name to two GUIDs**: the `.rdata` descriptor is
+`<Name>\0<pad>\0<GUID1>\0<GUID2>` for some types, so the adjacency scan named both. That is how
+`ObjectivesComponentServerFacet_UpdateTrackedObjectives` ended up on both `0x5b2` and `0xa4d`.
+`scan-wire-names.py` now lets a name be claimed by one GUID only; **146 wire types lost a borrowed
+name** (2201 → 2055 named), the eight hand-verified anchors still reproduce, and `0x5b2` is honestly
+unnamed with the server's table marking it `(name unverified)`.
+
+**Nothing was left in the runtime.** The day-phase override lever, its helper and its three unit tests
+were deleted once the experiment came back negative — `rep.py` is byte-identical to its committed
+state, per the repository's rule that a failed alternative does not stay in the code. The negative
+lives in the atlas, `research/docs/INBOUND-REQUESTS.md` §3 and the session report.
+
+**Validation:** 166 world tests OK, 24 gateway OK, all three tool self-checks OK,
+`scan-wire-names.py --check` OK. Evidence:
+`research/sessions/session-20261014T1354Z-authoritative-effect-negative/` (REPORT.md,
+clock-samples.jsonl). Atlas:
+`state_carrying_requests_have_no_reply_and_the_client_ignores_the_time_sync_20261014`,
+`wire_name_registry_gave_one_name_to_two_guids_20261014`.
+
 ## 2026-10-14 (cont. 5) — the server answers the client now: the inbound dispatcher exists
 
 **The server had NO inbound typed dispatcher. It has one, verified live, and it learns addresses

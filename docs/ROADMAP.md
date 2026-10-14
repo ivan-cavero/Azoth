@@ -83,17 +83,22 @@ cable and no movement while the readout's `Time since last response` grows.
   captured `0x08E6`, which the replay could only send once for the whole session. See
   [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) and
   `inbound_dispatcher_answers_requests_and_learns_facet_addresses_20261014`.
-- **Next: give the state-carrying requests an authoritative effect.** These are decoded, counted and
-  shape-logged (`inbound-request-shape`) but do nothing yet: `0x9d3`
-  `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient`,
-  `0x5b2`/`0xa95` `ObjectivesComponentServerFacet_UpdateTrackedObjectives`/
-  `..._SetObjectiveAutoPinning`, `0x183` GlobalStorage `SetReplicateStorage`, and `0x1098`
-  `TimeComponentServerFacet_SyncToClient`. The coverage line lists them under `no_replay_response`
-  every session, so the remaining work is visible rather than guessed. Decode each one's params from
-  the wire before deciding what its effect requires — do not emit a plausible reply for a setter
-  without evidence. Ordered by how much a playable world needs them: `0x9d3` PlayerSettings (2515),
-  `0x5b2`/`0xa95` Objectives (1458 / 2709), `0x183` GlobalStorage (387), then `0x1098` Time (4248),
-  whose reply path already works.
+- **Next: express authority as REPLICATED STATE, not as a typed reply (measured 2026-10-14).** The
+  five state-carrying requests were investigated for an authoritative effect and **cannot have one**:
+  the protocol has no client-facet reply for them (`PlayerSettingsComponent` has exactly one message,
+  the ServerFacet request; `ObjectivesComponent`'s client facets are warnings and a debug one;
+  `GlobalStorage`'s are storage-search results behind a request the client never sends), and the one
+  family that does have a reply — Time — is **ignored by the client**: with the `0x1097` payload forced
+  to `0`, `1` and `3` on the wire, the client's own `lc_getTime` still showed `day` and its clock ran
+  at the same 12.2× in every condition, including with no time sync sent at all. The one thing ever
+  measured to make the client APPLY server data is the record-1 `0x08` state stream. So the first
+  authoritative effect is a change to what the state bundles carry, and that is also what makes
+  item 4's Rust trigger concrete: the first **state bundle the server composes itself**.
+  See [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) §3 and
+  `state_carrying_requests_have_no_reply_and_the_client_ignores_the_time_sync_20261014`.
+- The requests remain decoded, counted and shape-logged (`inbound-request-shape`) and stay in the
+  coverage line's `no_replay_response` every session, so the remaining work is visible rather than
+  guessed. Do not emit a plausible reply for a setter without evidence.
 - Let new client requests and failed state transitions set the next protocol
   work item; record exact fields and evidence in the atlas.
 - Keep the gateway and world process boundaries until measured requirements
