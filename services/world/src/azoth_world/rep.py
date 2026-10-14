@@ -31,6 +31,7 @@ import contextlib
 import json
 import os
 import socket
+import struct
 import time
 import traceback
 from dataclasses import dataclass, replace
@@ -737,6 +738,76 @@ STATE_OVERRIDE = os.environ.get("AZOTH_STATE_OVERRIDE", "").strip()
 # length is implied by its type. The boundaries cannot be recovered from the bytes alone; they are
 # recorded protocol data for this record. Evidence: research/derived/state-bundle-fragments.json.
 STATE_PLAYER_FRAGMENT_BOUNDARIES = (2, 60, 3955, 4295, 4301, 4498, 5335, 5386, 7125)
+
+# ---------------------------------------------------------------------------------------------
+# THE LOCAL PLAYER'S POSITION, LOCATED BY VALUE (measured 2026-10-14)
+# ---------------------------------------------------------------------------------------------
+# The position is NOT in the 7154-byte record-1 bundles the state stream sends. It is in the
+# 46393-byte record-1 bundles - the SPAWN record, 48 fragments, replay seq 0x2a..0x6c - which sit
+# BELOW the stream's `MIN_SEQ` floor of 0x94 and are therefore sent once by the replay and never
+# again. That is the whole reason the client's position is anchored at the capture's value.
+#
+# Located by VALUE, not by a guessed offset: searching the spawn payload for the client's own
+# frozen position as big-endian float32 finds its first two components at payload offset 38332,
+# byte-exact (9343.6416015625, 2786.732666015625). The third component is NOT in the payload in any
+# encoding tried (f32/f64, and scaled i16/i32/i64 at x1/x10/x100/x1000/x1024), so the wire carries
+# a 2D position and the client derives the height - which is why the override below writes two
+# floats and not three.
+CAPTURED_PLAYER_POSITION = struct.pack(">ff", 9343.6416015625, 2786.732666015625)
+# `x,y` (decimal) to replace it with; empty = leave the capture alone.
+STATE_POSITION = os.environ.get("AZOTH_STATE_POSITION", "").strip()
+
+
+def parse_state_position(raw: str) -> tuple[float, float] | None:
+    """Parse `x,y` into a pair, or None for an empty or malformed spec.
+
+    Fails closed: a typo leaves the captured position alone rather than writing a garbage
+    coordinate into a bundle the client is about to apply.
+    """
+    if not raw:
+        return None
+    parts = [p.strip() for p in raw.split(",")]
+    if len(parts) != 2:
+        return None
+    try:
+        x, y = (float(p) for p in parts)
+    except ValueError:
+        return None
+    if not (-100000.0 < x < 100000.0 and -100000.0 < y < 100000.0):
+        return None
+    return x, y
+
+
+def state_position_spec() -> tuple[float, float] | None:
+    """The configured position override, or None."""
+    return parse_state_position(STATE_POSITION)
+
+
+def apply_position_override(body: bytes, position: tuple[float, float]) -> tuple[bytes, int]:
+    """Replace the captured local-player position pair wherever it appears in a bundle body.
+
+    Anchored on the measured VALUE rather than on an offset, so it fires only in a bundle that
+    actually carries the capture's position and cannot corrupt one that does not - which matters
+    because the position lives in the 48-fragment spawn record, not in the 9-fragment record the
+    authoritative path recomposes.
+
+    The replacement is the same width as what it replaces, so the payload length does not change;
+    the body is still re-encoded through `encode_bundle` rather than patched in place, because a
+    raw byte write is what produced the measured `ValidationError` when the counter widened.
+    """
+    if CAPTURED_PLAYER_POSITION not in body:
+        return body, 0
+    try:
+        parsed = javelin_bundle.decode_bundle(body)
+    except javelin_bundle.BundleError:
+        return body, 0
+    count = parsed.payload.count(CAPTURED_PLAYER_POSITION)
+    if not count:
+        return body, 0
+    patched = parsed.payload.replace(
+        CAPTURED_PLAYER_POSITION, struct.pack(">ff", *position)
+    )
+    return javelin_bundle.encode_bundle(parsed.replication_seq, patched), count
 
 
 def parse_state_override(raw: str) -> tuple[int, int, bytes] | None:
@@ -1827,6 +1898,8 @@ class PeerSession:
         self.state_stream_seq = 0
         # Recomposed player bundles, when STATE_AUTHORITATIVE is on.
         self.state_authoritative_sent = 0
+        # Bodies whose position pair was rewritten, when STATE_POSITION is set.
+        self.state_position_override_sent = 0
         # Post-replay 0x1096/0x1097 input-response stream (see INPUT_RESPONSE_*).
         self.input_response_msgs: list = []
         self.input_response_next_at = 0.0
@@ -3132,6 +3205,26 @@ class PeerSession:
                 return
 
         body = msg.body
+        # POSITION OVERRIDE (see STATE_POSITION). Anchored on the measured capture value, so it
+        # fires only in the bundle that actually carries the position - the 48-fragment spawn
+        # record - and leaves every other body, including the 9-fragment record the authoritative
+        # path recomposes, untouched. Logged with the replacement count so an A/B can tell the
+        # override ran rather than inferring it from the client's behaviour.
+        position = state_position_spec()
+        if position is not None:
+            body, position_replacements = apply_position_override(body, position)
+            if position_replacements:
+                log_event(
+                    {
+                        "event": "state-position-override",
+                        "seq": hex(msg.seq),
+                        "type": hex(msg.type_id),
+                        "replacements": position_replacements,
+                        "position": list(position),
+                        "n": self.state_position_override_sent,
+                    }
+                )
+                self.state_position_override_sent += 1
         inner = encode_vlq32(len(body)) + body
         seq = self.out_msg_seq
         self.out_msg_seq = (seq + 1) & 0xFFFF
@@ -3546,6 +3639,8 @@ class RepServer:
                 "state_authoritative": STATE_AUTHORITATIVE,
                 "state_override": STATE_OVERRIDE or None,
                 "state_player_boundaries": list(STATE_PLAYER_FRAGMENT_BOUNDARIES),
+                "state_position": STATE_POSITION or None,
+                "state_position_captured": CAPTURED_PLAYER_POSITION.hex(),
                 "ack_coalesce_s": ACK_COALESCE_S,
             }
         )

@@ -2346,3 +2346,105 @@ class TestAuthoritativeStateComposition(unittest.TestCase):
             [len(f) for f in bundle.split_record_payload(b"\x01" * 10, [0, 4, 7])],
             [4, 3, 3],
         )
+
+
+class TestPlayerPositionOverride(unittest.TestCase):
+    """The local player's position is located by VALUE, not by a guessed offset.
+
+    MEASURED 2026-10-14. The position is NOT in the 7154-byte record-1 bundles the state stream
+    sends; it is in the 46393-byte SPAWN record-1 bundles (48 fragments, replay seq 0x2a..0x6c),
+    which sit below the stream's `MIN_SEQ` floor of 0x94 and are therefore sent once by the replay
+    and never again - which is exactly why the client's position stays anchored at the capture's
+    value. Searching that payload for the client's own frozen position as big-endian float32 finds
+    its first two components at payload offset 38332, byte-exact.
+    """
+
+    @staticmethod
+    def _spawn_body():
+        from azoth_world.rep import replay_store
+
+        return next(
+            m.body
+            for m in replay_store().messages
+            if m.type_id == 0x08 and m.direction == "R" and m.seq == 0x2A
+        )
+
+    @staticmethod
+    def _small_body():
+        from azoth_world.rep import replay_store
+
+        return next(
+            m.body
+            for m in replay_store().messages
+            if m.type_id == 0x08 and m.direction == "R" and m.seq == 0x98
+        )
+
+    def test_the_captured_pair_matches_the_clients_own_frozen_position(self):
+        """The anchor is the client's measured value, so it must equal it exactly."""
+        import struct
+
+        from azoth_world.rep import CAPTURED_PLAYER_POSITION
+
+        x, y = struct.unpack(">ff", CAPTURED_PLAYER_POSITION)
+        # The values `nw_getPlayerPosition` reported, frozen, before the state stream existed.
+        self.assertEqual(x, 9343.6416015625)
+        self.assertEqual(y, 2786.732666015625)
+        self.assertIn(CAPTURED_PLAYER_POSITION, self._spawn_body())
+
+    def test_it_fires_in_the_spawn_record_and_not_in_the_small_one(self):
+        from azoth_world.javelin import bundle
+        from azoth_world.rep import CAPTURED_PLAYER_POSITION, apply_position_override
+
+        spawn = self._spawn_body()
+        patched, n = apply_position_override(spawn, (9400.0, 2800.0))
+        self.assertEqual(n, 1, "the spawn record carries exactly one copy of the pair")
+        self.assertEqual(len(patched), len(spawn), "the replacement is the same width")
+        self.assertNotIn(CAPTURED_PLAYER_POSITION, bundle.decode_bundle(patched).payload)
+        self.assertEqual(bundle.decode_bundle(patched).payload[0], 1)
+        self.assertEqual(bundle.decode_bundle(patched).payload[1], 48)
+
+        small = self._small_body()
+        untouched, n = apply_position_override(small, (9400.0, 2800.0))
+        self.assertEqual(n, 0)
+        self.assertEqual(untouched, small, "a bundle without the pair must be untouched")
+
+    def test_the_recomposed_bundle_still_decodes(self):
+        """A patched body must round-trip through the parser, not just look plausible."""
+        import struct
+
+        from azoth_world.javelin import bundle
+        from azoth_world.rep import apply_position_override
+
+        patched, n = apply_position_override(self._spawn_body(), (9400.0, 2800.0))
+        self.assertEqual(n, 1)
+        parsed = bundle.decode_bundle(patched)
+        self.assertEqual(parsed.replication_seq, bundle.decode_bundle(self._spawn_body()).replication_seq)
+        self.assertIn(struct.pack(">ff", 9400.0, 2800.0), parsed.payload)
+        # and the encoded form round-trips byte for byte
+        self.assertEqual(bundle.encode_bundle(parsed.replication_seq, parsed.payload), patched)
+
+    def test_a_non_bundle_body_is_left_alone(self):
+        from azoth_world.rep import CAPTURED_PLAYER_POSITION, apply_position_override
+
+        junk = b"\x00\x01\x1b\x88" + CAPTURED_PLAYER_POSITION + b"tail"
+        out, n = apply_position_override(junk, (9400.0, 2800.0))
+        self.assertEqual((out, n), (junk, 0), "an undecodable body must not be guessed at")
+
+    def test_position_spec_parsing_fails_closed(self):
+        from azoth_world.rep import parse_state_position
+
+        for bad in ("", "1", "1,2,3", "a,b", "1,", ",2", "999999,1", "1,-999999"):
+            with self.subTest(spec=bad):
+                self.assertIsNone(parse_state_position(bad))
+        self.assertEqual(parse_state_position("9400,2800"), (9400.0, 2800.0))
+        self.assertEqual(parse_state_position(" 9343.5 , 2786.75 "), (9343.5, 2786.75))
+        self.assertEqual(parse_state_position("-100,200"), (-100.0, 200.0))
+
+    def test_encode_bundle_is_the_inverse_of_decode_bundle(self):
+        from azoth_world.javelin import bundle
+
+        for body in (self._spawn_body(), self._small_body()):
+            parsed = bundle.decode_bundle(body)
+            self.assertEqual(
+                bundle.encode_bundle(parsed.replication_seq, parsed.payload), body
+            )

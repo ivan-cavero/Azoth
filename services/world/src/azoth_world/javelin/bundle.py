@@ -101,6 +101,7 @@ __all__ = [
     "Record",
     "BundleError",
     "compose_bundle",
+    "encode_bundle",
     "encode_type_marker",
     "read_type_marker",
     "decode_bundle",
@@ -297,15 +298,13 @@ class Record:
         )
 
 
-def compose_bundle(replication_seq: int, records: list[Record]) -> bytes:
-    """Build a type-0x08 body from records the SERVER owns.
+def encode_bundle(replication_seq: int, payload: bytes) -> bytes:
+    """Wrap an already-built record payload into a type-0x08 body.
 
-    This is the difference between forwarding a captured bundle and sending one we composed:
-    the caller supplies the replication counter, the record ids, and every fragment's key, type
-    and payload. `encode_bundle`'s inverse, and verified as such — composing the captured
-    local-player record from its fragments reproduces the captured body byte for byte.
+    The inverse of `decode_bundle`, and the right tool when a caller has patched bytes inside a
+    payload WITHOUT changing its length: re-encoding through here keeps the prologue and the
+    length field aligned whatever width the counter needs, which a raw byte write does not.
     """
-    payload = b"".join(r.encode() for r in records)
     return (
         encode_type_marker(STATE_BUNDLE_TYPE)
         + _PROLOGUE_HEAD
@@ -314,6 +313,17 @@ def compose_bundle(replication_seq: int, records: list[Record]) -> bytes:
         + varint.encode(len(payload))
         + payload
     )
+
+
+def compose_bundle(replication_seq: int, records: list[Record]) -> bytes:
+    """Build a type-0x08 body from records the SERVER owns.
+
+    This is the difference between forwarding a captured bundle and sending one we composed:
+    the caller supplies the replication counter, the record ids, and every fragment's key, type
+    and payload. Verified as such — composing the captured local-player record from its fragments
+    reproduces the captured body byte for byte.
+    """
+    return encode_bundle(replication_seq, b"".join(r.encode() for r in records))
 
 
 def split_record_payload(payload: bytes, boundaries: list[int]) -> list[bytes]:
