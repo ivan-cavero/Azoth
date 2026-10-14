@@ -77,6 +77,30 @@ PRINTABLE_RE = re.compile(rb"[\x20-\x7e]{3,110}")
 # A printable run that is itself a GUID (optionally brace-wrapped) is never the name; when
 # one sits between the name and the GUID, the naive "longest run" picks the GUID instead.
 GUID_LIKE_RE = re.compile(r"^\{?[0-9A-Fa-f-]{30,}\}?$")
+# A real type name looks like an identifier: it starts with a letter or underscore and is made
+# of identifier characters, dots, angle brackets and colons (MSVC/AZ spellings such as
+# `MB::GetTypeName`, `AOI.PlayerCountInGrid`, `ActionListComponentServerFacet_QueueAction`).
+# MEASURED FAILURE this guards against: without it the scanner returned binary noise that
+# happens to be printable, e.g. wire 4122 -> "F)@" and 3967 -> ";WF", and those were almost
+# read as type names. A run that is not identifier-shaped is not a name.
+NAME_LIKE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_:.<>]{2,}$")
+
+
+# Every AZ/MSVC type name in this image contains at least one run of two or more lowercase
+# letters (`PingMsg`, `ActionListComponentServerFacet_QueueAction`, `AOI.PlayerCountInGrid`).
+# Printable noise does not: `p<WF` and `F)@` have no such run. This is the check that actually
+# separates them, after the identifier-shape and punctuation-ratio tests both let `p<WF` pass.
+LOWERCASE_RUN_RE = re.compile(r"[a-z]{2,}")
+
+
+def _looks_like_a_name(candidate: str) -> bool:
+    """True when `candidate` is plausibly a type name rather than printable noise."""
+    if not NAME_LIKE_RE.match(candidate):
+        return False
+    if not LOWERCASE_RUN_RE.search(candidate):
+        return False
+    alnum = sum(1 for c in candidate if c.isalnum() or c == "_")
+    return alnum / len(candidate) >= 0.75
 
 
 def _pick_name(runs: list[bytes]) -> str | None:
@@ -91,9 +115,9 @@ def _pick_name(runs: list[bytes]) -> str | None:
     """
     candidates = [r.decode("ascii") for r in runs]
     for c in reversed(candidates):
-        if not GUID_LIKE_RE.match(c):
+        if not GUID_LIKE_RE.match(c) and _looks_like_a_name(c):
             return c
-    return candidates[-1] if candidates else None
+    return None
 
 
 def scan(exe: Path, typeindex: Path) -> dict:
@@ -115,10 +139,30 @@ def scan(exe: Path, typeindex: Path) -> dict:
         if name:
             by_guid.setdefault(m.group().decode("ascii"), name)
 
+    # Fallback for the types whose descriptor does not carry an adjacent name: the AZ type
+    # registry has the same GUID -> name pairing, read from the brace-wrapped descriptor form.
+    # MEASURED 2026-10-13: 689 wire types are unnamed by adjacency and named there, so this
+    # roughly doubles the coverage. `source` records which route produced each name, so a
+    # wrong name can be traced to its method.
+    registry: dict[str, str] = {}
+    reg_path = ROOT / "research" / "atlas" / "az-type-registry.json"
+    if reg_path.is_file():
+        for entry in json.loads(reg_path.read_text(encoding="utf-8"))["types"]:
+            registry.setdefault(entry["guid"].lower(), entry["name"])
+
     rows = []
     for wire, guid in enumerate(idx):
         dashed = f"{guid[0:8]}-{guid[8:12]}-{guid[12:16]}-{guid[16:20]}-{guid[20:32]}".lower()
-        rows.append({"wire_type": wire, "guid": dashed, "name": by_guid.get(dashed)})
+        name = by_guid.get(dashed)
+        source = "rdata" if name else None
+        if not name:
+            fallback = registry.get(dashed)
+            if fallback and _looks_like_a_name(fallback):
+                name = fallback
+                source = "az-registry"
+        rows.append(
+            {"wire_type": wire, "guid": dashed, "name": name, "source": source}
+        )
     named = sum(1 for r in rows if r["name"])
     return {
         "build_sha256": hashlib.sha256(data).hexdigest(),
@@ -140,6 +184,18 @@ def check(result: dict) -> list[str]:
         got = by_wire.get(wire)
         if got != want:
             problems.append(f"wire {wire} -> {got!r}, expected {want!r}")
+        elif result["names"][wire].get("source") not in ("rdata", "az-registry"):
+            problems.append(f"wire {wire} has the right name but no recorded source")
+    # A name that is not identifier-shaped means the adjacency scan drifted.
+    malformed = [
+        r for r in result["names"]
+        if r["name"] and not _looks_like_a_name(r["name"])
+    ]
+    if malformed:
+        problems.append(
+            f"{len(malformed)} names are not identifier-shaped, e.g. "
+            f"{[(r['wire_type'], r['name']) for r in malformed[:5]]}"
+        )
     if result["named"] < 1500:
         problems.append(
             f"only {result['named']} of {result['wire_types']} wire types named; the "

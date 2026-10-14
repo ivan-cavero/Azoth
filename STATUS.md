@@ -1,5 +1,60 @@
 # Live status
 
+## 2026-10-14 — completeness audit: the client asks 43 things and we answer none; the replay used to answer questions nobody asked
+
+**Both directions of the client/server contract were broken, and one of them was invisible.**
+
+**Inbound: 43 request types, 0 answered.** Measured with a new tool (`scripts/inbound-inventory.py`)
+over a live session: the client sends **43 distinct typed request types** and the server has **no
+inbound typed-message dispatcher at all** (`grep -c dispatch_inbound` → 0), so every request is
+acknowledged at the transport level and then ignored, with nothing in any log saying so. By channel:
+channel 1 = 13 894 records, **all** of them the ALC input stream (wire 1589); channel 0 = 832, of
+which 703 are `PingMsg`; channel 3 = 14 670 system records. None of the 43 currently produces a
+client-side complaint, which is exactly why the gap stayed invisible. **Visibility fixed:** the server
+now logs each distinct `(channel, type)` once per session (`event: inbound-typed`), so every future
+session carries its own request inventory.
+
+**Outbound: we were answering questions the client never asked.** The replay is *another client's*
+capture, so it contains the server's answers to requests our client never makes. A clean session
+logged **29** `RMIDispatch: facet target ID couldn't be found` errors, all in a single millisecond,
+**1 ms before `player spawn succeeds`**, while the replay drains **8 s after** it. Which fix is right
+depends on whether the client has the facet at all (measured against the live entity's 107 bound
+facets): **absent → drop** (GlobalStorage, EventNotification, VoiceChat), **present but not built yet
+→ defer until the replay drains** (TimeComponent, GameModeParticipant, GridTracking, Contracts).
+Dropping loses nothing — the request behind the 23 storage-search replies is wire 7039, which is not
+among the client's 43.
+
+| dispatch errors per session | |
+| --- | --- |
+| before | **29** |
+| after dropping the 25 unreceivable | **3** |
+| after the input-response waits for the client's object graph | **1** |
+
+That last fix is a real distinction the code had wrong: the **heartbeat** is a *transport* ping and
+must not wait for the replay (the client's watchdog is ~27 s), but the **input-response** is a
+*client-facet RMI* and the facet does not exist until the client is in the world. They shared one
+readiness predicate, which sent the first input-response 1 s before spawn.
+
+**The one remaining error is not ours.** `GridTrackingComponentClientFacet_UpdatePhasing` fails at
+spawn−1 ms while the message we send arrives **8 s after** the error, and the same single error appears
+in every session measured — including one with the state stream off. It is a client-side artifact of
+its own spawn sequence, bounded at one per session.
+
+**`SERVER-CONTRACT.md` was materially wrong and is corrected.** It listed movement authority and entity
+replication as **missing**, and attributed the HUD cable to the input-response lever. Both are wrong:
+movement and the cable are the *same* record (record_id 1, the local player's own state), and the
+`0x1096`/`0x1097` pair is delivered 828 times per session without clearing the cable. The file now
+carries the measured tables, the inbound-request section and the response-scheduling rules.
+
+**Also hardened:** `scan-wire-names.py` was returning printable noise as type names (`F)@`, `p<WF`) and
+now requires an identifier shape with a lowercase run, plus a fallback to the AZ registry — coverage
+went from 1833 (with noise) to **2201** clean names, and it recovered the important
+`7048 = GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`.
+
+**Validation:** 145 world tests OK (7 new cases), 24 gateway OK, all four registry scanners self-check
+clean. Evidence: `client_asks_43_request_types_and_the_server_answers_none_20261013`,
+`unrequested_client_facet_responses_were_dropped_or_deferred_20261013`.
+
 ## 2026-10-13 (cont. 5) — **WASD VERIFIED: all four directions, correct geometry, stops on release**
 
 Position sampled at 0.2 s with the client's own accessor, each sample wall-clock stamped and each key

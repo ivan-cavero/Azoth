@@ -484,6 +484,46 @@ POSITION_REPLY_TARGET = os.environ.get("AZOTH_REPLAY_POSITION_REPLY_TARGET", "")
 # Controlled replay A/B for the six explicitly redacted 36-byte UUID slots.
 # off preserves the capture; character|session fills only the allowlisted
 # offsets in javelin.replay_store. Never inferred from arbitrary body text.
+# ---------------------------------------------------------------------------------------------
+# CLIENT-FACET RESPONSES: SEND THEM WHEN THE CLIENT CAN RECEIVE THEM
+# ---------------------------------------------------------------------------------------------
+# MEASURED 2026-10-13, and this is the whole of the "our replay talks to a different client"
+# problem. A clean session logged 29 `RMIDispatch: The facet target ID couldn't be found`
+# errors, ALL of them inside a single millisecond, 1 ms BEFORE `player spawn succeeds`, while
+# the replay itself drains 8 s AFTER it. So the replay blasts responses at a client whose
+# object graph does not exist yet, and because the replay sends each message once, that data
+# is lost for the rest of the session.
+#
+# Which action is correct depends on whether the client has the facet AT ALL, which was
+# measured against the live player entity's 107 bound client facets:
+#
+#   PRESENT (so the message is fine, it is just early) -> DEFER until the replay drains
+#     TimeComponent, GameModeParticipant, GridTracking, Contracts
+#   ABSENT  (so there is no target and never will be) -> DROP
+#     GlobalStorage, EventNotification, VoiceChat
+#
+# A dropped message here is not data loss: it answers a request our client never made (the
+# replay is another client's capture), so the client has nothing waiting for it. Measured: the
+# client sends 43 distinct request types in a session and `GlobalStorageComponentServerFacet_
+# RequestReplicateStorageSearchResults` (wire 7039), the request behind the 23 storage-search
+# replies, is not one of them.
+REPLAY_DROP_UNRECEIVABLE = os.environ.get("AZOTH_REPLAY_DROP_UNRECEIVABLE", "1") == "1"
+REPLAY_DEFER_CLIENT_FACETS = os.environ.get("AZOTH_REPLAY_DEFER_CLIENT_FACETS", "1") == "1"
+
+# wire type -> why. Both sets are the measured ones, named for the log.
+UNRECEIVABLE_RESPONSE_TYPES: dict[int, str] = {
+    0x1B88: "GlobalStorageComponentClientFacet_ReceiveStorageSearchItems",
+    0x0CA4: "EventNotificationComponentClientFacet_SyncNotifications",
+    0x1067: "VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered",
+}
+DEFERRED_RESPONSE_TYPES: dict[int, str] = {
+    0x1096: "TimeComponentClientFacet_SyncTimeChange",
+    0x1097: "TimeComponentClientFacet_SyncDayPhase",
+    0x136A: "GameModeParticipantComponentClientFacet_OnLeftQueueForGameModeMsg",
+    0x1033: "GridTrackingComponentClientFacet_UpdatePhasing",
+    0x08E6: "ContractsComponentClientFacet_OnLookupContractsByParticipant",
+}
+
 REPLAY_IDENTITY_REMAP = os.environ.get(
     "AZOTH_REPLAY_IDENTITY_REMAP", "off"
 ).lower()
@@ -781,6 +821,26 @@ def position_reply_target(actor: bytes) -> bytes | None:
     except ValueError:
         return None
     return blob if len(blob) == 16 else None
+
+def _partition_replay(messages: list) -> tuple[list, list, list]:
+    """Split a replay into (send now, defer until the replay drains, drop).
+
+    See REPLAY_DROP_UNRECEIVABLE / REPLAY_DEFER_CLIENT_FACETS above for the measurement behind
+    the two tables. Anything not listed is sent exactly as before, so this cannot change a
+    message it was not measured on.
+    """
+    now: list = []
+    defer: list = []
+    drop: list = []
+    for msg in messages:
+        if REPLAY_DROP_UNRECEIVABLE and msg.type_id in UNRECEIVABLE_RESPONSE_TYPES:
+            drop.append(msg)
+        elif REPLAY_DEFER_CLIENT_FACETS and msg.type_id in DEFERRED_RESPONSE_TYPES:
+            defer.append(msg)
+        else:
+            now.append(msg)
+    return now, defer, drop
+
 
 def _state_stream_selected(msg) -> bool:
     """Whether a bundle passes `STATE_STREAM_ONLY_RECORD`.
@@ -1344,6 +1404,11 @@ class PeerSession:
         self.activity_next_at = 0.0
         self.activity_sent = 0
         # Post-replay 0x08 state-bundle stream (see STATE_STREAM_* above).
+        # Client-facet responses held until the replay drains, so they land after the client
+        # has built its object graph (see REPLAY_DEFER_CLIENT_FACETS above).
+        self.deferred_replay: list = []
+        self.deferred_replay_sent = 0
+        self.replay_dropped_unreceivable = 0
         self.state_stream_all: list = []
         self.state_stream_queue: list = []
         self.state_stream_player: list = []
@@ -1436,6 +1501,7 @@ class PeerSession:
         # The reply ECHOES the client's inbound envelope seq (first-light
         # "Mixed Nuts" finding) instead of using an independent counter.
         inbound_recs = parse_datagram(inbound_body).messages
+        self._note_inbound_typed(inbound_recs)
         self._process_acks(inbound_recs)
         if CHANNEL1_ECHO_ENABLED:
             # Keep the most recent client player-state body so the echo sends
@@ -1546,6 +1612,7 @@ class PeerSession:
         self.maybe_send_post_v3(server)
         self.maybe_inject(server)
         self.maybe_pump_replay(server)
+        self.maybe_pump_deferred(server)
         self.maybe_heartbeat(server)
         self.maybe_activity_stream(server)
         self.maybe_state_stream(server)
@@ -1565,9 +1632,21 @@ class PeerSession:
         except Exception as exc:  # noqa: BLE001
             log_event({"event": "replay-load-error", "error": str(exc)[:200]})
             return
-        self.replay_queue = store.replay_messages_after_v3(
+        armed = store.replay_messages_after_v3(
             REPLAY_MAX_SEQ, include_redacted=True
         )
+        self.replay_queue, self.deferred_replay, dropped = _partition_replay(armed)
+        self.replay_dropped_unreceivable = len(dropped)
+        if dropped or self.deferred_replay:
+            log_event(
+                {
+                    "event": "replay-response-scheduling",
+                    "dropped_unreceivable": len(dropped),
+                    "dropped_types": sorted({hex(m.type_id) for m in dropped}),
+                    "deferred": len(self.deferred_replay),
+                    "deferred_types": sorted({hex(m.type_id) for m in self.deferred_replay}),
+                }
+            )
         self.out_msg_seq = 1
         self.out_rel_seq = 1
         self.replay_next_at = time.monotonic()
@@ -1858,6 +1937,75 @@ class PeerSession:
         """
         return self.v3_responded
 
+    def _note_inbound_typed(self, records) -> None:
+        """Log each distinct typed message the CLIENT sends, once per session.
+
+        WHY THIS EXISTS: there is no inbound typed-message dispatcher at all, so every request
+        the client makes is acknowledged at the transport level and then ignored, and nothing
+        in the logs said so. Measured 2026-10-13: a session's client sent **43 distinct request
+        types** and the server answered none of them. Logging the first occurrence of each
+        (channel, type) pair makes that visible in every future session at a cost of at most a
+        few dozen lines, without flooding the log with the 14k channel-1 input records.
+
+        The type id is logged raw; `scripts/inbound-inventory.py` names them from the same
+        derived table the analysis uses, so the server does not need to carry a name table.
+        """
+        seen = getattr(self, "inbound_types_seen", None)
+        if seen is None:
+            seen = set()
+            self.inbound_types_seen = seen
+        for rec in records:
+            payload = getattr(rec, "payload", b"")
+            # The client's own container is `[u32 crc32][u32 len][16-byte target][00 01][type]`,
+            # so its typed marker sits at offset 24; the server's form has it at 0. Try both.
+            type_id = None
+            for offset in (0, 24):
+                try:
+                    type_id, _ = javelin_bundle.read_type_marker(payload[offset:])
+                except Exception:
+                    continue
+                break
+            if type_id is None:
+                continue
+            key = (rec.channel, type_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            log_event(
+                {
+                    "event": "inbound-typed",
+                    "channel": rec.channel,
+                    "type": hex(type_id),
+                    "type_dec": type_id,
+                    "size": getattr(rec, "size", len(payload)),
+                }
+            )
+
+    def maybe_pump_deferred(self, server) -> None:
+        """Send the held client-facet responses once the replay has drained.
+
+        The replay drains ~8 s AFTER the client reports spawn (measured 2026-10-13), which is
+        exactly when the client's facets exist; sending these in the pre-spawn burst is what
+        produced 29 `facet target ID couldn't be found` errors in one millisecond.
+        """
+        if not self.deferred_replay or self.gone or not self.v3_responded:
+            return
+        if self.replay_queue or not self.greetings_after_replay:
+            return  # the client's object graph is not built yet
+        for msg in self.deferred_replay:
+            self._send_replay_message(server, msg)
+            self.deferred_replay_sent += 1
+            log_event(
+                {
+                    "event": "replay-deferred-sent",
+                    "seq": hex(msg.seq),
+                    "type": hex(msg.type_id),
+                    "name": DEFERRED_RESPONSE_TYPES.get(msg.type_id, "?"),
+                    "n": self.deferred_replay_sent,
+                }
+            )
+        self.deferred_replay = []
+
     def maybe_heartbeat(self, server) -> None:
         """Continue the captured 0x15d ping/pong once the replay is drained.
 
@@ -2074,6 +2222,16 @@ class PeerSession:
             return
         if not self._post_replay_started():
             return  # let the replay itself deliver the captured copies first
+        # MEASURED 2026-10-14, and it is the difference between the heartbeat and this: the
+        # heartbeat is a TRANSPORT ping and must not wait for the replay (the client's watchdog
+        # tears the connection down after ~27 s without one), but this is a CLIENT-FACET RMI
+        # and the facet does not exist until the client is in the world. Sharing one predicate
+        # sent the first input-response 1 s BEFORE `player spawn succeeds`, which is exactly the
+        # two `TimeComponentClientFacet` dispatch failures a clean session still logged. The
+        # replay drains ~8 s after spawn at the default pacing, so waiting for it is the
+        # measured proxy for "the client's object graph is up".
+        if not self.greetings_after_replay:
+            return
         if not self.input_response_msgs:
             return
         now = time.monotonic()
@@ -2714,6 +2872,8 @@ class RepServer:
                 "input_response_container": INPUT_RESPONSE_CONTAINER,
                 "channel1_echo": CHANNEL1_ECHO_ENABLED,
                 "replay_enabled": REPLAY_ENABLED,
+                "replay_drop_unreceivable": REPLAY_DROP_UNRECEIVABLE,
+                "replay_defer_client_facets": REPLAY_DEFER_CLIENT_FACETS,
                 "replay_max_seq": hex(REPLAY_MAX_SEQ),
             }
         )

@@ -107,10 +107,93 @@ data leaves the panel blank (see `LESSONS.md` §4). To seed the panel, edit
 
 | Obligation | Wire | Status |
 | --- | --- | --- |
-| Keep the session alive | `0x15d` heartbeat + `0x1096`/`0x1097` reply to the `0x635` stream | **done** (`AZOTH_REPLAY_INPUT_RESPONSE=1`) |
-| **Player movement authority** | a server→client reply on **channel 1/2** | **missing** |
-| Entity/actor replication | ongoing `0x08` bundles | **missing** (the capture has none after the snapshot) |
-| Activity stream | `0x1b88` | **partial** (lever exists, off by default) |
+| Keep the session alive | `0x15d` heartbeat | **done** (on by default) |
+| **Player movement authority** | ongoing `0x08` bundles carrying **record_id 1** | **done** — measured 2026-10-13 |
+| Entity/actor replication | ongoing `0x08` bundles | **done** (`AZOTH_REPLAY_STATE_STREAM`, on by default) |
+| Clear the ALC/HUD cable | the same record-1 bundles, re-sent faster than the amber threshold | **done** — measured 2026-10-13 |
+| Answer the client's typed requests | see "Inbound requests" below | **missing** (43 request types, 0 answered) |
+| Activity stream | `0x1b88` | **not needed** (the state stream clears the cable on its own) |
+
+### Movement and the cable are the same record (RESOLVED 2026-10-13)
+
+Both were "missing" for the same reason and neither needed a new message. The client only
+simulates the local player while it is receiving that player's own AOI state, and the
+authoritative position travels as **replicated state**, not as an RMI:
+
+* the local player's own state is **`record_id 1`**, and in the capture it appears only in the
+  four 7154-byte bundles at replay seq **0x98 / 0x9A / 0x9C / 0x9E** — all *below* the state
+  stream's old default floor of `0xA0`, so the stream was re-sending every other entity's state
+  and never the player's;
+* the red cable is a client-side age of the ALC local client's `+0xAA8` stamp
+  (`age = clock() - *(alc + 0xAA8)`; amber ~2 s, red ~15 s), and nothing we sent refreshed it
+  except those record-1 bundles.
+
+Measured, one variable (`AZOTH_REPLAY_STATE_STREAM=0` as the control):
+
+| | stream ON | stream OFF |
+| --- | --- | --- |
+| W held 10 s | **moves** (WASD verified in all four directions; W/S 179.9 deg apart, A/D 178.5 deg, W/A 91.2 deg) | position frozen at `(9343.6416, 2786.7327, 87.538)` |
+| HUD cable | **icon absent** | **RED** (red 3.7 %) |
+| ALC stamp | refreshing, max age 100 ms | frozen, age growing to 262 s |
+
+This supersedes the earlier reading in this file that movement needed "a constructed
+server→client message on channel 1 (or 2)". It does not: it needs the captured record-1 state to
+keep flowing, which the stream does by default. The `0x1096`/`0x1097` pair is delivered 828
+times per session and does **not** clear the cable.
+
+### Inbound requests: the client asks for 43 things and we answer none
+
+MEASURED 2026-10-13 with `scripts/inbound-inventory.py`. In one session the client sent
+**43 distinct typed request types**; the server has **no inbound typed-message dispatcher at
+all** (`grep -c dispatch_inbound` -> 0), so every one of them is acknowledged at the transport
+level and then ignored. The server now logs each distinct `(channel, type)` once per session
+(`event: inbound-typed`) so the gap is visible instead of silent.
+
+By channel, from the same session: channel 1 carries **13 894** records and they are *all*
+`ActionListComponentServerFacet_ReceiveInputFromClient` (wire 1589) — the ALC input stream;
+channel 0 carries 832, of which 703 are `PingMsg`; channel 3 carries 14 670 system/Carrier
+records.
+
+The requests that matter for a playable world are the component state the client reports and
+expects an answer to — `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient`,
+`ContractsComponentServerFacet_LookupContractsByParticipant`,
+`ObjectivesComponentServerFacet_UpdateTrackedObjectives`,
+`GlobalStorageComponentServerFacet_SetReplicateStorage`,
+`TimeComponentServerFacet_SyncToClient` — plus the UI-driven queries
+(`MetaAchievementComponentServerFacet_ServerRequest*`, `TwitchComponentServerFacet_*`,
+`GroupsComponentServerFacet_RequestRemoveRaidMember`, ...). None is answered, and none currently
+produces a client-side complaint, which is why the gap was invisible.
+
+### Response scheduling: we used to answer questions the client never asked
+
+MEASURED 2026-10-13, and it is a consequence of the replay being **another client's capture**:
+it contains the server's answers to requests our client never makes. A clean session logged
+**29** `RMIDispatch: The facet target ID couldn't be found` errors, all inside a single
+millisecond, 1 ms BEFORE `player spawn succeeds`, while the replay drains 8 s AFTER it.
+
+Which action is right depends on whether the client has the facet at all, measured against the
+live entity's 107 bound client facets:
+
+| response | facet in our session | action |
+| --- | --- | --- |
+| `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems` (23x) | **absent** | **drop** |
+| `EventNotificationComponentClientFacet_SyncNotifications` | **absent** | **drop** |
+| `VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered` | **absent** | **drop** |
+| `TimeComponentClientFacet_Sync{TimeChange,DayPhase}` | present, but not built yet | **defer** |
+| `GameModeParticipant…OnLeftQueueForGameModeMsg` | present | **defer** |
+| `GridTrackingComponentClientFacet_UpdatePhasing` | present | **defer** |
+| `ContractsComponentClientFacet_OnLookupContractsByParticipant` | present | **defer** |
+
+Dropping is not data loss: those messages answer requests our client never sends (the request
+behind the storage-search replies, wire 7039 `RequestReplicateStorageSearchResults`, is not among
+the 43). The levers are `AZOTH_REPLAY_DROP_UNRECEIVABLE` and `AZOTH_REPLAY_DEFER_CLIENT_FACETS`,
+both on by default; the arming event `replay-response-scheduling` reports what each did.
+
+**Acceptance, measured: 29 -> 3 -> 1 dispatch error per session.** The remaining one is
+`GridTrackingComponentClientFacet_UpdatePhasing`, and it is **not caused by anything we send**:
+the message we do send arrives **8 s after** the error, and the error appears in every session
+measured, including one where the state stream was off. It is a client-side artifact of its own
+spawn sequence, and it is bounded at one occurrence per session.
 
 ## REP message registry (from the capture)
 
@@ -180,11 +263,11 @@ carry the local-player key. Re-sending those (`AZOTH_REPLAY_INPUT_RESPONSE=1`)
 removed the HUD cable and the `InGame` timeout but did **not** make the player
 move.
 
-Working conclusion: movement needs a **constructed** server→client message on
-channel 1 (or 2) that the client accepts as authoritative player-state
-replication. The capture cannot provide it; it must be derived from the client's
-channel-1 reader. Next step is to decompile that reader and identify the message
-type and field layout it accepts.
+**Superseded 2026-10-13.** Movement does NOT need a constructed channel-1 message. The
+authoritative position travels as replicated state in the captured record-1 bundles, and the
+client moves when those keep flowing (see "Movement and the cable are the same record" above).
+The `0x635` stream is the client's INPUT direction and it was already working: the server
+receives it at ~20 records/s and never needed to answer it on channel 1.
 
 ### The movement message family exists in the client (found 2026-10-08)
 

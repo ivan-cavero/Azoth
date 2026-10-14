@@ -567,6 +567,7 @@ class TestAuthoritativeTick(unittest.TestCase):
         "maybe_send_post_v3",
         "maybe_inject",
         "maybe_pump_replay",
+        "maybe_pump_deferred",
         "maybe_heartbeat",
         "maybe_activity_stream",
         "maybe_state_stream",
@@ -1314,6 +1315,206 @@ class TestStateStream(unittest.TestCase):
         session = self._session()
         PeerSession.maybe_state_stream(session, None)
         self.assertEqual(session.sent, [])
+
+
+class TestInputResponseReadiness(unittest.TestCase):
+    """The input-response is a client-facet RMI, so it waits for the client's object graph.
+
+    MEASURED 2026-10-14: the heartbeat and the input-response shared one readiness predicate,
+    and that is wrong for this one. The heartbeat is a TRANSPORT ping - it must not wait for
+    the replay, because the client's watchdog tears the connection down after ~27 s without
+    one. The input-response is a CLIENT-FACET RMI and the facet does not exist until the client
+    is in the world; sending it earlier produced the two `TimeComponentClientFacet` dispatch
+    failures a clean session still logged, 1 s before `player spawn succeeds`.
+    """
+
+    def _session(self):
+        from azoth_world.rep import PeerSession
+        from azoth_world.javelin.replay_store import ReplayMessage
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.greetings_after_replay = False
+        session.replay_queue = []
+        session.input_response_msgs = [
+            ReplayMessage(seq=0x75, type_id=0x1096, direction="R", body=b"x",
+                          has_redaction=False)
+        ]
+        session.input_response_sent = 0
+        session.input_response_next_at = 0.0
+        session.sent: list = []
+        session._send_replay_message = lambda _s, m: session.sent.append(m)
+        return session
+
+    def test_waits_for_the_replay_to_drain(self):
+        from unittest import mock
+
+        from azoth_world.rep import PeerSession
+
+        with mock.patch("azoth_world.rep.INPUT_RESPONSE_ENABLED", True):
+            session = self._session()
+            PeerSession.maybe_input_response(session, None)
+            self.assertEqual(session.sent, [], "must not fire before the client has facets")
+
+            session.greetings_after_replay = True
+            PeerSession.maybe_input_response(session, None)
+            self.assertEqual([m.seq for m in session.sent], [0x75])
+
+    def test_the_watchdog_predicate_does_not_wait_for_the_replay(self):
+        """The other half of the split, asserted on the predicate itself.
+
+        `_post_replay_started()` is what the heartbeat gates on, and it must be True as soon as
+        V3 has been answered - even with the replay still running - because the client's
+        watchdog tears the connection down after ~27 s without a ping. A full-session fake here
+        would be fragile; the invariant is about the predicate, so assert it there.
+        """
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.greetings_after_replay = False
+        session.replay_queue = ["still replaying"]
+        self.assertTrue(
+            PeerSession._post_replay_started(session),
+            "the heartbeat must not wait for the replay drain",
+        )
+
+        session.v3_responded = False
+        self.assertFalse(PeerSession._post_replay_started(session))
+
+
+class TestReplayResponseScheduling(unittest.TestCase):
+    """Client-facet responses are sent only when the client can receive them.
+
+    MEASURED 2026-10-13: a clean session logged 29 `RMIDispatch: The facet target ID couldn't
+    be found` errors, ALL inside a single millisecond, 1 ms BEFORE `player spawn succeeds`,
+    while the replay drains 8 s AFTER it. The replay blasts responses at a client whose object
+    graph does not exist yet, and since each message is sent once, that data is lost for the
+    whole session. Which action is right depends on whether the client has the facet at all,
+    measured against the live entity's 107 bound client facets:
+
+      present -> DEFER until the replay drains (TimeComponent, GameModeParticipant,
+                 GridTracking, Contracts)
+      absent  -> DROP  (GlobalStorage, EventNotification, VoiceChat)
+    """
+
+    def test_measured_tables_are_exactly_the_measured_types(self):
+        from azoth_world.rep import (
+            DEFERRED_RESPONSE_TYPES,
+            UNRECEIVABLE_RESPONSE_TYPES,
+        )
+
+        self.assertEqual(
+            set(UNRECEIVABLE_RESPONSE_TYPES),
+            {0x1B88, 0x0CA4, 0x1067},
+            "the drop set is the measured absent-facet set",
+        )
+        self.assertEqual(
+            set(DEFERRED_RESPONSE_TYPES),
+            {0x1096, 0x1097, 0x136A, 0x1033, 0x08E6},
+            "the defer set is the measured present-facet set",
+        )
+        # no type may be in both
+        self.assertEqual(
+            set(UNRECEIVABLE_RESPONSE_TYPES) & set(DEFERRED_RESPONSE_TYPES), set()
+        )
+
+    def test_partition_sends_everything_it_did_not_measure(self):
+        """A message outside both tables must pass through untouched.
+
+        This is the property that makes the change safe: it cannot alter a message it was not
+        measured on, so a protocol change cannot be silently swallowed.
+        """
+        from unittest import mock
+
+        from azoth_world.rep import _partition_replay
+        from azoth_world.javelin.replay_store import ReplayMessage
+
+        def msg(seq, type_id):
+            return ReplayMessage(seq=seq, type_id=type_id, direction="R", body=b"x",
+                                 has_redaction=False)
+
+        unknown = msg(1, 0x0663)          # LevelInfo: must be sent as before
+        storage = msg(2, 0x1B88)          # absent facet -> drop
+        timing = msg(3, 0x1096)           # present facet, early -> defer
+        contracts = msg(4, 0x08E6)        # present facet, early -> defer
+        with mock.patch("azoth_world.rep.REPLAY_DROP_UNRECEIVABLE", True), \
+                mock.patch("azoth_world.rep.REPLAY_DEFER_CLIENT_FACETS", True):
+            now, defer, drop = _partition_replay([unknown, storage, timing, contracts])
+        self.assertEqual([m.seq for m in now], [1])
+        self.assertEqual([m.seq for m in defer], [3, 4])
+        self.assertEqual([m.seq for m in drop], [2])
+
+    def test_levers_can_disable_each_behaviour(self):
+        from unittest import mock
+
+        from azoth_world.rep import _partition_replay
+        from azoth_world.javelin.replay_store import ReplayMessage
+
+        def msg(seq, type_id):
+            return ReplayMessage(seq=seq, type_id=type_id, direction="R", body=b"x",
+                                 has_redaction=False)
+
+        items = [msg(1, 0x1B88), msg(2, 0x1096)]
+        with mock.patch("azoth_world.rep.REPLAY_DROP_UNRECEIVABLE", False), \
+                mock.patch("azoth_world.rep.REPLAY_DEFER_CLIENT_FACETS", False):
+            now, defer, drop = _partition_replay(items)
+        self.assertEqual([m.seq for m in now], [1, 2])
+        self.assertEqual(defer, [])
+        self.assertEqual(drop, [])
+
+    def test_deferred_messages_wait_for_the_replay_to_drain(self):
+        """They must not be sent while the replay is still running or before the client's
+        context is up - that is the whole point of deferring them."""
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.greetings_after_replay = False
+        session.replay_queue = ["still replaying"]
+        from azoth_world.javelin.replay_store import ReplayMessage
+
+        held = ReplayMessage(seq=0x75, type_id=0x1096, direction="R", body=b"x",
+                             has_redaction=False)
+        session.deferred_replay = [held]
+        session.deferred_replay_sent = 0
+        sent: list = []
+        session._send_replay_message = lambda _s, m: sent.append(m)
+
+        PeerSession.maybe_pump_deferred(session, None)
+        self.assertEqual(sent, [])
+
+        session.replay_queue = []
+        PeerSession.maybe_pump_deferred(session, None)
+        self.assertEqual(sent, [], "greetings_after_replay gates it too")
+
+        session.greetings_after_replay = True
+        PeerSession.maybe_pump_deferred(session, None)
+        self.assertEqual([m.seq for m in sent], [held.seq])
+        self.assertEqual(session.deferred_replay_sent, 1)
+        self.assertEqual(session.deferred_replay, [], "sent once, then cleared")
+
+    def test_a_real_replay_is_partitioned_by_the_measured_tables(self):
+        """The committed capture must actually contain both classes, or the tables are stale."""
+        from azoth_world.rep import (
+            DEFERRED_RESPONSE_TYPES,
+            UNRECEIVABLE_RESPONSE_TYPES,
+            _partition_replay,
+            replay_store,
+        )
+
+        messages = replay_store().messages
+        now, defer, drop = _partition_replay(messages)
+        self.assertEqual(len(now) + len(defer) + len(drop), len(messages))
+        self.assertTrue(drop, "the capture must contain unreceivable responses")
+        self.assertTrue(defer, "the capture must contain deferrable responses")
+        self.assertTrue(
+            {m.type_id for m in drop} <= set(UNRECEIVABLE_RESPONSE_TYPES)
+        )
+        self.assertTrue({m.type_id for m in defer} <= set(DEFERRED_RESPONSE_TYPES))
 
 
 class TestClientRecordContainer(unittest.TestCase):
