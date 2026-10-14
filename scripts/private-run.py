@@ -27,6 +27,7 @@ import argparse
 import ctypes
 import ctypes.wintypes as wt
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -104,6 +105,20 @@ def wait_for_log(marker: str, *, timeout: float = 300.0) -> bool:
     return False
 
 
+def launcher_shell() -> str:
+    """The PowerShell that can run `Start-NwPrivate.ps1`.
+
+    MEASURED 2026-10-14: Windows PowerShell 5.1 on this machine loads
+    `Microsoft.PowerShell.Utility` but does NOT expose `Get-FileHash`, which the launcher calls to
+    record the client's source hash. The launcher then died with
+    `The term 'Get-FileHash' is not recognized` and the game window never appeared, which
+    `private-run.py` reports as `FAIL: window never appeared` - a launcher failure that looks like
+    a client failure. PowerShell 7 (`pwsh`) is present and the runbook already records that it,
+    not 5.1, is the shell that binds everything this script needs.
+    """
+    return shutil.which("pwsh") or "powershell.exe"
+
+
 def launch() -> None:
     """Start the launcher detached: it stays alive for the game's lifetime
     (`$p.WaitForExit()`), so a blocking run() would hang this script."""
@@ -111,7 +126,7 @@ def launch() -> None:
     log.parent.mkdir(parents=True, exist_ok=True)
     out = log.open("ab")
     subprocess.Popen(
-        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(LAUNCHER)],
+        [launcher_shell(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(LAUNCHER)],
         cwd=REPO,
         stdout=out,
         stderr=subprocess.STDOUT,

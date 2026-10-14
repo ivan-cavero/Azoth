@@ -27,6 +27,7 @@ from __future__ import annotations
 import ast
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -41,6 +42,20 @@ LOGS = ROOT / ".azoth" / "logs"
 PRIVATE = ROOT / "private-client"
 TMP = ROOT / ".azoth" / "tmp"
 PS = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass"]
+
+
+def launcher_shell() -> str:
+    """The PowerShell that can run `Start-NwPrivate.ps1`.
+
+    MEASURED 2026-10-14: on this machine Windows PowerShell 5.1 loads
+    `Microsoft.PowerShell.Utility` but does NOT expose `Get-FileHash`, which the launcher calls to
+    record the client's source hash - so the launcher died with
+    `The term 'Get-FileHash' is not recognized` and the game window never appeared. PowerShell 7
+    (`pwsh`) is present and the runbook already records that it, not 5.1, is the shell that binds
+    everything this script needs. Prefer it when it exists; fall back so a machine without pwsh
+    behaves exactly as before.
+    """
+    return shutil.which("pwsh") or "powershell.exe"
 WINDOWS_HIDDEN = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
 
 
@@ -485,7 +500,8 @@ def _game_action(action: str, args: list[str]) -> int:
         print("[az] local tools are not installed; run `python az.py setup` first")
         return 2
     launcher = ROOT / "services" / "launcher" / "src" / "Start-NwPrivate.ps1"
-    command = [*PS, "-File", str(launcher), "-Watch"]
+    command = [launcher_shell(), "-NoProfile", "-ExecutionPolicy", "Bypass",
+               "-File", str(launcher), "-Watch"]
     if args:
         if len(args) != 2 or args[0] != "--install":
             print("usage: python az.py game [start|stop|restart|status] [--install <path>]")
