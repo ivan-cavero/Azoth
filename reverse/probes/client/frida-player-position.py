@@ -39,7 +39,7 @@ import time
 
 import frida
 
-from _paths import probe_capture
+from _paths import probe_capture, safe_shutdown
 
 GETTER = 0x140FDDFA0     # FUN_140fddfa0(&holder) - the client's own position accessor
 PRINTER = 0x141022A90    # FUN_141022a90(&fmt, x, y, z) - what nw_getPlayerPosition prints with
@@ -100,9 +100,14 @@ def main() -> int:
     ap.add_argument("--all", action="store_true",
                     help="print every sample (with an epoch timestamp) instead of only "
                          "changes, so a WASD phase can be segmented exactly by time")
+    ap.add_argument("--keep-process", action="store_true",
+                    help="leave the client running on exit (orderly detach) instead of "
+                         "ending it; the default kill is safer AND every world A/B wants a "
+                         "fresh NewWorld.exe anyway")
     args = ap.parse_args()
 
-    session = frida.get_local_device().attach(args.process)
+    device = frida.get_local_device()
+    session = device.attach(args.process)
     script = session.create_script(
         JS.replace("%OFFSETS%", json.dumps(list(POS_OFFSETS)))
     )
@@ -145,10 +150,14 @@ def main() -> int:
                     last_log = time.time()
             time.sleep(args.poll)
 
-    try:
-        session.detach()
-    except Exception:  # noqa: BLE001
-        pass
+    # MEASURED 2026-10-14: a bare `session.detach()` at the end of a 60 s run of THIS probe
+    # killed the client 8 min 48 s later with WER `BEX64`, `P4: frida-agent.dll_unloaded`,
+    # `P7: 0x9c7e0`, `P8: c0000005`, `P9: 8` (an EXECUTE violation) - the documented
+    # execute-after-unload race, which is delayed because it fires only when a client thread
+    # reaches the unmapped agent. `safe_shutdown` is the project's fix; `kill` is the default
+    # because every world measurement wants a fresh process afterwards anyway.
+    strategy = safe_shutdown(session, script, kill=not args.keep_process, device=device)
+    print(f"[pp] shutdown strategy: {strategy}", flush=True)
     print(f"[pp] done; capture {capture}", flush=True)
     return 0
 
