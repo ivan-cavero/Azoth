@@ -99,12 +99,21 @@ cable and no movement while the readout's `Time since last response` grows.
   byte-exact on every send, and a field override written by the server was accepted with 0 unmarshal
   errors while the world rendered normally. `AZOTH_STATE_AUTHORITATIVE` (default 0) and
   `AZOTH_STATE_OVERRIDE`. See `state_bundle_can_be_composed_from_fragments_and_the_client_accepts_it_20261014`.
-- **Next: make the composed bundle carry a field whose effect is MEASURABLE.** The override above
-  proves the machinery but its field's meaning is undecoded and nothing observable changed. The
-  position is the obvious target because the client reads it back through its own accessor
-  (`nw_getPlayerPosition`), so "the server composed a bundle" becomes "the server moved the player".
-  Locate the position field in the record-1 fragments first; do not guess an offset into a 7154-byte
-  payload.
+- **Next: make the composed bundle carry a field whose effect is MEASURABLE.** **DONE 2026-10-14:**
+  the server now owns the player's **position**. The position was not in the 7154-byte record-1
+  bundles the stream sends at all - it is in the **46393-byte spawn record** (48 fragments, replay seq
+  `0x2a..0x6c`), which sits below the stream's `MIN_SEQ` floor of `0x94`, so the replay sent it once
+  and the stream never did. That is why the position stayed anchored at the capture's value for the
+  whole history of the project. Located **by value** (x/y byte-exact at payload offsets 38332/38336 as
+  f32be; z is not in the payload in any encoding, so the wire carries a 2D position and the client
+  derives the height). With `AZOTH_STATE_POSITION=9353.7227,2766.0681` the client's own accessor
+  reported **exactly that**, **0.0000 u** from what we wrote and 22.99 u from the capture's.
+  `server_owns_the_player_position_measured_20261014`.
+- **Next: stream the position, not just the spawn one.** The position is applied **at spawn** from a
+  record the replay sends once, so today the server decides the starting point and not the position
+  over time. The same override applies to any body carrying the pair, so the work is to get a
+  position-bearing bundle into the continuing stream (or compose one) rather than to find the field
+  again. Acceptance: the client's accessor reports a position the server changes MID-SESSION.
 - The requests remain decoded, counted and shape-logged (`inbound-request-shape`) and stay in the
   coverage line's `no_replay_response` every session, so the remaining work is visible rather than
   guessed. Do not emit a plausible reply for a setter without evidence.
@@ -129,10 +138,12 @@ cable and no movement while the readout's `Time since last response` grows.
   that will be replaced once the server owns the world state; and anything in
   `services/world/src/azoth_world/rep.py` that exists to make a capture behave.
 - **Trigger:** the first behavior the server decides rather than replays. **That trigger is now
-  partly met (2026-10-14):** the server composes the local player's own state bundle from fragments
-  instead of forwarding it, and the client applies it. What is still a replay is everything else in
-  the stream, and the composed record's fields are undecoded. Port once a composed bundle carries a
-  field the server DECIDES (the position is the candidate) rather than one it captured.
+  MET (2026-10-14):** the server composes the local player's own state bundle from fragments instead
+  of forwarding it, AND it decides the player's position — the client's own accessor reports a
+  position the server wrote, 0.0000 u from what it sent. What is still a replay is everything else in
+  the stream, and the position is applied at spawn rather than over time. The next Rust question is
+  therefore about scale, not about readiness: port the protocol crate once a second authoritative
+  behavior exists, so there is a shape to port rather than one.
   A defensible narrower start, if Rust is wanted sooner: `server/crates/protocol` with the codecs
   and a byte-for-byte parity test against the Python encoders over the captured corpus. That is the
   only genuinely port-ready piece and it does not displace the dispatcher work.

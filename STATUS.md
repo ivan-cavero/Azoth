@@ -1,5 +1,65 @@
 # Live status
 
+## 2026-10-14 (cont. 8) — **THE SERVER OWNS THE PLAYER'S POSITION** (measured, 0.0000 u error)
+
+**The server wrote a position into the state it sends and the client's own accessor reported exactly
+that position.** This is the first authoritative *effect* in the project: not "we composed bytes the
+client accepted", but "we decided where the player is and it went there".
+
+**Where the position actually lived, and why it never moved.** It is NOT in the 7154-byte record-1
+bundles the state stream sends. It is in the **46393-byte** record-1 bundles — the spawn record, 48
+fragments, replay seq `0x2a..0x6c` — which sit **below the stream's `MIN_SEQ` floor of `0x94`**, so
+the replay sends them once and the stream never does. That is the entire reason the position stayed
+anchored at the capture's value for the whole history of this project.
+
+Found **by value, not by a guessed offset**: x `9343.6416015625` and y `2786.732666015625` sit at
+payload offsets 38332/38336 as big-endian float32, byte-exact against the position the client's own
+accessor had always reported. **z is not in the payload at all** (searched f32/f64 both endians and
+scaled i16/i32/i64 at x1/x10/x100/x1000/x1024): the wire carries a **2D** position.
+
+**The measurement.** `AZOTH_STATE_POSITION=9353.7227,2766.0681` — a point the client itself had
+reported after walking, ~23 u from the capture's spawn:
+
+| measure | value |
+| --- | --- |
+| server side | **24 `state-position-override` events, each `replacements: 1`**, on seq `0x2a/0x2b/0x2e/0x2f/0x30/0x33`… — exactly the spawn bundles, nothing else |
+| client's reported position | **(9353.72265625, 2766.068115234375, 87.5379638671875)** |
+| distance to what the server wrote | **0.0000 u** |
+| distance to what the capture carried | **22.9925 u** |
+
+The override is anchored on the **measured capture value**, so it fires only in a body that actually
+carries the position and cannot corrupt one that does not.
+
+**The z question is now answered.** The earlier session could not tell whether the client derives the
+height or keeps the capture's. It derives it: z varies across the 199 samples (87.432 → 87.611) while
+x and y sit exactly on our values. So the server decides where in the plane the player is and the
+client puts it on the ground.
+
+**And it is a starting point, not a freeze:** with W held 5 s from there the player moved **14.005 u**
+and stopped again after release (net 0.000 u over 120 samples).
+
+**Nothing regressed:** 1 `RMIDispatch` error (the known spawn−3 ms GridTracking artifact), 0
+connection warnings, 0 `Failed to unmarshal` / `ValidationError`, 0 transportError/timeouts/REP
+disconnects, world rendered with 26 slice lines.
+
+**Not claimed:** one session and one injected value; the override writes x and y only (the client owns
+the height); and the position is applied **at spawn** from a record the replay sends once, so this is
+authority over the starting point, not yet over the position over time. `AZOTH_STATE_POSITION`
+defaults to empty.
+
+**Launcher defect found and fixed on the way.** The first attempt failed with `FAIL: window never
+appeared`, and it was not the client: **Windows PowerShell 5.1 on this machine loads
+`Microsoft.PowerShell.Utility` but does not expose `Get-FileHash`**, which `Start-NwPrivate.ps1` calls
+to record the client's source hash. The launcher died with `The term 'Get-FileHash' is not
+recognized` — a launcher failure that reads as a client failure. `pwsh` 7 is installed and the runbook
+already records that it, not 5.1, is the shell this script needs; `az.py` and `scripts/private-run.py`
+now prefer `pwsh` and fall back, so a machine without it behaves as before.
+
+**Validation:** 182 world tests OK (6 new for the position override, 16 new across this work), 24
+gateway OK, all three tool self-checks OK. Evidence:
+`research/sessions/session-20261014T1746Z-server-owns-the-position/`. Atlas:
+`server_owns_the_player_position_measured_20261014`.
+
 ## 2026-10-14 (cont. 7) — the server composes the player's own state bundle, and the client applies it
 
 **This is the first place the server OWNS the bytes instead of forwarding them, and it is the
