@@ -1,5 +1,55 @@
 # Live status
 
+## 2026-10-14 (cont. 7) — the server composes the player's own state bundle, and the client applies it
+
+**This is the first place the server OWNS the bytes instead of forwarding them, and it is the
+direction the previous negative result pointed at.** Two runs, one question each.
+
+**The fragment grammar is now derived FROM THE CLIENT.** `frida-fragment-grammar.py` hooks the
+record reader (`FUN_146af20d0`), the fragment reader (`FUN_146af2340`) and the shared prefix-varint
+reader (`FUN_14087b5c0`), and logs each fragment's offset from the record start plus every varint
+read inside it. That settles the open question in `bundle.py`'s own docstring: a fragment is
+`[varint key][varint type_index][payload]` with **no length field** (the payload length is implied
+by the type). The same probe run reproduced the local-player record's nine boundaries **21 times**,
+and the (key, type) pair it reported per fragment matches an independent byte-level parse of the
+payload — two methods, same answer. Recorded as `research/derived/state-bundle-fragments.json`.
+
+**Run A — recomposition is byte-exact.** With the authoritative path on and no override: **487
+recompositions, all 487 `identical: true`, 0 failures.** The identity is asserted on every send, so
+turning the path on cannot change behaviour by accident, and a layout that stopped matching the
+build would log `state-authoritative-failed` rather than send something wrong.
+
+**Run B — the client accepts state the server wrote.** With
+`AZOTH_STATE_OVERRIDE=key=16,off=8,hex=010203`: **672 sends, all `override_applied`**, the logged
+transition `0975bf` → `010203`, **0 failures, 0 `Failed to unmarshal`, 0 `ValidationError`**, 1
+client error (the known spawn−3 ms GridTracking artifact) and the world rendering normally. So the
+client parses and applies a bundle whose bytes we composed.
+
+**`key=16` is the right first target because the capture proves it is live:** across the four
+captured copies the payloads differ in **exactly three bytes**, at offsets 5345-5347, and both
+values differ per copy (`0975bf` vs `0aa7c2`). A test asserts that is still true, so the constant
+cannot drift silently.
+
+**Regressions clear in run A:** movement **0.000 u** baseline → **27.142 u** under W held 5 s (path
+27.142, straight) → **0.000 u** after release; cable readout **67 / 330 / 433 ms**; 0
+transportError, 0 timeouts, 0 REP disconnects.
+
+**Not claimed:** the overridden field's **meaning** is not decoded. The run establishes that we can
+write it and the client accepts it, not what it does — nothing observable changed between run A and
+run B under `010203`, so it is either cosmetic state or that value is inert. And the path composes
+**one** record from one record's fragments; everything else in the stream is still forwarded
+verbatim. `AZOTH_STATE_AUTHORITATIVE` defaults to 0: proven, not yet adopted.
+
+**The next step this opens:** now that a bundle can be composed from named fields, the same method
+applies to the field whose effect IS measurable — the player's position, which the client reads
+back with its own accessor. That turns "the server composed a bundle" into "the server moved the
+player".
+
+**Validation:** 176 world tests OK (10 new), 24 gateway OK, all three tool self-checks OK. Evidence:
+`research/sessions/session-20261014T1549Z-authoritative-state/`. Atlas:
+`state_bundle_can_be_composed_from_fragments_and_the_client_accepts_it_20261014`,
+`state_bundle_fragment_grammar_derived_from_the_client_20261014`.
+
 ## 2026-10-14 (cont. 6) — the setters cannot have an authoritative effect yet, and the reason redirects the work
 
 **I set out to give the five state-carrying requests an authoritative effect. The answer is a

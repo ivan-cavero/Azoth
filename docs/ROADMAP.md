@@ -91,11 +91,20 @@ cable and no movement while the readout's `Time since last response` grows.
   family that does have a reply — Time — is **ignored by the client**: with the `0x1097` payload forced
   to `0`, `1` and `3` on the wire, the client's own `lc_getTime` still showed `day` and its clock ran
   at the same 12.2× in every condition, including with no time sync sent at all. The one thing ever
-  measured to make the client APPLY server data is the record-1 `0x08` state stream. So the first
-  authoritative effect is a change to what the state bundles carry, and that is also what makes
-  item 4's Rust trigger concrete: the first **state bundle the server composes itself**.
-  See [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) §3 and
+  measured to make the client APPLY server data is the record-1 `0x08` state stream. See
+  [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) §3 and
   `state_carrying_requests_have_no_reply_and_the_client_ignores_the_time_sync_20261014`.
+- **The server can now COMPOSE a state bundle, and the client applies it (2026-10-14).** The
+  local-player record's fragment layout was derived from the client, recomposition is asserted
+  byte-exact on every send, and a field override written by the server was accepted with 0 unmarshal
+  errors while the world rendered normally. `AZOTH_STATE_AUTHORITATIVE` (default 0) and
+  `AZOTH_STATE_OVERRIDE`. See `state_bundle_can_be_composed_from_fragments_and_the_client_accepts_it_20261014`.
+- **Next: make the composed bundle carry a field whose effect is MEASURABLE.** The override above
+  proves the machinery but its field's meaning is undecoded and nothing observable changed. The
+  position is the obvious target because the client reads it back through its own accessor
+  (`nw_getPlayerPosition`), so "the server composed a bundle" becomes "the server moved the player".
+  Locate the position field in the record-1 fragments first; do not guess an offset into a 7154-byte
+  payload.
 - The requests remain decoded, counted and shape-logged (`inbound-request-shape`) and stay in the
   coverage line's `no_replay_response` every session, so the remaining work is visible rather than
   guessed. Do not emit a plausible reply for a setter without evidence.
@@ -108,19 +117,22 @@ cable and no movement while the readout's `Time since last response` grows.
 
 - Start the workspace when the first behavior is ready to port, not as empty
   scaffolding.
-- **Assessed 2026-10-14: not yet, and the reason is specific.** The server today is a faithful
-  **replayer**, not an authoritative game server: the player moves because the CLIENT simulates
-  from the captured record-1 state we stream, so the server does not decide the player's position.
-  Rust exists here to reach 2,500 then 10,000 concurrent players, which is a **simulation** target
-  that cannot even be expressed while there is no authoritative simulation to port.
+- **Assessed 2026-10-14: not yet, and the reason is specific.** The server is still mostly a faithful
+  **replayer**: everything in the state stream except record 1 is forwarded captured bytes, and the
+  server does not yet decide the player's position. Rust exists here to reach 2,500 then 10,000
+  concurrent players, which is a **simulation** target that cannot be expressed while there is no
+  authoritative simulation to port. The trigger for that, though, has started to move: see below.
 - **What IS ready to port** (measured, fixtured, and stable): the wire codecs (`varint`, `vlq32`,
   `bundle`, `frame`, `lz4`) and the DTLS/Carrier/V3 connection path. They have round-trip tests
   against the captured corpus.
 - **What is NOT ready:** the replay pump and the response-scheduling policy, which are scaffolding
   that will be replaced once the server owns the world state; and anything in
   `services/world/src/azoth_world/rep.py` that exists to make a capture behave.
-- **Trigger:** the first behavior the server decides rather than replays — i.e. the first inbound
-  request it answers with its own authoritative effect (section 3). Port that, not the scaffolding.
+- **Trigger:** the first behavior the server decides rather than replays. **That trigger is now
+  partly met (2026-10-14):** the server composes the local player's own state bundle from fragments
+  instead of forwarding it, and the client applies it. What is still a replay is everything else in
+  the stream, and the composed record's fields are undecoded. Port once a composed bundle carries a
+  field the server DECIDES (the position is the candidate) rather than one it captured.
   A defensible narrower start, if Rust is wanted sooner: `server/crates/protocol` with the codecs
   and a byte-for-byte parity test against the Python encoders over the captured corpus. That is the
   only genuinely port-ready piece and it does not displace the dispatcher work.
