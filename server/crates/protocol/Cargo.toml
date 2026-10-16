@@ -1,0 +1,10 @@
+[package]
+name = "azoth-protocol"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+description = "Javelin wire codecs (prefix varint, type-0x08 state bundle) with parity tests against the Python implementation."
+
+[dependencies]
+# Intentionally empty: the codecs are the port-ready piece and must stay
+# dependency-free so the same crate can be embedded in the world server.
