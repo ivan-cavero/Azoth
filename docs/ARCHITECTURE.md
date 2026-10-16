@@ -37,7 +37,7 @@ flowchart LR
 | --- | --- |
 | `services/gateway/` | HTTP bootstrap and account/session endpoints currently required by the client |
 | `services/world/` | Current Python prototype for DTLS, REP, replication, and world rules |
-| `server/` | Future Rust workspace; create it when the first behavior is ready to port |
+| `server/` | Rust workspace; **started 2026-10-15** with `crates/protocol` (the wire codecs) |
 | `research/atlas/` | Observed wire contracts, schemas, errors, client functions, and debug levers |
 | `research/docs/` | Focused protocol and investigation references |
 | `reverse/tools/` and `reverse/probes/` | Static analysis and explicit live-client research |
@@ -75,6 +75,23 @@ must own code with a distinct reason to change. Keep Frida, Ghidra helpers,
 packet tooling, admin controls, and content authoring out of the `world` binary.
 The runtime gets bounded operational metrics and configuration, but no research
 or developer-only endpoints.
+
+**What exists as of 2026-10-15:** `crates/protocol` only, and only the part that
+this section already called port-ready — the prefix varint and the type-0x08
+StateBundle, ported from `services/world/src/azoth_world/javelin/` with **zero
+dependencies**. Its parity tests read a fixture generated FROM the Python codecs
+(`scripts/gen-protocol-fixture.py`, `--check` fails on drift), so the two
+implementations cannot diverge silently:
+
+```text
+cd server && cargo test -p azoth-protocol      # 12 tests: 8 unit + 4 parity
+python scripts/gen-protocol-fixture.py --check # the fixture still matches Python
+```
+
+`crates/protocol` deliberately does NOT contain the replay pump or the
+response-scheduling policy: those exist to make a capture behave and are what the
+authoritative server replaces. The next crate is written when a second
+authoritative behavior exists to give it a shape.
 
 Port incrementally. For each behavior, keep a captured or constructed fixture,
 the Python result, and the Rust result comparable at the wire boundary. Move a

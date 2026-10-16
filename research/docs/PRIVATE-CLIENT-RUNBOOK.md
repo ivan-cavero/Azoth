@@ -624,6 +624,313 @@ at 20 bytes, verified against the client's own reader `FUN_146a55240`). Result: 
 receiver bound, and the actor-id reply still fails with **1581** facet errors. The client
 never sends `0x2D6` either. Do not re-run it as a binding fix.
 
+### Server-authoritative position: what the levers are, and what is refuted (2026-10-15)
+
+| lever | default | what it does |
+| --- | --- | --- |
+| `AZOTH_STATE_POSITION` | empty | `x,y` **or** `file:<path>`. Rewrites the local player's position pair in any body that carries the capture's value. The `file:` form is **re-read on every send**, so a position can be changed mid-session with no restart. |
+| `AZOTH_STATE_POSITION_STREAM` | **0** | Re-sends the position-bearing spawn record (record_id 1, 48 fragments, 46393 B, replay seq `0x2a..0x6c`) on its own timer with a fresh replication counter. |
+| `AZOTH_STATE_POSITION_STREAM_PERIOD_S` | 1.0 | Its period. |
+| `AZOTH_STATE_AUTHORITATIVE` / `AZOTH_STATE_OVERRIDE` | 0 / empty | Recompose the record-1 bundle from its fragments (asserted byte-exact) and optionally override one field. |
+
+**Measured: the position is authoritative AT SPAWN only.** With `AZOTH_STATE_POSITION=9353.7227,2766.0681`
+the client's own accessor reported exactly that, **0.0000 u** from what the server wrote and 22.99 u from
+the capture's value.
+
+**Measured: streaming the spawn record does NOT move the player.** The stream sent the record 75+ times
+with 99 overrides and four positions rotated mid-session; the client's accessor read **577 samples over
+145 s and never moved**, with 0 `Failed to unmarshal`, 0 `ValidationError` and 0 transport errors. The
+spawn record is consumed **once** at spawn. Do not re-try this as a fix.
+
+**Where the position is instead.** The player's x,y is persistent replicated state on the entity (after
+W moved the player to `(9353.7227, 2766.062)` the accessor reported exactly that), and the streamed
+7154-byte record-1 bundles do **not** contain the position pair at all. So the state stream is a
+**prerequisite** for the client simulating the player, not the carrier of the position. The next
+question is the consumer behind `InstallRegistrationHook<ReceivePlayerPositionClientMsg,
+IPositionReceiver>` / `RegisterInterfaceDecoupler<IPositionReceiver>`; the interface descriptor is the
+vtable at `0x1482ea4e8` (slot `+0x20` = `0x140294860`, a `ret 0` default; slot `+0x28` = the installer
+`0x143f983d0`, which stamps implementation vtable `0x1482eb160`).
+
+### Two tools that made the HUD cable look unmeasurable (fixed 2026-10-15)
+- **`scripts/shot.py` selected the window by TITLE only** and printed `New World window not found`
+  while the client was in the world. It now prefers `winwindow.find_game_window()`
+  (process-image-name), the same finder `private-run.py` uses, with the title lookup as a fallback.
+- **`scripts/watch-indicator.py` used `os.system` with a quoted command line.** `cmd.exe` strips the
+  leading/trailing quote of a `/c` command that starts with a quote, so shot.py never ran and every
+  sample said `capture is STALE (shot.py failed)`. It now uses `subprocess.run` with a real argv.
+
+Both bugs presented as "the client is broken". When the cable instrument reports nothing, run
+`python scripts/shot.py` by hand first.
+
+### The client's own DEBUG message surface, and how to test one
+
+Measured 2026-10-16. The client registers a large debug surface for its own components; 23
+`ActionListComponentServerFacet_*` messages and 4 `ActionListComponentClientFacet_*` ones were located
+by GUID in `.rdata`. Two of them answer open questions directly:
+
+| message | wire | GUID | why it matters |
+| --- | --- | --- | --- |
+| `DEBUG_SetDrawLastServerPos` | `0x139f` (5023) | `6CBD5952-…` | the client would **draw where the server says the player is** — the instrument for server-authoritative movement |
+| `DEBUG_SetInputTimeOut` | `0xa45` (2629) | `c633055a-…` | the server can **set the client's input timeout**, which IS the amber/red cable threshold |
+
+**Send one with the generic lever.** `AZOTH_DEBUG_MSG_TYPE` takes any wire type; the body and the
+container are LISTS, cycled one per send, so a single run can bisect both:
+
+```powershell
+$env:AZOTH_DEBUG_MSG_TYPE      = '0x139f'
+$env:AZOTH_DEBUG_MSG_BODY      = '00' * 20      # comma-separated hex; '' or '-' means an empty body
+$env:AZOTH_DEBUG_MSG_CONTAINER = 'server,client' # cycled: capture form, then client form
+$env:AZOTH_DEBUG_MSG_TARGET    = 'actor'         # actor | captured | <32 hex>
+$env:AZOTH_DEBUG_MSG_PERIOD_S  = '2.5'           # 0 = send exactly once
+$env:AZOTH_DEBUG_MSG_DELAY_S   = '8'             # wait for the replay to drain first
+```
+
+Each send logs `{"event": "debug-msg", "type", "body", "target", "container", "channel",
+"reliable", "size", "n"}`, so the server side of an A/B is self-documenting.
+
+**How to read the result.** A message the client does not know is dropped silently; a message it DOES
+know but cannot parse makes it log **the GUID**:
+
+```
+MessageEnvelope: Failed to unmarshal MessageEnvelope::m_message.
+  {"unmarshalError":"BufferOverrun","messageTypeId":"6CBD595281A74AA6905279F0B2783DAA"}
+```
+
+That is the client naming its own registry entry, which is how the direction of
+`DEBUG_SetDrawLastServerPos` was proved to be **server→client** (measured 2026-10-16).
+**`InstallRegistrationHook` does NOT tell you the direction** — it exists for messages in BOTH
+directions, so measure it.
+
+**Bounding an unknown body.** Cycle bodies of increasing size in one run and read which sizes error:
+for `DEBUG_SetDrawLastServerPos`, 8/12/16 bytes gave `BufferOverrun`/`BufferUnderrun` and **20 bytes and
+up gave zero errors**, so the layout is ≥~17–20 bytes. A wrong body size is a log line, not a crash.
+
+### Reading a message's payload off its DELIVERY, without decoding the wire reader
+
+Measured 2026-10-16, and it is the fast path for any `ClientMessages` type. Each type has a `.rdata`
+descriptor laid out as `[14 function pointers][Name\0pad\0{GUID}]`, and the table's SHAPE is identical
+across types — so dumping the pointers immediately before a type's name string and comparing two types
+aligns the slots:
+
+| slot (offset from the name) | what it holds |
+| --- | --- |
+| 0 / 1 | metadata (slot 0 jumps to `0x14487ad00`, slot 1 is `GetTypeName`) |
+| 7, 8, 9, 10 (`-0x38 … -0x20`) | **shared** generic machinery (`0x1407c4340`, `0x1461ab990`, `0x146188210`, `0x1414bd8c0`) |
+| **11** (`-0x18`) | **the DELIVERY — per type** |
+| 12, 13 (`-0x10`, `-0x08`) | per type |
+
+**A delivery is recognisable** because it calls the RMI dispatcher `0x1416bcba0`, reads
+`target->vtable[0x20]`, calls that with the interface GUID from `0x14484acd0` to QueryInterface the
+facet, and then reads **one field** out of the message and calls **one setter**. That field IS the
+message's payload:
+
+```asm
+; DEBUG_SetDrawLastServerPos, delivery 0x144876e60
+call 0x1416bcba0                     ; dispatch -> target
+mov  rbx, [rax+0x20]                 ; QueryInterface
+call 0x14484acd0                     ;   with the interface GUID
+call rbx                             ; -> facet
+movzx edx, byte ptr [rsi + 0x20]     ; <=== the payload: a BYTE at message+0x20
+call 0x144881e00                     ; facet->SetDrawLastServerPos(byte)
+```
+
+**Check the setter before trusting the message.** `DEBUG_SetInputTimeOut`'s delivery reads a dword the
+same way, but calls `0x140294860`, which is **`ret 0`** — the framework's no-op default. The message is
+registered and dispatchable and changes nothing.
+
+**And check what the draw needs.** `DEBUG_SetDrawLastServerPos` takes only the byte; the position it
+draws comes from state set elsewhere. Enabling it on a client that has never received a server position
+**crashes the client**: measured 2026-10-16, `Faulting module: NewWorld.exe` at offset `0x61acbec`
+(`mov rax,[rcx]`), twice, reproducibly. Use it only after a position path works.
+
+### Server-authoritative movement in this build: read, validate, detect desync
+
+Measured and implemented 2026-10-16. The complete shape, because the negative half is as load-bearing
+as the positive one:
+
+| step | what | status |
+| --- | --- | --- |
+| OBSERVE | `javelin/alc.py` reads the client's own position from channel 1 (wire `0x635`) | **works** — 0.54 u standing / 0.81 u walking vs the client's accessor |
+| VALIDATE | `movement.MovementValidator`: windowed speed + dt-independent teleport | **works** — 0 flags over 2404 samples |
+| DETECT DESYNC | `movement.DesyncTracker`: client's claim vs the server's belief | **works** — 0 at rest (offset 4.03 u), 143 reports past 25 u |
+| CORRECT | push a position into the client | **unavailable — four measurements** |
+
+**Why CORRECT is unavailable (do not re-litigate any of these):**
+
+| attempt | result |
+| --- | --- |
+| full 48-fragment spawn record, position changed | accepted, ignored (577 samples) |
+| minimal 1-fragment bundle | accepted, ignored (358 samples) |
+| delta-shaped 9-fragment record, **with the player 23 u then 55 u desynced** | accepted, ignored (266 sends) |
+| `ReceivePlayerPositionClientMsg` → `IPositionReceiver` | the method is `0x140294860` = **`ret 0`** |
+
+**ALC = the client is authoritative over its own position.** So "server-authoritative movement" here
+means the server reads, validates and detects; a deployment that wants enforcement uses those verdicts
+to escalate (kick, re-send the spawn record, flag for review) — it cannot move the player.
+
+```powershell
+# defaults; AZOTH_MOVEMENT_VALIDATION=0 silences the whole thing
+$env:AZOTH_MOVEMENT_MAX_SPEED      = '30'    # u/s, windowed
+$env:AZOTH_MOVEMENT_MAX_TELEPORT   = '50'    # u between consecutive reports
+$env:AZOTH_MOVEMENT_SETTLE_S       = '60'    # excludes the measured ~57 s load transition
+$env:AZOTH_MOVEMENT_MIN_DT_S       = '0.02'  # a burst is not a sample interval
+$env:AZOTH_MOVEMENT_WINDOW_S       = '0.5'   # speed is distance over >= this
+$env:AZOTH_MOVEMENT_DESYNC_U       = '25'    # ~10x the measured 2-3.7 u instrument offset
+$env:AZOTH_MOVEMENT_STATS_LOG_S    = '30'
+```
+
+Log lines to read a session: `alc-position` (1/s), `movement-stats`, `movement-flag`, `desync-stats`,
+`movement-desync`.
+
+**Two caveats, both measured.** `SETTLE_S=60` means speed is not validated in the first minute of a
+session (the load transition yields genuine 40-73 u/s for ~57 s); desync detection is unaffected. And
+the desync threshold **cannot be tight yet** because the two positions are different measurements with a
+2-3.7 u offset that VARIES between sessions — `max_deviation_u` is logged every 30 s so a tighter number
+can be chosen from data.
+
+### The amber cable: which state-stream config clears it
+
+Measured 2026-10-16, and the fix is a single value. The HUD indicator has three states and the middle
+one is easy to miss: it shows the grey/white disconnection glyph plus an **amber warning triangle**.
+The classifier in `scripts/watch-indicator.py` prints `YELLOW (warning, UNVALIDATED rule - check the
+crop)` for it, oscillating with `absent` on the SAME icon, so **crop the box and look** before
+trusting a sample.
+
+| `AZOTH_REPLAY_STATE_STREAM_ONLY_RECORD` | indicator |
+| --- | --- |
+| **-1** — every captured bundle (the local-player record among them at 4/s) | **YELLOW** |
+| **1** — the record-1 bundles only (**now the default**) | **ABSENT** |
+
+The reason is that the stamp ages unless the local player's own record keeps arriving: floor `0x94`
+alone refreshes it 12 times in 140 s (RED → YELLOW), while record-1-only refreshes it ~225 times and
+the icon disappears. Filtering the other bundles costs nothing real — they are a 1/s loop of
+**captured** state for **other** entities, which is also why those entities appear frozen. Movement is
+unaffected (verified probe-free: the server reads the position from channel 1).
+
+### The ALC hot path: a `round(None)` there drops the peer
+
+Measured 2026-10-16, and it cost two sessions before it was found. `_note_alc_input` runs inside the
+datagram loop, and `MovementValidator.last_speed` is `None` until the **second** sample, so this:
+
+```python
+"speed": round(self.movement.last_speed, 3) if self.movement else None,   # round(None) -> TypeError
+```
+
+raised on the **first** sample of every session. The exception escaped `on_app_data`, the `feed-error`
+handler **dropped the peer**, and the client logged `transportError 4` + `Disconnected from REP` about
+**24 s after spawn**. Same failure class as the 2026-10-11 `IndexError` in `parse_datagram`.
+
+**Two lessons, both cheap to apply:**
+
+- read through a LOCAL when a block can set the object to `None` (`validator = self.movement`), because
+a later line in the same call reading `self.movement.<field>` raises again;
+- normalise a possibly-`None` value (`round(x, 3) if x is not None else None`) BEFORE the log call.
+
+**And the diagnostic that found it in minutes:** run the feature OFF. `AZOTH_MOVEMENT_VALIDATION=0`
+survived where the feature-on runs died, and the world log's own `feed-error` event carried the
+traceback naming the exact line — which is why that traceback is logged. **All 209 parser-level tests
+were green while every session died**: the parser was fine, the WIRING was broken.
+
+### The cable stamp, with no probe at all
+The client's debug overlay block prints `r_profiler`, then `RTT: …`, `Input Latency: … Rollback Count =
+…` and **`Time since last response: %s`** — that last value is the same `+0xAA8` stamp the HUD cable is
+an age of. Enabling `r_profiler` in the client console therefore reads the cable **on screen**, with no
+Frida attach. This matters because the only other instrument (`frida-alc-stamp.py`) crashes the client,
+and a position probe disturbs it too: a `frida-player-position` attach on 2026-10-16 crashed the client
+three minutes later with `frida-agent.dll_unloaded` at `0x9c7e0`.
+
+**Operating rule: do not run any probe while the user is watching the screen.**
+
+### The server can read the client's own position (channel 1, wire 0x635)
+
+Measured 2026-10-16. The client streams its own world position ~20 times a second, and the server now
+parses it. This is the first thing the server can *observe* about where the player is rather than
+decide.
+
+**Layout.** Container `[u32 BE crc32][u32 BE len][16-byte actor target][00 01][varint type]`, so the
+body starts at offset 28. The body then begins with another 16-byte local id — the server facet the
+client is calling, `fbde4b9a600d428fbf85314bbc4a951a` in the sessions measured — followed by a header
+and a variable number of buffered input entries whose grammar is **not** decoded.
+
+**The anchor.** Every body that carries a position contains the 4-byte constant `3d 4c cc cd`
+(= **0.05f**, matching the client's own `javelin.alc-interpolation.normal-movement-quantization`)
+**exactly once**, and the pair is **always 12 bytes after it**, as big-endian float32. Over 6 000 live
+bodies the anchor count was 1..1 wherever it appeared, and 0 in the short forms (65-126 B in one
+session, 39-100 B in another), which carry no position. The extractor anchors on that constant and
+then range-checks the pair, failing closed rather than returning a plausible-looking lie.
+
+**Accuracy against the client's own accessor** (`frida-player-position`, the `nw_getPlayerPosition`
+instrument):
+
+| measure | value |
+| --- | --- |
+| offline, 6 559 paired samples | median **0.54 u** standing, **0.81 u** walking (offset removed) |
+| live, server logging + probe attached | 4.03 u raw → **0.73 u** after removing the median offset |
+| direction of movement | matches to **0.3°** (W −67.2° vs −67.5°, S 113.0° vs 113.0°) |
+
+**The offset is geometric, not a lag.** A lag sweep over −0.3…+2.0 s left the median flat, so the two
+values are the same motion sampled at different reference points on the character (~2–3.7 u, and the
+constant differs between sessions).
+
+**Levers.** `AZOTH_ALC_POSITION` (default **1**) and `AZOTH_ALC_POSITION_LOG_S` (default 1.0). The log
+line is `{"event": "alc-position", "x": …, "y": …, "body_len": …, "anchor_offset": …, "n": …}`;
+the parsed value is kept on the session as `alc_position` either way, so a movement check can use the
+newest sample.
+
+```text
+# a session's own log then answers "where does the client think it is?"
+grep -o '"event": "alc-position"[^}]*' .azoth/logs/world.log | tail -5
+```
+
+**Why it matters.** It unblocks server-side movement validation (anti-teleport, speed clamp): the
+server can compare the position the client claims against its own model. Still needed: calibrate the
+reference offset and pick a speed bound from measurement, not convention.
+
+### Deriving a record's fragment boundaries without hooking the varint reader
+
+`reverse/probes/client/frida-record-boundaries.py` (new 2026-10-15) answers the same question as
+`frida-fragment-grammar.py` — where does each fragment of a record start — but hooks **only** the two
+per-record readers (`FUN_146af20d0`, `FUN_146af2340`) and parses the first two prefix varints from the
+fragment bytes itself. That matters because the older probe also hooks `FUN_14087b5c0`, the shared
+varint reader, which runs for every varint read in the process and is the hot hook the method notes
+warn about; the one attempt to use it at character select ended with the client process gone during
+the Play click.
+
+It reports, per record, the fragment spans **and the record's own byte length**, plus `tiles` —
+whether `sum(span) + first_offset == record_length`. That is the check an opaque-remainder model can
+never fail and a real boundary model can, so it is the one worth asserting.
+
+```text
+python az.py probe frida-record-boundaries --record 1 --timeout 240   # measurement (kills the client on exit)
+python az.py probe frida-record-boundaries --record 1 --keep-process  # leave the client running
+```
+
+**It has to be attached at CHARACTER SELECT for the spawn record**, because that record is delivered
+once, during the replay, and never again. Attached mid-session it can only see the record-1 bundles
+the state stream re-sends — which is still a useful self-test, since their boundaries are already
+known (`[2, 60, 3955, 4295, 4301, 4498, 5335, 5386, 7125]`).
+
+### A soak must be probe-free, and a marker-count watcher cannot tell "clean" from "dead"
+
+Measured 2026-10-15, and it produced a wrong result that had to be retracted. `frida-player-position`
+— like most probes — ends through `safe_shutdown(..., kill=not args.keep_process)`, i.e. it **kills the
+client by default** (deliberately: every world A/B wants a fresh `NewWorld.exe`, and a bare
+`session.detach()` has its own execute-after-unload crash). A soak that attaches a probe therefore
+ends when the probe's `--timeout` expires, which is easy to mistake for a client failure.
+
+Worse, a watcher that only counts markers in `Game.log` **cannot see it**: the counts simply stop
+changing, and "0 disconnects" looks identical whether the session is healthy or the process is gone.
+The first reading of the 2026-10-15 run claimed "past 30 minutes" on exactly that basis; the session
+had in fact been killed by the probe at 24 min 8 s (no faulting event in the Windows Application log).
+
+Rules that follow:
+
+- a **soak** run gets no probe at all, or a probe started with `--keep-process`;
+- a soak watcher records the client's **PID** as well as the markers, so "the counts stopped moving"
+  and "the client exited" are distinguishable;
+- before reading a session death as client behaviour, check the Windows Application log for a
+  faulting event and check whether a probe was attached.
+
 ### Measuring the transform: use the client's own accessor
 
 The client ships `nw_getPlayerPosition` ("print player position to the screen"). Its handler

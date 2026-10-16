@@ -1,5 +1,615 @@
 # Live status
 
+## 2026-10-16 (cont. 7) — **CLOSED: server-authoritative movement = read, validate, detect desync**
+
+**The desync topic is finished, and the shape of server authority over movement in this build is now
+measured end to end rather than assumed.**
+
+### The chain
+
+| step | status |
+| --- | --- |
+| **1. OBSERVE** | **works.** The client streams its own position ~20x/s on channel 1 (wire `0x635`); `javelin/alc.py` reads it. Residual vs the client's own accessor: **0.54 u standing / 0.81 u walking**. |
+| **2. VALIDATE** | **works.** `MovementValidator`: speed over a 0.5 s window + a dt-independent teleport check. Validated: 0 flags over 2404 samples, `max_speed_seen 9.226 u/s`. |
+| **3. DETECT DESYNC** | **works.** `DesyncTracker` compares the client's claim against the position the server believes (the spawn override, else the captured spawn value). Validated: **0 reports at rest** (`max_deviation_u 4.031` = the instrument offset), 0 over a 19 u walk, then **143 reports / max 28.057 u** once the player passed 25 u. |
+| **4. CORRECT** | **NOT AVAILABLE — measured, not assumed.** All three shapes of the player's own record are dead for imposing a position, and the message a position would arrive through is a **`ret 0` stub**. |
+
+### Why step 4 is closed (all four measurements)
+
+| attempt | result |
+| --- | --- |
+| full 48-fragment spawn record, position changed | accepted, ignored — 577 samples |
+| minimal 1-fragment bundle (position fragment only) | accepted, ignored — 358 samples |
+| delta-shaped 9-fragment record (what the client receives ~4/s) | accepted, ignored — **266 sends, tested with the player 23 u then 55 u DESYNCED** |
+| `ReceivePlayerPositionClientMsg` → `IPositionReceiver` | the interface's method is `0x140294860` = **`ret 0`** (vtable `0x1482eb160` slot `+0x40`) |
+
+**So ALC means what it says: the CLIENT is authoritative over its own position, and the server reads,
+validates and detects - it does not drive.** The honest result of "server-authoritative movement" here
+is steps 1-3 plus a documented, measured reason why 4 is unavailable, and that is a better outcome than
+a replay that only looks authoritative.
+
+### Operational levers
+
+```
+AZOTH_MOVEMENT_VALIDATION=1      # master switch (default on)
+AZOTH_MOVEMENT_STATS_LOG_S=30    # cadence of movement-stats / desync-stats
+AZOTH_MOVEMENT_MAX_SPEED=30      # u/s, windowed
+AZOTH_MOVEMENT_MAX_TELEPORT=50   # u between consecutive reports
+AZOTH_MOVEMENT_SETTLE_S=60       # excludes the measured ~57 s load transition
+AZOTH_MOVEMENT_MIN_DT_S=0.02     # a burst is not a sample interval
+AZOTH_MOVEMENT_WINDOW_S=0.5      # speed is distance over >= this
+AZOTH_MOVEMENT_DESYNC_U=25       # ~10x the measured 2-3.7 u instrument offset
+```
+
+Log lines: `alc-position` (1/s, the parsed position), `movement-stats`, `movement-flag`,
+`desync-stats`, `movement-desync`.
+
+### Two honest caveats, both measured
+
+- `SETTLE_S=60` means movement in the **first minute** of a session is not speed-validated (the load
+transition produces genuine 40-73 u/s samples for ~57 s). Desync detection is NOT affected — it works
+from the first sample. It should become a real "loading finished" signal instead of a timer.
+- The desync **threshold cannot be tight yet** because the two positions are different measurements
+with a 2-3.7 u offset that VARIES between sessions. `max_deviation_u` is logged continuously so a
+tighter number can be chosen from data once that offset is calibrated.
+
+**Validation:** 229 world tests OK, 24 gateway OK, 12 Rust OK, fixture check OK. Atlas:
+`server_authoritative_movement_read_validate_detect_desync_20261016`.
+
+## 2026-10-16 (later, cont. 6) — the DELTA-shaped variant tested WITH DESYNC: also ignored. All three shapes closed.
+
+**The idea was right and it is now measured: the third and last record-1 shape, tested with the
+confound removed.**
+
+**The method point first, because it is the valuable part.** Testing at REST cannot distinguish
+"applied" from "ignored" when the server asserts the value the client already has. So the player was
+walked away first:
+
+| step | value |
+| --- | --- |
+| client at rest | `(9341.4414, 2790.1104)` |
+| after holding W 7 s | `(9351.6084, 2769.4785)` → **23 u of desync** |
+| bundle was asserting (spawn value) | `(9343.6416, 2786.7327)` → **did NOT snap back** (108 sends, 4 identical samples) |
+| asserted value changed to | `(9300.0, 2750.0)`, ~55 u away → **183 sends, client stayed put 18+ s** |
+
+**Total 266 delta-position sends, and the client ACCEPTED every one** — 0 `Failed to unmarshal`, 0
+`ValidationError`, 0 `BufferOverrun`/`BufferUnderrun`; the only `RMIDispatch` line is the known spawn−3 ms
+`GridTracking` artifact. So the client **parses** a server-composed 9-fragment record-1 delta whose
+position fragment is the spawn's 85-byte one, and **does not act on the position**.
+
+**All three record-1 shapes are therefore closed for imposing a position:**
+
+| shape | result |
+| --- | --- |
+| full 48-fragment spawn record, position changed | accepted, ignored (577 samples) |
+| minimal 1-fragment bundle (position fragment only) | accepted, ignored (358 samples) |
+| **delta-shaped 9-fragment record (this)** | **accepted, ignored WITH desync present** |
+
+That is exactly what the ALC model predicts: **the client is authoritative over its own position, and
+the server validates.**
+
+**A real bug in the composition, found and fixed on the way.** The delta copies are **not
+byte-identical in length** — seq `0x73`'s payload is 7153 and `0x98`'s is 7154, because the position
+fragment is **48 bytes in one and 49 in the other** — so one boundary set describes `0x98/0x9a/0x9c/0x9e`
+and slices `0x73` **one byte late**, silently **dropping a fragment's leading key byte**. And a
+parse→encode round-trip **cannot** catch that, because it is the identity for any bytes. What catches it
+is comparing the decoded **keys and types** against the ones the client reported (the key→type binding is
+1:1 and measured): a mis-sliced fragment reports `key=3857/type=2` where the client reported
+`key=22/type=3857`. The composer now refuses a body its boundaries do not describe, and the arming code
+tries each captured copy and keeps the first that composes (it chose `0x98` of 5 candidates).
+
+**And one honest trade-off**: `SETTLE_S=60` means movement in the **first minute** of a session is not
+validated — the 7 s walk above happened 52 s after the first sample and was correctly excluded by the
+window (which exists because the load transition produces genuine 40–73 u/s samples for ~57 s). That
+should become a real "loading finished" signal instead of a timer.
+
+**Validation:** 223 world tests OK (4 new for the delta composer, including the misalignment refusal),
+24 gateway OK, 12 Rust OK. Atlas:
+`the_delta_shaped_position_bundle_is_accepted_and_ignored_with_desync_present_20261016`,
+`the_settle_window_hides_an_early_walk_20261016`.
+
+## 2026-10-16 (later, cont. 5) — the AMBER CABLE was the default state-stream config; fixed
+
+**The user reported a yellow cable with a warning. It is real, and the cause is a default that
+contradicted this project's own documented fix.**
+
+Confirmed real first: the classifier itself prints `YELLOW (warning, UNVALIDATED rule - check the
+crop)`, so I cropped the indicator box and looked at it — it is the grey/white disconnection glyph in a
+translucent box with an **amber warning triangle**, i.e. the icon's amber state
+(`age = clock() - *(alc+0xAA8)` between the ~2 s amber and ~15 s red thresholds).
+
+The cause, measured side by side on this build:
+
+| `AZOTH_REPLAY_STATE_STREAM_ONLY_RECORD` | indicator |
+| --- | --- |
+| **-1** — all 26 captured bundles, the local-player record among them at 4/s (**the old default**) | **YELLOW** + warning triangle |
+| **1** — the four record-1 bundles only | **ABSENT** on 11 consecutive samples over 75 s |
+
+That matches the project's own 2026-10-13 measurement, which recorded floor `0x94` alone as refreshing
+the stamp only 12 times in 140 s (RED → YELLOW) and which names `=1` as part of the fix. **The defect
+was the default**: the code defaulted to `-1` — the yellow configuration — while `docs/ROADMAP.md`
+recorded the connection gate as MET, and that MET measurement had been taken with `=1`.
+
+**Fixed: `STATE_STREAM_ONLY_RECORD` now defaults to 1.** The trade-off is explicit: every
+non-record-1 bundle in the stream is a 1/s loop of **captured** state for **other** entities
+(record ids 70/72/75/22/29/30 …) — a frozen snapshot, which is also why other players appear standing
+still or animating in place. Filtering them costs nothing real and stops the amber. **Movement survives
+the fix**, verified **without a probe** through the server's own ALC reader: holding keys moved the
+client's reported position ~24–32 u.
+
+### And three artifacts in my own validator, each excluded by a measured number
+
+The first version flagged 17–24 times in a session that was walking normally. All were artifacts:
+
+| artifact | measured | exclusion |
+| --- | --- | --- |
+| **world-load transition** | genuine 40–73 u/s samples for **~57 s** after the stream armed | `SETTLE_S=60.0` (was 10 s) |
+| **bursts** | two reports **1.4 ms** apart → a 0.28 u step reads as **204 u/s** | `MIN_DT_S=0.02`; no speed below it, teleport check still runs |
+| **aliasing** | **33–67 u/s while merely walking** (steps 1.6–2.8 u over 25–59 ms) because the stream is ~20/s but the client's position ticks slower | `SPEED_WINDOW_S=0.5` — speed is now distance over ≥0.5 s, which is what a real server does |
+
+**Validated live with the defaults and no env overrides:** cable **absent**, **0 `movement-flag` over
+2404 samples**, `max_speed_seen 9.226 u/s` (against 67.7 per-report), `max_distance_seen 3.843 u`,
+0 transportError, 0 disconnects, 0 timeouts, 0 unmarshal errors.
+
+**Validation:** 219 world tests OK (10 new in `test_movement.py`, including one that reproduces the
+aliasing pattern so the false positive cannot come back), 24 gateway OK, 12 Rust OK. Atlas:
+`the_amber_cable_is_the_all_bundles_state_stream_config_20261016`,
+`movement_validator_artifacts_and_their_measured_exclusions_20261016`.
+
+**Method note:** the classifier says "check the crop" and it means it — it oscillated between YELLOW
+and absent on the SAME icon. Looking at the cropped screenshot is what made this answerable, and a
+one-variable A/B plus the server's own `feed-error` traceback is what separated my bugs from the
+existing state.
+
+## 2026-10-16 (later, cont. 4) — the model is settled, and a bug of MINE cost two sessions
+
+### The position model, settled by a full scan of the capture
+
+| | |
+| --- | --- |
+| state bundles carrying a position pair | **71 of 78** — the stream transports positions constantly, as AOI replicated state |
+| record-1 (local player) SPAWN copies | 48 fragments, **7 position pairs** |
+| record-1 DELTA copies (0x73/0x98/0x9a/0x9c/0x9e) | 9 fragments, **ZERO position pairs** |
+
+So the local player's position **is** replicated state, sent **only when it changes** — and because the
+capture's author stood still there is **no example of a server position correction anywhere in the
+record**. Combined with the three measured dead ends (the 4216 delivery's method is a `ret 0` stub;
+the full spawn record re-sent with a changed position is accepted and ignored; a minimal 1-fragment
+record-1 bundle likewise), the model is **ALC: the CLIENT is authoritative over its own position, and
+the server validates/corrects.** "Server-authoritative movement" for this game therefore means the
+server **reads**, **validates** and corrects — not that it drives the client's position.
+
+### Movement validation implemented and validated (roadmap B5)
+
+`services/world/src/azoth_world/movement.py` (`MovementValidator`) over the position the client
+reports on channel 1, wired into `rep.py` with `AZOTH_MOVEMENT_VALIDATION` (default on),
+`AZOTH_MOVEMENT_STATS_LOG_S` (30), plus `AZOTH_MOVEMENT_MAX_SPEED` (30 u/s),
+`AZOTH_MOVEMENT_MAX_TELEPORT` (50 u) and `AZOTH_MOVEMENT_SETTLE_S` (10 s). Bounds are **loose on
+purpose** and every verdict is **logged, not acted on**: the point is to measure real movement before
+choosing a policy. **Validated live: 0 transportError, 0 disconnects, 3208 samples, 0 false
+positives, max_speed_seen 14.64 u/s** (matching the independent 14.474 measurement), and the one-time
+~18 u spawn transition correctly excluded by the settle window (max single-sample distance 0.335 u).
+
+### A bug of mine dropped every session at ~24 s, and how it was caught
+
+I logged `round(self.movement.last_speed, 3) if self.movement else None` in the ALC hot path.
+`last_speed` is `None` until the **second** sample, so `round(None, 3)` raised `TypeError`, the
+exception escaped `on_app_data`, the session's **feed-error handler dropped the peer**, and the client
+reported `transportError 4` + `Disconnected from REP` **~24 s after spawn — twice in a row**. Same
+failure class as the 2026-10-11 `IndexError` that cost a session.
+
+**Caught by**: an A/B with the feature disabled **survived** while the feature-on runs died, and the
+world log's own `feed-error` event carried the traceback naming the exact line — which exists because
+of an earlier decision to log a traceback on a repeating error.
+
+**Worth remembering:** all **209 parser-level tests were GREEN** while every session died. The parser
+was fine; the **wiring** was broken. The fix reads through a local (`validator = self.movement`, since
+the block can set `self.movement = None` and a later line would raise again) and normalises the value
+before the log call, with a new `TestSessionAlcWiring` suite that feeds a real channel-1 container
+through `_note_alc_input`, including the first-sample case that was broken.
+
+**Validation:** 214 world tests OK (5 new), 24 gateway OK, 12 Rust OK, fixture check OK. Atlas:
+`the_local_players_position_is_replicated_state_sent_only_when_it_changes_20261016`,
+`round_none_in_the_alc_hot_path_dropped_every_session_20261016`.
+
+**Operational note:** `.azoth/logs/world.log` reached **1.1 GB** and `read_text()` now raises
+MemoryError — analyses must stream it. It was rotated (service stopped first) to
+`.azoth/night/pre-rotation-world.log`.
+
+## 2026-10-16 (later, cont. 3) — **the position cannot be IMPOSED: `IPositionReceiver`'s method is a `ret 0` stub**
+
+**This is the decisive negative for server-authority-over-position, and it closes the 4216 route in this
+build.** The chain, all first-hand:
+
+1. The delivery `FUN_143f97bf0` does `target = dispatch(msg)` →
+   `receiver = target->vtable[0x20](target, IPositionReceiver_GUID)` → if non-null,
+   **`receiver->vtable[0x40](receiver, key, &pos)`**.
+2. The installer `0x143f983d0` (reached as slot `+0x28` of the family vtable `0x1482ea4e8`, and the
+   **only** reference to it in the whole image) stamps **`0x1482eb160`** onto the object.
+3. `0x1482eb160`'s slot `+0x20` is `0x143fadd00`, which the project already established is the
+   QueryInterface that **returns `this` on a GUID match**.
+4. So `receiver == target`, and the delivery calls **`target->vtable[0x40]`**.
+5. `0x1482eb160 + 0x40` = **`0x140294860`** = **`ret 0`**. Slots `+0x40`, `+0x48`, `+0x50`, `+0x58`,
+   `+0x140` are **all** that same stub, while `+0x60` onward are real functions — what a class that
+   declares an interface without implementing it looks like.
+
+**So even with a perfect address, a bound object and a successful QueryInterface, the position setter
+does nothing.** That explains *every* failed 4216 attempt in the record — the 0/601 dispatch failures
+**and** the 642/642-dispatch-with-no-effect run — with one cause. The framework installs a no-op
+implementation so the QI succeeds and the call is harmless instead of crashing, which is what a feature
+that is not wired up in this build looks like.
+
+**What survives, and it is real:** the server can **OBSERVE** the position — the client streams its own
+on channel 1 (wire `0x635`) and `javelin/alc.py` parses it, residual **0.54 u standing / 0.81 u
+walking** against the client's own accessor. The honest state is therefore: **the server can read where
+the player is, and cannot yet impose it through this interface.**
+
+**`DEBUG_SetACKTimeOut` is also a no-op (inferred).** Its per-type descriptor's slot 11 is
+`0x14481a4e0`, the **same delivery** as `DEBUG_SetInputTimeOut`, and that delivery reads a u32 and calls
+`0x140294860` = `ret 0`. Stated as an inference from the shared delivery, not separately exercised.
+Consequence: **neither ALC timeout debug message can move the client's input/ACK timeouts**, so the
+amber/red cable thresholds cannot be driven from the server this way. Those timeouts are client cvars
+(`javelin.alc-server-timeout-for-input` / `-for-ui` / `-for-ui-high`).
+
+**Validation:** 201 world tests OK, 24 gateway OK, 12 Rust OK, fixture check OK. Atlas:
+`ipositionreceiver_position_method_is_a_ret0_stub_20261016`,
+`debug_setacktimeout_shares_the_stub_delivery_20261016`. Session left clean with the lever off.
+
+## 2026-10-16 (later, cont. 2) — both DEBUG messages decoded: one toggles a draw that CRASHES, the other is a no-op
+
+**The per-type descriptor table is now readable, and it is the map for any message.** Each
+`ClientMessages` type has a `.rdata` descriptor `[14 function pointers][Name\0pad\0{GUID}]` whose SHAPE
+is identical across types, so comparing two types aligns the slots: `name-0x38/-0x30/-0x28/-0x20` are
+SHARED generic functions, while `name-0x18` (**slot 11**), `-0x10`, `-0x08` are PER-TYPE. **Slot 11 is
+the delivery**, and it is recognisable because it calls the RMI dispatcher `0x1416bcba0`, reads
+`target->vtable[0x20]`, QueryInterfaces with the GUID from `0x14484acd0`, then reads ONE field and calls
+ONE setter. **A message's payload can therefore be read off its delivery without decoding the wire
+reader.**
+
+**`DEBUG_SetDrawLastServerPos` (5023) — payload is ONE BYTE at `message+0x20`, and enabling it CRASHES
+the client.**
+
+```asm
+144876e6d  call 0x1416bcba0          ; dispatch(target) -> target
+144876e82  mov  rbx, [rax+0x20]       ; vtable[0x20] = QueryInterface
+144876e91  call rbx                  ; QI(GUID) -> facet
+144876e9d  movzx edx, byte ptr [rsi+0x20]   ; <=== the field
+144876ea4  call 0x144881e00          ; facet->SetDrawLastServerPos(byte)  (a REAL setter)
+```
+
+So it is an enable/disable toggle that carries **no position of its own** — the draw must read the last
+position the client received from the server. Measured live (40-byte bodies, byte `0x20`=1, client
+container, target = actor id, every 2 s): the client accepted **every one** — 0 unmarshal errors and **0
+`RMIDispatch` errors for this type, so the dispatch and the QueryInterface both succeeded and the setter
+ran** — and then **crashed, twice, reproducibly**:
+
+| | |
+| --- | --- |
+| faulting module | **`NewWorld.exe`** (the client's own code, not Frida) |
+| fault offset | **`0x61acbec`** → VA `0x1461acbec` |
+| instruction | `mov rax, qword ptr [rcx]`, right after `mov rcx,[rdi+4]` / `cmp rcx,[rax]` / `je` |
+| when | 19:27:45 and 19:32:27 (two separate runs, same offset) |
+
+That is a **new crash signature** (the known ones are `frida-agent.dll_unloaded` +0x9c7e0, `ntdll`
++0x1662b7, `unknown` +0x51). **Interpretation (an inference):** enabling the draw renders the last
+server position; that state was never set because the position delivery is the broken path
+(`IPositionReceiver` is never bound); the render dereferences the missing state. **Consequence: this is
+the right instrument for showing server-authoritative movement, but only AFTER the client actually
+receives a server position. Do not re-run it before then.**
+
+**`DEBUG_SetInputTimeOut` (2629) — payload is a DWORD at `+0x20`, and the setter is `ret 0`.**
+
+```asm
+14481a51d  mov edx, dword ptr [rsi + 0x20]   ; <=== the field (u32, not a byte)
+14481a523  call 0x140294860                   ; = `ret 0`  ->  A NO-OP STUB
+```
+
+`0x140294860` is the same address the atlas already records as the framework's no-op default. So this
+message is registered, dispatchable and wire-accepts a u32, and **changes nothing** — it cannot move the
+input timeout or the cable thresholds. **Negative result, and it saves the work of testing it.**
+`DEBUG_SetACKTimeOut` (`2A9BA2F9-…`) needs the same check before being trusted.
+
+**Also corrected:** the `.rdata` NAME→GUID pairing by adjacency **is** correct
+(`<Name>\0pad\0<GUID>` contiguous), validated by `ReceiveInputFromClient` → `01346ccd-…`, the confirmed
+GUID of wire `0x635`.
+
+**Validation:** 201 world tests OK, 24 gateway OK, 12 Rust OK, fixture check OK. Atlas:
+`the_per_type_message_descriptor_table_shape_20261016`,
+`debug_setdrawlastserverpos_carries_one_byte_and_enabling_the_draw_crashes_the_client_20261016`,
+`debug_setinputtimeout_is_a_no_op_stub_20261016`. Session left clean with the lever off.
+
+## 2026-10-16 (later, cont.) — the client's own DEBUG message surface: direction PROVED, layout bounded
+
+**`DEBUG_SetDrawLastServerPos` is server→client, and the client names the GUID when it rejects it.**
+Sending it (wire `5023`, GUID `6CBD5952-81A7-4AA6-9052-79F0B2783DAA`) made the client log:
+
+```
+MessageEnvelope: Failed to unmarshal MessageEnvelope::m_message.
+  {"unmarshalError":"BufferOverrun","messageTypeId":"6CBD595281A74AA6905279F0B2783DAA"}
+ClientSDK: Failed to unmarshal message: num_bytes=5, type=6CBD595281A74AA6905279F0B2783DAA
+```
+
+The client resolves and **names the GUID**, so it is the receiver and the message is in its registry.
+**`InstallRegistrationHook` does NOT discriminate direction** — it exists for `ReceiveInputFromClient`
+(client→server) and for `ClientFacet_OnActionStarted` (server→client), verified by string read — so the
+direction had to be measured, and now it is.
+
+**The layout needs ≥ ~17–20 bytes of body**, bisected in ONE run by cycling bodies of 8…64 bytes:
+
+| body bytes | result |
+| --- | --- |
+| 8, 12 | `BufferOverrun` |
+| 16 | `BufferUnderrun` |
+| **20, 24, 28 … 64** | **zero errors** |
+
+Six errors total and the client never crashed, so a wrong body size is a log line, not a wedge. **The
+meaning of the bytes is not decoded.**
+
+**New research lever** (`services/world/src/azoth_world/rep.py`): `AZOTH_DEBUG_MSG_TYPE` (0 = off),
+`_BODY` (comma-separated hex, **cycled**), `_TARGET` (`actor` | `captured` | `<hex>`), `_CONTAINER`
+(`server` | `client`, **cycled**), `_PERIOD_S` (0 = once), `_DELAY_S`, `_CHANNEL`, `_RELIABLE`. Cycling
+is the point: one run bisects bodies and containers.
+
+**Located, not yet exercised:** `DEBUG_SetInputTimeOut` (wire **2629**, GUID
+`c633055a-8048-40a0-8a82-1e013396bf1c`) — the client's own input timeout, which **is** the amber/red
+cable threshold; sibling `DEBUG_SetACKTimeOut` (`2A9BA2F9-3051-4A4D-8835-A6C0643BA1A4`).
+
+**A method correction worth keeping.** The `.rdata` descriptor form is `<Name>\0<pad>\0<GUID>`
+**contiguous**, so pairing a name with the GUID that follows it is correct — validated by the known case
+`ReceiveInputFromClient` → `01346ccd-785e-448d-a429-4b281972b1d7`, which is the confirmed GUID of wire
+`0x635`. My lookup failed only because `research/derived/wire-type-names.json` names just the types the
+per-build type table knows; the AZ names live in `research/atlas/az-type-registry.json` keyed by GUID.
+
+**And the yellow cable the user reported was OUR probe.** `frida-player-position` attached at 17:17:21
+(calling the client's getter 5×/s from another thread), ended at 17:18:21, and the client crashed at
+**17:21:25** with `frida-agent.dll_unloaded` at `0x9c7e0` — the documented execute-after-unload
+signature. The server was clean throughout: heartbeat 0.98/s, state-stream 4.66/s, `wire_seq` monotonic
+128→3504, record-1 gaps **≤1000 ms** against the ~2 s amber threshold, only **1.0 %** of sends resent, 0
+Game.log warnings. **Rule: no probes while the user is watching the screen.** The no-probe alternative
+for the stamp is the client's own `r_profiler` overlay, which prints `Time since last response: %s` — the
+very value the cable is an age of.
+
+**Validation:** 201 world tests OK (4 new), 24 gateway OK, 12 Rust OK, fixture check OK.
+Atlas: `debug_setdrawlastserverpos_is_server_to_client_and_needs_20_body_bytes_20261016`,
+`the_yellow_cable_was_our_probe_and_the_server_was_clean_20261016`.
+
+## 2026-10-16 (later) — **the server can READ the client's own position** (channel-1 ALC, wire 0x635)
+
+**The client streams its own world position ~20x/s and the server now parses it.** This is the first
+thing the server can *observe* about where the player is rather than decide.
+
+**Layout, measured.** Container `[crc32][len][16-byte actor target][00 01][varint type]` → body at
+offset 28. The body starts with another 16-byte local id (the server facet the client calls,
+`fbde4b9a600d428fbf85314bbc4a951a`) then a header and N buffered input entries. Every body that
+carries a position contains the 4-byte constant `3d 4c cc cd` (= **0.05f**, the client's own
+`javelin.alc-interpolation.normal-movement-quantization`) **exactly once**, and the pair is **always
+12 bytes after it**, as big-endian float32 — over 6 000 live bodies, anchor count 1..1 wherever it
+appears and 0 in the short forms.
+
+**Accuracy against the client's own accessor.**
+
+| measure | value |
+| --- | --- |
+| offline, 6 559 paired samples | median **0.54 u** standing, **0.81 u** walking (after removing the offset) |
+| live, server logging + probe attached | 4.03 u raw → **0.73 u** after removing the median offset |
+| direction of movement | matches the accessor to **0.3°** (W −67.2° vs −67.5°) |
+
+The offset is **geometric, not a lag**: a lag sweep over −0.3…+2.0 s left the median flat, so the two
+values are the same motion at different reference points on the character (~2–3.7 u, and the constant
+differs between sessions).
+
+**Implementation.** `services/world/src/azoth_world/javelin/alc.py` (`alc_body_from_record`,
+`parse_alc_input`), wired into `rep.py` via `AZOTH_ALC_POSITION` (default on) /
+`AZOTH_ALC_POSITION_LOG_S` (1.0) and `PeerSession._note_alc_input`, which stores
+`session.alc_position` and logs `alc-position` at 1/s. 8 tests with **real captured vectors**.
+**This unblocks roadmap item B5** (anti-teleport, speed clamp): the server can now compare the
+position the client claims against its own model.
+
+**Validation:** 196 world tests OK (8 new), 24 gateway OK, 12 Rust OK, fixture check OK.
+Atlas: `server_reads_the_clients_own_position_from_channel1_20261016`.
+
+**Also measured, and it is the remaining 2-hour gate:** at **02:36:56** the client's channel-1 record
+changed shape **once**, discretely, 257–259 B → 68 B, and **29 s later** (exactly the watchdog's 30 s
+budget) the first `State(InGame) is timeout` appeared, repeating every 30 s; the cable went RED at
+~03:07 and the client stopped responding at 03:18:34. **Everything server-side is constant across the
+onset** (app-data 1200/min, state-stream 283/min, heartbeat/keepalive/input-response 59/min, replay
+401/min, ACK stream healthy) and the client's PID never changed. In the decoded terms above, the step
+is the client's input batching going from four entries to one — an inference, since the entry grammar
+is not decoded. Atlas: `channel1_record_step_at_94_minutes_precedes_the_state_timeout_20261016`.
+
+## 2026-10-16 (early) — **the 2-hour soak SURVIVES; the connection warning does not stay clear past ~94 minutes**
+
+One probe-free run, spawned `01:03:30`, default configuration, both teardown sites patched.
+
+**What passes.** The session stayed in the world for **124+ minutes** with `ActorContainerDisconnect`
+0, `Disconnected from REP` 0, `exiting to main menu` 0, `Cleanup()` 0, `transportError` 0, the world
+rendered and the player possessed — and `scripts/ack-audit.py` reports the ACK stream **healthy**
+(widest CT_ACKS range 16383, 0 at/over the limit, no retransmit storm). The 20- and 30-minute
+thresholds this project was stuck at are crossed and two hours of liveness is reached.
+
+**What does not pass.** From **~94 minutes** the client's InGame state times out every 30 s and the
+HUD connection warning goes **RED**, while everything server-side is normal:
+
+| minute | event |
+| --- | --- |
+| `02:36:49` | the client's channel-1 records are **313 bytes** at ~20/s |
+| `02:37:00` | they are **122 bytes** — a step change, not a ramp |
+| `02:37:25` | first `State(InGame) is timeout` |
+| onward | that line repeats every 30 s (62 by 03:07) |
+| `~03:07` | `watch-indicator.py` reports **RED**, world still rendered and player still possessed |
+
+Per-minute world-log counts across the onset change in exactly **one** way: inbound `app-data` drops
+from ~1259/min to exactly **1200/min**, which is the channel-1 record shrinking. Heartbeat,
+input-response, keepalive, state-stream, replay and outbound-app-data are all unchanged. So this is
+not the ACK defect, not a transport failure, and not a server that went quiet.
+
+**Channel 1 is the ALC input** (`ActionListComponentServerFacet_ReceiveInputFromClient`, wire
+`0x635`). The committed 2026-10-10 measurement had that record at 119/120 B; here it ran at 313 B for
+94 minutes and then stepped to 122 B. The likely reading — the client ACCUMULATES input while the
+server never consumes it, and the step is that accumulator changing state — is an **inference, not a
+measurement**: the two shapes' payloads have not been decoded. **Next:** decode the channel-1 body
+before and after the step and diff them, then find which `javelin.alc-*` setting governs the 313-byte
+form. Same family as the never-opened ALC door (`+0xAA0`) and stamp (`+0xAA8`).
+
+**Acceptance, restated honestly:** 20 and 30 minutes are met and two hours of liveness is met, but
+"a 2-hour soak with the real HUD warning clear" is **not** — the warning is clear for ~94 minutes and
+red after. Evidence: `research/sessions/session-20261016T0103Z-two-hour-soak/`, atlas
+`two_hour_soak_survives_but_the_state_timeout_arms_at_94_minutes_20261016`.
+
+## 2026-10-15 (overnight, cont.) — **the 20-minute threshold is PASSED**, and the first Rust port step landed
+
+**The teardown delegate has TWO sites and only one was patched. Both are now NOPed, and a session
+went past 30 minutes.**
+
+A session that spawned at `22:33:10.804` fired the delegate at `22:53:11.188` — exactly **20 min
+0.384 s** — and logged:
+
+| marker | count |
+| --- | --- |
+| `CGame::ActorContainerDisconnect` | 1 |
+| `Disconnected from REP` | 1 |
+| `exiting to main menu` | **0** |
+| `Cleanup()` | **0** |
+
+So `patch-exit-to-menu.py` was doing exactly what it says — the exit virtual at `0x14100425F` was
+skipped — and the session still died, because `call CGame::ActorContainerDisconnect` at
+`0x141004230` runs **before** the patched call and tears REP down by itself. The client then keeps
+rendering its last frame, which is the frozen world plus the red cable the user sees.
+
+Both sites are NOPed now. A run spawned at `23:13:25.170` then stayed in the world with **0
+`ActorContainerDisconnect`, 0 `Disconnected from REP`, 0 `exiting to main menu`, 0 `Cleanup()`, 0
+`transportError` and 0 `OnLocalNetworkConnectionWarning` for its whole life**, and it was still
+interactive when it ended:
+
+| measure | value |
+| --- | --- |
+| session lifetime | **24 min 8 s** |
+| how it ended | **killed by OUR OWN measurement probe** — `frida-player-position` calls `device.kill` on exit by default; the Windows Application log has **no** faulting event for NewWorld.exe |
+| world server | still emitting on its own clock |
+| cable icon | **absent** on 9 consecutive `watch-indicator.py` samples |
+| movement at 23 min | **W ~13 u forward, S ~9 u back** |
+
+**A second, probe-free run reproduced it: 24.5 minutes, 0 of every marker, and it too was ended by
+our own instrumentation** — this time by a deliberate probe attach for a tool self-test, which
+faulted `NewWorld.exe` with `0xc0000005` in an `unknown` module (the documented Frida
+execute-after-unload signature). So two independent sessions crossed the 20-minute threshold and
+neither was ended by the client.
+
+**A third run, fully probe-free, then passed 30 minutes.** Spawn `01:03:30`; at **31.9 minutes** it
+had 0 `ActorContainerDisconnect`, 0 `Disconnected from REP`, 0 `exiting to main menu`, 0
+`Cleanup()`, 0 `transportError` and 0 `OnLocalNetworkConnectionWarning`, and was still running toward
+the 2-hour soak.
+
+**So: the 20- and 30-minute thresholds this project has been stuck at are crossed.** The **2-hour
+soak remains the open gate**, and every soak must be probe-free: a probe's default exit kills the
+client, `--keep-process` only avoids the deliberate kill (the detach fault still fires), and a
+watcher that only counts markers in `Game.log` cannot tell that the client is gone because the counts
+simply stop changing. That is how the first reading of this run overclaimed 30 minutes and was
+corrected. The watcher now records the client PID.
+
+**Why the arm was not targeted.** The runbook's conclusion ("to keep a session past 20 minutes the
+ARM must be prevented") is right, but the delegate's function pointer `0x141004100` has **no static
+reference anywhere in the image** — 0 `E8` callers, 0 `lea` xrefs, 0 qword literals, 0
+`mov r64,imm64` — so the enqueue site builds it dynamically. Neutralizing the delegate's two
+observable effects is the practical equivalent and it is measured. This is a private-runtime
+affordance, not a protocol fix. Atlas: `20min_teardown_delegate_has_two_sites_20261015`.
+
+**The first Rust port step landed.** `server/` is a cargo workspace whose `crates/protocol` ports the
+wire codecs (`varint`, the type-0x08 state bundle, the fragment grammar) from the Python reference
+with **zero dependencies** and **12 passing tests** (8 unit + 4 parity). The parity fixture is
+generated FROM the Python codecs by `scripts/gen-protocol-fixture.py` (`--check` fails on drift), so
+the two cannot diverge, and `tests/parity.rs` asserts byte-exact re-encoding of 49 captured bundles,
+the client-derived record-1 fragment layout, fragment recomposition, and the position anchor at
+spawn-payload offset 38332. Atlas: `rust_protocol_crate_with_python_parity_20261015`.
+
+**Validation:** 186 world tests OK, 24 gateway OK, 12 Rust tests OK, all three RE tool self-checks OK.
+
+## 2026-10-15 (overnight) — streaming the spawn record does NOT move the player, and both in-world gates re-verify clean
+
+**The obvious next step after "the server owns the position" is measured, and it is a NEGATIVE.** The
+position lives in the spawn record (record_id 1, 48 fragments, 46393 B, replay seq `0x2a..0x6c`) and
+the replay sends it once, so the hypothesis was: stream it again with a fresh replication counter and
+the server's position becomes authoritative over time. The wire half works perfectly and **the client
+ignores it.**
+
+| measure | value |
+| --- | --- |
+| position bundles sent (server) | **75+**, `state-stream kind=position`, size 46408 |
+| `state-position-override` events | **99**, each `replacements: 1` |
+| positions rotated mid-session | 4, 25 s dwell each, via `AZOTH_STATE_POSITION=file:<path>` re-read on every send |
+| client samples (0.25 s, 145 s) | **577** |
+| client position across all four writes | **(9343.6416, 2786.7327, 87.538)** — never changed |
+| `Failed to unmarshal` / `ValidationError` / `transportError` | **0 / 0 / 0** |
+
+The client parses and accepts the re-sent spawn record and does not apply its position. **The spawn
+record is consumed once at spawn; "send the record again" is not the mechanism.**
+
+**Where the position is instead — the useful part.** The player's x,y is persistent replicated state
+on the entity: after W moved the player to `(9353.7227, 2766.062)`, the accessor reported exactly that
+at the start of the next phase. The streamed 7154-byte record-1 bundles do **not** contain the
+capture's position pair at all (`CAPTURED_PLAYER_POSITION` is absent from seq `0x98` in every encoding
+tried), so they do not overwrite it either. That matches the committed A/B: the state stream is a
+**prerequisite** for the client simulating the player, not the carrier of the position.
+
+**Both in-world gates re-verify on the current defaults, with no regression.** Probe attached
+mid-session, each key held 5 s: **W 22.998 u, S 19.679 u, A 4.533 u, D 9.360 u** — the same four
+magnitudes as the committed 2026-10-13 measurement, from the same start point — with a continuous
+smooth trajectory, a deceleration tail, and a full stop in the gaps. `watch-indicator.py` classified
+the cable **absent** on 9 consecutive samples and a screenshot shows the HUD with no cable icon and
+the world rendered. `player spawn succeeds` 1, 0 transportError, 0 REP disconnects, 0
+`exiting to main menu`, 0 `Cleanup()`; 6 `OnLocalNetworkConnectionWarning`, all inside the replay.
+
+**Two tool defects found, both of which read as "the client is broken".** `scripts/shot.py` looked the
+window up **by title only** and printed `New World window not found` while the client was in the world
+— the exact mistake `scripts/winwindow.py` documents; it now uses the process-image-name finder.
+`scripts/watch-indicator.py` shelled out through `os.system` with a quoted command line, which
+`cmd.exe` mangles, so shot.py never ran and every sample reported a stale capture; it now uses
+`subprocess.run` with a real argv. Until both were fixed the only instrument that can see the cable
+was silently reporting nothing.
+
+**New lever:** `AZOTH_STATE_POSITION` also accepts `file:<path>`, re-read on **every** send, so a
+position can be changed mid-session without restarting the server. `AZOTH_STATE_POSITION_STREAM`
+(default **0**) is the record stream itself: proven at the wire level, not adopted as a fix.
+
+**And the whole family is now CLOSED, with the confounds removed.** The spawn record's 48 fragment
+boundaries were measured from the client (`frida-record-boundaries`, attached at character select,
+`tiles: True`), which located the position's fragment exactly: payload **38310..38397**, an 87-byte
+fragment (`key=16`, `type_index=11`) with the position at payload offset **20**. The server then
+composed a **minimal record-1 bundle carrying only that fragment** and streamed it at 4/s:
+
+| measure | value |
+| --- | --- |
+| sends | **540** over ~2 min, three positions rotated mid-session |
+| wire proof | outbound datagrams decoded: `key=16, type=11` carried `(9300.0, 2750.0)` |
+| client samples | **358** |
+| client position | **(9343.6416, 2786.7327, 87.538)** — never moved |
+| errors | 0 unmarshal, 0 validation, 0 transport, 0 disconnects |
+
+The earlier negative re-sent all 48 fragments; this one sends a single fragment and the client
+ignores that too. So the reason is not the fragment count, the bundle size, the record id, the
+replication counter or the value's encoding: **the client consumes the position once, at spawn.**
+The remaining path is the position **input** consumer — `ReceivePlayerPositionClientMsg` (4216)
+delivered to `IPositionReceiver` — and its delivery `FUN_143f97bf0` was decompiled here: it looks the
+target up, queries `target->vtable[0x20]` for the interface GUID and only calls the receiver if that
+answers. **It never creates the receiver**, so no target id can work until something binds one.
+
+**Two corrections to the committed fragment model** fell out of the boundaries: the same
+`(key=16, type=11)` pair carries an **85-byte** payload in the spawn record and a **48-byte** payload
+in the streamed record-1 bundles, so "a fragment's payload length is implied by the type" means "the
+type's reader knows how to consume it", not "the length is fixed"; and the spawn record is **not** a
+superset of the record-1 delta (the delta has keys 73 and 72 that the spawn record lacks).
+
+**Validation:** 186 world tests OK (4 new), 24 gateway OK, all three tool self-checks OK. Atlas:
+`streaming_the_spawn_record_does_not_move_the_player_20261015`,
+`movement_and_cable_re_verified_20261015`, `shot_and_indicator_tools_were_broken_20261015`.
+
+**Next concrete step.** Find what the client treats as authoritative position **input** — the
+consumer behind `InstallRegistrationHook<ReceivePlayerPositionClientMsg, IPositionReceiver>` and
+`RegisterInterfaceDecoupler<IPositionReceiver>` — rather than re-sending a record the client has
+already consumed. The interface's descriptor is the vtable at `0x1482ea4e8`: slot `+0x20` is
+`0x140294860` (`ret 0`, the default) and slot `+0x28` is the installer `0x143f983d0`, which stamps
+the implementation vtable `0x1482eb160`; the open question is which class ever receives that stamp.
+
 ## 2026-10-14 (cont. 8) — **THE SERVER OWNS THE PLAYER'S POSITION** (measured, 0.0000 u error)
 
 **The server wrote a position into the state it sends and the client's own accessor reported exactly
