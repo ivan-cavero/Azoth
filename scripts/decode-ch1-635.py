@@ -71,14 +71,18 @@ def records(path: Path):
                 if rec.channel != 1:
                     continue
                 payload = rec.payload
-                if len(payload) < 20 or payload[16:18] != b"\x00\x01":
+                # Container: [u32 BE crc32][u32 BE len][16-byte target][00 01][prefix-varint type].
+                # The typed marker therefore sits at offset 8 + 16 = 24, NOT 16: this script
+                # used 16 and found nothing (measured 2026-10-16 against a real channel-1
+                # record whose target is `1a954abc4b3185bfbe37c3d8592618e0`).
+                if len(payload) < 28 or payload[24:26] != b"\x00\x01":
                     continue
                 try:
-                    t, n = varint_decode(payload, 18)
+                    t, n = varint_decode(payload, 26)
                 except Exception:  # noqa: BLE001
                     continue
                 if t == TYPE_635:
-                    yield payload[18 + n:]
+                    yield payload[26 + n:]
 
 
 def main() -> int:

@@ -31,6 +31,25 @@ refuting Game.log (`ActorContainerDisconnect` 0, `exiting to main menu` 1,
 This patch NOPs the six bytes of the exit virtual call. The preceding
 disconnect notification and the `conn+0x730` free still happen (harmless).
 
+MEASURED 2026-10-15, and it is why the patch above is only HALF the job. In a
+session that spawned at 22:33:10.804 the delegate fired at **22:53:11.188 = 20 min
+0.384 s** and Game.log showed `CGame::ActorContainerDisconnect` 1,
+`Disconnected from REP` 1, `exiting to main menu` **0**, `Cleanup()` **0** — i.e.
+this patch did exactly what it says, and the session was still dead: the
+`call CGame::ActorContainerDisconnect` at `0x141004230` runs BEFORE the patched
+exit call and tears REP down by itself. The client then keeps rendering its last
+frame, which is the frozen world plus the red cable the user sees.
+
+So the delegate is now neutralized at BOTH sites:
+
+    141004230  e8 db c3 41 05   call CGame::ActorContainerDisconnect  -> NOP x5
+    14100425F  ff 90 d8 01 00 00  call [rax+0x1d8] (exit to main menu)  -> NOP x6
+
+With both NOPed the delegate does nothing observable, which is the arm-side
+neutralization the runbook's own conclusion calls for ("to keep a session past 20
+minutes the ARM must be prevented") without needing the arm site, which is built
+dynamically and has no static reference anywhere in the image.
+
 This is the same class of in-memory, private-runtime sandbox affordance as
 `patch-timeout-watchdog.py`, not a protocol fix: the proper fix is to satisfy
 whatever the server is supposed to send to keep the session alive. Restore by
@@ -60,6 +79,12 @@ PATCHES = (
         bytes.fromhex("FF90D8010000"),  # call qword ptr [rax+0x1d8]
         bytes.fromhex("909090909090"),  # NOP x6
         "delegate exit-to-main-menu virtual call",
+    ),
+    (
+        0x141004230,
+        bytes.fromhex("E8DBC34105"),  # call CGame::ActorContainerDisconnect
+        bytes.fromhex("9090909090"),  # NOP x5
+        "delegate ActorContainerDisconnect call (tears REP down on its own)",
     ),
 )
 

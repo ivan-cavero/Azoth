@@ -20,7 +20,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -127,8 +127,18 @@ def main() -> int:
     n = 0
     while True:
         requested_at = time.time()
-        os.system(f'"{ROOT / ".azoth" / "venv" / "Scripts" / "python.exe"}" '
-                  f'"{ROOT / "scripts" / "shot.py"}" >NUL 2>&1')
+        # MEASURED 2026-10-15: this used `os.system` with a quoted command line, and
+        # cmd.exe strips the leading/trailing quote of a `/c` command that STARTS with a
+        # quote, so shot.py never ran: every sample reported "capture is STALE (shot.py
+        # failed)" while running the same script by hand worked. Use a real argv, which
+        # has no shell quoting to get wrong.
+        subprocess.run(
+            [str(ROOT / ".azoth" / "venv" / "Scripts" / "python.exe"),
+             str(ROOT / "scripts" / "shot.py")],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
         if not SHOT.is_file():
             print(f"  {datetime.now(UTC).strftime('%H:%M:%SZ')}  no capture written "
                   "(shot.py failed)", flush=True)

@@ -1,6 +1,6 @@
 {
-  "build_sha256": null,
-  "$comment": "The fragment boundaries of the local-player metadata record (record_id 1) in the captured 0x08 bundles, DERIVED FROM THE CLIENT rather than guessed: reverse/probes/client/frida-fragment-grammar.py hooks the record reader (FUN_146af20d0), the fragment reader (FUN_146af2340) and the shared prefix-varint reader (FUN_14087b5c0), and logs each fragment's offset from the record start plus the varints read inside it. This is what resolves the fragment grammar: [varint key][varint type][payload] with NO length field, the payload length being implied by the type. The same probe run reproduced these exact offsets 21 times, and the key/type pair it reported for each fragment matches an independent byte-level parse of the payload, so the two agree.",
+  "build_sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
+  "$comment": "The fragment boundaries of the local-player metadata record (record_id 1) in the captured 0x08 bundles, DERIVED FROM THE CLIENT rather than guessed: reverse/probes/client/frida-fragment-grammar.py hooks the record reader (FUN_146af20d0), the fragment reader (FUN_146af2340) and the shared prefix-varint reader (FUN_14087b5c0), and logs each fragment's offset from the record start plus the varints read inside it. This is what resolves the fragment grammar: [varint key][varint type][payload] with NO length field, the payload length being implied by the type. The same probe run reproduced these exact offsets 21 times, and the key/type pair it reported for each fragment matches an independent byte-level parse of the payload, so the two agree. `spawn_record` was added 2026-10-15 from frida-record-boundaries and is the layout the spawn record's position fragment is located from.",
   "fragment_grammar": {
     "layout": "[varint key][varint type_index][payload]",
     "length_field": false,
@@ -118,5 +118,506 @@
       "payload_hex": "0202000108020728000000000000ffe5010f000000000000ffe5",
       "varies_across_captured_copies": []
     }
-  ]
+  ],
+  "spawn_record": {
+    "$comment": "The SPAWN record's 48 fragment boundaries, DERIVED FROM THE CLIENT by reverse/probes/client/frida-record-boundaries.py attached at CHARACTER SELECT (the spawn record is delivered once, during the replay, and never again). The probe reported tiles=True: sum(span) + first_offset == record_length == 46393, which is the check an opaque-remainder model can never fail. The player's position pair is inside the fragment that starts at offset 38310 (key=16, type_index=11, 87 bytes) at payload offset 20.",
+    "record_id": 1,
+    "record_payload_length": 46393,
+    "source_seqs": [
+      "0x2a"
+    ],
+    "boundaries": [
+      2,
+      25,
+      171,
+      280,
+      320,
+      6233,
+      6247,
+      6275,
+      6285,
+      11039,
+      11086,
+      11101,
+      11633,
+      11650,
+      11663,
+      11678,
+      11747,
+      11838,
+      11859,
+      11865,
+      12518,
+      12531,
+      29707,
+      29747,
+      31129,
+      31158,
+      31179,
+      31238,
+      31294,
+      31307,
+      33357,
+      33386,
+      33395,
+      33404,
+      33467,
+      38310,
+      38397,
+      38403,
+      38416,
+      39405,
+      39415,
+      41210,
+      41231,
+      42228,
+      44255,
+      45760,
+      46286,
+      46304
+    ],
+    "position_fragment": {
+      "offset_in_record": 38310,
+      "size": 87,
+      "key": 16,
+      "type_index": 11,
+      "payload_length": 85,
+      "position_offset_in_payload": 20
+    },
+    "fragments": [
+      {
+        "index": 0,
+        "offset_in_record": 2,
+        "size": 23,
+        "key": 71,
+        "type_index": 4878,
+        "header_size": 3,
+        "payload_length": 20
+      },
+      {
+        "index": 1,
+        "offset_in_record": 25,
+        "size": 146,
+        "key": 10,
+        "type_index": 3829,
+        "header_size": 3,
+        "payload_length": 143
+      },
+      {
+        "index": 2,
+        "offset_in_record": 171,
+        "size": 109,
+        "key": 27,
+        "type_index": 129,
+        "header_size": 3,
+        "payload_length": 106
+      },
+      {
+        "index": 3,
+        "offset_in_record": 280,
+        "size": 40,
+        "key": 31,
+        "type_index": 1927,
+        "header_size": 3,
+        "payload_length": 37
+      },
+      {
+        "index": 4,
+        "offset_in_record": 320,
+        "size": 5913,
+        "key": 45,
+        "type_index": 2932,
+        "header_size": 3,
+        "payload_length": 5910
+      },
+      {
+        "index": 5,
+        "offset_in_record": 6233,
+        "size": 14,
+        "key": 56,
+        "type_index": 3147,
+        "header_size": 3,
+        "payload_length": 11
+      },
+      {
+        "index": 6,
+        "offset_in_record": 6247,
+        "size": 28,
+        "key": 12,
+        "type_index": 1195,
+        "header_size": 3,
+        "payload_length": 25
+      },
+      {
+        "index": 7,
+        "offset_in_record": 6275,
+        "size": 10,
+        "key": 76,
+        "type_index": 1755,
+        "header_size": 3,
+        "payload_length": 7
+      },
+      {
+        "index": 8,
+        "offset_in_record": 6285,
+        "size": 4754,
+        "key": 67,
+        "type_index": 3681,
+        "header_size": 3,
+        "payload_length": 4751
+      },
+      {
+        "index": 9,
+        "offset_in_record": 11039,
+        "size": 47,
+        "key": 51,
+        "type_index": 1994,
+        "header_size": 3,
+        "payload_length": 44
+      },
+      {
+        "index": 10,
+        "offset_in_record": 11086,
+        "size": 15,
+        "key": 55,
+        "type_index": 4176,
+        "header_size": 3,
+        "payload_length": 12
+      },
+      {
+        "index": 11,
+        "offset_in_record": 11101,
+        "size": 532,
+        "key": 43,
+        "type_index": 1525,
+        "header_size": 3,
+        "payload_length": 529
+      },
+      {
+        "index": 12,
+        "offset_in_record": 11633,
+        "size": 17,
+        "key": 50,
+        "type_index": 4321,
+        "header_size": 3,
+        "payload_length": 14
+      },
+      {
+        "index": 13,
+        "offset_in_record": 11650,
+        "size": 13,
+        "key": 60,
+        "type_index": 3786,
+        "header_size": 3,
+        "payload_length": 10
+      },
+      {
+        "index": 14,
+        "offset_in_record": 11663,
+        "size": 15,
+        "key": 19,
+        "type_index": 3133,
+        "header_size": 3,
+        "payload_length": 12
+      },
+      {
+        "index": 15,
+        "offset_in_record": 11678,
+        "size": 69,
+        "key": 41,
+        "type_index": 15,
+        "header_size": 2,
+        "payload_length": 67
+      },
+      {
+        "index": 16,
+        "offset_in_record": 11747,
+        "size": 91,
+        "key": 9,
+        "type_index": 3935,
+        "header_size": 3,
+        "payload_length": 88
+      },
+      {
+        "index": 17,
+        "offset_in_record": 11838,
+        "size": 21,
+        "key": 35,
+        "type_index": 3765,
+        "header_size": 3,
+        "payload_length": 18
+      },
+      {
+        "index": 18,
+        "offset_in_record": 11859,
+        "size": 6,
+        "key": 13,
+        "type_index": 603,
+        "header_size": 3,
+        "payload_length": 3
+      },
+      {
+        "index": 19,
+        "offset_in_record": 11865,
+        "size": 653,
+        "key": 77,
+        "type_index": 2938,
+        "header_size": 3,
+        "payload_length": 650
+      },
+      {
+        "index": 20,
+        "offset_in_record": 12518,
+        "size": 13,
+        "key": 29,
+        "type_index": 6234,
+        "header_size": 3,
+        "payload_length": 10
+      },
+      {
+        "index": 21,
+        "offset_in_record": 12531,
+        "size": 17176,
+        "key": 61,
+        "type_index": 1755,
+        "header_size": 3,
+        "payload_length": 17173
+      },
+      {
+        "index": 22,
+        "offset_in_record": 29707,
+        "size": 40,
+        "key": 0,
+        "type_index": 10,
+        "header_size": 2,
+        "payload_length": 38
+      },
+      {
+        "index": 23,
+        "offset_in_record": 29747,
+        "size": 1382,
+        "key": 74,
+        "type_index": 5691,
+        "header_size": 3,
+        "payload_length": 1379
+      },
+      {
+        "index": 24,
+        "offset_in_record": 31129,
+        "size": 29,
+        "key": 42,
+        "type_index": 4297,
+        "header_size": 3,
+        "payload_length": 26
+      },
+      {
+        "index": 25,
+        "offset_in_record": 31158,
+        "size": 21,
+        "key": 47,
+        "type_index": 1652,
+        "header_size": 3,
+        "payload_length": 18
+      },
+      {
+        "index": 26,
+        "offset_in_record": 31179,
+        "size": 59,
+        "key": 39,
+        "type_index": 5620,
+        "header_size": 3,
+        "payload_length": 56
+      },
+      {
+        "index": 27,
+        "offset_in_record": 31238,
+        "size": 56,
+        "key": 33,
+        "type_index": 982,
+        "header_size": 3,
+        "payload_length": 53
+      },
+      {
+        "index": 28,
+        "offset_in_record": 31294,
+        "size": 13,
+        "key": 49,
+        "type_index": 3152,
+        "header_size": 3,
+        "payload_length": 10
+      },
+      {
+        "index": 29,
+        "offset_in_record": 31307,
+        "size": 2050,
+        "key": 62,
+        "type_index": 3183,
+        "header_size": 3,
+        "payload_length": 2047
+      },
+      {
+        "index": 30,
+        "offset_in_record": 33357,
+        "size": 29,
+        "key": 5,
+        "type_index": 3290,
+        "header_size": 3,
+        "payload_length": 26
+      },
+      {
+        "index": 31,
+        "offset_in_record": 33386,
+        "size": 9,
+        "key": 57,
+        "type_index": 1566,
+        "header_size": 3,
+        "payload_length": 6
+      },
+      {
+        "index": 32,
+        "offset_in_record": 33395,
+        "size": 9,
+        "key": 68,
+        "type_index": 497,
+        "header_size": 3,
+        "payload_length": 6
+      },
+      {
+        "index": 33,
+        "offset_in_record": 33404,
+        "size": 63,
+        "key": 4,
+        "type_index": 2406,
+        "header_size": 3,
+        "payload_length": 60
+      },
+      {
+        "index": 34,
+        "offset_in_record": 33467,
+        "size": 4843,
+        "key": 20,
+        "type_index": 3652,
+        "header_size": 3,
+        "payload_length": 4840
+      },
+      {
+        "index": 35,
+        "offset_in_record": 38310,
+        "size": 87,
+        "key": 16,
+        "type_index": 11,
+        "header_size": 2,
+        "payload_length": 85
+      },
+      {
+        "index": 36,
+        "offset_in_record": 38397,
+        "size": 6,
+        "key": 48,
+        "type_index": 5257,
+        "header_size": 3,
+        "payload_length": 3
+      },
+      {
+        "index": 37,
+        "offset_in_record": 38403,
+        "size": 13,
+        "key": 32,
+        "type_index": 2895,
+        "header_size": 3,
+        "payload_length": 10
+      },
+      {
+        "index": 38,
+        "offset_in_record": 38416,
+        "size": 989,
+        "key": 46,
+        "type_index": 185,
+        "header_size": 3,
+        "payload_length": 986
+      },
+      {
+        "index": 39,
+        "offset_in_record": 39405,
+        "size": 10,
+        "key": 14,
+        "type_index": 1528,
+        "header_size": 3,
+        "payload_length": 7
+      },
+      {
+        "index": 40,
+        "offset_in_record": 39415,
+        "size": 1795,
+        "key": 22,
+        "type_index": 3857,
+        "header_size": 3,
+        "payload_length": 1792
+      },
+      {
+        "index": 41,
+        "offset_in_record": 41210,
+        "size": 21,
+        "key": 1,
+        "type_index": 6951,
+        "header_size": 3,
+        "payload_length": 18
+      },
+      {
+        "index": 42,
+        "offset_in_record": 41231,
+        "size": 997,
+        "key": 65,
+        "type_index": 911,
+        "header_size": 3,
+        "payload_length": 994
+      },
+      {
+        "index": 43,
+        "offset_in_record": 42228,
+        "size": 2027,
+        "key": 66,
+        "type_index": 3210,
+        "header_size": 3,
+        "payload_length": 2024
+      },
+      {
+        "index": 44,
+        "offset_in_record": 44255,
+        "size": 1505,
+        "key": 2,
+        "type_index": 5437,
+        "header_size": 3,
+        "payload_length": 1502
+      },
+      {
+        "index": 45,
+        "offset_in_record": 45760,
+        "size": 526,
+        "key": 34,
+        "type_index": 4913,
+        "header_size": 3,
+        "payload_length": 523
+      },
+      {
+        "index": 46,
+        "offset_in_record": 46286,
+        "size": 18,
+        "key": 70,
+        "type_index": 899,
+        "header_size": 3,
+        "payload_length": 15
+      },
+      {
+        "index": 47,
+        "offset_in_record": 46304,
+        "size": 89,
+        "key": 44,
+        "type_index": 4236,
+        "header_size": 3,
+        "payload_length": 86
+      }
+    ]
+  },
+  "$delta_boundary_variance": "MEASURED 2026-10-16: the delta copies are NOT byte-identical in length. seq 0x73's payload is 7153 and 0x98/0x9a/0x9c/0x9e are 7154, because the position-carrying fragment (key=16, type_index=11) has a 48-byte payload in the first and 49 in the others - so the boundaries below describe 0x98/0x9a/0x9c/0x9e and slice 0x73 ONE BYTE LATE, which drops a fragment's leading key byte. A parse-then-encode round-trip cannot detect that (it is the identity for any bytes); the discriminator is the (key, type) pair per fragment, because the key->type binding is 1:1 and measured: a mis-sliced copy reports key=3857/type=2 where the client reported key=22/type=3857. This is why rep.py::compose_delta_position_bundle compares both tuples and refuses a body its boundaries do not describe. The live probe also reported the 48-byte form ([2, 60, 3955, 4295, 4301, 4498, 5335, 5385, 7124]) on 60/60 copies, so BOTH layouts occur live."
 }

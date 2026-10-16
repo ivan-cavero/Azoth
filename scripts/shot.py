@@ -13,29 +13,50 @@ import sys
 from pathlib import Path
 
 
-def game_window_rect() -> tuple[int, int, int, int] | None:
+def _game_hwnd() -> int | None:
+    """The game window, selected by PROCESS IMAGE NAME first.
+
+    MEASURED 2026-10-15: this script looked the window up by title only and returned
+    "New World window not found" while the client was demonstrably in the world - the
+    same class of mistake `scripts/winwindow.py` documents (a title match also catches
+    other windows, and the game's own title is not guaranteed). `private-run.py` uses
+    the process-based finder and succeeds, so this now does too, with the title lookup
+    kept only as a last resort for a build whose window has no process of its own yet.
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from winwindow import find_game_window  # noqa: PLC0415
+
+        hwnd = find_game_window()
+        if hwnd:
+            return hwnd
+    except Exception:  # noqa: BLE001 - fall through to the title lookup
+        pass
     user32 = ctypes.windll.user32
     hwnd = user32.FindWindowW(None, "New World")
+    if hwnd:
+        return hwnd
+    WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, wt.HWND, wt.LPVOID)
+    found = []
+
+    @WNDENUMPROC
+    def cb(h, _):
+        buf = ctypes.create_unicode_buffer(256)
+        user32.GetWindowTextW(h, buf, 256)
+        if "New World" in buf.value:
+            found.append(h)
+            return False
+        return True
+
+    user32.EnumWindows(cb, None)
+    return found[0] if found else None
+
+
+def game_window_rect() -> tuple[int, int, int, int] | None:
+    user32 = ctypes.windll.user32
+    hwnd = _game_hwnd()
     if not hwnd:
-        # Fallback: enumerate top-level windows for the exe title
-        WNDENUMPROC = ctypes.WINFUNCTYPE(
-            ctypes.c_bool, wt.HWND, wt.LPVOID
-        )
-        found = []
-
-        @WNDENUMPROC
-        def cb(h, _):
-            buf = ctypes.create_unicode_buffer(256)
-            user32.GetWindowTextW(h, buf, 256)
-            if "New World" in buf.value:
-                found.append(h)
-                return False
-            return True
-
-        user32.EnumWindows(cb, None)
-        if not found:
-            return None
-        hwnd = found[0]
+        return None
     rect = wt.RECT()
     user32.GetWindowRect(hwnd, ctypes.byref(rect))
     return rect.left, rect.top, rect.right, rect.bottom
@@ -81,7 +102,7 @@ def main() -> int:
     hbmp = gdi32.CreateDIBSection(hdc_mem, ctypes.byref(bmi), 0, ctypes.byref(ctypes.c_void_p()), None, 0)
     gdi32.SelectObject(hdc_mem, hbmp)
     user32.PrintWindow(
-        ctypes.windll.user32.FindWindowW(None, "New World") or 0,
+        _game_hwnd() or 0,
         hdc_mem,
         2,  # PW_RENDERFULLCONTENT
     )
