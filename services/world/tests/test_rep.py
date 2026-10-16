@@ -1071,10 +1071,23 @@ class TestStateStream(unittest.TestCase):
         session.state_stream_queue = []
         session.state_stream_player = []
         session.state_stream_player_queue = []
+        session.state_stream_position = []
+        session.state_stream_position_queue = []
+        session.position_fragment_msg = None
+        session.position_fragment_body = None
+        session.position_fragment_next_at = 0.0
+        session.position_fragment_sent = 0
+        session.delta_position_msg = None
+        session.delta_position_spawn = None
+        session.delta_position_armed = False
+        session.delta_position_next_at = 0.0
+        session.delta_position_sent = 0
         session.state_stream_next_at = 0.0
         session.state_stream_player_next_at = 0.0
+        session.state_stream_position_next_at = 0.0
         session.state_stream_sent = 0
         session.state_stream_player_sent = 0
+        session.state_stream_position_sent = 0
         session.state_stream_seq = 54
         session.sent: list = []
 
@@ -1398,6 +1411,44 @@ class TestStateStream(unittest.TestCase):
         session = self._session()
         PeerSession.maybe_state_stream(session, None)
         self.assertEqual(session.sent, [])
+
+    def test_position_stream_sends_the_spawn_record_on_its_own_timer(self):
+        """The position-bearing spawn record is streamed, so the override keeps applying.
+
+        Measured 2026-10-14: the position lives ONLY in the 46393-byte spawn record, which
+        sits BELOW the stream's floor and is therefore sent once by the replay. Without
+        this stream the server owns only the starting point; with it the override is
+        re-applied after spawn, which is what makes the position authoritative over time.
+        """
+        from unittest import mock as mock_module
+
+        from azoth_world.rep import PeerSession, replay_store
+
+        spawn = next(
+            m
+            for m in replay_store().messages
+            if m.type_id == 0x08 and m.direction == "R" and m.seq == 0x2A
+        )
+        session = self._session()
+        session.state_stream_position = [spawn]
+        session.state_stream_position_queue = [spawn]
+        with mock_module.patch("azoth_world.rep.STATE_POSITION_STREAM", True):
+            PeerSession.maybe_state_stream(session, None)
+        self.assertEqual(len(session.sent), 1)
+        self.assertEqual(session.sent[0].seq, 0x2A)
+        self.assertEqual(session.state_stream_position_sent, 1)
+
+    def test_position_stream_is_off_by_default(self):
+        """Default off: the capability is proven live before it is adopted."""
+        import os
+
+        from azoth_world import rep as rep_module
+
+        self.assertNotEqual(
+            os.environ.get("AZOTH_STATE_POSITION_STREAM"), "1",
+            "the test environment must not force the position stream on",
+        )
+        self.assertFalse(rep_module.STATE_POSITION_STREAM)
 
 
 class TestInputResponseReadiness(unittest.TestCase):
@@ -2167,6 +2218,17 @@ class TestInboundDispatcher(unittest.TestCase):
         session.state_stream_queue = []
         session.state_stream_player = []
         session.state_stream_player_queue = []
+        session.state_stream_position = []
+        session.state_stream_position_queue = []
+        session.position_fragment_msg = None
+        session.position_fragment_body = None
+        session.position_fragment_next_at = 0.0
+        session.position_fragment_sent = 0
+        session.delta_position_msg = None
+        session.delta_position_spawn = None
+        session.delta_position_armed = False
+        session.delta_position_next_at = 0.0
+        session.delta_position_sent = 0
         session.state_stream_seq = 0
         PeerSession._arm_replay(session)
         replayed = {m.type_id for m in session.replay_queue}
@@ -2348,6 +2410,129 @@ class TestAuthoritativeStateComposition(unittest.TestCase):
         )
 
 
+class TestDeltaPositionComposition(unittest.TestCase):
+    """The DELTA-shaped position variant (see STATE_DELTA_POSITION in rep.py).
+
+    WHY IT EXISTS. The two shapes tested so far both failed: the whole 48-fragment spawn record, and a
+    minimal 1-fragment record. The untested shape is the DELTA record (9 fragments) the client
+    receives ~4/s. And the METHOD POINT: testing at rest cannot tell "applied" from "ignored", so this
+    lever exists to be tested with the player already DESYNCED.
+
+    The alignment check these tests pin is load-bearing and was found the hard way: the delta copies
+    are NOT byte-identical in length, so one set of boundaries describes some of them and slices
+    others one byte late.
+    """
+
+    @staticmethod
+    def _bundles():
+        from azoth_world.rep import (
+            _bundle_carries_position,
+            _state_stream_record_fragment_count,
+            _state_stream_record_id,
+            replay_store,
+        )
+
+        msgs = [m for m in replay_store().messages if m.type_id == 0x08 and m.direction == "R"]
+        spawn = next(m for m in msgs if _bundle_carries_position(m))
+        deltas = [
+            m
+            for m in msgs
+            if _state_stream_record_id(m) == 1
+            and _state_stream_record_fragment_count(m) == 9
+        ]
+        return spawn, deltas
+
+    def test_a_misaligned_delta_copy_is_refused(self):
+        """0x73's payload is 7153 and the committed boundaries describe 7154: it must refuse.
+
+        Without this check the composition silently DROPS a fragment's leading key byte, and a
+        parse/encode round-trip does NOT catch it (that is the identity for any bytes).
+        """
+        from azoth_world.javelin import bundle as javelin_bundle
+        from azoth_world.rep import compose_delta_position_bundle
+
+        spawn, deltas = self._bundles()
+        misaligned = [
+            m for m in deltas if len(javelin_bundle.decode_bundle(m.body).payload) != 7154
+        ]
+        self.assertTrue(misaligned, "the fixture must contain the shorter copy")
+        for m in misaligned:
+            with self.subTest(seq=hex(m.seq)):
+                self.assertIsNone(
+                    compose_delta_position_bundle(m.body, spawn.body, (9400.0, 2800.0))
+                )
+
+    def test_a_matching_copy_composes_and_carries_only_the_position_change(self):
+        from azoth_world.javelin import bundle as javelin_bundle
+        from azoth_world.rep import (
+            STATE_DELTA_FRAGMENT_BOUNDARIES,
+            STATE_DELTA_FRAGMENT_KEYS,
+            STATE_DELTA_FRAGMENT_TYPES,
+            compose_delta_position_bundle,
+        )
+
+        spawn, deltas = self._bundles()
+        good = [
+            m
+            for m in deltas
+            if compose_delta_position_bundle(m.body, spawn.body, (9400.0, 2800.0)) is not None
+        ]
+        self.assertTrue(good, "at least one captured copy must describe the boundaries")
+        delta = good[0]
+        composed, report = compose_delta_position_bundle(delta.body, spawn.body, (9400.0, 2800.0))
+        self.assertEqual(report["delta_fragments"], len(STATE_DELTA_FRAGMENT_BOUNDARIES))
+        self.assertEqual(report["replaced_key"], 16)
+        self.assertEqual(report["delta_fragment_payload"], 49)
+        self.assertEqual(report["sent_fragment_payload"], 85)
+
+        parsed = javelin_bundle.decode_bundle(composed)
+        original = javelin_bundle.decode_bundle(delta.body).payload
+        # record header and every byte before the substituted fragment are untouched
+        self.assertEqual(parsed.payload[0], 1)
+        self.assertEqual(parsed.payload[1], 9)
+        # the substituted fragment is 85 bytes of payload where the capture had 49, so the payload
+        # grows by exactly 36 bytes and nothing else changes
+        self.assertEqual(len(parsed.payload), len(original) + 36)
+
+        # the eight other fragments are the capture's own bytes, in order
+        raws = javelin_bundle.split_record_payload(
+            original, list(STATE_DELTA_FRAGMENT_BOUNDARIES)
+        )
+        keys = [javelin_bundle.parse_fragment(r).key for r in raws]
+        types = [javelin_bundle.parse_fragment(r).type_index for r in raws]
+        self.assertEqual(tuple(keys), STATE_DELTA_FRAGMENT_KEYS)
+        self.assertEqual(tuple(types), STATE_DELTA_FRAGMENT_TYPES)
+
+    def test_it_reproduces_the_capture_when_the_position_is_unchanged(self):
+        """No override => the eight other fragments verbatim and the spawn's position fragment."""
+        import struct
+
+        from azoth_world.javelin import bundle as javelin_bundle
+        from azoth_world.rep import CAPTURED_PLAYER_POSITION, compose_delta_position_bundle
+
+        spawn, deltas = self._bundles()
+        good = [
+            m
+            for m in deltas
+            if compose_delta_position_bundle(m.body, spawn.body, (9400.0, 2800.0)) is not None
+        ][0]
+        composed, report = compose_delta_position_bundle(good.body, spawn.body, None)
+        self.assertFalse(report["position_replaced"])
+        parsed = javelin_bundle.decode_bundle(composed)
+        # the position fragment region still carries the capture's pair
+        self.assertIn(CAPTURED_PLAYER_POSITION, parsed.payload)
+
+    def test_it_fails_closed_on_junk(self):
+        from azoth_world.rep import compose_delta_position_bundle
+
+        spawn, deltas = self._bundles()
+        not_a_bundle = bytes((0, 1, 8)) + b"junk"
+        self.assertIsNone(
+            compose_delta_position_bundle(not_a_bundle, spawn.body, (1.0, 2.0))
+        )
+        self.assertIsNone(compose_delta_position_bundle(deltas[0].body, b"junk", (1.0, 2.0)))
+
+
 class TestPlayerPositionOverride(unittest.TestCase):
     """The local player's position is located by VALUE, not by a guessed offset.
 
@@ -2440,6 +2625,93 @@ class TestPlayerPositionOverride(unittest.TestCase):
         self.assertEqual(parse_state_position(" 9343.5 , 2786.75 "), (9343.5, 2786.75))
         self.assertEqual(parse_state_position("-100,200"), (-100.0, 200.0))
 
+    def test_position_file_spec_is_re_read_so_it_can_change_mid_session(self):
+        """`file:<path>` must be re-read on every call, which is what makes it live.
+
+        A static `x,y` cannot demonstrate a mid-session change without a restart, and the
+        acceptance for this work is exactly that the client follows a position the server
+        changes while the session is running.
+        """
+        import tempfile
+        from pathlib import Path
+
+        from azoth_world.rep import parse_state_position
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "pos.txt"
+            path.write_text("9400,2800", encoding="utf-8")
+            spec = f"file:{path}"
+            self.assertEqual(parse_state_position(spec), (9400.0, 2800.0))
+            path.write_text("9353.7227, 2766.0681", encoding="utf-8")
+            self.assertEqual(parse_state_position(spec), (9353.7227, 2766.0681))
+            # A missing file fails closed rather than raising into the send path.
+            self.assertIsNone(parse_state_position(f"file:{Path(tmp) / 'absent'}"))
+
+    def test_the_minimal_position_bundle_carries_only_the_position_fragment(self):
+        """Compose a 1-fragment record-1 bundle from the spawn record's position fragment.
+
+        The fragment layout is protocol data measured from the CLIENT
+        (`frida-record-boundaries`, attached at character select): the spawn record's 48
+        boundaries tile 46393 bytes, and the position pair is inside the fragment that starts
+        at payload offset 38310 (`key=16`, `type_index=11`, 87 bytes) at payload offset 20.
+        """
+        import struct
+
+        from azoth_world.javelin import bundle as javelin_bundle
+        from azoth_world.rep import (
+            CAPTURED_PLAYER_POSITION,
+            compose_position_fragment_bundle,
+        )
+
+        composed = compose_position_fragment_bundle(self._spawn_body(), (9400.0, 2800.0))
+        self.assertIsNotNone(composed, "the captured spawn record must match the layout")
+        body, report = composed
+        self.assertEqual(report["fragment_bytes"], 87)
+        self.assertEqual(report["fragment_payload"], 85)
+        self.assertTrue(report["position_replaced"])
+
+        parsed = javelin_bundle.decode_bundle(body)
+        self.assertEqual(parsed.payload[0], 1, "record id 1")
+        self.assertEqual(parsed.payload[1], 1, "exactly one fragment")
+        fragment = javelin_bundle.parse_fragment(parsed.payload[2:])
+        self.assertEqual(fragment.key, 16)
+        self.assertEqual(fragment.type_index, 11)
+        self.assertEqual(len(fragment.payload), 85)
+        self.assertEqual(
+            struct.unpack(">ff", fragment.payload[20:28]), (9400.0, 2800.0)
+        )
+        self.assertNotIn(CAPTURED_PLAYER_POSITION, fragment.payload)
+
+        # Without an override the fragment is reproduced verbatim, which is what makes the
+        # composition safe to switch on.
+        plain = compose_position_fragment_bundle(self._spawn_body(), None)
+        plain_fragment = javelin_bundle.parse_fragment(
+            javelin_bundle.decode_bundle(plain[0]).payload[2:]
+        )
+        self.assertIn(CAPTURED_PLAYER_POSITION, plain_fragment.payload)
+
+    def test_the_minimal_position_bundle_fails_closed_on_a_foreign_body(self):
+        from azoth_world.rep import compose_position_fragment_bundle
+
+        self.assertIsNone(compose_position_fragment_bundle(self._small_body(), (1.0, 2.0)))
+        self.assertIsNone(compose_position_fragment_bundle(b"\x00\x01\x08junk", (1.0, 2.0)))
+
+    def test_position_selection_follows_the_value_not_the_record_id(self):
+        """The spawn record is selected by carrying the pair; the small one is not."""
+        from azoth_world.javelin.replay_store import ReplayMessage
+        from azoth_world.rep import _bundle_carries_position, replay_store
+
+        messages = {
+            m.seq: m for m in replay_store().messages if m.type_id == 0x08 and m.direction == "R"
+        }
+        self.assertTrue(_bundle_carries_position(messages[0x2A]))
+        self.assertFalse(_bundle_carries_position(messages[0x98]))
+        # A body that is not a bundle must not be selected.
+        junk = ReplayMessage(
+            seq=0x1, type_id=0x08, direction="R", body=b"\x00\x01\x08junk", has_redaction=False
+        )
+        self.assertFalse(_bundle_carries_position(junk))
+
     def test_encode_bundle_is_the_inverse_of_decode_bundle(self):
         from azoth_world.javelin import bundle
 
@@ -2448,3 +2720,119 @@ class TestPlayerPositionOverride(unittest.TestCase):
             self.assertEqual(
                 bundle.encode_bundle(parsed.replication_seq, parsed.payload), body
             )
+
+class TestGenericDebugMessageLever(unittest.TestCase):
+    """The research lever that sends ONE arbitrary typed message (see DEBUG_MSG_* in rep.py).
+
+    WHY IT EXISTS. The client's own debug surface was located by GUID on 2026-10-16 (23
+    `ActionListComponentServerFacet_*` messages and 4 `*ClientFacet_*` ones), and several of them
+    answer open questions - `DEBUG_SetInputTimeOut` is the client's input timeout (the amber/red
+    cable threshold), `DEBUG_SetDrawLastServerPos` would draw where the server says the player is.
+    But a name in `.rdata` says nothing about DIRECTION: `InstallRegistrationHook` exists for
+    messages in BOTH directions (verified for `ReceiveInputFromClient`, client->server, and
+    `ClientFacet_OnActionStarted`, server->client), so the direction has to be measured.
+    """
+
+    def test_body_list_parsing_including_the_empty_body(self):
+        from azoth_world.rep import debug_message_bodies
+
+        self.assertEqual(debug_message_bodies(""), [b""])
+        self.assertEqual(debug_message_bodies("01,00"), [b"\x01", b"\x00"])
+        self.assertEqual(debug_message_bodies("01,-,02"), [b"\x01", b"", b"\x02"])
+        self.assertEqual(debug_message_bodies(" 01 , 0203 "), [b"\x01", b"\x02\x03"])
+        # Fails closed: malformed hex must not raise inside the datagram loop.
+        for bad in ("zz", "0", "01,zz"):
+            with self.subTest(spec=bad):
+                self.assertEqual(debug_message_bodies(bad), [])
+
+    def test_container_list_parsing(self):
+        from azoth_world.rep import debug_message_containers
+
+        self.assertEqual(debug_message_containers("server"), ["server"])
+        self.assertEqual(debug_message_containers("server,client"), ["server", "client"])
+        self.assertEqual(debug_message_containers(" client , server "), ["client", "server"])
+        # Fails closed: an unknown container must not be passed to the framer.
+        self.assertEqual(debug_message_containers("nonsense"), [])
+        self.assertEqual(debug_message_containers(""), [])
+
+    def test_target_selection(self):
+        from unittest import mock as mock_module
+
+        from azoth_world import rep as rep_module
+
+        actor = bytes.fromhex("1a954abc4b3185bfbe37c3d8592618e0")
+        with mock_module.patch.object(rep_module, "DEBUG_MSG_TARGET", "actor"):
+            self.assertEqual(rep_module.debug_message_target(actor), actor)
+            self.assertIsNone(rep_module.debug_message_target(b"short"))
+        with mock_module.patch.object(rep_module, "DEBUG_MSG_TARGET", "captured"):
+            self.assertEqual(
+                rep_module.debug_message_target(actor),
+                bytes.fromhex(rep_module.CAPTURED_REPLY_TARGET),
+            )
+        with mock_module.patch.object(rep_module, "DEBUG_MSG_TARGET", "00" * 16):
+            self.assertEqual(rep_module.debug_message_target(actor), bytes(16))
+        with mock_module.patch.object(rep_module, "DEBUG_MSG_TARGET", "nonsense"):
+            self.assertIsNone(rep_module.debug_message_target(actor))
+
+    def test_it_sends_the_configured_type_after_the_replay_drains(self):
+        from unittest import mock as mock_module
+
+        from azoth_world import rep as rep_module
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.replay_queue = []
+        session.greetings_after_replay = True
+        session.out_msg_seq = 1
+        session.out_rel_seq = 1
+        session.client_actor_id = None
+        session.debug_msg_started_at = 0.0
+        session.debug_msg_next_at = 0.0
+        session.debug_msg_sent = 0
+        session.sent = []
+
+        def _record(_server, records, **_kw):
+            session.sent.append(records)
+
+        session._send_datagram = _record
+
+        with mock_module.patch.object(rep_module, "DEBUG_MSG_TYPE", 0x139F), \
+             mock_module.patch.object(rep_module, "DEBUG_MSG_BODIES", "01,00"), \
+             mock_module.patch.object(rep_module, "DEBUG_MSG_DELAY_S", 0.0), \
+             mock_module.patch.object(rep_module, "DEBUG_MSG_PERIOD_S", 0.0), \
+             mock_module.patch.object(rep_module, "DEBUG_MSG_CONTAINER", "server"), \
+             mock_module.patch.object(rep_module, "DEBUG_MSG_TARGET", "actor"):
+            # First call only stamps the start time (so the delay is measured from the drain).
+            PeerSession.maybe_debug_message(session, None)
+            self.assertEqual(session.sent, [], "the first call must only stamp the start")
+            PeerSession.maybe_debug_message(session, None)
+            self.assertEqual(len(session.sent), 1)
+            payload = session.sent[0][0].payload
+            # server container: [vlq32 len][00 01][varint type][body]
+            self.assertEqual(payload[1:3], b"\x00\x01")
+            self.assertEqual(payload[3], 0x9F | 0x80)  # 0x139f as a 2-byte prefix varint
+            self.assertEqual(payload[-1:], b"\x01", "the first body in the list")
+            # period 0 = once
+            PeerSession.maybe_debug_message(session, None)
+            self.assertEqual(len(session.sent), 1, "period 0 must send exactly once")
+
+    def test_it_sends_nothing_without_a_type(self):
+        from unittest import mock as mock_module
+
+        from azoth_world import rep as rep_module
+        from azoth_world.rep import PeerSession
+
+        session = PeerSession.__new__(PeerSession)
+        session.gone = False
+        session.v3_responded = True
+        session.replay_queue = []
+        session.greetings_after_replay = True
+        session.debug_msg_started_at = 0.0
+        session.debug_msg_sent = 0
+        session.sent = []
+        session._send_datagram = lambda *a, **k: session.sent.append(a)
+        with mock_module.patch.object(rep_module, "DEBUG_MSG_TYPE", 0):
+            PeerSession.maybe_debug_message(session, None)
+        self.assertEqual(session.sent, [])

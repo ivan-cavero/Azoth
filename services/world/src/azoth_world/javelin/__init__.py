@@ -4,6 +4,12 @@ Derived from the AzCore/Javelin decompilation; see research/docs/REP-PROTOCOL.md
 Only the world service imports this: the gateway never interprets Carrier.
 """
 
+from .alc import (
+    AlcInput,
+    TYPE_ALC_INPUT,
+    alc_body_from_record,
+    parse_alc_input,
+)
 from .bitstream import BitStream, BitStreamError, BitStreamWriter
 from .frame import (
     CarrierEnvelope,
@@ -27,6 +33,10 @@ from .v3 import (
 )
 
 __all__ = [
+    "AlcInput",
+    "TYPE_ALC_INPUT",
+    "alc_body_from_record",
+    "parse_alc_input",
     "BitStream",
     "BitStreamError",
     "BitStreamWriter",

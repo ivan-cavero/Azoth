@@ -47,7 +47,10 @@ from .javelin import (
     parse_envelope,
     parse_v3_request_or_lenient,
 )
+from .javelin import alc as javelin_alc
 from .javelin import bundle as javelin_bundle
+from .movement import DesyncTracker, MovementValidator
+from .movement import DESYNC_THRESHOLD
 
 try:
     from OpenSSL import SSL, crypto
@@ -296,8 +299,23 @@ STATE_STREAM_PLAYER_PERIOD_S = float(
 #
 # This knob restricts the stream to bundles whose FIRST record id equals the given
 # value, so every send is a refresh instead of one in 29. 1 = the local-player record.
-# -1 (default) keeps every bundle at or above the floor.
-STATE_STREAM_ONLY_RECORD = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_ONLY_RECORD", "-1"), 0)
+#
+# DEFAULT IS 1, and that is a deliberate correction (measured 2026-10-16). The default
+# used to be -1 ("keep every bundle at or above the floor"), which is the configuration
+# the same 2026-10-13 measurement recorded as YELLOW: floor 0x94 alone refreshes the
+# stamp 12 times in 140 s -> the cable drops RED to YELLOW and stays yellow. Re-measured
+# side by side on this build:
+#
+#   ONLY_RECORD=-1 (26 bundles, record 1 at 4/s)  -> indicator YELLOW, warning triangle
+#   ONLY_RECORD=1  (4 bundles,  record 1 at ~5/s) -> indicator ABSENT over 11 samples / 75 s
+#
+# and movement still works with =1: holding W moved the client's own reported position
+# ~24 u (read from the server side with `javelin/alc.py`, no probe). Nothing real is lost
+# by filtering, because every non-record-1 bundle in the stream is a 1/s loop of CAPTURED
+# state for OTHER entities - that is also why a user sees those entities standing still.
+# So the fixed configuration is now the default instead of an env var a run had to
+# remember, and the trade-off is explicit: the captured other-entity state is not looped.
+STATE_STREAM_ONLY_RECORD = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_ONLY_RECORD", "1"), 0)
 # The client deduplicates replication by seq: FUN_14643e7b0 accepts an unreliable
 # replication message only when `msg.clientContextInstanceId == port[+0x80]` AND
 # `*(u64*)(msg+0x28) > port[+0x78]` (m_lastUnreliableReplicationSeq); FUN_1406d97b0
@@ -394,6 +412,28 @@ INPUT_RESPONSE_TARGET_FILE = os.environ.get(
 CHANNEL1_ECHO_ENABLED = os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO", "0") == "1"
 CHANNEL1_ECHO_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO_PERIOD_S", "0.5"))
 CHANNEL1_ECHO_MAX_BODY = int(os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO_MAX_BODY", "256"))
+# Read the client's OWN position out of its channel-1 ALC input stream (see
+# `javelin/alc.py` for the layout and the measurement behind it). Default ON because it is
+# a read-only observation of a stream the client already sends ~20x/s: it costs one dict
+# lookup per record and it is the input an authoritative movement check needs. Set to 0 to
+# silence the log line (the parse still runs, so a caller can still read
+# `session.alc_position`).
+ALC_POSITION_ENABLED = os.environ.get("AZOTH_ALC_POSITION", "1") != "0"
+# How often the parsed position is written to the log. The stream runs at ~20/s and a log
+# line per record would drown every other event; 1/s is enough to see it track movement.
+ALC_POSITION_LOG_S = float(os.environ.get("AZOTH_ALC_POSITION_LOG_S", "1.0"))
+# How long after the first position sample speed is not measured for. The spawn transition produces
+# a ONE-TIME jump of ~18 u between two consecutive records (~0.05 s apart), which reads as
+# **239-366 u/s** - an artifact of entering the world, not movement. This is the SAME settle window
+# `movement.MovementValidator` uses (`AZOTH_MOVEMENT_SETTLE_S`); it is named here only so the
+# session's `config` event reports the value in force.
+ALC_SPEED_SETTLE_S = float(os.environ.get("AZOTH_MOVEMENT_SETTLE_S", "10.0"))
+# Server-side movement validation (see movement.py for why this is validation and not imposition).
+# The bounds are loose on purpose and every verdict is LOGGED rather than acted on: with the client
+# authoritative over its own position, the useful thing the server can do today is measure what real
+# movement looks like, and the log is that measurement.
+MOVEMENT_VALIDATION_ENABLED = os.environ.get("AZOTH_MOVEMENT_VALIDATION", "1") != "0"
+MOVEMENT_STATS_LOG_S = float(os.environ.get("AZOTH_MOVEMENT_STATS_LOG_S", "30.0"))
 # EXPERIMENTAL (default off): answer the client's channel-1 local-player state stream
 # with a real, TYPED movement message instead of an echo.
 #
@@ -492,6 +532,92 @@ START_MOVEMENT_RELIABLE = os.environ.get("AZOTH_REPLAY_START_MOVEMENT_RELIABLE",
 #   container exclusively, so a reply that must be read as a channel-1 record has to
 #   use it too.
 POSITION_REPLY_CONTAINER = os.environ.get("AZOTH_REPLAY_POSITION_REPLY_CONTAINER", "server").lower()
+
+# ---------------------------------------------------------------------------------------------
+# GENERIC TYPED MESSAGE SENDER (research lever)
+# ---------------------------------------------------------------------------------------------
+# Send ONE arbitrary typed message to the client on a timer, so a message the client is believed
+# to handle can be exercised without writing a new code path each time. The wire type, the body
+# bytes, the addressing and the framing are all explicit, because the point is to test a
+# HYPOTHESIS about the client rather than to implement a feature.
+#
+# WHY IT EXISTS. The client's own debug surface is large: on 2026-10-16 twenty-three
+# `ActionListComponentServerFacet_*` messages and four `ActionListComponentClientFacet_*` ones were
+# located by GUID in `.rdata`. Several answer open questions directly - `DEBUG_SetInputTimeOut` is
+# the client's own input timeout, which is the amber/red cable threshold, and
+# `DEBUG_SetDrawLastServerPos` would draw where the server says the player is. BUT A NAME IN .rdata
+# SAYS NOTHING ABOUT DIRECTION: `<X>ServerFacet_<M>` names the facet the message is dispatched to,
+# and the `InstallRegistrationHook` string exists for messages in BOTH directions (verified: it is
+# present for `ReceiveInputFromClient`, which is client->server, and for `ClientFacet_OnActionStarted`,
+# which is server->client). So the direction has to be MEASURED, and this lever is how.
+#
+# Defaults: OFF (`AZOTH_DEBUG_MSG_TYPE` = 0 sends nothing). `AZOTH_DEBUG_MSG_BODY` is a
+# comma-separated list cycled one per send, so a single run can A/B two payloads; an empty entry
+# means an empty body, which is a real case for a debug toggle.
+DEBUG_MSG_TYPE = int(os.environ.get("AZOTH_DEBUG_MSG_TYPE", "0"), 0)
+DEBUG_MSG_BODIES = os.environ.get("AZOTH_DEBUG_MSG_BODY", "")
+DEBUG_MSG_TARGET = os.environ.get("AZOTH_DEBUG_MSG_TARGET", "actor").strip().lower()
+DEBUG_MSG_CONTAINER = os.environ.get("AZOTH_DEBUG_MSG_CONTAINER", "server").strip().lower()
+DEBUG_MSG_PERIOD_S = float(os.environ.get("AZOTH_DEBUG_MSG_PERIOD_S", "1.0"))
+# Wait this long after the replay drains before the first send, so the client's object graph is up.
+DEBUG_MSG_DELAY_S = float(os.environ.get("AZOTH_DEBUG_MSG_DELAY_S", "5.0"))
+DEBUG_MSG_CHANNEL = int(os.environ.get("AZOTH_DEBUG_MSG_CHANNEL", "0"), 0)
+DEBUG_MSG_RELIABLE = os.environ.get("AZOTH_DEBUG_MSG_RELIABLE", "1") != "0"
+# The capture's own input-response target. Measured 2026-10-11 to be a target the client HAS
+# registered, which makes a dispatch SUCCEED even when the object behind it is the wrong facet -
+# useful precisely because it separates "the dispatch failed" from "the client ignored it".
+CAPTURED_REPLY_TARGET = "93a3e477cb5fd51ebf85314bbc4a951a"
+
+
+def debug_message_bodies(raw: str) -> list[bytes]:
+    """Parse the body list: comma-separated hex, with an empty entry meaning an empty body.
+
+    Fails closed on malformed hex (returns an empty list, so nothing is sent) rather than
+    raising inside the datagram loop.
+    """
+    if raw == "":
+        return [b""]
+    out: list[bytes] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if part in ("", "-"):
+            out.append(b"")
+            continue
+        try:
+            out.append(bytes.fromhex(part))
+        except ValueError:
+            return []
+    return out
+
+
+def debug_message_containers(raw: str) -> list[str]:
+    """Parse the container list, cycled alongside the body list.
+
+    The framing is one of the unknowns this lever exists to settle: the capture's server->client
+    form is `[vlq32 len][00 01][type][body]` ("server"), while every CLIENT record uses
+    `[u32 BE crc32][u32 BE len][16-byte target][00 01][type][body]` ("client"). A message whose
+    layout is not decoded can only be tested by trying both, so this is a list.
+    """
+    out = [p.strip().lower() for p in raw.split(",") if p.strip()]
+    return [c for c in out if c in ("server", "client")]
+
+
+def debug_message_target(actor: bytes) -> bytes | None:
+    """The 16-byte target for the debug message.
+
+    `actor`    - the client's own actor id, which is what the client itself addresses outbound.
+    `captured` - the capture's input-response blob, a target the client HAS registered.
+    <32 hex>   - an explicit target.
+    """
+    if DEBUG_MSG_TARGET == "actor":
+        return actor if len(actor) == 16 else None
+    if DEBUG_MSG_TARGET == "captured":
+        return bytes.fromhex(CAPTURED_REPLY_TARGET)
+    try:
+        blob = bytes.fromhex(DEBUG_MSG_TARGET)
+    except ValueError:
+        return None
+    return blob if len(blob) == 16 else None
 # The message's 16-byte target blob (body[0:16] and, in the "client" container, the
 # record target). Empty = the client's actor id from the replay.
 #
@@ -754,18 +880,166 @@ STATE_PLAYER_FRAGMENT_BOUNDARIES = (2, 60, 3955, 4295, 4301, 4498, 5335, 5386, 7
 # a 2D position and the client derives the height - which is why the override below writes two
 # floats and not three.
 CAPTURED_PLAYER_POSITION = struct.pack(">ff", 9343.6416015625, 2786.732666015625)
-# `x,y` (decimal) to replace it with; empty = leave the capture alone.
+# `x,y` (decimal) to replace it with; empty = leave the capture alone. `file:<path>` is also
+# accepted and the file is re-read on EVERY send, so the position can be changed MID-SESSION
+# from outside the server without restarting it. That lever is what made the measurement below
+# possible; on its own it does not make the server authoritative over time.
 STATE_POSITION = os.environ.get("AZOTH_STATE_POSITION", "").strip()
+STATE_POSITION_FILE_PREFIX = "file:"
+
+# Post-replay POSITION stream. The spawn record - record_id 1, 48 fragments, 46393 B, replay seq
+# 0x2a..0x6c - is the ONLY bundle that carries the local player's position, and it sits BELOW the
+# state stream's MIN_SEQ floor, so the replay sends it once. This stream re-sends it with a fresh
+# replication counter, so the position override is re-applied after spawn.
+#
+# MEASURED 2026-10-15 AND IT DOES NOT MOVE THE PLAYER. With the stream on and the override rotated
+# through four positions mid-session: 75+ position bundles sent, 99 `state-position-override`
+# events each with `replacements: 1`, and the client's own accessor read 577 samples over 145 s
+# WITHOUT MOVING once - with 0 `Failed to unmarshal`, 0 `ValidationError` and 0 transport errors.
+# The client parses and accepts the re-sent spawn record and does not apply its position: **the
+# spawn record is consumed once, at spawn.** The player's x,y is persistent replicated state on the
+# entity, and the 7154-byte record-1 bundles the stream sends do not carry the capture's position
+# pair at all.
+#
+# So this is NOT a fix and must not be adopted as one. It stays because it is proven at the wire
+# level and is the tool for testing any future position field, and because deleting it would erase
+# the negative. Evidence: `streaming_the_spawn_record_does_not_move_the_player_20261015`.
+STATE_POSITION_STREAM = os.environ.get("AZOTH_STATE_POSITION_STREAM", "0") == "1"
+STATE_POSITION_STREAM_PERIOD_S = float(
+    os.environ.get("AZOTH_STATE_POSITION_STREAM_PERIOD_S", "1.0")
+)
+
+# ---------------------------------------------------------------------------------------------
+# THE POSITION'S FRAGMENT, DERIVED FROM THE CLIENT (measured 2026-10-15)
+# ---------------------------------------------------------------------------------------------
+# `reverse/probes/client/frida-record-boundaries.py` attached at CHARACTER SELECT returned the
+# spawn record's 48 fragment boundaries from the client's own readers, with `tiles: True`
+# (`sum(span) + first_offset == record_length`, 46393). The fragment that contains the position
+# pair starts at payload offset **38310** and ends at **38397** - 87 bytes: a 2-byte header
+# `10 0b` (`key=16`, `type_index=11`) and an 85-byte payload, with the position pair at payload
+# offset **20** (38332 - 38312).
+#
+# The same `(key=16, type_index=11)` pair is ALSO the only fragment that differs between the four
+# captured record-1 (7154-byte) copies, but there it carries a 48-byte payload that does NOT
+# contain the position pair. So the same key+type has two payload lengths, which means the
+# committed "a fragment's payload length is implied by the type" has to be read as "the type's
+# reader knows how to consume it", not "the length is fixed".
+POSITION_FRAGMENT_KEY = 16
+POSITION_FRAGMENT_TYPE = 11
+POSITION_FRAGMENT_START = 38310
+POSITION_FRAGMENT_END = 38397
+POSITION_IN_FRAGMENT_PAYLOAD = 20
+# Compose a MINIMAL record-1 bundle from just that fragment and stream it. This is a different
+# experiment from STATE_POSITION_STREAM: that one re-sends the whole 48-fragment spawn record,
+# which the client accepts and does not apply; this one sends a 1-fragment record, in case the
+# client's record-1 handler treats "48 fragments" as a re-initialisation and "1 fragment" as an
+# update. Default off; A/B with the env var.
+STATE_POSITION_FRAGMENT = os.environ.get("AZOTH_STATE_POSITION_FRAGMENT", "0") == "1"
+STATE_POSITION_FRAGMENT_PERIOD_S = float(
+    os.environ.get("AZOTH_STATE_POSITION_FRAGMENT_PERIOD_S", "0.25")
+)
+# ---------------------------------------------------------------------------------------------
+# THE DELTA-SHAPED VARIANT: a 9-fragment record-1 bundle carrying the position fragment
+# ---------------------------------------------------------------------------------------------
+# The two shapes tested so far both failed: the whole 48-fragment spawn record, and a minimal
+# 1-fragment record. The untested shape is the DELTA record (9 fragments) the client receives ~4/s
+# in the state stream - the most NATIVE carrier there is - and the METHOD NOTE is that testing at
+# REST cannot tell "applied" from "ignored": if the server asserts the position the client already
+# has, nothing observable changes either way. So this lever is meant to be tested with the player
+# ALREADY DESYNCED from the asserted position.
+#
+# WHAT IT SENDS. record_id 1 with the delta's NINE boundaries, where eight fragments are the delta's
+# own captured bytes and the position-carrying one (key=16, type_index=11) is the SPAWN's 85-byte
+# fragment with the position pair rewritten. That mix is safe for a measured reason: the client's own
+# fragment reader consumed **85 bytes** for this type in the spawn record and **49 bytes** for the
+# same type in the delta record, with `tiles=True` on both, so this type's payload is
+# SELF-DESCRIBING and a fragment the client already accepted once is accepted anywhere.
+#
+# MEASURED: NONE of the 9 delta fragments has the same payload as the spawn's same-key fragment, so
+# the delta is NOT a subset of the spawn - the two records carry different content under shared keys.
+STATE_DELTA_POSITION = os.environ.get("AZOTH_STATE_DELTA_POSITION", "0") == "1"
+STATE_DELTA_POSITION_PERIOD_S = float(
+    os.environ.get("AZOTH_STATE_DELTA_POSITION_PERIOD_S", "1.0")
+)
+# The delta record's nine fragment boundaries, DERIVED FROM THE CLIENT (validated on 60/60 copies).
+STATE_DELTA_FRAGMENT_BOUNDARIES = (2, 60, 3955, 4295, 4301, 4498, 5335, 5386, 7125)
+# ...and the (key, type) pair the client reported for each of those fragments. These are the ALIGNMENT
+# CHECK, and the reason one is needed: the delta copies are NOT byte-identical in length (seq 0x73's
+# payload is 7153 and 0x98's is 7154, because the position fragment is 48 bytes in one and 49 in the
+# other), so the boundaries above describe 0x98/0x9a/0x9c/0x9e and slice 0x73 one byte late - which
+# silently DROPS a fragment's leading key byte. A parse-then-encode round-trip does NOT catch that
+# (it is the identity for any bytes); comparing the decoded keys and types against the measured ones
+# does, because the key->type binding is 1:1 and measured, and a mis-sliced fragment reports
+# key=3857/type=2 where the client reported key=22/type=3857.
+STATE_DELTA_FRAGMENT_KEYS = (55, 19, 73, 9, 72, 74, 16, 22, 44)
+STATE_DELTA_FRAGMENT_TYPES = (4176, 3133, 5606, 3935, 5485, 5691, 11, 3857, 4236)
+
+
+def compose_position_fragment_bundle(
+    spawn_body: bytes, position: tuple[float, float] | None
+) -> tuple[bytes, dict] | None:
+    """Build a minimal record-1 bundle carrying only the position fragment.
+
+    Returns ``(body, report)`` or None when the spawn body does not match the measured layout,
+    which is the fail-closed behaviour: the offsets above are protocol data for THIS build, and a
+    body that does not reproduce them must not be composed into something the client will apply.
+    """
+    try:
+        payload = javelin_bundle.decode_bundle(spawn_body).payload
+    except javelin_bundle.BundleError:
+        return None
+    if len(payload) < POSITION_FRAGMENT_END:
+        return None
+    raw = payload[POSITION_FRAGMENT_START:POSITION_FRAGMENT_END]
+    try:
+        fragment = javelin_bundle.parse_fragment(raw)
+    except javelin_bundle.BundleError:
+        return None
+    if (
+        fragment.key != POSITION_FRAGMENT_KEY
+        or fragment.type_index != POSITION_FRAGMENT_TYPE
+    ):
+        return None
+    frag_payload = fragment.payload
+    report: dict = {
+        "fragment_bytes": len(raw),
+        "fragment_payload": len(frag_payload),
+        "position_replaced": False,
+    }
+    if position is not None:
+        at = POSITION_IN_FRAGMENT_PAYLOAD
+        if frag_payload[at : at + 8] != CAPTURED_PLAYER_POSITION:
+            return None
+        frag_payload = (
+            frag_payload[:at] + struct.pack(">ff", *position) + frag_payload[at + 8 :]
+        )
+        report["position_replaced"] = True
+    record = javelin_bundle.Record(
+        record_id=1,
+        fragments=(
+            javelin_bundle.Fragment(
+                key=fragment.key, type_index=fragment.type_index, payload=frag_payload
+            ),
+        ),
+    )
+    return javelin_bundle.compose_bundle(0, [record]), report
 
 
 def parse_state_position(raw: str) -> tuple[float, float] | None:
-    """Parse `x,y` into a pair, or None for an empty or malformed spec.
+    """Parse `x,y` or `file:<path>` into a pair, or None for an empty or malformed spec.
 
-    Fails closed: a typo leaves the captured position alone rather than writing a garbage
-    coordinate into a bundle the client is about to apply.
+    Fails closed: a typo (or an unreadable file) leaves the captured position alone rather
+    than writing a garbage coordinate into a bundle the client is about to apply.
     """
     if not raw:
         return None
+    if raw.startswith(STATE_POSITION_FILE_PREFIX):
+        try:
+            raw = Path(raw[len(STATE_POSITION_FILE_PREFIX):]).read_text(
+                encoding="utf-8"
+            ).strip()
+        except OSError:
+            return None
     parts = [p.strip() for p in raw.split(",")]
     if len(parts) != 2:
         return None
@@ -779,8 +1053,27 @@ def parse_state_position(raw: str) -> tuple[float, float] | None:
 
 
 def state_position_spec() -> tuple[float, float] | None:
-    """The configured position override, or None."""
+    """The configured position override, or None.
+
+    Re-reads `file:` specs on every call, so a live session follows a position written to disk
+    without a restart. A plain `x,y` spec is constant.
+    """
     return parse_state_position(STATE_POSITION)
+
+
+def _bundle_carries_position(msg) -> bool:
+    """True when a 0x08 body carries the captured local-player position pair.
+
+    Anchored on the measured VALUE, the same signal `apply_position_override` uses, so the
+    position stream selects exactly the bundles the override can rewrite: the spawn record
+    (record_id 1, 48 fragments) and nothing else. A body that does not decode is not a
+    candidate, which keeps the selection from guessing.
+    """
+    try:
+        payload = javelin_bundle.decode_bundle(msg.body).payload
+    except javelin_bundle.BundleError:
+        return False
+    return CAPTURED_PLAYER_POSITION in payload
 
 
 def apply_position_override(body: bytes, position: tuple[float, float]) -> tuple[bytes, int]:
@@ -808,6 +1101,83 @@ def apply_position_override(body: bytes, position: tuple[float, float]) -> tuple
         CAPTURED_PLAYER_POSITION, struct.pack(">ff", *position)
     )
     return javelin_bundle.encode_bundle(parsed.replication_seq, patched), count
+
+
+def compose_delta_position_bundle(
+    delta_body: bytes, spawn_body: bytes, position: tuple[float, float] | None
+) -> tuple[bytes, dict] | None:
+    """Build a record-1 bundle shaped like the DELTA but carrying an absolute position.
+
+    Returns ``(body, report)`` or None when either body does not match the measured layout, which
+    is the fail-closed behaviour: the boundaries are protocol data for THIS build, so a body that
+    does not reproduce them must not be composed into something the client will apply.
+    """
+    try:
+        delta_payload = javelin_bundle.decode_bundle(delta_body).payload
+        spawn_payload = javelin_bundle.decode_bundle(spawn_body).payload
+    except javelin_bundle.BundleError:
+        return None
+    if delta_payload[0] != 1 or delta_payload[1] != len(STATE_DELTA_FRAGMENT_BOUNDARIES):
+        return None
+    if len(spawn_payload) < POSITION_FRAGMENT_END:
+        return None
+    raw_position = spawn_payload[POSITION_FRAGMENT_START:POSITION_FRAGMENT_END]
+    try:
+        position_fragment = javelin_bundle.parse_fragment(raw_position)
+        raw_fragments = javelin_bundle.split_record_payload(
+            delta_payload, list(STATE_DELTA_FRAGMENT_BOUNDARIES)
+        )
+        delta_fragments = [javelin_bundle.parse_fragment(raw) for raw in raw_fragments]
+    except javelin_bundle.BundleError:
+        return None
+    # ALIGNMENT CHECK, and it is load-bearing: the delta's boundaries are NOT identical across the
+    # captured copies (seq 0x73's payload is 7153 and 0x98's is 7154, because the position fragment
+    # is 48 bytes in one and 49 in the other), so the committed boundaries describe 0x98 and slice
+    # 0x73 one byte late - silently DROPPING that fragment's leading key byte. A parse/encode
+    # round-trip cannot catch it (it is the identity for any bytes), so compare the decoded keys and
+    # types against the ones the CLIENT reported for this record shape.
+    if tuple(f.key for f in delta_fragments) != STATE_DELTA_FRAGMENT_KEYS:
+        return None
+    if tuple(f.type_index for f in delta_fragments) != STATE_DELTA_FRAGMENT_TYPES:
+        return None
+    if (
+        position_fragment.key != POSITION_FRAGMENT_KEY
+        or position_fragment.type_index != POSITION_FRAGMENT_TYPE
+    ):
+        return None
+    frag_payload = position_fragment.payload
+    report: dict = {
+        "delta_fragments": len(delta_fragments),
+        "replaced_key": None,
+        "position_replaced": False,
+    }
+    if position is not None:
+        at = POSITION_IN_FRAGMENT_PAYLOAD
+        if frag_payload[at : at + 8] != CAPTURED_PLAYER_POSITION:
+            return None
+        frag_payload = (
+            frag_payload[:at] + struct.pack(">ff", *position) + frag_payload[at + 8 :]
+        )
+        report["position_replaced"] = True
+    out = []
+    for fragment in delta_fragments:
+        if fragment.key == POSITION_FRAGMENT_KEY:
+            report["replaced_key"] = fragment.key
+            report["delta_fragment_payload"] = len(fragment.payload)
+            report["sent_fragment_payload"] = len(frag_payload)
+            out.append(
+                javelin_bundle.Fragment(
+                    key=POSITION_FRAGMENT_KEY,
+                    type_index=POSITION_FRAGMENT_TYPE,
+                    payload=frag_payload,
+                )
+            )
+        else:
+            out.append(fragment)
+    if report["replaced_key"] is None:
+        return None
+    record = javelin_bundle.Record(record_id=1, fragments=tuple(out))
+    return javelin_bundle.compose_bundle(0, [record]), report
 
 
 def parse_state_override(raw: str) -> tuple[int, int, bytes] | None:
@@ -1235,6 +1605,19 @@ def _state_stream_record_id(msg) -> int:
     except Exception:
         return -1
     return body[0] if body else -1
+
+
+def _state_stream_record_fragment_count(msg) -> int:
+    """The FIRST record's declared fragment count, or -1 if the body is not a state bundle.
+
+    This is how the two record-1 shapes are told apart: the SPAWN record declares 48 and the DELTA
+    declares 9, and both were measured from the client with `tiles=True`.
+    """
+    try:
+        body = javelin_bundle.decode_bundle(msg.body).payload
+    except Exception:
+        return -1
+    return body[1] if len(body) > 1 else -1
 
 
 def _read_input_response_target() -> bytes | None:
@@ -1891,9 +2274,27 @@ class PeerSession:
         self.state_stream_queue: list = []
         self.state_stream_player: list = []
         self.state_stream_player_queue: list = []
+        # Position-bearing bundles (the spawn record), streamed separately so the server's
+        # position override keeps applying after spawn (see STATE_POSITION_STREAM).
+        self.state_stream_position: list = []
+        self.state_stream_position_queue: list = []
+        # A minimal record-1 bundle carrying only the position fragment (see
+        # STATE_POSITION_FRAGMENT), and the message it is composed from.
+        self.position_fragment_msg = None
+        self.position_fragment_body: bytes | None = None
+        self.position_fragment_next_at = 0.0
+        self.position_fragment_sent = 0
+        # The DELTA-shaped position variant (see STATE_DELTA_POSITION).
+        self.delta_position_msg = None
+        self.delta_position_spawn = None
+        self.delta_position_armed = False
+        self.delta_position_next_at = 0.0
+        self.delta_position_sent = 0
         self.state_stream_next_at = 0.0
         self.state_stream_player_next_at = 0.0
+        self.state_stream_position_next_at = 0.0
         self.state_stream_player_sent = 0
+        self.state_stream_position_sent = 0
         self.state_stream_sent = 0
         self.state_stream_seq = 0
         # Recomposed player bundles, when STATE_AUTHORITATIVE is on.
@@ -1906,6 +2307,37 @@ class PeerSession:
         self.input_response_sent = 0
         # Latest channel-1 client body, captured for the experimental echo.
         self.channel1_last_body: bytes | None = None
+        # The client's OWN reported position, read from its channel-1 ALC stream (see
+        # javelin/alc.py). This is the movement-validation input: it is the client's live
+        # position, so the server can see where the player claims to be without a probe.
+        self.alc_position: tuple[float, float] | None = None
+        self.alc_position_at: float = 0.0
+        self.alc_bodies = 0
+        self.alc_first_at = 0.0
+        self.alc_position_log_next_at = 0.0
+        # Server-side movement validation over the client's own reported position.
+        self.movement = MovementValidator() if MOVEMENT_VALIDATION_ENABLED else None
+        self.movement_stats_next_at = 0.0
+        # Desync: the client's reported position versus the position the server believes. The server
+        # cannot CORRECT it in this build (all three record shapes and the position interface are
+        # measured dead), so detecting and escalating is the honest half - and the deviation is
+        # tracked continuously so a threshold can be chosen from data.
+        self.desync = DesyncTracker() if MOVEMENT_VALIDATION_ENABLED else None
+        self.desync_next_at = 0.0
+        if self.desync is not None:
+            # The server's belief is the position it ASSERTS when it has one (a spawn override),
+            # otherwise the capture's spawn value - which is what the client was last told. Delivery
+            # only works at SPAWN in this build, so that is the value to compare against.
+            asserted = state_position_spec()
+            if asserted is not None:
+                self.desync.note_server(asserted[0], asserted[1])
+            else:
+                captured_x, captured_y = struct.unpack(">ff", CAPTURED_PLAYER_POSITION)
+                self.desync.note_server(captured_x, captured_y)
+        # Generic typed-message lever (see DEBUG_MSG_*).
+        self.debug_msg_started_at = 0.0
+        self.debug_msg_next_at = 0.0
+        self.debug_msg_sent = 0
         self.channel1_echo_next_at = 0.0
         self.channel1_echo_sent = 0
         # Experimental typed position reply (see POSITION_REPLY_* above).
@@ -1944,6 +2376,108 @@ class PeerSession:
             server.drop(self.peer)
         finally:
             self.flush(server)
+
+    def _note_alc_input(self, payload: bytes) -> None:
+        """Read the client's reported position out of one channel-1 ALC record.
+
+        MEASURED 2026-10-16: the client streams its own world position on channel 1 as two
+        big-endian float32 values (see `javelin/alc.py`), and this is the first thing the
+        server has ever been able to READ about where the player is rather than decide. The
+        log line is rate-limited because the stream runs at ~20/s; the parsed value is kept
+        on the session either way, so a movement check can use the newest sample.
+        """
+        body = javelin_alc.alc_body_from_record(payload)
+        if body is None:
+            return
+        self.alc_bodies += 1
+        # Defensive on purpose: this runs inside the datagram loop, and a bug here must not do what
+        # an IndexError in `parse_datagram` did on 2026-10-11 - take the peer down and cost a
+        # session. The parsers fail closed on their own; this covers the code AROUND them.
+        try:
+            parsed = javelin_alc.parse_alc_input(body)
+        except Exception as exc:  # noqa: BLE001
+            log_event({"event": "alc-parse-error", "error": str(exc)[:160]})
+            return
+        if parsed.position is None:
+            return
+        previous = self.alc_position
+        previous_at = self.alc_position_at
+        self.alc_position = parsed.position
+        self.alc_position_at = time.monotonic()
+        now = self.alc_position_at
+        if self.alc_first_at == 0.0:
+            self.alc_first_at = now
+        # One implementation of the speed/teleport measurement: the validator (see movement.py).
+        # It is the same object a caller would use to enforce a policy, and it excludes the spawn
+        # transition, which is not movement.
+        #
+        # NOTE the local `validator`: this block can set `self.movement = None`, and a later line in
+        # the SAME call that reads `self.movement.<field>` then raises. That is not hypothetical -
+        # on 2026-10-16 a `round(self.movement.last_speed, 3)` here did exactly that, the exception
+        # escaped `on_app_data`, the feed-error handler DROPPED THE PEER, and the client reported
+        # `transportError 4`. Same failure class as the 2026-10-11 IndexError. Keep the reads on a
+        # local that cannot become None mid-call.
+        validator = self.movement
+        if validator is not None:
+            try:
+                verdict = validator.observe(now, parsed.position[0], parsed.position[1])
+            except Exception as exc:  # noqa: BLE001
+                log_event({"event": "movement-error", "error": str(exc)[:160]})
+                self.movement = None
+                verdict = None
+            else:
+                if verdict is not None:
+                    log_event(
+                        {
+                            "event": "movement-flag",
+                            "kind": verdict.kind,
+                            "distance": round(verdict.distance, 3),
+                            "dt": round(verdict.dt, 4),
+                            "speed": round(verdict.speed, 3),
+                            "x": round(verdict.x, 4),
+                            "y": round(verdict.y, 4),
+                            "n": validator.flags,
+                        }
+                    )
+                if now >= self.movement_stats_next_at:
+                    self.movement_stats_next_at = now + MOVEMENT_STATS_LOG_S
+                    log_event({"event": "movement-stats", **validator.stats()})
+        if self.desync is not None:
+            report = self.desync.observe(parsed.position[0], parsed.position[1])
+            if report is not None:
+                log_event(
+                    {
+                        "event": "movement-desync",
+                        "distance": round(report.distance, 3),
+                        "server": [round(report.server_x, 4), round(report.server_y, 4)],
+                        "client": [round(report.client_x, 4), round(report.client_y, 4)],
+                        "threshold_u": self.desync.threshold,
+                        "n": self.desync.reports,
+                    }
+                )
+            if now >= self.desync_next_at:
+                self.desync_next_at = now + MOVEMENT_STATS_LOG_S
+                log_event({"event": "desync-stats", **self.desync.stats()})
+        if now < self.alc_position_log_next_at:
+            return
+        self.alc_position_log_next_at = now + ALC_POSITION_LOG_S
+        # `last_speed` is None until the second sample, and `max_speed_seen` is always a float; both
+        # are normalised to a rounded value or None BEFORE the log call so a fresh session's first
+        # sample cannot raise here either.
+        last_speed = self.movement.last_speed if self.movement else None
+        speed_peak = self.movement.max_speed_seen if self.movement else None
+        log_event(
+            {
+                "event": "alc-position",
+                "x": round(parsed.position[0], 4),
+                "y": round(parsed.position[1], 4),
+                "body_len": parsed.body_length,
+                "anchor_offset": parsed.anchor_offset,
+                "speed": round(last_speed, 3) if last_speed is not None else None,
+                "speed_peak": round(speed_peak, 3) if speed_peak is not None else None,
+                "n": self.alc_bodies,
+            }
+        )
 
     def on_app_data(self, server, app: bytes) -> None:
         try:
@@ -1988,13 +2522,16 @@ class PeerSession:
         if INBOUND_DISPATCH_ENABLED:
             self._dispatch_inbound(server, inbound_recs)
         self._process_acks(inbound_recs)
-        if CHANNEL1_ECHO_ENABLED:
+        if CHANNEL1_ECHO_ENABLED or ALC_POSITION_ENABLED:
             # Keep the most recent client player-state body so the echo sends
             # real client bytes, not a synthesised one.
             for rec in inbound_recs:
+                if rec.channel != 1 or not rec.payload:
+                    continue
+                if ALC_POSITION_ENABLED:
+                    self._note_alc_input(rec.payload)
                 if (
-                    rec.channel == 1
-                    and rec.payload
+                    CHANNEL1_ECHO_ENABLED
                     and 0 < len(rec.payload) <= CHANNEL1_ECHO_MAX_BODY
                 ):
                     self.channel1_last_body = rec.payload
@@ -2105,6 +2642,7 @@ class PeerSession:
         self.maybe_input_response(server)
         self.maybe_channel1_echo(server)
         self.maybe_position_reply(server)
+        self.maybe_debug_message(server)
         now_mono = time.monotonic()
         if now_mono - self.last_resend_pump >= RESEND_PUMP_MIN_INTERVAL_S:
             self.last_resend_pump = now_mono
@@ -2181,24 +2719,73 @@ class PeerSession:
                     "body_len": len(self.activity_body) if self.activity_body else 0,
                 }
             )
-        if STATE_STREAM_ENABLED:
-            self.state_stream_all = [
-                m
-                for m in store.replay_messages_after_v3(
-                    REPLAY_MAX_SEQ, include_redacted=True
+        if STATE_STREAM_ENABLED or STATE_POSITION_STREAM:
+            if STATE_STREAM_ENABLED:
+                self.state_stream_all = [
+                    m
+                    for m in store.replay_messages_after_v3(
+                        REPLAY_MAX_SEQ, include_redacted=True
+                    )
+                    if m.type_id == 0x08
+                    and m.seq >= STATE_STREAM_MIN_SEQ
+                    and _state_stream_selected(m)
+                ]
+                self.state_stream_queue = list(self.state_stream_all)
+                self.state_stream_player = [
+                    m for m in self.state_stream_all
+                    if _state_stream_record_id(m) == STATE_STREAM_PLAYER_RECORD
+                ]
+                self.state_stream_player_queue = list(self.state_stream_player)
+            if STATE_POSITION_STREAM:
+                # Selected by VALUE, not by the stream's floor: the position lives in the
+                # spawn record, which is BELOW MIN_SEQ and would otherwise never be re-sent.
+                self.state_stream_position = [
+                    m
+                    for m in store.replay_messages_after_v3(
+                        REPLAY_MAX_SEQ, include_redacted=True
+                    )
+                    if m.type_id == 0x08 and _bundle_carries_position(m)
+                ]
+                self.state_stream_position_queue = list(self.state_stream_position)
+            if STATE_POSITION_FRAGMENT:
+                # Compose the minimal position bundle ONCE, from the captured spawn record, and
+                # fail closed if the body does not reproduce the measured fragment layout.
+                spawn = next(
+                    (
+                        m
+                        for m in store.replay_messages_after_v3(
+                            REPLAY_MAX_SEQ, include_redacted=True
+                        )
+                        if m.type_id == 0x08 and _bundle_carries_position(m)
+                    ),
+                    None,
                 )
-                if m.type_id == 0x08
-                and m.seq >= STATE_STREAM_MIN_SEQ
-                and _state_stream_selected(m)
-            ]
-            self.state_stream_queue = list(self.state_stream_all)
-            self.state_stream_player = [
-                m for m in self.state_stream_all
-                if _state_stream_record_id(m) == STATE_STREAM_PLAYER_RECORD
-            ]
-            self.state_stream_player_queue = list(self.state_stream_player)
+                composed = (
+                    compose_position_fragment_bundle(spawn.body, state_position_spec())
+                    if spawn is not None
+                    else None
+                )
+                if composed is not None:
+                    self.position_fragment_msg = spawn
+                    self.position_fragment_body = composed[0]
+                    log_event(
+                        {
+                            "event": "position-fragment-armed",
+                            "from_seq": hex(spawn.seq),
+                            "size": len(composed[0]),
+                            "period_s": STATE_POSITION_FRAGMENT_PERIOD_S,
+                            **composed[1],
+                        }
+                    )
+                else:
+                    log_event(
+                        {
+                            "event": "position-fragment-armed",
+                            "error": "the spawn record does not match the measured layout",
+                        }
+                    )
             highest = 0
-            for msg in self.state_stream_all:
+            for msg in self.state_stream_all + self.state_stream_position:
                 # The counter the client's replication gate compares is the
                 # record-id varint, not a raw byte. Read it through the
                 # verified parser so a multi-byte value cannot be misread.
@@ -2220,11 +2807,78 @@ class PeerSession:
                     "player_record": STATE_STREAM_PLAYER_RECORD,
                     "player_bundles": len(self.state_stream_player),
                     "player_period_s": STATE_STREAM_PLAYER_PERIOD_S,
+                    "position_stream": STATE_POSITION_STREAM,
+                    "position_bundles": len(self.state_stream_position),
+                    "position_seqs": [hex(m.seq) for m in self.state_stream_position],
+                    "position_period_s": STATE_POSITION_STREAM_PERIOD_S,
                     "loop": True,
                     "rewrite_seq": STATE_STREAM_REWRITE_SEQ,
                     "seq_base": self.state_stream_seq,
                 }
             )
+        if STATE_DELTA_POSITION:
+            # Both shapes are needed: the delta for its eight other fragments, the spawn for the
+            # position-carrying fragment (which is 85 bytes there and 49 in the delta).
+            #
+            # The candidate loop is not decoration: the delta's fragment boundaries are NOT identical
+            # across the captured copies (0x73 puts the fragment after the position one byte earlier
+            # than 0x98 does), so the composer refuses a body its boundaries do not describe. Trying
+            # each candidate and keeping the first that COMPOSES means a mismatched copy is skipped
+            # rather than silently mis-sliced.
+            deltas = [
+                m
+                for m in store.replay_messages_after_v3(
+                    REPLAY_MAX_SEQ, include_redacted=True
+                )
+                if m.type_id == 0x08
+                and _state_stream_record_id(m) == STATE_STREAM_PLAYER_RECORD
+                and _state_stream_record_fragment_count(m)
+                == len(STATE_DELTA_FRAGMENT_BOUNDARIES)
+            ]
+            spawn = next(
+                (
+                    m
+                    for m in store.replay_messages_after_v3(
+                        REPLAY_MAX_SEQ, include_redacted=True
+                    )
+                    if m.type_id == 0x08 and _bundle_carries_position(m)
+                ),
+                None,
+            )
+            composed = None
+            chosen = None
+            for candidate in deltas:
+                if spawn is None:
+                    break
+                attempt = compose_delta_position_bundle(
+                    candidate.body, spawn.body, state_position_spec()
+                )
+                if attempt is not None:
+                    composed, chosen = attempt, candidate
+                    break
+            if composed is not None and chosen is not None:
+                self.delta_position_msg = chosen
+                self.delta_position_spawn = spawn
+                self.delta_position_armed = True
+                log_event(
+                    {
+                        "event": "delta-position-armed",
+                        "delta_seq": hex(chosen.seq),
+                        "candidates": len(deltas),
+                        "spawn_seq": hex(spawn.seq),
+                        "size": len(composed[0]),
+                        "period_s": STATE_DELTA_POSITION_PERIOD_S,
+                        **composed[1],
+                    }
+                )
+            else:
+                log_event(
+                    {
+                        "event": "delta-position-armed",
+                        "candidates": len(deltas),
+                        "error": "no captured delta copy matches the measured boundaries",
+                    }
+                )
         if INPUT_RESPONSE_ENABLED:
             self.input_response_msgs = [
                 m
@@ -2823,7 +3477,10 @@ class PeerSession:
         This must wait for the replay to drain: it re-applies the same captured bundles the
         replay is still delivering, and double-applying state is not idempotent client-side.
         """
-        if not STATE_STREAM_ENABLED or self.gone or not self.v3_responded:
+        if not (STATE_STREAM_ENABLED or STATE_POSITION_STREAM or STATE_POSITION_FRAGMENT
+                or STATE_DELTA_POSITION):
+            return
+        if self.gone or not self.v3_responded:
             return
         # Unlike the heartbeat and input-response, this one MUST wait for the
         # replay to drain: it re-applies the same captured bundles the replay
@@ -2832,25 +3489,85 @@ class PeerSession:
         if self.replay_queue or not self.greetings_after_replay:
             return  # the replay itself still carries the captured bundles
         if not (self.state_stream_all or self.state_stream_queue
-                or self.state_stream_player_queue):
+                or self.state_stream_player_queue
+                or self.state_stream_position_queue
+                or self.position_fragment_body
+                or self.delta_position_armed):
             return
         now = time.monotonic()
-        # Two rates, because the two kinds of state matter differently (measured):
+        # Three rates, because the three kinds of state matter differently (measured):
         # the LOCAL PLAYER's own record has to keep the ALC stamp younger than the
-        # cable's amber threshold (~2 s), while the rest of the world state only has
-        # to keep flowing at roughly the rate the real server used.
+        # cable's amber threshold (~2 s), the rest of the world state only has to keep
+        # flowing at roughly the rate the real server used, and the position-bearing
+        # spawn record is 46 KB and only needs to re-assert the server's position.
         if self.state_stream_player_queue and now >= self.state_stream_player_next_at:
             self.state_stream_player_next_at = now + STATE_STREAM_PLAYER_PERIOD_S
             player_msg = self.state_stream_player_queue.pop(0)
             if not self.state_stream_player_queue:
                 self.state_stream_player_queue = list(self.state_stream_player)
             self._send_state_bundle(server, player_msg, "player")
+        if (STATE_POSITION_STREAM and self.state_stream_position_queue
+                and now >= self.state_stream_position_next_at):
+            self.state_stream_position_next_at = now + STATE_POSITION_STREAM_PERIOD_S
+            position_msg = self.state_stream_position_queue.pop(0)
+            if not self.state_stream_position_queue:
+                self.state_stream_position_queue = list(self.state_stream_position)
+            self._send_state_bundle(server, position_msg, "position")
+        if (STATE_POSITION_FRAGMENT and self.position_fragment_body is not None
+                and now >= self.position_fragment_next_at):
+            # Recompose on EVERY send so a `file:` position spec is re-read, then send the
+            # minimal record-1 bundle with a fresh replication counter like any other bundle.
+            composed = compose_position_fragment_bundle(
+                self.position_fragment_msg.body, state_position_spec()
+            )
+            if composed is None:
+                log_event(
+                    {
+                        "event": "position-fragment-failed",
+                        "error": "the spawn record no longer matches the measured layout",
+                    }
+                )
+                self.position_fragment_body = None
+            else:
+                self.position_fragment_next_at = now + STATE_POSITION_FRAGMENT_PERIOD_S
+                self._send_state_bundle(
+                    server,
+                    replace(self.position_fragment_msg, body=composed[0]),
+                    "position-fragment",
+                )
+        if (STATE_DELTA_POSITION and self.delta_position_armed
+                and now >= self.delta_position_next_at):
+            # Recomposed on EVERY send so a `file:` position spec is re-read and the active
+            # position can be changed mid-session, which is the whole point of this test.
+            composed = compose_delta_position_bundle(
+                self.delta_position_msg.body,
+                self.delta_position_spawn.body,
+                state_position_spec(),
+            )
+            if composed is None:
+                log_event(
+                    {
+                        "event": "delta-position-failed",
+                        "error": "the captured records no longer match the measured layout",
+                    }
+                )
+                self.delta_position_armed = False
+            else:
+                self.delta_position_next_at = now + STATE_DELTA_POSITION_PERIOD_S
+                self._send_state_bundle(
+                    server,
+                    replace(self.delta_position_msg, body=composed[0]),
+                    "delta-position",
+                )
         if now < self.state_stream_next_at:
             return
         if not self.state_stream_queue:
             # The real server never stopped sending 0x08, so loop the captured
-            # tail instead of going quiet after one pass.
+            # tail instead of going quiet after one pass. The position stream can be
+            # armed without the world stream, so an empty arm must not pop.
             self.state_stream_queue = list(self.state_stream_all)
+        if not self.state_stream_queue:
+            return
         self.state_stream_next_at = now + STATE_STREAM_PERIOD_S
         self._send_state_bundle(server, self.state_stream_queue.pop(0), "world")
 
@@ -2863,6 +3580,12 @@ class PeerSession:
         self.state_stream_sent += 1
         if kind == "player":
             self.state_stream_player_sent += 1
+        elif kind == "position":
+            self.state_stream_position_sent += 1
+        elif kind == "position-fragment":
+            self.position_fragment_sent += 1
+        elif kind == "delta-position":
+            self.delta_position_sent += 1
         sent_seq = None
         if STATE_STREAM_REWRITE_SEQ:
             # Continue the counter above the client's high-water, or the bundle
@@ -3077,6 +3800,75 @@ class PeerSession:
                 "event": "channel1-echo",
                 "sent": self.channel1_echo_sent,
                 "size": len(body),
+            }
+        )
+
+    def maybe_debug_message(self, server) -> None:
+        """Send the configured debug message on its timer (see DEBUG_MSG_* above).
+
+        Behind the drained replay, like the other post-replay levers: the replay is the only
+        state the client has been observed to accept wholesale, and overlapping the two makes an
+        A/B unreadable. The body list is cycled so one run can compare two payloads.
+        """
+        if not DEBUG_MSG_TYPE or self.gone or not self.v3_responded:
+            return
+        if self.replay_queue or not self.greetings_after_replay:
+            return
+        if self.debug_msg_started_at == 0.0:
+            self.debug_msg_started_at = time.monotonic()
+            return
+        now = time.monotonic()
+        if now - self.debug_msg_started_at < DEBUG_MSG_DELAY_S:
+            return
+        if now < self.debug_msg_next_at:
+            return
+        bodies = debug_message_bodies(DEBUG_MSG_BODIES)
+        if not bodies:
+            return
+        actor = self.client_actor_id or bytes.fromhex(
+            "1a954abc4b3185bfbe37c3d8592618e0"
+        )
+        target = debug_message_target(actor)
+        if target is None:
+            return
+        body = bodies[self.debug_msg_sent % len(bodies)]
+        containers = debug_message_containers(DEBUG_MSG_CONTAINER) or ["server"]
+        container = containers[self.debug_msg_sent % len(containers)]
+        payload = wrap_reply(container, target, DEBUG_MSG_TYPE, body)
+        seq = self.out_msg_seq
+        self.out_msg_seq = (seq + 1) & 0xFFFF
+        rel = self.out_rel_seq
+        self.out_rel_seq = (rel + 1) & 0xFFFF
+        self._send_datagram(
+            server,
+            [
+                MessageRecord(
+                    channel=DEBUG_MSG_CHANNEL,
+                    payload=payload,
+                    sequence=seq,
+                    reliable_sequence=rel,
+                    reliable=DEBUG_MSG_RELIABLE,
+                    connecting=False,
+                    flags_override=0x21 if DEBUG_MSG_RELIABLE else 0x20,
+                )
+            ],
+            track_reliable=DEBUG_MSG_RELIABLE,
+        )
+        self.debug_msg_sent += 1
+        self.debug_msg_next_at = (
+            now + DEBUG_MSG_PERIOD_S if DEBUG_MSG_PERIOD_S > 0 else float("inf")
+        )
+        log_event(
+            {
+                "event": "debug-msg",
+                "type": hex(DEBUG_MSG_TYPE),
+                "body": body.hex(),
+                "target": target.hex(),
+                "container": container,
+                "channel": DEBUG_MSG_CHANNEL,
+                "reliable": DEBUG_MSG_RELIABLE,
+                "size": len(payload),
+                "n": self.debug_msg_sent,
             }
         )
 
@@ -3620,6 +4412,9 @@ class RepServer:
                 # Logging them here is the only way to tell an A/B run's
                 # configuration from the server log alone.
                 "state_stream": STATE_STREAM_ENABLED,
+                "only_record": STATE_STREAM_ONLY_RECORD,
+                "player_record": STATE_STREAM_PLAYER_RECORD,
+                "player_period_s": STATE_STREAM_PLAYER_PERIOD_S,
                 "activity_stream": ACTIVITY_STREAM_ENABLED,
                 "input_response": INPUT_RESPONSE_ENABLED,
                 "input_response_period_s": INPUT_RESPONSE_PERIOD_S,
@@ -3627,6 +4422,20 @@ class RepServer:
                 "input_response_channel": INPUT_RESPONSE_CHANNEL,
                 "input_response_container": INPUT_RESPONSE_CONTAINER,
                 "channel1_echo": CHANNEL1_ECHO_ENABLED,
+                "alc_position": ALC_POSITION_ENABLED,
+                "alc_position_log_s": ALC_POSITION_LOG_S,
+                "alc_speed_settle_s": ALC_SPEED_SETTLE_S,
+                "movement_validation": MOVEMENT_VALIDATION_ENABLED,
+                "movement_stats_log_s": MOVEMENT_STATS_LOG_S,
+                "movement_desync_u": DESYNC_THRESHOLD,
+                "debug_msg_type": hex(DEBUG_MSG_TYPE),
+                "debug_msg_bodies": DEBUG_MSG_BODIES or None,
+                "debug_msg_target": DEBUG_MSG_TARGET,
+                "debug_msg_container": DEBUG_MSG_CONTAINER,
+                "debug_msg_period_s": DEBUG_MSG_PERIOD_S,
+                "debug_msg_delay_s": DEBUG_MSG_DELAY_S,
+                "debug_msg_channel": DEBUG_MSG_CHANNEL,
+                "debug_msg_reliable": DEBUG_MSG_RELIABLE,
                 "replay_enabled": REPLAY_ENABLED,
                 "replay_drop_unreceivable": REPLAY_DROP_UNRECEIVABLE,
                 "replay_defer_client_facets": REPLAY_DEFER_CLIENT_FACETS,
@@ -3641,6 +4450,12 @@ class RepServer:
                 "state_player_boundaries": list(STATE_PLAYER_FRAGMENT_BOUNDARIES),
                 "state_position": STATE_POSITION or None,
                 "state_position_captured": CAPTURED_PLAYER_POSITION.hex(),
+                "state_position_stream": STATE_POSITION_STREAM,
+                "state_position_stream_period_s": STATE_POSITION_STREAM_PERIOD_S,
+                "state_position_fragment": STATE_POSITION_FRAGMENT,
+                "state_position_fragment_period_s": STATE_POSITION_FRAGMENT_PERIOD_S,
+                "state_delta_position": STATE_DELTA_POSITION,
+                "state_delta_position_period_s": STATE_DELTA_POSITION_PERIOD_S,
                 "ack_coalesce_s": ACK_COALESCE_S,
             }
         )
