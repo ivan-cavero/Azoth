@@ -318,10 +318,80 @@ cable and no movement while the readout's `Time since last response` grows.
   hardware, workload, latency, tick deadlines, bandwidth, CPU, memory, and
   reconnect results.
 
-## Next steps, in order (state after 2026-10-19)
+## Next steps, in order (state after 2026-10-20)
 
 The server is authoritative over the player's own movement **and** owns its inventory. Each item names
 its acceptance test so it closes on evidence.
+
+### The 2026-10-19 re-scope was tried and its premise was wrong (2026-10-20)
+
+The re-scope said "move an EXISTING captured actor instead of creating one". Two live arms, and the
+premise did not survive: **neither character record is a body that renders.**
+
+- **A real bug was fixed on the way, and it is the same class the structure experiment paid for.** The
+  move was gated on `msg.seq == MOVE_ACTOR_SEQ`, so it only patched the STREAM copy of the record and
+  never the bundle that CREATES the entity. Measured: record 29's pair is in `0x77` (below the stream
+  floor `0x94`, sent once by the replay) **and** `0xa1` (the stream). Now applied by value to every
+  body that carries the pair; `MOVE_ACTOR_SEQ` only resolves the anchor. Live: `actor-moved` on both
+  seqs. `the_actor_move_was_gated_on_the_source_seq_and_missed_the_creation_bundle_20261020`.
+- **Record 29 (`0xa1`), 5.8 u from the player:** accepted with 0 unmarshal / 0 validation / 0 root
+  errors and **no body appears**. It never rendered, so it was never a candidate.
+- **Saradnax (`0x97`, record 94):** its slice instance declares its actor and then `18b03301040001a0`
+  where record 29 has a real f32 pair — **the slice declares no transform**, and the only plausible
+  pair is 84.3 u away. `moving_a_captured_actor_needs_a_body_that_renders_and_neither_character_record_does_20261020`.
+- **The census was run (2026-10-20) and it redirects the work again.** A new read-only probe
+  (`reverse/probes/client/frida-actor-transform.py`, native `Memory.scan`, the player id as positive
+  control) searched the client for every actor id the capture declares. **Only four of the twelve are
+  present** (rid 29, 30, 60 and, in one scan, 87); rid 79 and 88-94 — Saradnax, Marrlord, Vinicent,
+  Nuna — are **absent**. So the rendered bodies are *not* held under their declared actor id, which is
+  the opposite of what this re-scope assumed. Also negative: no actor id has an adjacent
+  world-position pair in either endianness, and the player's own position is not findable as an
+  adjacent f32 (or f64) pair anywhere in 3 GB — the accessor derives it.
+- **The entities were then enumerated, and the render still does not follow (2026-10-20).** Guessing
+  the `this+0x110` hash-table layout **failed** (it walked into code memory); the anchor that works is
+  the client's own lookup `FUN_1413fb700`, whose `args[0]` is an entity and whose component count is
+  `(entity+0x18 - entity+0x10)/8`. Attached at **character select**, a 40-component floor leaves
+  exactly **15** entities: two of 126 (the live local player) and **twelve of 61** — the twelve remote
+  actors the capture declares, now addressable for the first time.
+- **But writing their Transform does not move the body.** Only one of the twelve carries a world
+  position in its Transform (two consecutive 12-byte little-endian `(x,y,z)` triples at `+0xE48`,
+  **with height**); the client keeps a written value (read back unchanged 3×), and the render does not
+  follow — four arms, **0.12–0.13x** motion, this repo's "nothing moved" threshold. The other eleven
+  have no such triple at all, so there is no common layout.
+- **The RENDER-side component was tried and it is not it either (2026-10-20).** Naming every component
+  of the entities the walk finds settles what they are: **thirteen entities of exactly 61 components
+  are the remote-player shape** — `CharacterComponent`, `PlayerAppearanceComponent`,
+  `SkinnedMeshComponent`, `PlayerSaveData`, `PlayerPositionTrackingComponent`,
+  `AsyncRenderTransformComponent` — and they lack **every** local-only component (`PlayerAOIComponent`,
+  `HUDComponent`, `CameraLockComponent`, `InventoriesComponent`, `AttributeComponent`,
+  `CombatStatusComponent`). Thirteen against the twelve actor-bearing records the capture declares:
+  **the remote player entities are addressable objects now.**
+  `the_thirteen_sixty_one_component_entities_are_the_remote_player_shape_20261020`.
+- **But their position is in neither transform, and the local player is the control that proves it.**
+  Three windows (0x400, 0x8000, and a current+previous-closeness filter) over `Transform` and
+  `AsyncRenderTransformComponent`: the hits land at **wildly different offsets** per entity (2904 …
+  31332), which means they are **neighbouring heap objects read past the end of the component**, not
+  the entity's transform — a real component layout puts a field at the same offset in every instance.
+  And the live local player, which certainly renders, has **no** in-band triple at all. So *"find the
+  transform offset"* is the wrong question. `the_position_is_not_in_the_transform_or_the_render_transform_of_any_entity_20261020`.
+- **SOLVED (2026-10-20): the holder IS the Transform, and the layout is stride 0x10.** The position is
+  `Transform +0x14c (x)`, `+0x15c (y)`, `+0x16c (z)` — **not** a packed 12-byte triple, which is why
+  every scan in this project missed it. Established by decompiling `FUN_140fddfa0` and its handler
+  `0x141015b30`, then reading the holder's vtable slot 0 at runtime: the type is `484AE67D-…` =
+  **Transform**. Reading those offsets on the twelve remote entities reproduces the capture's declared
+  positions **0.5–2.3 u** apart for all twelve, and the local player's value exactly.
+  `the_world_position_is_at_transform_plus_14c_15c_16c_with_stride_16_20261020`.
+- **What that gives, and where it stops (2026-10-20).** The server **owns the spawn position of a
+  captured actor**: with `AZOTH_MOVE_ACTOR_SEQ=0xa1` the client's entity for record 29 comes up at the
+  server's `(9351.80, 2786.53)` instead of the capture's `(9345.46, 2781.26)`. But the **client
+  re-imposes** that position — a direct write to the Transform lands and is **restored in ~2 s**, with
+  the render unmoved (0.08x against a 0.11x do-nothing control) — and changing the position file
+  mid-session does nothing (1 write, the `0x77` creation bundle, against 264 stream sends of `0xa1`).
+  That is the local player's mid-session wall, now confirmed **from the client**.
+  `the_client_reimposes_the_entity_position_and_ignores_a_direct_write_20261020`.
+- **So the remaining question is the right one at last:** what re-imposes the position? Not the state
+  stream (it does not carry it), not the Transform (it is overwritten). It is whichever path feeds
+  `FUN_140fdd9b0`, the function the accessor uses to obtain the holder.
 
 ### DONE 2026-10-19 (kept for the record)
 
@@ -340,6 +410,10 @@ its acceptance test so it closes on evidence.
   required `0x169D`, which the client never sends, so a legitimate push was being suppressed.
 
 ### 1. Finish the entity story: a NEW actor, not a moved one
+
+**STATUS 2026-10-20: creation is refuted (four independent measurements, below) and the "move a body
+that renders" re-scope failed its own premise too — see the section above. The only remaining lever is
+the actor/entity census, not another payload.**
 
 **CORRECTED 2026-10-19.** The premise below was wrong in one important way and is fixed here, because
 it sent a session down the wrong path. It said entity records carry "component GUIDs, not actor ids".

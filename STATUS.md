@@ -1,5 +1,176 @@
 # Live status
 
+## 2026-10-20 — the "move a body that renders" re-scope was tried, and its premise was wrong
+
+The re-scope written yesterday was "move an EXISTING captured actor instead of creating one".
+It was tried with two live arms and a real code bug was found and fixed on the way. **The premise
+did not survive: neither character record is a body that renders.**
+
+### A real bug, fixed: the move was gated on the source seq
+
+`_send_replay_message` read `if move_to is not None and msg.seq == MOVE_ACTOR_SEQ`, so the rewrite
+only ran on the bundle whose seq equals the configured source. But an entity is **created** by the
+first bundle that carries it and only **updated** by the rest, and the component maps are
+first-write-wins — so patching only the stream's copy leaves the body at the capture's position.
+That is the same defect the structure experiment already paid for.
+
+Measured, not inferred: record 29's position pair `(9345.4609, 2781.2595)` is carried by **two**
+bundles, `0x77` (below the stream floor `0x94`, so the **replay** sends it once) and `0xa1` (the
+stream). Gating on seq never touched the creation bundle. The rewrite is now applied **by value to
+every body** that carries the pair; `MOVE_ACTOR_SEQ` only resolves the anchor. Live: `actor-moved`
+fires on `0x77` **and** `0xa1` in one session. A test pins both halves. **375 world tests OK.**
+
+### Arm 1 — record 29 (`0xa1`), the character 5.8 u from the player
+
+Accepted with **0** `Failed to unmarshal`, **0** `ValidationError`, **0** `more than one root`, and
+the 26 Transform warnings that are this build's fixed baseline. **No body appears** 5.8 u away. That
+is consistent with the existing record that record 29 never rendered: it was never a candidate.
+
+### Arm 2 — Saradnax (`0x97`, record 94)
+
+Its slice instance at payload **291** declares its actor (`8e4972ff…`) and then **`18b03301040001a0`**
+where record 29 has a real f32 pair (payload 684). **The slice declares no transform**, and the only
+plausible pair in the 575-byte payload is at offset 216 — **84.3 u** from the player, which is not
+where a slice position lives. Rewriting it changed nothing visible, as the layout predicted.
+
+### The census, run for the first time (2026-10-20, later)
+
+The roadmap named the actor/entity census as the next instrument. It now exists
+(`reverse/probes/client/frida-actor-transform.py`, read-only, native `Memory.scan`,
+player id as positive control) and it changes the picture:
+
+| actor id | in client memory |
+| --- | --- |
+| local player (rid 1) | **yes**, 30–39 hits — the control |
+| rid 29, 30, 60 | **yes**, 1 hit each |
+| rid 87 | 1 hit, then **0** in the next scan 23 s later |
+| rid 79, 88, 89, 90, 91, 92, 93, 94 | **absent** |
+
+So the bodies the capture names — Saradnax (rid 94), Marrlord (rid 88), Vinicent (rid 89),
+Nuna (rid 91) — are **not held under their declared actor id**. The re-scope assumed the
+opposite. Two more negatives from the same run: **no** actor id has an adjacent world-position
+pair in either endianness, and the same wildcard search cannot find **the player's own position**
+as an adjacent f32 pair anywhere in 3 GB (an f64 search finds nothing either) — the accessor
+derives it rather than storing it as a plain pair.
+
+**The way forward is not a scan.** `frida-entity-table.py` shows the entity manager at
+`this+0x110` **is populated** (four non-empty bucket cells, counts 2/2/1/1), so entities exist as
+objects in a hash table. Walk that table, read each entity's actor id and transform, and find
+which entity is a body that renders.
+
+**Caveat, stated so it is not overread:** the budget is 3 GB over ~35 000 ranges, so *absent*
+means *not in the scanned region*. The control makes the present-hits trustworthy; the absences
+are strong but not absolute.
+
+### Walking the entities worked, and the render does not follow the transform (2026-10-20, last)
+
+Two failed instruments before the one that worked, and both failures are worth keeping:
+
+- **Guessing the hash table failed.** Walking `this+0x110` by assuming a bucket/chain layout followed
+  arbitrary pointers into code memory (`comps=112` at a `.text` address). That layout is not
+  documented, so a guess produces garbage that looks like data.
+- **A JS byte loop over 13 patterns × 3 GB did not finish** in 7 minutes; the native `Memory.scan`
+  does the same work in 23 s.
+- **What worked** is the client's own lookup `FUN_1413fb700` as the anchor: `args[0]` is an entity and
+  the component count is `(entity+0x18 - entity+0x10)/8`. Attached at **character select**, so the
+  load is covered — the atlas already recorded that the player entity is only observable during it.
+
+**Result:** with a 40-component floor, exactly **15** entities survive — two of **126** (the live local
+player, 1884 hits) and **twelve of exactly 61**. Twelve is the number of actor-bearing records the
+capture declares, so **the remote actors are now addressable** for the first time.
+
+**And then the decisive negative.** Only one of the twelve carries a plausible world position in its
+Transform: two consecutive 12-byte little-endian `(x, y, z)` triples at `+0xE48`, **including the
+height**, which never travels on the wire. Writing that triple:
+
+| check | result |
+| --- | --- |
+| the client keeps the written value | **yes**, read back 3× unchanged — the Transform is a source |
+| the render follows | **no**: four arms 6 u around the player, all **0.12–0.13x** motion |
+| the other eleven entities | **no triple anywhere** in 16 KB — there is no common layout |
+
+So the actors are addressable, their transforms are writable and stay written, and the **body still
+does not move**. The next hypothesis is a separate render-side component — the player's own component
+list already includes `AsyncRenderTransformComponent` (index 18) — not another transform offset.
+
+### The thirteen entities ARE the remote players — and their position is nowhere in a transform (2026-10-20, last)
+
+The walk was extended to resolve a second component and to name every component of the entities it
+finds, and that answers what they are:
+
+| | remote shape (13 × 61 components) | local player (126) |
+| --- | --- | --- |
+| `CharacterComponent`, `PlayerAppearanceComponent`, `SkinnedMeshComponent`, `PlayerSaveData`, `PlayerPositionTrackingComponent`, `AsyncRenderTransformComponent`, `Transform` | **yes** | yes |
+| `PlayerAOIComponent`, `HUDComponent`, `CameraLockComponent`, `InventoriesComponent`, `AttributeComponent`, `CombatStatusComponent`, `PlayerInputFiltersComponent`, `PlayerSettingsComponent` | **no** | yes |
+
+All 61 resolve with **zero** errors, and the split is exactly *remote proxy* versus *the player you
+drive*. **Thirteen of them exist against the twelve actor-bearing records the capture declares** — the
+remote player entities are addressable objects for the first time.
+
+**Then the position hunt, and it is a negative with a control.** Three windows over the `Transform`
+and the `AsyncRenderTransformComponent`:
+
+| window | what it showed |
+| --- | --- |
+| 0x400 B | nothing — a **window bug**, the position is at `+0xE48` in one entity |
+| 0x8000 B | in-band triples, but at **wildly different offsets** per entity (2904 … 31332) |
+| current+previous must be **close** | offsets still inconsistent; 8 of 13 report nothing |
+
+Inconsistent offsets across instances of the same component type mean those hits are **neighbouring
+heap objects read past the end of the component**, not the entity's own transform. And the decisive
+control: **the live local player — which certainly renders — has no in-band triple at all**, in either
+component, at any window up to 0x8000. So the render path does not read a world position out of these
+components, and *"find the offset"* is the wrong question.
+
+**Where the position actually lives:** the client's own accessor `FUN_140fddfa0(&holder)` reports it at
+`holder+0x14c/+0x15c/+0x16c` — a **different structure** from the Transform component. The next
+instrument is to identify what that holder *is* and how an entity reaches it.
+
+### The position layout, finally: stride 0x10 — and the server DOES own the spawn position (2026-10-20)
+
+A session of failed position hunts is explained by one number. **The world position is three floats at
+`Transform +0x14c (x)`, `+0x15c (y)`, `+0x16c (z)` — stride `0x10`, not a packed 12-byte triple.**
+Every scan in this project looked for a packed triple, which is why none of them ever found it,
+including the one that reported "no position in any entity's Transform".
+
+Established two independent ways:
+
+1. **Decompiled** `FUN_140fddfa0` (the accessor behind `nw_getPlayerPosition`) and its handler
+   `0x141015b30`, which reads exactly `obj+0x14c / +0x15c / +0x16c`. A runtime probe then read that
+   object's **vtable slot 0**, which answers the AZ type id **`484AE67D-…` = Transform**. The holder
+   *is* a Transform component.
+2. **Reading those offsets** on the twelve remote entities reproduces the capture's declared positions
+   **0.5–2.3 u** apart for all twelve, and on the local player reproduces exactly the accessor's value.
+
+**A method trap worth keeping:** calling that accessor from a Frida interval thread returns an all-zero
+structure. It must be called **from inside a hook**, i.e. on the game's own thread.
+
+### What that unlocked, and where it stops
+
+| measurement | result |
+| --- | --- |
+| server sets rid29 to `(9352.0, 2786.0)` | client's entity comes up at **(9351.80, 2786.53)** — the server's value, not the capture's |
+| changing the file mid-session | **no effect**: 1 `actor-moved` write (the `0x77` creation bundle) vs **264** stream sends of `0xa1` |
+| writing the entity Transform directly | the write **lands**, the client **restores** it in ~2 s, and the render does not move (0.08x vs a 0.11x do-nothing control) |
+
+So the server **owns the spawn position of a captured actor** — the by-value fix is what made that
+work — and the **client re-imposes** that position, which is why writing the transform cannot move a
+remote body. The mid-session wall is the same one already documented for the local player, now
+confirmed **from the client's side** instead of inferred from the wire.
+
+### What that means
+
+The bodies that render are **not** the actor records this project has been rewriting, so "move one"
+needs the actor identified from the client first — the actor/entity census the roadmap already names
+(`FUN_146801040`, manager at `this+0x110`, `frida-entity-table.py` / `frida-actor-presence.py`), not
+another payload guess. Two screenshot A/Bs were taken at a fixed viewpoint and diffed with a masked
+scene diff (HUD chrome excluded): 0.067 and 0.063–0.071, i.e. camera micro-motion, no entity.
+
+**Also measured:** the launcher's Frida `DTLS verify bypass` crashes the client during startup
+mapping (`frida-agent.dll_unloaded`, `0xc0000005`, offset `0x9c7e0`) — reproduced **twice today**.
+Use `scripts/patch-dtls-disk.py apply` plus `scripts/private-run.py`, which is probe-free and reached
+`InGame … player possessed` on every arm.
+
 ## 2026-10-19 (cont. 2) — item 1 is REFUTED, and the reason is a fixed property of this build
 
 The roadmap's own step 1 for item 1 was "replicate a captured entity record under a new identity;
