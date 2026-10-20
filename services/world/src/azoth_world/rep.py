@@ -975,8 +975,11 @@ SERVER_ENTITY = os.environ.get("AZOTH_SERVER_ENTITY", "").strip()
 # house that had not been there) and that owns the local player's position.
 #
 # `AZOTH_MOVE_ACTOR_SEQ` is the replay seq whose bundle carries the actor to move (default 0xa1 =
-# record 29, the character 5.8 u from the player in the capture), and the position is read from
-# `AZOTH_MOVE_ACTOR_POSITION_FILE` on every send so it can be driven mid-session.
+# record 29, the character 5.8 u from the player in the capture). It only RESOLVES the actor's
+# captured position; the rewrite itself is applied by VALUE to every bundle that carries that pair,
+# because the body is created by the first such bundle and only updated by the rest (see the call site
+# in `_send_replay_message`). The position is read from `AZOTH_MOVE_ACTOR_POSITION_FILE` on every send
+# so it can be driven mid-session.
 MOVE_ACTOR_SEQ = int(os.environ.get("AZOTH_MOVE_ACTOR_SEQ", "0"), 0)
 MOVE_ACTOR_POSITION_FILE = os.environ.get(
     "AZOTH_MOVE_ACTOR_POSITION_FILE", ".azoth/state/actor-position.txt"
@@ -4640,8 +4643,19 @@ class PeerSession:
         # bodies that render are the capture's own, and their position is a big-endian f32 pair inside
         # a bundle the stream already re-sends, so moving one needs no new entity, no Transform and no
         # registration - unlike creating one, which four independent measurements say is unreachable.
+        #
+        # APPLIED BY VALUE ON EVERY BUNDLE, NOT ONLY ON `MOVE_ACTOR_SEQ`'s OWN SENDS. Measured
+        # 2026-10-20, and it is the same defect the structure experiment already paid for: an entity is
+        # CREATED by the first bundle that carries it and only UPDATED by the rest, and the component
+        # maps are first-write-wins, so patching only the stream's copy leaves the body at the
+        # capture's position. The replay sends the first copy (seqs 0x2..0xb0, patched here too) and,
+        # for record 29, a sibling creation bundle exists as well - `0x77` carries the same pair at
+        # payload 238 while only `0xa1` is in the stream. Anchoring on the captured VALUE covers the
+        # creation bundle, the update bundle and the replay in one rule, and cannot touch a body that
+        # does not carry this actor's position. `MOVE_ACTOR_SEQ` is therefore only what RESOLVES the
+        # anchor, not what selects the sends.
         move_to = move_actor_spec()
-        if move_to is not None and msg.seq == MOVE_ACTOR_SEQ:
+        if move_to is not None:
             captured = move_actor_captured_position()
             if captured is not None:
                 body, moved = entities.replace_entity_position(body, captured, move_to)

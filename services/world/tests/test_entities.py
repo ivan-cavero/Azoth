@@ -464,3 +464,38 @@ class TestMovingACapturedActor(unittest.TestCase):
         from azoth_world import rep
 
         self.assertIn('"AZOTH_MOVE_ACTOR_SEQ", "0"', inspect.getsource(rep))
+
+    def test_the_move_is_applied_to_every_bundle_that_carries_the_pair(self) -> None:
+        """MEASURED 2026-10-20: gating the rewrite on `msg.seq` cannot move a created body.
+
+        An entity is CREATED by the first bundle that carries it and only UPDATED by the rest, and the
+        component maps are first-write-wins. Record 29 proves the shape: its pair is in `0x77` (below
+        the stream floor, sent once by the replay) AND in `0xa1` (the stream), so patching only the
+        stream's copy leaves the body at the capture's position. The structure that DID move
+        (`AZOTH_SERVER_ENTITY`) applies by value to every body, which is why it worked.
+        """
+        import inspect
+
+        from azoth_world import rep
+        from azoth_world.javelin.replay_store import ReplayStore
+
+        source = inspect.getsource(rep)
+        marker = source.index('"event": "actor-moved"')
+        block = source[max(0, marker - 1400) : marker]
+        self.assertNotIn("msg.seq == MOVE_ACTOR_SEQ", block,
+                         "the actor rewrite must not be gated on the source seq")
+
+        store = ReplayStore(str(ROOT / "replay" / "messages-redacted.txt"))
+        carriers = []
+        for message in store.messages:
+            if message.type_id != 0x08 or message.direction != "R":
+                continue
+            try:
+                payload = javelin_bundle.decode_bundle(message.body).payload
+            except javelin_bundle.BundleError:
+                continue
+            if payload.count(struct.pack(">ff", 9345.4609, 2781.2595)):
+                carriers.append(message.seq)
+        # Two bundles, one of them below the stream floor: the replay sends it, the stream does not.
+        self.assertEqual(sorted(hex(seq) for seq in carriers), ["0x77", "0xa1"])
+        self.assertLess(min(carriers), rep.STATE_STREAM_MIN_SEQ)
