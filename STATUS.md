@@ -1,5 +1,1011 @@
 # Live status
 
+## 2026-10-19 (cont. 2) — item 1 is REFUTED, and the reason is a fixed property of this build
+
+The roadmap's own step 1 for item 1 was "replicate a captured entity record under a new identity;
+acceptance: two bodies render where one did". It was tested twice, the second time as strongly as it can
+be tested, and it is **refuted**. Items 1 and 2 cannot be closed by the server in this build.
+
+### The strongest test, and it failed cleanly
+
+The first attempt used record 29 (19 fragments, 5.8 u from the player). Two real bugs were found and
+fixed on the way (a record slot that was already allocated, and a replication counter below the client's
+high-water), the record then reached the dispatcher, the slot was created and stable - and no body
+appeared.
+
+So the second attempt used the record that **provably produces a visible body**: the **48-fragment SPAWN
+record**, the one that creates the local player. Composed and verified offline first: all **48 fragments
+byte-identical** (every undecoded payload preserved), `record_id` 95 (a slot the client's own table
+reports NULL), the position pair at payload offset 38332 rewritten to 3.5 u from the player, and the
+actor id at offset 29731 rewritten to a new one. The server sent it (91 replay chunks) and the client
+**accepted everything**: 0 `Failed to unmarshal`, 0 `ValidationError`, 0 `more than one root`, 0
+transport errors. **No second body appeared.**
+
+That controls for every variable the project has been guessing at - record content, fragment count,
+actor id, position, slot, replication counter - and rules them all out. **The player renders because the
+client binds it as the LOCAL player, not because of anything in that record.** A remote body needs the
+`remoteplayer.dynamicslice` path instead.
+
+### The real blocker, measured, and it is structural
+
+`remoteplayer.dynamicslice` never receives a `GameTransformComponent` in this build:
+
+| measurement | value |
+| --- | --- |
+| `Slice: Couldn't get Transform` warnings | **26, in every session since 2026-10-10** |
+| the Transform gate `FUN_141763b70` | runs **30 times** per session |
+| the registration `FUN_141582430` | runs **0 times** |
+| the slice job's QueryInterface | accepts `{ED75FE05-…}` and `{B18D903B-…}` (= `ReflectContext`), returns **null** for `{83482F97-…}` - the one the gate asks for |
+
+The 26 warnings are invariant across twelve retained logs including one from a different day, and do not
+depend on anything the server sends. That is why every record-shape attempt failed identically.
+
+**Both ways of supplying the missing Transform from outside the client were measured, and both break
+it:** handing a default-constructed component back from the lookup gave 26 warnings -> 0 but **26
+`The slice has more than one root` errors plus an APPCRASH** (`NewWorld.exe`, `0x3f00ce4`); answering the
+QueryInterface gave `qi=2 answered=2` and an **APPCRASH** (`0x149923d`) before the world loaded.
+
+### What this means for the roadmap
+
+Items 1 and 2 are **re-scoped, not abandoned**: the remaining honest options are (a) provide a real
+client-side implementation of that interface - client modification, out of scope for a server-faithful
+implementation - or (b) re-scope both to what the server can actually own. `docs/ROADMAP.md` carries
+this in both item 1 and item 2.
+
+**Also corrected in this session:** the roadmap's claim that entity records carry "component GUIDs, not
+actor ids" was wrong (a record DOES declare its actor id, and only 12 of 36 record ids do), and its
+"long tail" note is refuted - replication gets the bytes accepted and is not enough to get a body.
+
+**Validation:** 368 world tests OK. Atlas: 285 records.
+
+## 2026-10-19 (cont.) — three real bugs fixed; the created entity still does not render
+
+Worked the roadmap in the order requested (4, 1, 2, 3). Three defects were found and fixed, two of them
+in code this session wrote, and one of them broke the operator's own machine. **The entity-creation
+acceptance criterion is NOT met and is not claimed.**
+
+### A real operational bug: the world log was filling the disk
+
+`OUTBOUND_PAYLOAD_LOG` hex-dumps every outbound datagram. A live world sends ~200 datagrams/s of ~1 KB,
+so `world.log` grew at **~1 MB/s**: one 84-minute session produced a **4 GB** file and one afternoon of
+experiments left `.azoth/logs/` at **7.3 GB** on a disk at 78%. The visible symptom was the game becoming
+unresponsive and the client being killed — reported by the operator, reproduced, and **not** the client's
+fault. Fixed: the verbose hex form is now **opt-in** (`AZOTH_LOG_OUTBOUND_PAYLOADS=1`); every structured
+event (`state-stream`, `replay`, `reply`, `heartbeat`, `movement-*`, `npc-*`) stays on, so no existing
+measurement is lost. The 7.3 GB of stale rotated logs were deleted; `.azoth/logs/` is back to <1 GB and a
+fresh session writes ~3 MB where it used to write 1 MB/s.
+
+### Entity creation, bug 1: the "free" record slot was occupied
+
+`entities.CAPTURED_RECORD_IDS` was derived by reading only the **first** record of each captured
+payload — but a payload is a **sequence** of records (`[u8 id][u8 frags][fragments…]`, repeated) that
+cannot be walked because a fragment carries no length field. So that set was a **lower bound**, not the
+occupied set, and the slot chosen from it (**3**) was allocated. Measured the authoritative answer from
+the client itself (`state + 0x608 + record_id*0x10`, probe
+`reverse/probes/client/frida-record-slots.py`): **ids 1..94 occupied, 95..255 NULL**. Consequence,
+measured rather than inferred: the dispatcher reported `slotEmpty: false` for slot 3 on every send, so
+the message was an **UPDATE**, which the first-write-wins component maps discard
+(`component_map_is_first_write_wins_20261018`). Fixed: `MEASURED_USED_SLOTS`, `free_record_ids()` starts
+at **95**, `AZOTH_NPC_DUPLICATE=auto` resolves to it, and an allocated id is refused at load with a log
+line. Atlas: `client_slot_table_measured_1_to_94_occupied_20261019`.
+
+### Entity creation, bug 2: the replication gate dropped the bundle
+
+`duplicate_entity` re-encodes the **payload** but not the bundle **prologue**, so the duplicated record
+kept the source record's replication counter (`0x26` = 38). The client's gate drops any unreliable
+replication whose counter is not strictly greater than `port[+0x78]`, and on a live session that
+high-water was **1216** — so **every** NPC bundle was discarded before the dispatcher. Proved, not
+assumed: of 81 distinct record ids reaching `FUN_141717fc0`, **95 was absent**, while the server logged a
+send every second. Fixed: the NPC body now goes through `with_replication_seq` on the **same monotone
+counter the state stream uses**; the wire shows it advancing (1806/1811/1817) and **record 95 reaches the
+dispatcher**. Atlas: `npc_bundle_was_dropped_by_the_replication_gate_until_its_seq_advanced_20261019`.
+
+### THE ROOT CAUSE, and it is bigger than the created entity
+
+`Game.log` logs `[WARNING] Slice: Couldn't get Transform component on the slice!` **26 times, all for
+`slices/remoteplayer.dynamicslice` (asset `A660EEEB-EBC7-5CB7-BE6B-AB11EB831731:64`)**, 5 s after spawn,
+**in a session with the NPC feature DISABLED**. That slice is the one whose instance carries every
+entity's actor id - the GUID embedded in record 29 at payload offset 642 is exactly
+`a660eeebebc75cb7be6bab11eb831731`. The committed replay declares **46 such slice instances across 13
+record ids** (1, 29, 30, 60, 79, 87, 88, 89, 90, 91, 92, 93, 94) - the remote players and creatures.
+
+The static chain already on record (`gametransform_entity_attach`) says the class map the slice clone
+uses **never receives `GameTransformComponent` from any function that runs at startup**: `FUN_141582430`
+is the only inserter and its only caller `FUN_141763b70` has no static callers. So the cloned remote
+entities have a **null Transform slot**, and a slice instance without a Transform has no world matrix
+and cannot be placed in the scene.
+
+**This is why the created entity has a slot but no body**, and it is a PRE-EXISTING condition, not
+something this session broke - the same warning was in every earlier session. It also means the
+**second-player item is blocked by the same thing**, because a remote player IS one of these instances.
+Stated as a consequence, not as proof: the discriminating experiment is the one already designed in
+`gametransform_attach_ab` - hook the lookup's return and, for entities whose slice path contains
+`remoteplayer` and whose `entity+0x60 == 0`, call the GameTransform factory `FUN_14169a210` then
+`FUN_1413789c0` (AddComponent), **with a hard cap** (that A/B measured 12488 attaches and stalled the
+game thread when uncapped). Atlas: `the_client_cannot_bind_a_transform_to_remoteplayer_slices_20261019`.
+
+### What the creation mechanism now has, and what it still lacks
+
+Established, each measured: the actor id is a real addressable field **inside** the record — 16 bytes at
+payload offset **662** in record 29, in the shape `<remoteplayer.dynamicslice GUID><00 00 00 02><actor
+id>`, and the **same shape carries the local player's id at offset 29731** of the 48-fragment spawn
+record, which is the independent confirmation that the field is the actor id; rewriting it changes
+**exactly 16 bytes**; `ClientAddEntryMsg` is composed byte-exactly as `[00 01][a4][16-byte id]`; the
+record now passes the replication gate and is dispatched; and the slot is **created and stable** with a
+single send (1 distinct pointer in 9 samples) whereas re-sending it once per second made the pointer
+**churn on every dispatch** — so the churn was caused by the server re-sending, not by the client
+rejecting, and `AZOTH_NPC_MAX_SENDS` makes that a one-variable lever.
+
+**Not established: a visible second body.** A figure appeared in the with-NPC run and looked like the
+created entity; the same viewpoint was then reproduced with `AZOTH_NPC_DUPLICATE=0` and **the identical
+figure is in the control**, so it is a pre-existing world NPC. That is the false-positive class this
+project has already been burned by (`retracted_movement_claim_20261011`), caught here by taking the
+control arm. Atlas: `the_created_entity_does_not_render_and_the_ab_refuted_the_candidate_body_20261019`.
+**Next instrument, and it is not another payload shape:** the actor/entity table (`FUN_146801040`,
+manager at `this+0x110`) counted before and after, plus a hook on the creation apply `FUN_14178db00`.
+
+### Duration: the teardown is NOT deterministic
+
+A probe-free session ran **1 h 24 min 06 s** from spawn to the last client line with `Disconnected from
+REP` 0, `is timeout` 0, `transportError` 0, `exiting to main menu` 0, `ActorContainerDisconnect` 0 and
+`Cleanup()` 0 — **1053 s (17.5 min) past** the 1 h 06 min 33 s ending recorded on 2026-10-14, same build,
+same server code. So the long-session teardown is **not a fixed timer**, and the duration item must be
+re-scoped from "find the 1 h 06 m timer" to "find what occasionally arms it". Caveat stated because it
+would otherwise be misread: that session was ended by the probe's own deliberate `device.kill`, not by
+the client. Also measured: the four teardown anchors (`FUN_146420610`, `FUN_146444b10`, `FUN_141004100`,
+`FUN_146460240`) recorded **zero hits** in 24 minutes of a clean session, and `FUN_14643e4a0` is **not**
+the disconnect consumer — it was called 893 times in 60 s with the watchdog returning non-zero on all of
+them and the session stayed up, which corrects the earlier reading of that pair. Atlas:
+`session_passed_1h24m_probe_free_the_teardown_is_not_deterministic_20261019`,
+`duration_anchors_do_not_fire_in_a_clean_84_minute_session_20261019`.
+
+### Also measured: the ntdll crash is not this session's change
+
+The client still dies with `APPCRASH` / `ntdll.dll` / `c0000005` / offset **`0xc3ab6`** — a **new**
+offset, and it reproduces with the NPC feature **disabled**, so it is the long-session instability already
+on record, not a side effect of the entity work.
+
+**Validation:** 368 world tests OK (32 in `test_entities.py`, 12 new).
+
+## 2026-10-19 — the server owns the inventory, and a real gating bug was suppressing it
+
+**The client renders an inventory the server composed.** TAB opens it and it is populated: armour,
+weapons, rewards, jewellery, reagents, pelts, weight `90/91.90`, gold `2.492` — the **428 entries**
+the server sent.
+
+### The response, decoded
+
+`InventoriesComponentClientFacet_OnQueryInventories` (wire `0x16a0`) has two captured bodies: **153 B**
+(empty, no entries) and **99 819 B** (**428 entries**). Each entry is anchored by the marker
+`00 01 82 5a` **68 bytes in**, and carries a NUL-padded container name (`w-world|`), a varint length,
+the item type (`SkinCollection`), a GUID, flags, the literal `isCollected`, a count, a `0x02` tag, and
+the item id as **decimal ASCII**.
+
+**The trap: an entry is `223 + id_length` bytes** — 233 for a 10-digit id (338 entries), 232 for 9 (79),
+231 for 8 (10). A fixed-stride parser reads 19 of 428 and then walks into padding, which is what the
+first attempt did. The walk must anchor on the marker.
+
+**Re-rendering the parsed entries is byte-identical to the capture** (99 819 → 99 819), which is what
+makes it safe to change one id and send the result.
+
+### A real bug in the existing gating, found while wiring it
+
+`RESPONSE_REQUESTS[0x16A0]` was `(0x169D,)`, so `_deferred_decision` held both inventory responses and
+then **dropped them as `request-not-seen`**. But the client **never sends `0x169D`** — 0 of 39 client
+messages in the capture, 0 `inbound-typed` events in any live session — while the **real server sent
+`0x16a0` at seq 0x28 and 0x29 unsolicited** and the client accepted both. The rule required a request
+that cannot arrive and suppressed a legitimate push. Corrected to `()`, with a test that asserts the
+capture has no such request.
+
+Live confirmation: **0 `0x16a0` suppressed** in the run (was 2 per session), both bodies sent
+(seq 40 = 153 B, seq 41 = **99 819 B in 91 chunks**), `server-inventory-composed` logged **428 entries,
+3 changed**, and the client reported 0 `Failed to unmarshal`, 0 `ValidationError`, 0 `transportError`.
+
+### And the false negative that hid it
+
+The first attempt at opening the UI failed, and I nearly recorded "the UI does not open".
+`scripts/send-input.py` sent a **VK without `KEYEVENTF_SCANCODE`**, while `hold-key.py` sends a real
+**scan code** — and `hold-key.py`'s own docstring already says *“New World reads Raw Input; only
+SendInput with a real scan code reaches it”*. The same session proved input was arriving (W moved the
+player 7 u), so the honest reading was “this path does not deliver that key”.
+
+TAB is scan code **`0x0F`**, and with that the inventory opens. **`send-input.py` now sends scan codes
+by default** (`key <SCAN>`), keeping `vk <VK>` for paths that want one.
+
+**Validation:** 346 world tests OK (23 new), 24 gateway OK. Atlas: 263 records.
+
+## 2026-10-18 (cont. 18) — the server ENFORCES movement authority, verified live
+
+The correction side, implemented and measured. **The server now follows a real player and corrects
+when it should — and a legitimate walk produces zero corrections.**
+
+### The architecture, from the client's own cvars
+
+The CLIENT owns its locomotion and corrects its own desync; the SERVER validates and reacts. So a
+correction is the server **refusing or limiting what it accepts**, not pushing a position — this build
+has no working position-push channel (`IPositionReceiver`'s apply is `ret 0`, measured).
+
+Three layers, deliberately separate so each is testable without a running game:
+
+| layer | what it does |
+| --- | --- |
+| `alc.read_live_position` | the client's live position (movement buffer, validated **600/600**) |
+| `MovementSimulator` / `YawAwareSimulator` | the server's **own** position and prediction |
+| `CorrectionPolicy` | what the server **does** about a divergence |
+
+### The escalation
+
+| action | when | lever |
+| --- | --- | --- |
+| **ACCEPT** | claim plausible | adopt it |
+| **HOLD** | claim rejected | keep the server's position; divergence recorded |
+| **FREEZE** | past `freeze_after` violations | **stop refreshing the player state stream** — measured 2026-10-13 to freeze the client's simulation and make W do nothing |
+| **DISCONNECT** | past `disconnect_after` | drop a client that will not converge |
+
+And it **recovers**: `recover_after` clean samples resume the stream.
+
+### Verified live (run 22:00)
+
+| measure | value |
+| --- | --- |
+| server's own position | **(9352.11, 2769.72)** — tracked a real **23.02 u** walk from (9341.44, 2790.11) |
+| adopted / violations | **3317 / 0** |
+| mean prediction error | **0.0027 u** |
+| decisions | **3, all ACCEPT** |
+| client errors | 0 `Failed to unmarshal`, 0 `ValidationError`, 0 `transportError`, 0 connection warnings |
+
+**A legitimate walk produces zero corrections** — the correct behaviour, and exactly what a naive
+authoritative server gets wrong by rubber-banding an honest player.
+
+### Two bugs found while wiring it
+
+1. **`set_offset` was called every sample**, and it clears the tracker's streak (correctly — a new
+   frame invalidates a streak built in the old one), so the streak reset forever and the desync
+   **never fired**. Now called once.
+2. **`movement-simulation-held` logged once per sample** because it shared a dedup flag with the
+   validator, whose reference resets after a rejection and then reports the next sample as its own
+   first sample. It has its own flag now.
+
+**Validation:** 312 world tests OK, 24 gateway OK. Atlas: 259 records.
+
+## 2026-10-18 (cont. 17) — the yaw was 90° off, and the feed now reads correctly
+
+With the live feed working, the simulator produced numbers — and they were **the opposite of the
+truth**: a player walking straight forward reported `forward_speed 0.00 / lateral +3.83 u/s`.
+
+**The yaw is measured from +Y, not from +X.** Over **79 displacements** during a real walk,
+`(movement heading − yaw)` is **+90.0°** in **77** of them (+90..+105 in the other 2). A constant
+90° offset is a different angle origin, not noise.
+
+Cross-check: the measured yaw was **−154.04°**; `(−sin, cos)` of that is **(0.438, −0.899)**, and the
+player's actual displacement over the walk was `(10.1, −20.7)` normalized = **(0.439, −0.899)**.
+Exact.
+
+**After the fix, on 133 real walking samples:**
+
+| measure | value |
+| --- | --- |
+| forward_speed | **+3.83 u/s** median |
+| lateral_speed | **0.00** |
+| mean prediction error | **0.1265 u** |
+| violations | **0** |
+| disagreements | **0** |
+
+That is the first set of movement numbers in this project measured against a real walk with a real
+feed — the earlier ones (4.0311 u constant, 0.0419 u prediction error) were taken against the anchor
+and meant nothing.
+
+**Validation:** 302 world tests OK, 24 gateway OK.
+
+## 2026-10-18 (cont. 16) — SOLVED: the channel carries the live position in a BUFFER
+
+The correction in cont. 15 was itself incomplete, and the missing piece is the answer the whole
+project was looking for.
+
+**The channel-1 body has TWO forms, and I had only ever looked at one:**
+
+| form | payload | positions | what they are |
+| --- | --- | --- | --- |
+| **idle** | 311 B | **1** | the spawn anchor — does **not** follow the player |
+| **moving** | **403–412 B** | **5** | a **sliding buffer of the last five movement samples**, newest first, 20 Hz |
+
+**Every analysis in this project filtered for `len(payload) == 311`.** That is why the anchor was all
+it ever saw, and why “the channel carries no live position” looked true. It does.
+
+### Validation — the strongest in this project
+
+The client's own accessor polled at **20 Hz** while the player walked **23.00 u**, matched against
+every buffer entry:
+
+| check | result |
+| --- | --- |
+| entries per moving message | **5 / 5** in all 120 messages |
+| entries landing on the accessor's trajectory (< 0.5 u) | **600 / 600 (100%)** |
+| entry timestamps | a clean **0.051 s** ladder |
+
+### The layout
+
+Anchored on the same `3d 4c cc cd` marker the idle form uses: first entry at **marker+12**, then
+~63 bytes per further entry. Each entry is `[f32be x][f32be y]` followed by a trailer whose last byte
+before the next entry is a **descending input sequence number**.
+
+One trap the reader handles: the stride is **64** for the first entry and **63** after, so an
+index-based walk drifts. The reader searches a window after each entry instead.
+
+### The frame offset
+
+`wire = accessor + (−2.2002, +3.3777)`, constant to **0.000 u** — the same offset the anchor has,
+which is how the two forms were tied together. It is a **frame difference** between two quantities the
+client computes, not noise.
+
+The server stays in the **wire frame** (anchor, buffer and the state it writes back are all in it).
+The constant exists only to compare against the accessor. The simulator's seed was moved to the wire
+frame for exactly this reason — seeding with the accessor value while feeding wire values would have
+put a permanent 4.03 u error in its own state.
+
+### What this changes
+
+**Step 1 of the authority loop is now genuinely solved.** The server has a live feed to simulate from,
+and `alc.read_live_position` is wired into `_observe_movement_claim`.
+
+**Validation:** 303 world tests OK (8 new), 24 gateway OK.
+
+## 2026-10-18 (cont. 15) — CORRECTION: the channel-1 position is a spawn anchor, not a feed
+
+This is the most consequential correction of the session, and it came from using the decisive
+instrument instead of the wire.
+
+**The measurement.** `frida-player-position` — which calls the client's OWN accessor exactly as
+`nw_getPlayerPosition` does — polled at 20 Hz while the player walked, correlated against the
+channel-1 claim in the same window.
+
+| source | what it showed |
+| --- | --- |
+| client accessor, 20 Hz | a **real 23.00 u walk**: (9343.642, 2786.733) → (9353.72, 2766.06) in ~5 s, ≈4.6 u/s |
+| channel-1 claim, same minute | **1050 samples, 0 position changes** |
+| channel-1 claim, whole hour | **2 distinct values, 1 change** — a **243 u respawn jump** |
+
+**So the `x,y` in the channel-1 body is a spawn/reference ANCHOR.** It updates on teleport and
+respawn, not by locomotion. It sits 4.03 u from the accessor at spawn (the “instrument offset”) and
+stays there while the player walks away.
+
+**What this invalidates — plainly:**
+
+1. “Step 1: LEER the client's position from channel 1” was reading an anchor. The field is real and
+   readable; **it is not the live position**.
+2. The desync detection compared that anchor against a constant server position — **two constants**.
+   That is why the error was **exactly 4.0311 u in all 2562 samples** and calibrated to a residual of
+   **0.0000**. “In sync” was trivially true and meant nothing.
+3. The “3.342 u real divergence detected while walking” was **the anchor drifting**, not the player
+   diverging.
+4. The predictive simulator's **0.0419 u** mean error was measured on input that never moves — it
+   measured arithmetic on a constant.
+
+**What survives:** the client does stream state at 20 Hz on channel 1 (213k records measured); the
+camera yaw and pitch in that body are held state that changes when the player turns the camera; and
+the client's true position **is** readable through its own accessor — but that is a client-side
+instrument, not a wire feed.
+
+**What it means for authority:** the server cannot learn the player's live position from the wire as
+currently understood. Either another message carries it, or the authoritative position must be
+derived from **input plus physics**. That is a larger piece of work than “read the claim and compare”.
+
+The code carries the caveat in its own docstrings so nobody trusts the numbers wrongly.
+
+## 2026-10-18 (cont. 14) — the walk worked, and the position is NOT continuous
+
+Captured a live session with continuous movement: **W held 24 s** (six holds of 4 s). The player
+moved from `(9341.44, 2790.11)` to `(9251.20, 3015.70)` — **over 240 u** — so the walk was real and
+the input stream recorded it.
+
+**But the reported position is not continuous.** Over **5128 samples there are only 3 position
+changes**, and they are **jumps**: 42.866 u, 157.105 u, 128.797 u. Between them the position is
+byte-identical for hundreds of samples.
+
+| transition | from | to | distance |
+| --- | --- | --- | --- |
+| #280 | (9341.44, 2790.11) | (9356.83, 2750.10) | **42.866 u** |
+| #420 | (9356.83, 2750.10) | (9295.86, 2894.90) | **157.105 u** |
+| #448 | (9295.86, 2894.90) | (9251.20, 3015.70) | **128.797 u** |
+
+**So the channel-1 position is not a per-frame sample of a walking player.** It updates in bursts.
+That kills the intent-correlation plan as written — there is no per-sample displacement to correlate
+against — and it explains why every earlier attempt measured “2 pairs of movement”: the movement
+never appears as small steps.
+
+**What was learned anyway:** the movement block's `x,y` **does** change on each of the three jumps, so
+the block is genuinely the position and it travels with the update. The byte ranges that differ across
+a jump are consistent: `0..3` (container CRC), `53..54`, `71/73`, `78..79`, `86..87` (a small
+counter), the movement block `123..140`, and four 2-byte counters at `150/191/232/273`.
+
+**Consequence for the server:** prediction between claims has to come from the **camera orientation**
+and the validator, not from an interpolated position history — which is what `YawAwareSimulator`
+already does. Note the caveat: the measured prediction error (0.0419 u) was computed on a session
+where the position never changed, so it measures the **quiet** case, not a walk.
+
+**Next, if intent is wanted:** it needs the per-frame state, which the channel-1 stream alone does not
+carry — either a client-side probe reading the position accessor at 20 Hz, or a different message the
+client sends while moving.
+
+## 2026-10-18 (cont. 13) — movement INTENT: blocked on data, not on analysis
+
+I went looking for the intent (which keys are held) in the rest of the 311-byte body. **The answer is
+that the existing captures cannot answer it**, and no amount of further static work will change
+that.
+
+**What the body offers:** only **34 of 283 body bytes ever vary**. Ranges: body `17..51` (before the
+movement block), the block itself (`96..112`), and four 2-byte counters at `122/163/204/245`. Two
+bytes are binary and were the obvious intent candidates — body **17** (`0` in 5427, `1` in 573) and
+body **58** (`1` in 5164, `0` in 836).
+
+**Why it cannot be decided.** Correlating them with movement needs samples where the client actually
+moves. Scanning all **172 575** channel-1 samples for consecutive-sample displacement:
+
+| threshold | pairs |
+| --- | --- |
+| > 0.01 u | **2** |
+| > 0.05 u | **2** |
+| > 0.10 u | **2** |
+| > 0.30 u | **0** |
+| > 1.00 u | **0** |
+
+Two pairs is not a sample.
+
+**And a trap I have to flag:** an earlier pass grouped by *distinct position* and looked like movement
+(355 distinct positions in one session). That is the client **drifting while standing**, not
+locomotion — per-sample displacement is essentially zero. A first correlation attempt then reported
+“no difference” between flag=0 and flag=1; **that is not evidence either way**, because both groups
+were almost entirely stationary (mean speed 0.001 u/sample). Reporting it as a negative would have
+been wrong.
+
+**What is needed:** a session where the player **walks continuously** for tens of seconds while the
+traffic log captures channel 1. Nothing else will unblock it.
+
+**What does not depend on this:** the server already has its own position, its own prediction (mean
+error 0.0419 u on 4001 real samples), a rejection criterion that holds against an insisting client,
+and the player's frame from yaw + pitch. Intent would let it **originate** a movement; everything else
+is already there.
+
+**Validation:** 295 world tests OK, 24 gateway OK.
+
+## 2026-10-18 (cont. 12) — `b` is the camera pitch: the block is (pitch, yaw, x, y)
+
+The last field decoded, by the same method that established the yaw — and it corrected the entry I
+wrote one step earlier saying `b` was unknown.
+
+**Evidence, in the same shape as the yaw's:**
+
+| property | `b` (pitch) | `a` (yaw) |
+| --- | --- | --- |
+| distinct values | 637 | 610 |
+| **changes in 197 810 samples** | **770** | **729** |
+| mean run length | 256 | 271 |
+| range | **−30.3° … +26.1°** | −179.5° … +179.9° |
+
+`b` changes **770 times in 197 810 samples** — held camera state, exactly like the yaw. Its range is
+a pitch range. And **691 of the 808 angle changes are simultaneous in `a` and `b`** (turning the mouse
+diagonally), with 38 yaw-only and 79 pitch-only (looking up or down). Correlations against speed,
+forward speed and lateral speed are all **below 0.10**, which is what an independent camera angle
+looks like.
+
+**The block is `(pitch, yaw, x, y)`** — the client's camera orientation and its world position in one
+sample.
+
+The pitch is recorded but **deliberately not used** in the velocity decomposition: the wire carries a
+2D position (z is derived by the client), so movement is planar and a pitch cannot contribute.
+Inventing a vertical component would be exactly the inference this project keeps paying for.
+
+**Measured on 4001 real captured samples with both angles:** 29 violations, 8 prediction
+disagreements, **mean prediction error 0.0419 u**, orientation captured on 3971 of them.
+
+**Still not: prediction from INTENT.** The block gives orientation and position, not which keys are
+held — so the server can *interpret* a movement but cannot yet *originate* one.
+
+**Validation:** 295 world tests OK (11 new), 24 gateway OK.
+
+## 2026-10-18 (cont. 11) — `a` is the camera yaw; `b` stays unknown
+
+Decoded over **1008 measured displacements** in six sessions, and my first hypothesis was refuted by
+the measurement.
+
+**`a` is the CAMERA YAW** (radians, wrapped to ±π). Established by classifying every displacement by
+`(movement heading − a)`:
+
+| relative angle | share | what it is |
+| --- | --- | --- |
+| **+90°** | **47.8%** | strafe left |
+| **+180°** | **24.4%** | walking back |
+| **−90°** | **11.8%** | strafe right |
+| 0° | 5.4% | forward |
+
+That is the signature of WASD movement against a camera. I tried “direction of travel” first; it fits
+**5.4%** and the histogram killed it.
+
+**`b` stays UNKNOWN** and is exposed raw. It correlates with **position** rather than with speed or
+heading (`corr(speed, b) = −0.0095`), stays inside `[−0.53, +0.46]`, and has 637 distinct values — so
+it is not speed, not a heading, and not a small angle.
+
+So **`a` is usable and `b` is not**: a server can turn a camera yaw plus a movement intent into a
+world direction, and cannot do that with `b`.
+
+### `YawAwareSimulator`
+
+The velocity is now expressed in the **player's own frame**: forward along the yaw, lateral across
+it. That is what lets the server say *how* the player is moving, not just how fast — and it is the
+frame a correction would have to be expressed in.
+
+**Measured on 3001 real captured samples:** 10 violations, 4 prediction disagreements, **mean
+prediction error 0.0334 u**, yaw captured on 2990 of them.
+
+**Not yet: prediction from intent.** That needs which keys are held, and the input stream has not
+been shown to carry it. Yaw plus a finite-difference velocity is the precondition, not the answer.
+
+**Validation:** 293 world tests OK (9 new), 24 gateway OK.
+
+## 2026-10-18 (cont. 10) — the input stream is decoded, and the server predicts
+
+Two things: the client's **movement block** is now decoded from its own input stream, and the server
+now **predicts** rather than only adopting.
+
+### The movement block, decoded from the client
+
+Immediately after the `3d 4c cc cd` marker (the float 0.05), the channel-1 body carries a run of
+big-endian float32:
+
+| offset (payload / body) | field | measured range |
+| --- | --- | --- |
+| 119 / 91 | marker 0.05 | — |
+| +4 / +4 | `a` | −2.93 … +0.33 — **meaning not established** |
+| +8 / +8 | `b` | −0.01 … +0.18 — **meaning not established** |
+| **+12 / +12** | **x** | world x |
+| **+16 / +16** | **y** | world y |
+| +20 | — | 0 while walking (not z: the wire is 2D) |
+
+**Verified: x and y here equal the pair the position claim reports, 34 of 34 distinct positions, to
+within 0.01 u** — and a second pass through the reader over **201 samples** gave 0 mismatches. The
+client reports its position twice in the same body.
+
+Offsets are measured on the **payload** (119); the reader works on the **body**, which starts 28
+bytes later, so the marker is at body **91**. Both constants are recorded and a test pins them,
+because mixing them is an easy mistake.
+
+`a` and `b` vary with movement and are the natural velocity/heading candidates — but nothing has
+established that, so they are exposed **raw**. The project has paid for unverified inferences too
+many times to guess here.
+
+### The server predicts, then checks
+
+`PredictiveSimulator`: it estimates velocity from consecutive **server-held** positions, predicts the
+next position, and records how far the client's claim was from that prediction — while still adopting
+the claim when plausible.
+
+| scenario | result |
+| --- | --- |
+| 3 s walk at 5 u/s, 0.05 u noise | 60 samples, 0 violations, 0 disagreements, **mean prediction error 0.0654 u**, velocity 4.617 u/s |
+| 900 u teleport in one sample | **refused**: “teleport from the server's position: 884.993 u”, server keeps its own position |
+| 2001 real captured claims | 0 violations, 0 prediction error — that dump is a session where the player never moved |
+
+The distinction that matters: the client stays authoritative over its locomotion (what the cvar
+names say the original does), but the server now has an **independent expectation**, so it can say
+*“that step does not follow from what you reported”* rather than only *“that step was too fast”*.
+
+**Validation:** 284 world tests OK (11 new), 24 gateway OK.
+
+## 2026-10-18 (cont. 9) — the server has its OWN position now (not a replay)
+
+Three things, and the first is the one that changes the shape of the project.
+
+### 1. The original design, recovered — and it is not what I was looking for
+
+The client's own cvar names settle how the original handled movement authority:
+
+| side | cvars |
+| --- | --- |
+| **client** | `javelin.alc-correct-position-desync-during-attack-slow-down`, `javelin.alc-correct-lateral-desyncs-…` |
+| **server** | `javelin-server.alc-speed-hack-fix-v2-enabled` / `-wipe-inputs` / `-max-buffered-inputs`, `javelin-server.player-teleport-2d-distance-metrics-threshold`, `javelin.alc-validate-sector-bounds`, `javelin.num-inputs-to-wait-for`, `javelin-server.ALC-max-input-to-combine`, `javelin-server.alc-request-input-throttle-server-override-delay-ms` |
+
+**The client is authoritative over its own locomotion; the server validates and reacts.** Every
+correction cvar is client-side; every server-side one is validation or input control. So **there is
+no server→client position-push message to find** — a “correction” is the server refusing, throttling
+or wiping inputs, after which the client reconciles.
+
+That invalidates the search I spent this session on, and it is the third time I had to correct a
+conclusion. The difference now is that this one comes from the vendor's own vocabulary rather than
+from my reading of a decompiled branch.
+
+### 2. `SetInputsThrottled` (0x3e6) is client→server, not a correction channel
+
+Wire **998**, GUID `6e9b47da-ba7f-4253-8042-46580b9d7be0`, channel 0, once per session. It appears in
+the **inbound** request inventory, and there is **no `ActionListComponentClientFacet_SetInputsThrottled`**
+anywhere in the 7052-entry registry — the full 31-type ActionListComponent surface has only
+ServerFacet throttle variants. It is the client telling the server its inputs are throttled.
+
+Not present in our traffic dumps (0 occurrences), so its payload is a recorded **known-unknown**
+rather than a guess.
+
+### 3. The server now holds its own position
+
+`movement.MovementSimulator` — the server's OWN authoritative position, seeded at spawn (where the
+server genuinely decides) and folded forward from the client's validated claims. `Authority` records
+whether the client or the server decided the current value on each sample.
+
+**A real design defect was found by its own test:** the step must be measured against **the server's
+position**, not the client's previous claim. `MovementValidator` resets its reference on a rejected
+teleport, so measuring there would refuse a teleport **once** and then accept the teleported position
+— an insisting client would win after a single refusal. Fixed, and the test pins it.
+
+`AZOTH_STATE_POSITION=sim` publishes the simulated position into the state the server sends, so the
+position it reports is **computed** rather than replayed. Default off, so nothing changes by accident.
+
+**Validation:** 273 world tests OK (10 new), 24 gateway OK.
+
+## 2026-10-18 (cont. 8) — `IPositionReceiver` CANNOT be unblocked: its apply method is a stub
+
+I went to unblock the position-correction channel with pure RE, no live runs. **The channel is dead
+by construction, and it is not a binding problem.**
+
+**What the delivery does** (`FUN_143f97bf0`, decompiled):
+
+```c
+target = FUN_1416bcba0();
+if (target) {
+    qi = target->vtable[0x20](target, IPositionReceiver_guid);   // QueryInterface
+    if (qi) {
+        read 4 u32 at msg+0x30 and a u64 at msg+0x40;
+        qi->vtable[0x40](qi, that_u64, &those_floats);            // THE APPLY
+        return 1;
+    }
+}
+```
+
+**The apply is `vtable[+0x40]`, and that slot is `ret 0`.** The interface vtable is `0x1482eb160`;
+its `+0x40 = 0x140294860`, which disassembles to exactly `c2 00 00` — `ret 0`. Slots `+0x48`, `+0x50`,
+`+0x58` are the same stub. Neighbouring slots **are** implemented (`+0x30` = `jmp 0x143fa8520`,
+`+0x38` = a real function with a prologue), so the interface is live but **this method is not**.
+
+**No other vtable carries the QI.** Searching all of `.rdata` for the QI pointer `0x143fadd00` gives
+exactly **2 occurrences, both inside `0x1482eb160`** (its `+0x20` and `+0x28`). There is **no static
+concrete-class vtable** with the QI at `+0x20` and a real function at `+0x40`.
+
+**And the client never builds one at runtime:** the measured session found `installer=0` and
+`register=0` across a whole login + world entry + 18 minutes.
+
+**Two earlier measurements are explained by this.** The “delivery succeeded 260/260 non-null” result
+was measuring **this stub** — the delivery returns 1 once QI succeeds, whether or not anything was
+applied. And “no registered target answers the interface” is consistent with there being nothing to
+bind.
+
+**Conclusion:** server authority over the local player's *ongoing* position is not reachable through
+any channel measured in this project — not replicated state (spawn-only, first-write-wins) and not
+this RMI (stub). Unblocking it would require a runtime-built implementation the shipped client never
+creates.
+
+**Validation:** 263 world tests OK, 24 gateway OK.
+
+## 2026-10-18 (cont. 7) — CLOSED: the position is spawn-only in replicated state
+
+The question this whole line was chasing — can the server own the player's position *over time* by
+sending replicated state — is now answered **structurally**, from the committed replay, with no new
+experiment. **The answer is no, by design.**
+
+**`record_id 1` has two variants, and only one carries the position:**
+
+| variant | bundles | fragments | payload | carries x/y |
+| --- | --- | --- | --- | --- |
+| SPAWN | 24 (seq `0x2a..0x6c`) | **48** | 46 393 B | **yes, all 24** |
+| ongoing player state | 5 (seq `0x98/0x9a/0x9c/0x9e`) | **9** | 7 154 B | **no, none of them** |
+
+Both carry fragment `key=16 type=11` with the **same vtable** (`0x7ff60a93f900`) — same component
+type — but with **different payload sizes**: 85 B in the spawn (position at payload offset 20) vs
+**49 B in the player record, with no position at all**. The component has optional fields and the
+position is one of them.
+
+**That explains every measurement at once:**
+
+* the 2026-10-14 spawn override moved the client with **0.0000 u** error — the spawn variant does
+  carry the pair;
+* re-sending the spawn record cannot update it later — the component map is **first-write-wins**;
+* the 4 Hz stream cannot update it either — **the ongoing variant does not carry the position**;
+* the player moves freely anyway — the client **predicts locally**.
+
+**So no amount of streaming, and no payload composition, can move the player through `record-1`.**
+The ongoing position is client-authoritative, and server correction must travel on the dedicated
+channel: `ReceivePlayerPositionClientMsg` (4216) → `IPositionReceiver` — which this build **never
+instantiates** (installer 0, register 0, 0 of 225 vtables over 37,063 targets, measured 2026-10-12).
+
+That is also exactly the vendor's own description of the design: the client predicts, the server is
+authoritative and sends the outcome back. Which requires a working correction channel, not a
+replicated field.
+
+**Validation:** 263 world tests OK, 24 gateway OK.
+
+## 2026-10-18 (cont. 6) — RUNTIME: the answer, and it refutes my own static reading
+
+A new read-only probe (`frida-fragment-vtable`) hooked `FUN_141717fc0` and walked the fragment
+vector it receives, reporting each fragment's key, object and **vtable**. 400 records captured,
+including **25 spawn records (48 fragments)** and **63 local-player records (9 fragments)** — both
+`record_id 1`, told apart by count.
+
+**FINDING 1 — the `+0x60` slot is not a filter, and my static reading was WRONG.** The slot is
+identical for **every fragment of every record**; disassembled it is **`xor al, al; ret`** — it
+returns 0 unconditionally, so `if (cVar5 == '\0')` is always taken and every fragment is processed.
+There is **no per-fragment predicate**. The previous entry claiming one is corrected in the atlas.
+
+**FINDING 2 — the component maps are FIRST-WRITE-WINS.** Both `FUN_1415e5140` (called per fragment
+with the fragment key) and `FUN_1415e68b0` hash on the key and then:
+
+```c
+if (*param_3 == (int)puVar9[2]) { *(undefined1 *)(param_2 + 1) = 0; return existing; }
+```
+
+An **already-present key is not replaced** — the caller gets the existing entry and the new
+fragment is discarded.
+
+**FINDING 3 — key 16 is a distinct component type:** same vtable in both records, but a different
+`+0x90` reader than every other fragment (`0x142a436b0` vs `0x1417b4110`).
+
+**This explains every measurement in this session.** The spawn record is sent when the keys are
+**absent**, so every fragment is inserted — which is why the 2026-10-14 spawn override worked with
+0.0000 u error. Every later correction re-sends key 16, which is **already present**, so it is
+discarded and the client keeps the spawn value: accepted, zero errors, character visible, position
+unchanged. Exactly what four payload shapes did.
+
+**Consequence:** re-sending a key cannot work by construction. A correction must first **remove** the
+component (the AOI registry already has `replica_portrayal_remove`) or use a delta/update message.
+
+**Validation:** 263 world tests OK, 24 gateway OK.
+
+## 2026-10-18 (cont. 5) — STATIC: the answer to why a correction is ignored
+
+Decompiled `FUN_141717fc0` in full, plus `FUN_1415e68b0`, to answer the one question the four
+refuted shapes left open: **why is a record the client parses not applied?**
+
+**The dispatcher has two apply paths and they are structurally different.**
+
+* **PATH A — CREATION** (the record's slot `*(state + 0x608 + record_id*0x10)` was **empty**): it
+  builds a value and calls `FUN_14178db00(state, *slot + 0x860, &value)` — **one apply for the whole
+  record, no per-fragment filter**.
+* **PATH B — UPDATE** (the slot already exists): it loops the fragment vector and for **each**
+  fragment calls a **virtual predicate** at `fragment->vtable + 0x60`; only when that predicate
+  returns **0** does the fragment enter the component map (`FUN_1415e68b0`, decompiled: a hash-map
+  insert/lookup keyed on the fragment key — the *map*, not the applier). Fragments that fail the
+  predicate are **skipped**. It then applies through `vtable + 0x10` on the handler object's `+0x18`.
+
+**That is the answer.** A correction is an **update** — the spawn already created the slot — so it
+must pass a **per-fragment predicate the server does not control**. “Accepted, zero errors, no
+effect” is exactly what a fragment that fails that predicate looks like. And it explains why the
+spawn record works: it arrives when the slot is **empty**, so it takes PATH A and bypasses the
+filter entirely.
+
+It also explains why the previous session's reasoning could not have worked: the filter is **not
+about the bytes we send**. No composition and no flag can satisfy it.
+
+**Not claimed:** what the predicate at `vtable + 0x60` tests, or whether the position fragment can
+satisfy it. **I tried to identify that vtable and FAILED** — recorded as
+`fragment_object_vtable_identification_FAILED_20261018` so it is not repeated. The vtable I found by
+pattern-matching `.rdata` for the slot value is a **serializer** (`+0x60` = `read(n)`, which returns
+a previous cursor position, not a bool — so it cannot be the `char` the dispatcher tests). The right
+method is to take the vtable at runtime from the object `FUN_146af2340` builds, not to match slot
+values in the file.
+
+What survives independent of that: the two apply paths, the per-fragment gate, and that
+`FUN_1415e68b0` is a hash map keyed on the fragment key rather than the applier.
+
+**Validation:** 263 world tests OK, 24 gateway OK.
+
+## 2026-10-18 (cont. 4) — correction refuted in three shapes; a real server crash bug fixed
+
+**Correction does not work in any shape tried, and that is now a measured conclusion rather than a
+missing experiment.**
+
+| shape | size | flags | client errors | character | applied |
+| --- | --- | --- | --- | --- | --- |
+| full spawn record, looped | 46 408 B | 0x21 | 0 | **invisible** | no |
+| position fragment alone | 102 B | 0x21 | 0 | visible | no |
+| record the client applies + position | 7 255 B | 0x21 | 0 | visible | no |
+| **same, unreliable** | **7 255 B** | **0x20** | **0** | **visible** | **no** |
+
+The last one was the one-variable test the static analysis called for: `FUN_14643e7b0` shows the
+Carrier flag byte selecting between a path that does **not** advance `port[0x78]` (reliable) and one
+that does (unreliable), and every captured bundle the client applies arrived through the second.
+Sending 0x20 changed nothing: the error grew to **11.861 u and kept rising**, with 0
+`Failed to unmarshal`, 0 `ValidationError`, 0 `transportError`.
+
+So **neither composition nor the flag byte is the obstacle.**
+
+**A real pre-existing bug was found and fixed, and it was killing sessions.** Three consecutive runs
+failed to reach the world: the server armed the replay and went silent, and its log ended with
+`UnboundLocalError: cannot access local variable 'traceback'`. The cause was a **local
+`import traceback`** inside the feed-error handler, which makes the name local for the whole
+function scope, so the **tick-error** handler raised instead of logging. That turned “one bad
+datagram” into “the world process dies” — the exact failure both handlers exist to prevent, and a
+plausible contributor to the intermittent `transportError 4` sessions recorded earlier in this
+project. Fixed; the server then survived a full session.
+
+**A bug of mine was caught by the new tests:** `_send_replay_message` had its body reading `flags`
+while its signature still said `(self, server, msg)` — every replay send raised
+`NameError: name 'flags' is not defined` (104 tick errors, 46 re-registrations, never reached the
+world). The source-string test passed throughout; the fix is a test that inspects the parameter
+list.
+
+**Validation:** 263 world tests OK, 24 gateway OK. `AZOTH_MOVEMENT_CORRECT` still defaults to 0.
+
+## 2026-10-18 (cont. 3) — STATIC: the record dispatcher, and why the 1-fragment bundle is ignored
+
+Decompiled `FUN_141717fc0` (the record dispatcher) and its caller `FUN_14175ccc0` to explain the
+live negative above. Build `8654f01d…`.
+
+**The call site, confirmed in the decompiled body:** `FUN_14175ccc0` loops over the bundle's
+records, calls `FUN_146af20d0(&reader, &out_record_id, &fragment_vector)` per record, then calls
+`FUN_141717fc0(state, record_id, &fragment_vector, *FUN_1406d97b0(msg), byte[msg+8], success,
+FUN_1406c10a0(msg))` — record id, fragment vector, message seq, a **flag byte at `msg+8`**, the
+reader's success value, and the `clientContextInstanceId`.
+
+**The apply gate:** `if ((param_5 == '\0') || (uVar11 == 0))` where `uVar11` is the record's
+existing handler slot at `state + 0x608 + record_id*0x10`. An update applies only when the flag
+byte is zero **or** the slot was empty; otherwise it is silently skipped — no error, no effect,
+which is exactly the shape of the measured failure.
+
+**The first fragment selects the path.** Immediately after the slot lookup the dispatcher makes a
+virtual call derived from the **first element of the fragment vector** and branches on its result;
+the `cVar5 != 0` branch contains an explicit `record_id == 1` special case. So a record is **not an
+unordered bag of fragments**. A 1-fragment record whose only fragment is the position does not take
+the same path as the 48-fragment spawn record (whose first fragment is key 71 type 4878).
+
+**A wrong atlas record was corrected.** `spawn_record_fragments_do_not_carry_the_local_player_position_20261012`
+claimed the position appears “NOWHERE in the whole replay”. It searched for the 12-byte **triple**
+and z is not on the wire; the 8-byte **pair** is at payload offset 38332, re-verified with the
+repo's own `decode_bundle`. The 2026-10-14 result stands.
+
+**Also verified:** `key=16 type=11` appears in BOTH records with different payload sizes (85 vs 49
+bytes) and only the large variant carries the position — the component has variable-length encoding.
+
+**The next experiment is built and tested offline** (not wired, not run):
+`rep.player_body_with_position_fragment` takes the 7154-byte record-1 bundle — the one the client
+**demonstrably applies** at 4 Hz — and appends the position fragment, producing a **7256-byte**
+record with `record_id=1, fragment_count=10` that carries the new position. That is the difference
+the failed attempt lacked: it keeps the record composition the client already takes the right path
+for, instead of sending the fragment alone.
+
+**Not claimed:** which virtual function `vtable+0x60` is, or what `byte[msg+8]` carries. Both need a
+targeted follow-up.
+
+**Validation:** 255 world tests OK (4 new), 24 gateway OK.
+
+## 2026-10-18 (cont. 2) — the position fragment is located; sending it alone does not move the player
+
+**Two results, one durable and one a clean negative.** Session
+`research/sessions/session-20261018T1135Z-minimal-position-bundle-negative`.
+
+**LOCATED.** The 46393-byte spawn payload is 48 fragments whose boundaries are not derivable from
+the bytes (no length field; the length is implied by the type; the first fragment is type 4878,
+outside the nine types the 7154-byte record gave us). They were read from the client instead:
+`python az.py probe frida-fragment-grammar --min-fragments 20` captured the same 48 offsets **25
+times, byte-identical**. **The position is fragment #35**, payload offset `38310..38397`, header
+`10 0b` (**key=16, type=11**) — the same key/type as fragment #6 of the player record. All **24**
+captured copies of the spawn record carry a byte-identical fragment #35. That composes a
+**101-byte** record-1 bundle (`record_id=1, fragment_count=1`), **451x smaller** than the 46 KB
+spawn record.
+
+**AND IT DOES NOT WORK.** With that bundle wired to the correction path: the player walked, error
+reached 3.186 u, `movement-desync` fired, the **102-byte** correction was sent, the client reported
+**0** `Failed to unmarshal` / **0** `ValidationError` / **0** `transportError`, the character stayed
+**visible** (the full-spawn-record attempt had made it invisible) — and the error then **grew to
+16.5 u and stayed there**. A record-1 bundle with one fragment is not a repositioning message. The
+client appears to need the record's full fragment set, which is consistent with the full spawn
+record having moved the player *at spawn* (0.0000 u, 2026-10-14).
+
+So the position is **locatable but not addressable** as a standalone message with today's
+knowledge. The remaining question — does the client treat the record as an atomic unit — is a
+decompilation question, not a protocol-shape one. `AZOTH_MOVEMENT_CORRECT` defaults to **0**.
+
+**A probe defect was found and fixed.** `frida-fragment-grammar` read the record's `out_u16` in the
+record reader's `onLeave` and attached it to each fragment event, but fragments are emitted in the
+fragment reader's `onLeave`, which runs *before* the record's — so **all 300** previously captured
+fragment events carried `recordId: null` and the docstring's claim was false. It now emits at
+record leave and filters by fragment count, required anyway because the spawn record and the player
+metadata record are **both `record_id 1`** (48 vs 9 fragments).
+
+**Two defects of mine, each caught only by a live run:** the correction body was a
+`SimpleNamespace` while `_send_state_bundle` calls `dataclasses.replace()` — a `TypeError` the UDP
+loop swallowed, killing the session with `transportError 4`; and the cap check logged on every
+sample, hundreds of lines a second. Both fixed, both with tests.
+
+**Validation:** 251 world tests OK, 24 gateway OK.
+
+## 2026-10-18 (cont.) — desync detection verified LIVE, and the first design was refuted by it
+
+**Two live runs, one code change between them.** Session
+`research/sessions/session-20261018T0924Z-desync-verified`.
+
+**Run 1 confirmed the reader and the load gate.** `movement-ready` fired at **t+13.115 s** with
+**1,342** channel-1 records — inside the 8–14 s band predicted from the captured corpus, against a 60 s
+timer that cannot see the difference.
+
+**Run 1 also refuted the design I had just written.** `DesyncTracker` compared the raw wire claim with
+the server's position, arguing that no offset was needed because they were "the same quantity". Reading
+all **2,562** claims over two minutes gave an error of **exactly 4.0311 u in every sample**, with a
+**single distinct position** — the player never moved. A perfectly in-sync player sat permanently above
+the 2.0 u floor. That 4.0311 u is the instrument offset, matching the independently probe-measured
+`(-2.200, +3.378)`.
+
+**The correction, now measured.** The offset is calibrated per session with **no probe** — at spawn the
+client is where the server put it, so the constant difference over the first samples *is* the offset.
+Run 2 logged `movement-calibrated` `(-2.2002, +3.3777)`, magnitude **4.0311 u**, residual **0.0000**,
+20 samples — reproducing the probe measurement to four decimals from a different data path — and then
+**no** desync. A calibration whose samples are not tightly clustered is **rejected, not averaged**
+(a wrong offset hides real divergence), and the tracker **fails open while uncalibrated**.
+
+**The positive half is also confirmed.** With the offset fixed, `W` held 3 s produced
+`movement-desync` **error 3.342 u**, claim `(9342.902, 2787.105)` vs truth `(9343.642, 2786.733)` — a
+real divergence, because the server's truth stays frozen at spawn. That is the honest shape of the
+system today: **it detects that it has lost track of the player and cannot yet correct it.**
+
+**Gate 6 re-confirmed the hard way.** The first launch reached `InGame` but never streamed: 0 `Slice`
+lines, black screen, no channel-1 record, `OnLocalNetworkConnectionWarning` 1→4. Cause:
+`az.py dev` was started without `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`, whose default is the
+failing value. A fresh `NewWorld.exe` was required.
+
+**Validation:** 229 world tests OK (47 new), 24 gateway OK.
+
+## 2026-10-18 — the client's own position is now READ, and the desync offset was the wrong problem
+
+**Three measured results, one negative result, and a correction to an older record.** The reader and the
+policy are now wired into the world loop as a read-only observer (`AZOTH_MOVEMENT_OBSERVE`, default on);
+nothing corrects yet, and no live run has exercised it.
+
+**1. The channel-1 stream DOES carry the player's position — the older record was measuring the pre-spawn
+body.** `javelin/alc.py` reads it: container `[crc32][len][target16][00 01][varint type][body]`, type
+**`0x635` = 1589** (`b5 18` is a *prefix* varint; reading it as LEB128 gives `0xC35` and rejects every
+record — a test caught that, not inspection), body at payload offset 28, then two `f32` big-endian located
+by the marker `3d 4c cc cd` (`0.05`) at `marker + 12`. Over **213,202** captured channel-1 records:
+**197,810** carry a position, **15,392** do not (pre-load), **0** are ambiguous. The block *moves* — body
+offset 91 in the dominant form, 93 on 11,144 records, also 92/101/112 — so a hard-coded offset of 103 reads
+the wrong bytes on those 11,144. `scripts/alc-position.py` reproduces all of it.
+
+**2. The real "load finished" signal, and it is 8–14 s, not 60.** The input body grows
+`93 → 108 → 123 → 138 → 153 → 154` and only carries a position once it crosses ~280 bytes. The first
+position-bearing record arrived at **t+8…14 s** after the first channel-1 record in 10 of 11 sessions; the
+eleventh (18:50:56Z) never grew and produced **no** position in 400 records — a failed load, which a timer
+cannot distinguish from a slow one. `movement.LoadGate` keys on the marker instead.
+
+**3. The 2–4 u reference offset is an INSTRUMENT property, and treating it as desync is the bug.** Paired
+sample-by-sample against the client's own `nw_getPlayerPosition` accessor with the player standing still,
+the wire claim sits **2.0–4.0 u** away and the offset is **per session** (`(-2.196,+3.370) |d|=4.022`,
+`(-1.183,+1.847) |d|=2.193`, `(-2.200,+3.378) |d|=4.031`, `(-2.260,+3.202) |d|=3.919`, `(-0.313,-0.475)
+|d|=0.569`, `(+0.502,-3.991) |d|=4.023`). Within a session it is **constant**: residual **0.0000 u** in two
+and under 0.26 u in three more. So the reader is precise and the offset is a constant of the session. The
+consequence is the design: **calibrating the offset is not how you tighten the threshold — it is how you
+stop the threshold from being wrong.** `DesyncTracker` compares the claim against the **server's own**
+position (same quantity, same frame, no offset), and `ReferenceOffset` is only for validating the instrument
+from probe pairs.
+
+**Negative result.** The client's exact accessor bytes appear in **0 of 213,202** channel-1 payloads in any
+encoding tried (f32/f64 both endians, scaled i16/i32/i64 at ×1/×10/×100/×1000/×1024). The wire value is a
+different point in the client's pipeline, not a rounded copy of the rendered position — which is exactly why
+it cannot be used as if it were one.
+
+**What is NOT done.** Steps 1–3 of the authority loop now exist as code with 42 new tests (224 world tests
+OK, 24 gateway OK), and `_observe_movement_claim` reads every channel-1 record in a live session and logs
+`movement-ready` / `movement-desync` / `movement-reject` on transitions only — but **no live run has
+exercised it yet**, so the runtime numbers are still the capture-derived ones. Correction is still where it
+was: available as **replicated state** (the 2026-10-14 result, 0.0000 u) and unavailable as an RMI, because
+`IPositionReceiver` is never instantiated. The position is still applied **at spawn only**, so there is
+still no authority over the position *over time*. Next: a probe-free live run to confirm `movement-ready`
+lands at 8–14 s, then make the position stream continuous.
+
+**Not in this checkout:** the 2026-10-17 work (`javelin/alc.py` under that name, `MovementValidator`,
+`DesyncTracker`) does not exist here — no branch, no commit, no blob, and no file on disk. It was done on a
+different checkout or machine. This session re-derived the reader independently, and it disagrees with that
+note on one point worth checking when the two meet: the raw residual while standing still is **2–4 u**, not
+0.54 u. Either that note's figure was measured after some calibration, or it was reading a different field.
+
+**Validation:** 224 world tests OK (42 new: `test_alc.py`, `test_movement.py`), 24 gateway OK,
+`scripts/alc-position.py` reproduces the corpus numbers. Atlas:
+`client_channel_one_carries_the_players_position_20261018`,
+`reference_offset_is_an_instrument_property_20261018`,
+`load_signal_is_the_input_body_growing_20261018`.
+
 ## 2026-10-14 (cont. 8) — **THE SERVER OWNS THE PLAYER'S POSITION** (measured, 0.0000 u error)
 
 **The server wrote a position into the state it sends and the client's own accessor reported exactly
