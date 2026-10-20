@@ -158,6 +158,24 @@ work — and the **client re-imposes** that position, which is why writing the t
 remote body. The mid-session wall is the same one already documented for the local player, now
 confirmed **from the client's side** instead of inferred from the wire.
 
+### The gap I left open, closed: the position works and nothing is drawn (2026-10-20, last)
+
+The previous entry claimed the server owned a captured actor's position but admitted it had measured
+**memory, not pixels**. That is now measured properly, and the answer is the opposite of a position bug.
+
+- **Aim, from the client's own data:** the camera yaw is stable at **−154.04°** over 1 897 229 channel-1
+  samples, so forward is `(−sin, cos)` and a body 3 u ahead of the player at `(9341.441, 2790.11)`
+  belongs at `(9342.754, 2787.413)`.
+- **Placed before the session started**, so the replay's creation bundle `0x77` carries it.
+- **Result:** the client's entity for that record — **61 components, the remote-player shape** — sits at
+  **(9342.5566, 2787.938)**, 0.56 u from what the server asked. The screenshot from the player's own
+  viewpoint shows **no body**. Client otherwise clean: 0 unmarshal, 0 validation.
+
+**So the position half works end to end and the missing body is a RENDER problem.** It is the same 26
+`Couldn't get Transform component on the slice` warnings this build emits every session: the
+remote-player slice is never placed. Items 1 and 2 are blocked by **one** thing, not two, and it is not
+reachable from the position or the record.
+
 ### What that means
 
 The bodies that render are **not** the actor records this project has been rewriting, so "move one"

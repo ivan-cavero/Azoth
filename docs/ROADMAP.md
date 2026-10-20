@@ -389,9 +389,17 @@ premise did not survive: **neither character record is a body that renders.**
   mid-session does nothing (1 write, the `0x77` creation bundle, against 264 stream sends of `0xa1`).
   That is the local player's mid-session wall, now confirmed **from the client**.
   `the_client_reimposes_the_entity_position_and_ignores_a_direct_write_20261020`.
-- **So the remaining question is the right one at last:** what re-imposes the position? Not the state
-  stream (it does not carry it), not the Transform (it is overwritten). It is whichever path feeds
-  `FUN_140fdd9b0`, the function the accessor uses to obtain the holder.
+- **CLOSED 2026-10-20: the position works end to end, and nothing is drawn.** The camera yaw was read
+  from the client's own channel-1 stream (**−154.04°**, stable over 1.9 M samples), a captured actor was
+  placed **3 u in front of the player** before the session started so the creation bundle `0x77` carried
+  it, and the client's entity for that record — 61 components, the remote-player shape — came up at
+  **(9342.5566, 2787.938)** against the requested `(9342.754, 2787.413)`. **The screenshot from the
+  player's own viewpoint shows no body.** Client clean: 0 unmarshal, 0 validation.
+  `the_server_position_reaches_the_client_entity_and_no_body_is_drawn_20261020`.
+- **Therefore items 1 and 2 are blocked by ONE thing, not two: remote-slice PLACEMENT.** The position
+  path works; the render path does not, and it is the same 26 `Couldn't get Transform component on the
+  slice` warnings every session on this build emits. Do not spend more sessions on the position, the
+  record shape or the slot — none of them is the blocker.
 
 ### DONE 2026-10-19 (kept for the record)
 
