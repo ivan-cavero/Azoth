@@ -1071,6 +1071,14 @@ class TestStateStream(unittest.TestCase):
         session.state_stream_queue = []
         session.state_stream_player = []
         session.state_stream_player_queue = []
+        # The position-bearing bundles have their own timer (STATE_STREAM_POSITION_PERIOD_S).
+        # Empty and unarmed here, which is the default: these tests cover the player and world
+        # rates, and the position rate is covered by TestPositionStreamIsContinuous.
+        session.state_stream_position = []
+        session.state_stream_position_queue = []
+        session.state_stream_position_next_at = 0.0
+        session.state_stream_position_sent = 0
+        session.state_position_last_written = None
         session.state_stream_next_at = 0.0
         session.state_stream_player_next_at = 0.0
         session.state_stream_sent = 0
@@ -1078,7 +1086,7 @@ class TestStateStream(unittest.TestCase):
         session.state_stream_seq = 54
         session.sent: list = []
 
-        def _record(_server, msg, _session=session):
+        def _record(_server, msg, _session=session, **_kwargs):
             _session.sent.append(msg)
 
         session._send_replay_message = _record
@@ -2448,3 +2456,458 @@ class TestPlayerPositionOverride(unittest.TestCase):
             self.assertEqual(
                 bundle.encode_bundle(parsed.replication_seq, parsed.payload), body
             )
+
+class TestPositionStreamIsContinuous(unittest.TestCase):
+    """The position becomes authoritative OVER TIME, not only at spawn.
+
+    MEASURED 2026-10-14: the position lives in the 46393-byte spawn record-1 bundles
+    (seq 0x2a..0x6c), which sit below `STATE_STREAM_MIN_SEQ` 0x94, so the replay sent them
+    once and the stream never did. That is why the server had authority over the starting
+    point and over nothing after it.
+
+    These tests pin the three properties that make the stream usable: it is OFF by default,
+    it arms only DECODABLE position-bearing bundles, and the position can be changed
+    mid-session without restarting the world.
+    """
+
+    def test_off_by_default(self) -> None:
+        """A positive period is an experiment, so the default must not change behaviour."""
+        import inspect
+
+        source = inspect.getsource(rep)
+        self.assertIn('"AZOTH_REPLAY_STATE_STREAM_POSITION_PERIOD_S", "0"', source)
+
+    def test_the_position_bearing_bundles_are_the_spawn_record(self) -> None:
+        """Selection is by the measured VALUE, because these sit below MIN_SEQ."""
+        from azoth_world.javelin import bundle as javelin_bundle
+
+        store = rep.replay_store()
+        position_bundles = []
+        for m in store.replay_messages_after_v3(rep.REPLAY_MAX_SEQ, include_redacted=True):
+            if m.type_id != 0x08 or rep.CAPTURED_PLAYER_POSITION not in m.body:
+                continue
+            try:
+                javelin_bundle.decode_bundle(m.body)
+            except javelin_bundle.BundleError:
+                continue
+            position_bundles.append(m)
+
+        self.assertTrue(position_bundles, "no decodable position-bearing bundle found")
+        # They are below the stream floor, which is the whole reason they were never streamed.
+        self.assertTrue(
+            all(m.seq < rep.STATE_STREAM_MIN_SEQ for m in position_bundles),
+            "a position bundle at or above MIN_SEQ would already be streamed",
+        )
+        # seq 0x25 carries the pair but is the first message of its datagram, so its stored
+        # body has a datagram-level preamble and must be filtered out rather than sent.
+        self.assertNotIn(0x25, [m.seq for m in position_bundles])
+        self.assertIn(0x2A, [m.seq for m in position_bundles])
+
+    def test_a_mid_session_change_rewrites_the_position(self) -> None:
+        """`file` mode is what allows a change without a restart."""
+        import tempfile
+
+        body = next(
+            m.body
+            for m in rep.replay_store().messages
+            if m.type_id == 0x08 and m.direction == "R" and m.seq == 0x2A
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as fh:
+            fh.write("9400.5,2700.25\n")
+            path = fh.name
+        original_pos, original_file = rep.STATE_POSITION, rep.STATE_POSITION_FILE
+        try:
+            rep.STATE_POSITION = "file"
+            rep.STATE_POSITION_FILE = path
+            first = rep.state_position_spec()
+            self.assertEqual(first, (9400.5, 2700.25))
+
+            patched, count = rep.apply_position_override(body, first)
+            self.assertEqual(count, 1, "the position pair must be found exactly once")
+            self.assertEqual(len(patched), len(body), "the replacement must not change length")
+            from azoth_world.javelin import bundle as javelin_bundle
+
+            decoded = javelin_bundle.decode_bundle(patched)
+            self.assertEqual(
+                decoded.payload.count(rep.CAPTURED_PLAYER_POSITION), 0,
+                "the capture's value must be gone after the rewrite",
+            )
+            # 9400.5 as big-endian float32, i.e. the value the file asked for.
+            self.assertEqual(decoded.payload.count(bytes.fromhex("4612e200")), 1)
+
+            # Change it again WITHOUT restarting anything: this is the mid-session move.
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("9500.75,2650.5\n")
+            second = rep.state_position_spec()
+            self.assertEqual(second, (9500.75, 2650.5))
+            self.assertNotEqual(first, second)
+        finally:
+            rep.STATE_POSITION, rep.STATE_POSITION_FILE = original_pos, original_file
+            import os
+
+            os.unlink(path)
+
+    def test_a_missing_or_malformed_file_falls_back_to_the_capture(self) -> None:
+        """A missing file must not send a stale or garbage position."""
+        original_pos, original_file = rep.STATE_POSITION, rep.STATE_POSITION_FILE
+        try:
+            rep.STATE_POSITION = "file"
+            rep.STATE_POSITION_FILE = str(pathlib.Path("does-not-exist.txt"))
+            self.assertIsNone(rep.state_position_spec())
+        finally:
+            rep.STATE_POSITION, rep.STATE_POSITION_FILE = original_pos, original_file
+
+    def test_the_position_rate_runs_before_the_world_rate(self) -> None:
+        """A slow world tick must not starve the position, which is the authority channel."""
+        import inspect
+
+        source = inspect.getsource(rep.PeerSession.maybe_state_stream)
+        position_at = source.index("state_stream_position_queue")
+        world_at = source.index("state_stream_next_at")
+        self.assertLess(position_at, world_at)
+
+
+class TestMinimalPositionBundle(unittest.TestCase):
+    """The correction is a ~103-byte message, not a 46 KB re-spawn.
+
+    MEASURED 2026-10-18 from the client (`frida-fragment-grammar --min-fragments 20`): the
+    46393-byte spawn payload is 48 fragments, and the position sits in fragment #35 at payload
+    offset 38310..38397, header `10 0b` (key=16, type=11). The boundaries were captured 25 times
+    with identical offsets, and the replay store's 24 copies of the record carry a
+    BYTE-IDENTICAL fragment #35.
+
+    WHY IT MATTERS: re-sending the full spawn record to correct a position made the local
+    character INVISIBLE while every protocol counter stayed clean (0 `Failed to unmarshal`, 0
+    `ValidationError`, 0 `transportError`). The minimal bundle is 451x smaller and touches one
+    component instead of the whole area.
+    """
+
+    @staticmethod
+    def _spawn_body():
+        from azoth_world.rep import replay_store
+
+        return next(
+            m.body
+            for m in replay_store().messages
+            if m.type_id == 0x08 and m.direction == "R" and m.seq == 0x2A
+        )
+
+    def test_the_fragment_range_is_the_measured_one(self) -> None:
+        from azoth_world.javelin import bundle as javelin_bundle
+        from azoth_world.javelin.varint import decode as varint_decode
+
+        payload = javelin_bundle.decode_bundle(self._spawn_body()).payload
+        self.assertEqual(len(payload), rep.SPAWN_RECORD_PAYLOAD_LENGTH)
+        start, end = rep.POSITION_FRAGMENT_RANGE
+        raw = payload[start:end]
+        key, offset = varint_decode(raw, 0)
+        type_index, header = varint_decode(raw, offset)
+        self.assertEqual((key, type_index), (rep.POSITION_FRAGMENT_KEY,
+                                             rep.POSITION_FRAGMENT_TYPE))
+        self.assertEqual((key, type_index), (16, 11))
+        # The captured position is inside this fragment, which is why the existing override
+        # works on the minimal body without modification.
+        self.assertIn(rep.CAPTURED_PLAYER_POSITION, raw)
+
+    def test_it_composes_a_minimal_bundle(self) -> None:
+        from azoth_world.javelin import bundle as javelin_bundle
+
+        body = rep.minimal_position_bundle(self._spawn_body(), 0x4000)
+        self.assertIsNotNone(body)
+        assert body is not None
+        self.assertEqual(len(body), 103)
+        # 451x smaller than the spawn record it replaces.
+        self.assertLess(len(body) * 400, len(self._spawn_body()))
+
+        parsed = javelin_bundle.decode_bundle(body)
+        self.assertEqual(parsed.replication_seq, 0x4000)
+        # Exactly ONE record, with ONE fragment: no other entity's state can be touched.
+        self.assertEqual(parsed.payload[0], 1, "record id")
+        self.assertEqual(parsed.payload[1], 1, "fragment count")
+        self.assertIn(rep.CAPTURED_PLAYER_POSITION, parsed.payload)
+
+    def test_the_override_still_finds_the_position_in_the_minimal_body(self) -> None:
+        """The whole point: the small body carries the pair, so the override applies unchanged."""
+        import struct
+
+        body = rep.minimal_position_bundle(self._spawn_body(), 0)
+        assert body is not None
+        patched, count = rep.apply_position_override(body, (9353.7227, 2766.0681))
+        self.assertEqual(count, 1)
+        self.assertEqual(len(patched), len(body), "the replacement must not change length")
+        self.assertNotIn(rep.CAPTURED_PLAYER_POSITION, patched)
+        self.assertIn(struct.pack(">ff", 9353.7227, 2766.0681), patched)
+
+    def test_a_body_of_the_wrong_size_is_refused(self) -> None:
+        """A layout change must degrade to 'no correction', never to a wrong send."""
+        small = self._spawn_body()[:100]
+        self.assertIsNone(rep.minimal_position_bundle(small, 0))
+
+    def test_garbage_is_refused(self) -> None:
+        self.assertIsNone(rep.minimal_position_bundle(b"", 0))
+        self.assertIsNone(rep.minimal_position_bundle(b"\xde\xad\xbe\xef", 0))
+
+
+class TestPositionFragmentOnAWorkingRecord(unittest.TestCase):
+    """The next experiment: the record the client ALREADY applies, plus the position fragment.
+
+    Two measured facts motivate this shape (2026-10-18):
+
+      * the 7154-byte record-1 bundle (9 fragments) IS applied - the state stream re-sends it at
+        4 Hz and it is what makes the player move and clears the cable;
+      * a record-1 bundle with ONLY the position fragment (1 fragment) is accepted with 0 client
+        errors and changes nothing.
+
+    The dispatcher `FUN_141717fc0` performs a virtual call derived from the record's FIRST fragment
+    and branches on the result, so the first fragment selects the path. Appending the position to a
+    record that already takes the right path is the difference the failed attempt lacked.
+    """
+
+    @staticmethod
+    def _bodies():
+        from azoth_world.rep import replay_store
+
+        store = replay_store()
+        spawn = next(
+            m.body for m in store.messages
+            if m.type_id == 0x08 and m.direction == "R" and m.seq == 0x2A
+        )
+        player = next(
+            m.body for m in store.messages
+            if m.type_id == 0x08 and m.direction == "R" and m.seq == 0x98
+        )
+        return spawn, player
+
+    def test_the_position_fragment_is_extracted_from_the_spawn_record(self) -> None:
+        spawn, _player = self._bodies()
+        raw = rep.position_fragment_from_spawn(spawn)
+        self.assertIsNotNone(raw)
+        assert raw is not None
+        self.assertEqual(len(raw), 87)
+        self.assertIn(rep.CAPTURED_PLAYER_POSITION, raw)
+
+    def test_the_working_record_keeps_its_nine_fragments_plus_one(self) -> None:
+        spawn, player = self._bodies()
+        raw = rep.position_fragment_from_spawn(spawn)
+        assert raw is not None
+        body = rep.player_body_with_position_fragment(
+            player, list(rep.STATE_PLAYER_FRAGMENT_BOUNDARIES), raw, 0x4000
+        )
+        self.assertIsNotNone(body)
+        assert body is not None
+
+        from azoth_world.javelin import bundle as javelin_bundle
+
+        parsed = javelin_bundle.decode_bundle(body)
+        self.assertEqual(parsed.replication_seq, 0x4000)
+        self.assertEqual(parsed.payload[0], 1, "record id must stay 1")
+        self.assertEqual(parsed.payload[1], 10, "9 captured fragments plus the position")
+        # The position travels with it, and the record is still the one the client applies.
+        self.assertIn(rep.CAPTURED_PLAYER_POSITION, parsed.payload)
+        # It is bigger than the bare 101-byte attempt but far smaller than the 46 KB spawn record.
+        self.assertLess(len(body), 8000)
+        self.assertGreater(len(body), len(player))
+
+    def test_the_override_reaches_the_appended_fragment(self) -> None:
+        import struct
+
+        spawn, player = self._bodies()
+        raw = rep.position_fragment_from_spawn(spawn)
+        assert raw is not None
+        body = rep.player_body_with_position_fragment(
+            player, list(rep.STATE_PLAYER_FRAGMENT_BOUNDARIES), raw, 0
+        )
+        assert body is not None
+        patched, count = rep.apply_position_override(body, (9353.7227, 2766.0681))
+        self.assertEqual(count, 1, "the pair must be found exactly once")
+        self.assertEqual(len(patched), len(body))
+        self.assertIn(struct.pack(">ff", 9353.7227, 2766.0681), patched)
+        self.assertNotIn(rep.CAPTURED_PLAYER_POSITION, patched)
+
+    def test_a_foreign_body_is_refused(self) -> None:
+        spawn, _player = self._bodies()
+        raw = rep.position_fragment_from_spawn(spawn)
+        assert raw is not None
+        # The spawn record is not the 9-fragment player record.
+        self.assertIsNone(
+            rep.player_body_with_position_fragment(
+                spawn, list(rep.STATE_PLAYER_FRAGMENT_BOUNDARIES), raw, 0
+            )
+        )
+        self.assertIsNone(rep.position_fragment_from_spawn(b""))
+
+
+class TestTheErrorHandlersDoNotKillTheServer(unittest.TestCase):
+    """A local `import traceback` inside one handler crashed the server from another.
+
+    MEASURED 2026-10-18: three consecutive sessions failed to reach the world. The server armed
+    the replay and went silent, and its log ended with
+
+        UnboundLocalError: cannot access local variable 'traceback' where it is not associated
+        with a value
+
+    raised from the tick-error handler at the top of `serve_forever`. The cause was a LOCAL
+    `import traceback` inside the *feed-error* handler further down the same function: a local
+    import makes the name local for the WHOLE function scope, so the first handler that ran
+    referenced an unassigned local and raised instead of logging.
+
+    That turned "an exception in one datagram" into "the world process dies", which is exactly
+    the failure mode both handlers exist to prevent.
+    """
+
+    def test_no_handler_imports_traceback_locally(self) -> None:
+        """Only INDENTED imports are local; the module-level one at line 36 is required."""
+        import inspect
+
+        source = inspect.getsource(rep)
+        offenders = [
+            (i + 1, line)
+            for i, line in enumerate(source.splitlines())
+            if line.strip() == "import traceback" and line[:1] in (" ", "	")
+        ]
+        self.assertEqual(
+            offenders, [],
+            "a local `import traceback` shadows the module-level name for the whole function "
+            f"and crashes the other handler: {offenders}",
+        )
+
+    def test_the_module_imports_traceback_at_scope(self) -> None:
+        self.assertTrue(hasattr(rep, "traceback"))
+        self.assertTrue(callable(rep.traceback.format_exc))
+
+    def test_both_handlers_can_format_a_traceback(self) -> None:
+        """The exact operation that raised: format_exc() inside an except block."""
+        try:
+            raise ValueError("probe")
+        except ValueError:
+            formatted = rep.traceback.format_exc()[-200:]
+        self.assertIn("ValueError: probe", formatted)
+
+
+@unittest.skipUnless(HAVE_PYOPENSSL, "pyOpenSSL not installed")
+class TestTwoClientsShareOneWorldServer(unittest.TestCase):
+    """Two private clients at once must each get their OWN PeerSession.
+
+    WHY THIS TEST EXISTS (2026-10-19). Running two private clients against one
+    world server is now a supported configuration: `Start-NwPrivate.ps1
+    -Instance 2` launches the second client with its own pid/state files, and
+    both clients connect to the same REP endpoint. That only works if the UDP
+    loop keys sessions by the client's SOURCE PORT -- the two clients are the
+    same IP (127.0.0.1) and the same character id (the gateway serves one fixed
+    identity), so anything keyed by IP or by character would merge them.
+
+    The session table is `RepServer.peers: dict[(ip, port), PeerSession]` and
+    every piece of replay/state state lives on the PeerSession, not on the
+    server or the module. This test drives two real DTLS clients through the
+    live loop and asserts that, instead of reading the code and hoping.
+
+    The `peers` count on `dtls-established` is what makes a two-client run
+    verifiable from `.azoth/logs/world.log` alone: the `peer` field says which
+    client, the count says whether the other one is still connected.
+    """
+
+    def _connect(self, port: int):
+        """Complete a DTLS handshake and return the client's (udp, connection)."""
+        client_ctx = SSL.Context(SSL.DTLS_METHOD)
+        client_ctx.set_verify(SSL.VERIFY_NONE, lambda *a: True)
+        client = SSL.Connection(client_ctx)
+        client.set_connect_state()
+        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp.settimeout(5)
+        addr = ("127.0.0.1", port)
+        completed = False
+        for _ in range(10):
+            try:
+                client.do_handshake()
+                completed = True
+                break
+            except SSL.WantReadError:
+                out = client.bio_read(65536)
+                if out:
+                    udp.sendto(out, addr)
+                data, _ = udp.recvfrom(65536)
+                client.bio_write(data)
+        self.assertTrue(completed, "client-side DTLS handshake did not complete")
+        # Flush the client's final flight: `dtls-established` is the SERVER's
+        # completion, and it only happens once the server consumes that flight.
+        while True:
+            try:
+                out = client.bio_read(65536)
+            except SSL.WantReadError:
+                break
+            if not out:
+                break
+            udp.sendto(out, addr)
+        return udp, client
+
+    def _wait_for(self, predicate, timeout: float = 10.0) -> bool:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if predicate():
+                return True
+            time.sleep(0.02)
+        return predicate()
+
+    def test_each_client_gets_its_own_session_and_the_count_is_logged(self):
+        import threading
+
+        srv = rep.RepServer("127.0.0.1", 0)
+        port = srv.sock.getsockname()[1]
+        events: list[dict] = []
+        original = rep.log_event
+        rep.log_event = lambda event: events.append(event)
+        th = threading.Thread(target=srv.serve_forever, daemon=True)
+        th.start()
+        clients = []
+        try:
+            for _ in range(2):
+                clients.append(self._connect(port))
+            self.assertTrue(
+                self._wait_for(lambda: len(srv.peers) == 2),
+                f"two clients must hold two sessions, got {sorted(srv.peers)}",
+            )
+            sessions = list(srv.peers.values())
+            self.assertIsNot(
+                sessions[0], sessions[1],
+                "the second client reused the first client's session",
+            )
+            self.assertNotEqual(
+                sessions[0].peer, sessions[1].peer,
+                "both sessions share one (ip, port) key",
+            )
+            self.assertTrue(
+                self._wait_for(lambda: all(s.handshaken for s in sessions)),
+                "the server did not complete both DTLS handshakes",
+            )
+            established = [e for e in events if e.get("event") == "dtls-established"]
+            self.assertEqual(
+                [e.get("peers") for e in established], [1, 2],
+                "each established session must log how many peers are live, so a "
+                "two-client run is verifiable from world.log alone",
+            )
+        finally:
+            rep.log_event = original
+            for udp, _client in clients:
+                udp.close()
+            srv.sock.close()
+
+    def test_replay_and_identity_state_is_per_session(self):
+        """No shared mutable default: one client's replay must not reach the other.
+
+        The replay bodies themselves are immutable bytes from the capture store,
+        so sharing them is safe; the QUEUES and the learned identity are not.
+        """
+        from azoth_world.rep import PeerSession
+
+        ctx = SSL.Context(SSL.DTLS_METHOD)
+        first = PeerSession(ctx, ("127.0.0.1", 27000))
+        second = PeerSession(ctx, ("127.0.0.1", 27001))
+        self.assertIsNot(first.replay_queue, second.replay_queue)
+        self.assertIsNot(first.state_stream_all, second.state_stream_all)
+        self.assertIsNot(first.sent_reliable, second.sent_reliable)
+        first.replay_queue.append("only-for-the-first")
+        first.client_actor_id = b"\x01" * 16
+        first.v3_character_id = "character-1"
+        self.assertEqual(second.replay_queue, [])
+        self.assertIsNone(second.client_actor_id)
+        self.assertEqual(second.v3_character_id, "")

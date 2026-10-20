@@ -48,6 +48,10 @@ from .javelin import (
     parse_v3_request_or_lenient,
 )
 from .javelin import bundle as javelin_bundle
+from .javelin.varint import decode as varint_decode
+from .javelin import alc as javelin_alc
+from . import entities, inventory
+from . import movement
 
 try:
     from OpenSSL import SSL, crypto
@@ -212,7 +216,18 @@ HEARTBEAT_ENABLED = os.environ.get("AZOTH_REPLAY_HEARTBEAT", "1") != "0"
 # out in WaitingForREPConnection while this process logs nothing, so we cannot
 # tell "packets never arrived" from "DTLS rejected them". Off by default.
 RAW_LOG = os.environ.get("AZOTH_LOG_RAW", "0") != "0"
-OUTBOUND_PAYLOAD_LOG = os.environ.get("AZOTH_LOG_OUTBOUND_PAYLOADS", "1") != "0"
+# FULL-DATAGRAM HEX LOGGING. Default OFF since 2026-10-19.
+#
+# WHY THE DEFAULT CHANGED. This logs every outbound datagram as hex, which is what the protocol work
+# needs - but a live world sends ~200 datagrams/s of 1 KB, so the file grows at about **1 MB/s**: a
+# single 84-minute session produced a **4 GB** `world.log`, and one afternoon of experiments left
+# `.azoth/logs/` at **7.3 GB** on a disk already at 78%. That is a real operational hazard (disk
+# pressure while a game and a DTLS server are both writing), so the verbose form is now opt-in.
+#
+# The structured events (`state-stream`, `replay`, `reply`, `heartbeat`, `movement-*`, `npc-*`, ...)
+# are NOT affected: they stay on, so every measurement this project makes still works. Only the
+# `raw_full` hex dump of each datagram requires AZOTH_LOG_OUTBOUND_PAYLOADS=1.
+OUTBOUND_PAYLOAD_LOG = os.environ.get("AZOTH_LOG_OUTBOUND_PAYLOADS", "0") != "0"
 # Persistent append handle for the event log (see log_event).
 _LOG_HANDLE = None
 HEARTBEAT_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_HEARTBEAT_PERIOD_S", "1.0"))
@@ -282,6 +297,27 @@ STATE_STREAM_MIN_SEQ = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_MIN_SEQ", "
 STATE_STREAM_PLAYER_RECORD = int(os.environ.get("AZOTH_REPLAY_STATE_STREAM_PLAYER_RECORD", "1"), 0)
 STATE_STREAM_PLAYER_PERIOD_S = float(
     os.environ.get("AZOTH_REPLAY_STATE_STREAM_PLAYER_PERIOD_S", "0.25")
+)
+# The bundles that CARRY THE LOCAL PLAYER'S POSITION get their own timer.
+#
+# MEASURED 2026-10-14 and 2026-10-18: the position is NOT in the 7154-byte record-1 bundles the
+# player stream sends. It is in the 46393-byte record-1 bundles - the spawn record, 48 fragments,
+# replay seq 0x2a..0x6c - which sit BELOW `STATE_STREAM_MIN_SEQ` (0x94), so the replay sent them
+# once and the stream never did. That is why the client's position stayed anchored at the
+# capture's value: the server had authority over the STARTING POINT and over nothing after it.
+#
+# 0 (default) keeps them out of the stream, exactly as before. A positive value loops them at
+# that period, which is what makes the position authoritative OVER TIME rather than only at
+# spawn. They are 46393 bytes and therefore chunked, so the period is the bandwidth trade:
+# 1.0 s is ~46 KB/s. The measurement that matters is not the period but whether a position
+# changed MID-SESSION reaches the client at all, so 1.0 s is a reasonable first value.
+#
+# Only DECODABLE bundles are armed. The capture's seq 0x25 carries the pair but is the first
+# message of its datagram, so its stored body has a datagram-level preamble and
+# `decode_bundle` refuses it (the documented 1-of-79 exception). Sending it through this path
+# would fail the replication-seq rewrite and be dropped by the client's gate anyway.
+STATE_STREAM_POSITION_PERIOD_S = float(
+    os.environ.get("AZOTH_REPLAY_STATE_STREAM_POSITION_PERIOD_S", "0")
 )
 # MEASURED 2026-10-13: the local player's own state record is what refreshes the ALC
 # local client's "last response" stamp, and that stamp IS the red HUD cable
@@ -394,6 +430,100 @@ INPUT_RESPONSE_TARGET_FILE = os.environ.get(
 CHANNEL1_ECHO_ENABLED = os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO", "0") == "1"
 CHANNEL1_ECHO_PERIOD_S = float(os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO_PERIOD_S", "0.5"))
 CHANNEL1_ECHO_MAX_BODY = int(os.environ.get("AZOTH_REPLAY_CHANNEL1_ECHO_MAX_BODY", "256"))
+# OBSERVE the client's own movement claim (default on, read-only).
+#
+# The client already tells us where it thinks it is, ~20x/s, in the channel-1 input body
+# (see javelin/alc.py). Reading it costs nothing and changes no wire behaviour, so this is on
+# by default - but it logs only on TRANSITIONS (load, desync, rejection), never per sample,
+# because at 20 Hz per-sample logging would bury the session log it exists to inform.
+#
+# This is step 3 of the authority loop: detect divergence. It does NOT correct anything. The
+# correction channel is replicated state, and it is still spawn-only (see ROADMAP item 3).
+MOVEMENT_OBSERVE_ENABLED = os.environ.get("AZOTH_MOVEMENT_OBSERVE", "1") == "1"
+# The client is predicted, so its claim legitimately leads the server by about one round
+# trip. On loopback that is small; the floor is what stops a moving player being reported as
+# desynced, and the measured instrument offset (2-4 u) is deliberately NOT part of it.
+MOVEMENT_RTT_S = float(os.environ.get("AZOTH_MOVEMENT_RTT_S", "0.05"))
+MOVEMENT_DESYNC_FLOOR = float(os.environ.get("AZOTH_MOVEMENT_DESYNC_FLOOR", "2.0"))
+# How many post-load samples the instrument offset is calibrated over. At spawn the client is
+# at the position the server wrote, so the constant difference over these samples IS the
+# offset. The calibration is REJECTED if the samples are not tightly clustered, because a
+# wrong offset hides real desync.
+MOVEMENT_CALIBRATION_SAMPLES = int(os.environ.get("AZOTH_MOVEMENT_CALIBRATION_SAMPLES", "20"))
+# CORRECTION (default off): send ONE position-bearing bundle when a desync is detected.
+#
+# WHY EVENT-DRIVEN AND NOT A STREAM. The first attempt at authority-over-time streamed the
+# position-bearing bundles at 1 Hz. That is wrong for two independent reasons, and the second
+# one broke a live session on 2026-10-18:
+#
+#   1. The client is PREDICTIVE: it moves its own character locally. Sending its position every
+#      second fights that prediction and produces exactly the rubber-banding a correction is
+#      supposed to avoid.
+#   2. The position lives in the SPAWN record (record 1, 48 fragments, all of the area's
+#      entities). Re-sending it re-processes the whole spawn, not just the player, and the
+#      local character became invisible while every protocol counter stayed clean - 0
+#      `Failed to unmarshal`, 0 `ValidationError`, 0 `transportError`. Valid bytes, wrong
+#      message, at the wrong time.
+#
+# What the real server does is correct only when it disagrees. That is exactly what
+# `DesyncTracker` already decides, so the correction is a single send on a transition, followed
+# by a rebaseline so the same divergence is not corrected twice.
+#
+# A hard cap per session is deliberate: the first attempt sent 93 bundles before it was stopped,
+# and an unbounded correction loop would be the same mistake with a different trigger.
+MOVEMENT_CORRECT_ENABLED = os.environ.get("AZOTH_MOVEMENT_CORRECT", "0") == "1"
+MOVEMENT_CORRECT_MAX = int(os.environ.get("AZOTH_MOVEMENT_CORRECT_MAX", "3"))
+# The Carrier FLAG BYTE for a correction. MEASURED 2026-10-18 (decompiled FUN_14643e7b0): the flag
+# selects between two gates that are NOT equivalent. `byte[msg+8] == 0` takes the reliable path,
+# which runs the dispatcher but never advances `port[0x78]`, the client's replication high-water.
+# Anything else takes the unreliable replication gate, which requires the seq to be strictly
+# greater than the high-water and THEN sets it. Every captured state bundle the client applies
+# arrived through the second path (flags 0x20), while this server sent 0x21. So the default here
+# is the client's own form; 0x21 reproduces the previous behaviour for an A/B.
+MOVEMENT_CORRECT_FLAGS = int(os.environ.get("AZOTH_MOVEMENT_CORRECT_FLAGS", "0x20"), 0)
+# THE SERVER'S OWN POSITION (default on). This is what turns the world server from a replayer into
+# a server for the player's position: it folds the client's validated input stream into a position
+# it owns, and can publish that position into the state it sends (`AZOTH_STATE_POSITION=sim`).
+#
+# The design it implements comes from the client's own cvars, not from a guess: the CLIENT owns its
+# locomotion and corrects its own desync (`javelin.alc-correct-position-desync-during-attack-slow-down`),
+# while the SERVER validates plausibility and reacts to violations
+# (`javelin-server.alc-speed-hack-fix-v2-*`, `javelin-server.player-teleport-2d-distance-metrics-threshold`).
+# So the server does not impose a position every tick; it holds a live validated one and refuses the
+# implausible.
+MOVEMENT_SIMULATE_ENABLED = os.environ.get("AZOTH_MOVEMENT_SIMULATE", "1") == "1"
+# CORRECTION ESCALATION. A single rejected claim is normal (a lag spike, a dropped input) and is only
+# HELD. The server escalates only when the client KEEPS claiming the impossible - the signature of a
+# client that will not converge, which is what the vendor's `alc-speed-hack-fix-v2` cvars are named
+# after. Past `freeze_after` the player state stream stops (measured 2026-10-13 to freeze the client's
+# simulation); past `disconnect_after` the peer is dropped.
+MOVEMENT_FREEZE_AFTER = int(os.environ.get("AZOTH_MOVEMENT_FREEZE_AFTER", "5"))
+MOVEMENT_DISCONNECT_AFTER = int(os.environ.get("AZOTH_MOVEMENT_DISCONNECT_AFTER", "20"))
+MOVEMENT_SUMMARY_PERIOD_S = float(os.environ.get("AZOTH_MOVEMENT_SUMMARY_PERIOD_S", "10"))
+# DELIBERATE PROVOCATION (default off, and it exists only for tests).
+#
+# An honest client never claims impossible movement, so the correction ladder's HOLD/FREEZE/
+# DISCONNECT rungs can never be observed live by just playing. This lever moves the SERVER's
+# position out from under the client on purpose, which makes the client's next claim diverge by
+# construction - the only way to see the escalation work end to end.
+#
+# Format: `x,y` (decimal) read from `AZOTH_MOVEMENT_FORCE_FILE` on every sample, so a test can move
+# the server mid-session without a restart. Empty or missing file = no provocation.
+MOVEMENT_FORCE = os.environ.get("AZOTH_MOVEMENT_FORCE", "").strip()
+MOVEMENT_FORCE_FILE = os.environ.get(
+    "AZOTH_MOVEMENT_FORCE_FILE", ".azoth/state/force-position.txt"
+)
+
+
+def movement_force_spec() -> tuple[float, float] | None:
+    """The provoked position, or None. Re-read every call so a test can change it live."""
+    if not MOVEMENT_FORCE:
+        return None
+    try:
+        raw = Path(MOVEMENT_FORCE_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return parse_state_position(raw)
 # EXPERIMENTAL (default off): answer the client's channel-1 local-player state stream
 # with a real, TYPED movement message instead of an echo.
 #
@@ -567,7 +697,15 @@ RESPONSE_REQUESTS: dict[int, tuple[int, ...]] = {
     0x1033: (0x101D, 0x101E, 0x102E, 0x102F, 0x192C),  # GridTracking UpdatePhasing family
     0x1B88: (0x1B7F,),                       # GlobalStorage Receive <- RequestReplicate...
     0x136A: (0x0CED,),                       # GameModeParticipant OnLeftQueue <- RequestLeave
-    0x16A0: (0x169D,),                       # Inventories OnQueryInventories <- QueryInventories
+    # Inventories OnQueryInventories <- QueryInventories (0x169D).
+    #
+    # CORRECTED 2026-10-19: this was `(0x169D,)`, which made the server HOLD and then DROP both
+    # captured inventory responses, because the client never sends 0x169D - not in the committed
+    # capture (0 of 39 client messages) and not in any live session (0 `inbound-typed` events).
+    # The real server DID send them (seq 0x28 and 0x29), unsolicited, and the client accepted them.
+    # So requiring a request that never arrives suppressed a legitimate push. The empty tuple means
+    # "no request required", which is what the capture actually shows.
+    0x16A0: (),
     0x0CA4: (),                              # EventNotification SyncNotifications: unsolicited
 }
 
@@ -645,6 +783,18 @@ INBOUND_KNOWN_REQUESTS: dict[int, str] = {
     0x09FC: "ContractsComponentServerFacet_LookupContractsByParticipant",
     0x0A95: "ObjectivesComponentServerFacet_SetObjectiveAutoPinning",
     0x1098: "TimeComponentServerFacet_SyncToClient",
+    # GATHERING / INTERACTION, from the AZ type registry (build 8654f01d…). None of these is in the
+    # committed capture - the capture has no gathering in it - so they are listed to make a live
+    # session NAME what the player's interaction actually sends instead of logging an unknown type.
+    # That naming is the measurement the roadmap item needs before any reply can be designed:
+    # `python az.py doc`/the coverage line will show which of these the client really emits when a
+    # tree is chopped, and their bodies can then be decoded with `parse_inbound_request`.
+    #
+    # Direction matters and is easy to get wrong: a `*ClientFacet_*` name is the SERVER calling the
+    # client, so the client->server requests are the `*ServerFacet_*` ones. `RequestRemoteInteract`
+    # is the only ServerFacet interaction request in the registry (wire 0x13af).
+    0x13AF: "InteractorComponentServerFacet_RequestRemoteInteract",
+    0x0E92: "PlayerHousingComponentServerFacet_InteractWithHousingItem",
 }
 # The request that teaches us the TimeComponent client facet's local id, and the replies it serves.
 TIME_SYNC_REQUEST = 0x1098
@@ -655,6 +805,17 @@ CONTRACTS_LOOKUP_RESPONSE = 0x08E6
 # Responses the DISPATCHER owns: it sends them when the client asks, so the replay must not send
 # them once and forget. Measured: the client asks for contracts twice in a session and for time
 # sync once, and the replay answers each exactly once, ever.
+# The inventory response the SERVER COMPOSES. Measured 2026-10-19: the client never sends 0x169D, so
+# the response is an unsolicited push - which is what the real server did (seq 0x28 and 0x29).
+INVENTORY_RESPONSE = 0x16A0
+# Composing the inventory instead of forwarding it (default off). The captured body is 99819 B and
+# carries 428 entries; the server re-renders it from its own list. Byte-identical when nothing is
+# changed, which is asserted, so switching it on cannot alter behaviour by accident.
+INVENTORY_COMPOSE = os.environ.get("AZOTH_INVENTORY_COMPOSE", "0") == "1"
+# Item ids the server wants the player to have, one per line, replacing the captured list when set.
+INVENTORY_IDS_FILE = os.environ.get(
+    "AZOTH_INVENTORY_IDS_FILE", ".azoth/state/inventory-ids.txt"
+)
 DISPATCHER_OWNED_RESPONSES: set[int] = {CONTRACTS_LOOKUP_RESPONSE}
 # Floor between two answers to the same request, so a client that asks in a loop cannot make the
 # server flood it (the client asked 15x in one session for SetObjectiveAutoPinning).
@@ -754,8 +915,241 @@ STATE_PLAYER_FRAGMENT_BOUNDARIES = (2, 60, 3955, 4295, 4301, 4498, 5335, 5386, 7
 # a 2D position and the client derives the height - which is why the override below writes two
 # floats and not three.
 CAPTURED_PLAYER_POSITION = struct.pack(">ff", 9343.6416015625, 2786.732666015625)
-# `x,y` (decimal) to replace it with; empty = leave the capture alone.
-STATE_POSITION = os.environ.get("AZOTH_STATE_POSITION", "").strip()
+# THE ONE FRAGMENT THAT CARRIES THE POSITION, and its byte range in the spawn payload.
+#
+# MEASURED 2026-10-18 from the CLIENT (`python az.py probe frida-fragment-grammar
+# --min-fragments 20`): the 46393-byte spawn payload is a sequence of 48 fragments whose
+# boundaries the client itself reports. Fragment #35 starts at payload offset **38310** and the
+# next one starts at **38397**, so it is 87 bytes; its header is `10 0b` (key=16, type=11) and
+# its payload is 85 bytes with the position at payload offset 20.
+#
+# The boundaries are deterministic: the probe captured the same 48 offsets 25 times in one
+# session, and the replay store's 24 captured copies of this record carry a BYTE-IDENTICAL
+# fragment #35. So the range is protocol data for this record, not a guess.
+#
+# WHY THIS MATTERS. The position lives inside the SPAWN record, which is the whole area's spawn
+# state (48 fragments, every entity). Re-sending that record to correct a position re-processes
+# the entire spawn: measured 2026-10-18, the local character became INVISIBLE while every
+# protocol counter stayed clean (0 `Failed to unmarshal`, 0 `ValidationError`, 0
+# `transportError`) - valid bytes, wrong message. Carrying only this fragment makes the
+# correction a 103-byte message instead of 46407, i.e. **451x smaller**, and it touches exactly
+# one component instead of the whole area.
+POSITION_FRAGMENT_KEY = 16
+POSITION_FRAGMENT_TYPE = 11
+POSITION_FRAGMENT_RANGE = (38310, 38397)
+SPAWN_RECORD_PAYLOAD_LENGTH = 46393
+# WHICH POSITION THE SERVER WRITES INTO THE STATE IT SENDS.
+#
+#   `sim`  (DEFAULT) the position the SERVER computed from the client's own input stream and
+#          validated. This is what makes the world server a server for the player's position rather
+#          than a replayer: the value it reports is derived, not captured. Falls back to the capture
+#          until the simulator has its first sample.
+#   `file` re-read on every send, for changing the position mid-session without a restart. Used by
+#          the provocation lever and by the earlier experiments.
+#   `x,y`  a fixed override, for an A/B.
+#   empty  leave the capture alone (the pre-2026-10-18 behaviour).
+#
+# It defaults to `sim` because a server that reports a captured constant is not a server. Set
+# AZOTH_STATE_POSITION= (empty) to get the old replay behaviour back.
+STATE_POSITION = os.environ.get("AZOTH_STATE_POSITION", "sim").strip()
+# SERVER-OWNED ENTITY (default off). The first entity the server places in the world itself instead
+# of forwarding a captured one. It starts from a captured record (id 70) and rewrites only its
+# position, because the record id selects a client handler and the fragment type indices select
+# per-component codecs this project has not decoded - inventing those would be guessing.
+#
+# `x,y` (decimal) read from AZOTH_ENTITY_POSITION_FILE on every send, so the entity can be moved
+# mid-session. Empty or missing = the captured record is forwarded unchanged, exactly as before.
+SERVER_ENTITY = os.environ.get("AZOTH_SERVER_ENTITY", "").strip()
+# MOVE A CAPTURED ACTOR INSTEAD OF CREATING A NEW ONE (default off).
+#
+# WHY THIS EXISTS, and it is the honest re-scope of the entity item. Measured 2026-10-19, four
+# independent ways: creating a NEW visible actor is not reachable from the server in this build -
+# duplicating the 48-fragment spawn record (the one that creates the visible player) is accepted with
+# zero errors and produces no body, the Transform gate registers 0 of 30 slice jobs, and a full census
+# found that **0 of 31 objects in the world answer** the interface that would give a remote slice its
+# `GameTransformComponent`. The bodies that DO appear are the capture's own, delivered by the replay.
+#
+# But those bodies exist and can be MOVED: an entity's position is a big-endian f32 pair inside a
+# bundle the stream already re-sends, so rewriting it needs no new entity, no Transform, and no
+# registration - the same mechanism that already moved a captured structure (the player stood on a
+# house that had not been there) and that owns the local player's position.
+#
+# `AZOTH_MOVE_ACTOR_SEQ` is the replay seq whose bundle carries the actor to move (default 0xa1 =
+# record 29, the character 5.8 u from the player in the capture), and the position is read from
+# `AZOTH_MOVE_ACTOR_POSITION_FILE` on every send so it can be driven mid-session.
+MOVE_ACTOR_SEQ = int(os.environ.get("AZOTH_MOVE_ACTOR_SEQ", "0"), 0)
+MOVE_ACTOR_POSITION_FILE = os.environ.get(
+    "AZOTH_MOVE_ACTOR_POSITION_FILE", ".azoth/state/actor-position.txt"
+)
+
+def move_actor_spec() -> tuple[float, float] | None:
+    """Where the captured actor should be moved to, or None to leave it where the capture put it."""
+    if not MOVE_ACTOR_SEQ:
+        return None
+    try:
+        raw = Path(MOVE_ACTOR_POSITION_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return entities.parse_position(raw)
+
+_MOVE_ACTOR_CAPTURED: tuple[float, float] | None = None
+_MOVE_ACTOR_RESOLVED = False
+
+def move_actor_captured_position() -> tuple[float, float] | None:
+    """The actor's position as captured, resolved once so the rewrite can anchor on it."""
+    global _MOVE_ACTOR_CAPTURED, _MOVE_ACTOR_RESOLVED
+    if _MOVE_ACTOR_RESOLVED:
+        return _MOVE_ACTOR_CAPTURED
+    _MOVE_ACTOR_RESOLVED = True
+    if not MOVE_ACTOR_SEQ:
+        return None
+    try:
+        store = replay_store()
+    except Exception:  # noqa: BLE001
+        return None
+    for message in store.messages:
+        if message.seq != MOVE_ACTOR_SEQ or message.type_id != 0x08 or message.direction != "R":
+            continue
+        try:
+            payload = javelin_bundle.decode_bundle(message.body).payload
+        except javelin_bundle.BundleError:
+            return None
+        for offset in range(0, len(payload) - 7):
+            x, y = struct.unpack_from(">ff", payload, offset)
+            if 9000.0 < x < 9700.0 and 2500.0 < y < 3000.0:
+                _MOVE_ACTOR_CAPTURED = (x, y)
+                return _MOVE_ACTOR_CAPTURED
+    return None
+# WHICH captured record the server drives, as a replay seq. The template supplies the CAPTURED
+# POSITION the override anchors on.
+#
+# THE FIRST ATTEMPT USED A STRUCTURE, and the live run is what said so: record 70 (2 fragments,
+# 162 B) moved to the player's position and the player ended up standing ON a HOUSE - the override
+# worked, the entity was simply the wrong kind of thing. Measured 2026-10-19.
+#
+# Record 29 (seq 0xa1) is the candidate that matches a CHARACTER instead: **19 fragments**, 994 B,
+# at **5.8 u** from the player in the capture, and it IS in the stream (0xa1 >= the 0x94 floor) so the
+# client keeps receiving it. A character carries many components; a structure carries two.
+SERVER_ENTITY_SEQ = int(os.environ.get("AZOTH_SERVER_ENTITY_SEQ", "0xa1"), 0)
+SERVER_ENTITY_POSITION_FILE = os.environ.get(
+    "AZOTH_SERVER_ENTITY_POSITION_FILE", ".azoth/state/entity-position.txt"
+)
+# A SECOND entity, CREATED rather than moved (default off).
+#
+# MEASURED 2026-10-19: the client's record dispatcher creates an entity when the record's handler slot
+# is EMPTY and updates it when the slot is present. So a record id the capture never used is a
+# CREATION slot, and re-emitting a captured entity record under such an id makes the client build a
+# second entity from the same fragments.
+#
+# `AZOTH_NPC_DUPLICATE=<record_id>` picks the slot. Empty = off. The source record is
+# `AZOTH_NPC_SOURCE_SEQ` (default 0xa1 = record 29, a 19-fragment character record 5.8 u from the
+# player in the capture), and the position comes from `AZOTH_NPC_POSITION_FILE`.
+# `auto` picks the first slot the CLIENT's own table reports free. MEASURED 2026-10-19: ids 1..94 are
+# allocated and 95..255 are NULL, so `auto` resolves to 95. A numeric value is honoured only if it is
+# genuinely free; an allocated id is refused at load time with a log line instead of being sent as an
+# update that the client silently discards (which is what happened with slot 3).
+_NPC_DUPLICATE_RAW = os.environ.get("AZOTH_NPC_DUPLICATE", "0").strip()
+
+def _resolve_npc_slot(raw: str) -> int:
+    if not raw or raw == "0":
+        return 0
+    if raw.lower() == "auto":
+        return entities.free_record_ids()[0]
+    try:
+        slot = int(raw, 0)
+    except ValueError:
+        log_event({"event": "npc-slot-refused", "reason": "not a number or 'auto'", "value": raw[:40]})
+        return 0
+    if slot in entities.MEASURED_USED_SLOTS:
+        log_event(
+            {
+                "event": "npc-slot-refused",
+                "reason": "already allocated in the client's slot table; an update, not a creation",
+                "slot": slot,
+                "first_free": entities.free_record_ids()[0],
+            }
+        )
+        return 0
+    return slot
+
+NPC_DUPLICATE_SLOT = _resolve_npc_slot(_NPC_DUPLICATE_RAW)
+NPC_SOURCE_SEQ = int(os.environ.get("AZOTH_NPC_SOURCE_SEQ", "0xa1"), 0)
+NPC_POSITION_FILE = os.environ.get(
+    "AZOTH_NPC_POSITION_FILE", ".azoth/state/npc-position.txt"
+)
+NPC_SEND_PERIOD_S = float(os.environ.get("AZOTH_NPC_PERIOD_S", "1.0"))
+# HOW MANY TIMES THE CREATED ENTITY IS SENT (default: forever).
+#
+# MEASURED 2026-10-19 and the reason this lever exists: the client's slot for the created record CHANGED
+# its pointer on every dispatch (1:1 with the dispatch count), while every neighbouring allocated slot
+# held one stable pointer across the same samples. So re-sending the full 19-fragment record is not an
+# idempotent update here - the client rebuilds. A single send is the one-variable test of whether the
+# rebuild is what prevents the body from settling.
+NPC_MAX_SENDS = int(os.environ.get("AZOTH_NPC_MAX_SENDS", "0"), 0)
+# THE NEW ACTOR'S IDENTITY (default off). A duplicated record keeps the CAPTURE's actor id, so two
+# records declare the same actor and the client either merges them or ignores the second.
+# Setting this rewrites the record's slice instance to a NEW actor id and registers that id with
+# `ClientAddEntryMsg` before the first record is sent.
+#
+# MEASURED 2026-10-19: the id is not invented - the record DECLARES it, at payload offset 662 in
+# record 29, in the shape `<remoteplayer.dynamicslice GUID><00 00 00 02><16-byte actor id>`. The same
+# shape carries the local player's id at offset 29731 of the 48-fragment spawn record, which is the
+# independent confirmation that this field is the actor id and not a neighbour.
+NPC_ACTOR_ID = os.environ.get("AZOTH_NPC_ACTOR_ID", "").strip()
+
+def npc_actor_id() -> bytes | None:
+    """The 16-byte actor id the created entity should own, or None to keep the captured one."""
+    if not NPC_ACTOR_ID:
+        return None
+    try:
+        raw = bytes.fromhex(NPC_ACTOR_ID.replace("-", ""))
+    except ValueError:
+        log_event({"event": "npc-actor-id-refused", "reason": "not hex", "value": NPC_ACTOR_ID[:40]})
+        return None
+    if len(raw) != 16:
+        log_event(
+            {
+                "event": "npc-actor-id-refused",
+                "reason": f"an actor id is 16 bytes, got {len(raw)}",
+                "value": NPC_ACTOR_ID[:40],
+            }
+        )
+        return None
+    return raw
+
+def npc_position_spec() -> tuple[float, float] | None:
+    """Where the duplicated entity should stand, or None for the capture's position."""
+    try:
+        raw = Path(NPC_POSITION_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return entities.parse_position(raw)
+
+
+SERVER_ENTITY_TEMPLATE = None
+"""The captured template the server drives, resolved once at import."""
+
+
+def server_entity_template():
+    """The template, resolved lazily so a bad seq degrades to 'no entity' rather than a crash."""
+    global SERVER_ENTITY_TEMPLATE
+    if SERVER_ENTITY_TEMPLATE is None:
+        SERVER_ENTITY_TEMPLATE = entities.template_from_replay(SERVER_ENTITY_SEQ)
+    return SERVER_ENTITY_TEMPLATE
+
+
+def server_entity_spec() -> tuple[float, float] | None:
+    """The position the server wants its own entity at, or None. Re-read every call."""
+    if not SERVER_ENTITY:
+        return None
+    try:
+        raw = Path(SERVER_ENTITY_POSITION_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return entities.parse_position(raw)
+STATE_POSITION_FILE = os.environ.get(
+    "AZOTH_STATE_POSITION_FILE", ".azoth/state/position.txt"
+)
 
 
 def parse_state_position(raw: str) -> tuple[float, float] | None:
@@ -778,8 +1172,60 @@ def parse_state_position(raw: str) -> tuple[float, float] | None:
     return x, y
 
 
+# The position the SERVER currently holds, set by the movement simulator. This is what makes the
+# server a server instead of a replay: the value is computed from the client's own input stream and
+# validated, rather than read from a constant or a file. Module-level because `state_position_spec`
+# is called from the send path, which has no session reference.
+#
+# `None` means "the simulator has not produced a position yet", and the configured/captured value
+# is used instead - so switching the simulator off cannot change behaviour by accident.
+SIMULATED_POSITION: tuple[float, float] | None = None
+
+
+def set_simulated_position(position: tuple[float, float] | None) -> None:
+    """Publish the simulator's authoritative position to the send path."""
+    global SIMULATED_POSITION
+    SIMULATED_POSITION = position
+
+
 def state_position_spec() -> tuple[float, float] | None:
-    """The configured position override, or None."""
+    """The position the server should write into a position-bearing bundle, or None.
+
+    Resolution order, and each mode exists for a reason:
+
+    1. **`sim`** - the SIMULATED position. The server computed it from the client's input stream
+       and validated it, so this is the server deciding where the player is rather than replaying
+       a captured constant. Falls through to the next mode until the simulator has a value.
+    2. **`file`** - re-read on EVERY call on purpose: the point is to change the position
+       mid-session without restarting the world, which is how the earlier experiments measured
+       "the server decides the position" rather than assuming it. A missing or malformed file
+       returns None, so the capture's position is used instead of a stale or garbage one.
+    3. **`x,y`** - a fixed override, for an A/B.
+    4. empty - leave the capture alone.
+    """
+    if STATE_POSITION == "sim" and SIMULATED_POSITION is not None:
+        # FRAME CONVERSION, and skipping it is a 4.03 u bug.
+        #
+        # The simulator's position comes from the channel-1 claim, which is in the WIRE frame. The
+        # state bundle carries the position in the ACCESSOR frame - proven by the 2026-10-14
+        # experiment, where writing a value into the spawn record made the client's own accessor
+        # report exactly that value with 0.0000 u error. The two frames differ by
+        # `MOVEMENT_FRAME_OFFSET`, measured constant: the spawn record contains
+        # (9343.6416, 2786.7327) while the channel-1 claim for the same instant is
+        # (9341.4414, 2790.1104).
+        #
+        # So the write path converts wire -> accessor. Without this the server would send a position
+        # 4.03 u away from the one it believes, every time.
+        return (
+            SIMULATED_POSITION[0] - javelin_alc.MOVEMENT_FRAME_OFFSET[0],
+            SIMULATED_POSITION[1] - javelin_alc.MOVEMENT_FRAME_OFFSET[1],
+        )
+    if STATE_POSITION == "file":
+        try:
+            raw = Path(STATE_POSITION_FILE).read_text(encoding="utf-8").strip()
+        except OSError:
+            return None
+        return parse_state_position(raw)
     return parse_state_position(STATE_POSITION)
 
 
@@ -808,6 +1254,114 @@ def apply_position_override(body: bytes, position: tuple[float, float]) -> tuple
         CAPTURED_PLAYER_POSITION, struct.pack(">ff", *position)
     )
     return javelin_bundle.encode_bundle(parsed.replication_seq, patched), count
+
+
+def minimal_position_bundle(
+    spawn_body: bytes, replication_seq: int
+) -> bytes | None:
+    """Build a ~103-byte record-1 bundle carrying ONLY the position fragment.
+
+    This is the difference between a correction and a re-spawn. The position lives inside the
+    spawn record, which is the whole area's state (48 fragments); re-sending that record made
+    the local character invisible in a measured run (2026-10-18). This composes the smallest
+    message that still carries the pair: record 1, one fragment, the one the client itself says
+    holds it (`POSITION_FRAGMENT_RANGE`, key 16 type 11) - 451x smaller than the spawn record.
+
+    Returns ``None`` when the input is not the expected spawn record, so a layout change
+    degrades to "no correction" instead of sending a body that would fail to parse. The
+    fragment is re-encoded through the verified parser rather than sliced into a hand-built
+    body, so the container stays correct by construction.
+    """
+    try:
+        parsed = javelin_bundle.decode_bundle(spawn_body)
+    except javelin_bundle.BundleError:
+        return None
+    payload = parsed.payload
+    if len(payload) != SPAWN_RECORD_PAYLOAD_LENGTH:
+        return None
+    start, end = POSITION_FRAGMENT_RANGE
+    if end > len(payload):
+        return None
+    raw_fragment = payload[start:end]
+    try:
+        key, offset = varint_decode(raw_fragment, 0)
+        type_index, header_size = varint_decode(raw_fragment, offset)
+    except Exception:  # noqa: BLE001 - a malformed header means "do not send"
+        return None
+    if (key, type_index) != (POSITION_FRAGMENT_KEY, POSITION_FRAGMENT_TYPE):
+        return None
+    fragment = javelin_bundle.Fragment(key, type_index, raw_fragment[header_size:])
+    record = javelin_bundle.Record(1, (fragment,))
+    return javelin_bundle.compose_bundle(replication_seq, [record])
+
+
+def position_fragment_from_spawn(spawn_body: bytes) -> bytes | None:
+    """The raw fragment that carries the player position, out of the spawn record.
+
+    Returns the fragment's bytes (`[varint key][varint type][payload]`) or ``None`` when the body
+    is not the expected spawn record. Kept separate from `minimal_position_bundle` because the
+    fragment is useful on its own: a caller may want to attach it to a record the client is
+    already known to apply, instead of sending it alone.
+    """
+    try:
+        parsed = javelin_bundle.decode_bundle(spawn_body)
+    except javelin_bundle.BundleError:
+        return None
+    payload = parsed.payload
+    if len(payload) != SPAWN_RECORD_PAYLOAD_LENGTH:
+        return None
+    start, end = POSITION_FRAGMENT_RANGE
+    if end > len(payload):
+        return None
+    raw = payload[start:end]
+    try:
+        key, offset = varint_decode(raw, 0)
+        type_index, _header = varint_decode(raw, offset)
+    except Exception:  # noqa: BLE001
+        return None
+    if (key, type_index) != (POSITION_FRAGMENT_KEY, POSITION_FRAGMENT_TYPE):
+        return None
+    return raw
+
+
+def player_body_with_position_fragment(
+    player_body: bytes,
+    boundaries: list[int],
+    position_fragment: bytes,
+    replication_seq: int,
+) -> bytes | None:
+    """The player's own record-1 bundle, with the position fragment APPENDED.
+
+    WHY THIS SHAPE. Two measured facts together:
+
+      * the 7154-byte record-1 bundle (9 fragments) is APPLIED by the client - it is what the
+        state stream re-sends at 4 Hz and it is what makes the player move and clears the cable;
+      * a record-1 bundle carrying ONLY the position fragment (1 fragment) is accepted without a
+        single client error and changes nothing (2026-10-18).
+
+    The dispatcher (`FUN_141717fc0`) performs a virtual call derived from the record's FIRST
+    fragment and branches on the result, so a record is not an unordered bag of fragments - the
+    first one selects the path. Appending the position to a record the client already applies keeps
+    that path and adds the field, which is the difference the previous attempt did not have.
+
+    Returns ``None`` when the input is not the expected 9-fragment record, so a layout change
+    degrades to "no correction" instead of sending a guess.
+    """
+    try:
+        parsed = javelin_bundle.decode_bundle(player_body)
+    except javelin_bundle.BundleError:
+        return None
+    payload = parsed.payload
+    if len(payload) < 2 or payload[1] != len(boundaries):
+        return None
+    try:
+        raw_fragments = javelin_bundle.split_record_payload(payload, boundaries)
+        fragments = [javelin_bundle.parse_fragment(f) for f in raw_fragments]
+        extra = javelin_bundle.parse_fragment(position_fragment)
+    except javelin_bundle.BundleError:
+        return None
+    record = javelin_bundle.Record(record_id=1, fragments=tuple([*fragments, extra]))
+    return javelin_bundle.compose_bundle(replication_seq, [record])
 
 
 def parse_state_override(raw: str) -> tuple[int, int, bytes] | None:
@@ -1180,6 +1734,43 @@ def _counts_as_request(channel: int, type_id: int) -> bool:
     if channel != 0:
         return False
     return type_id not in (0x15D, 0x13)  # PingMsg, RegistrationRequestV3Msg
+
+
+def compose_inventory_body(template: bytes) -> tuple[bytes, dict]:
+    """Re-render the captured inventory body from the server's own list of item ids.
+
+    WHY THIS IS SAFE. `inventory.split_entries` + `render_body` reproduce the captured body
+    **byte-identically** (asserted in the tests over all 428 entries), so turning this on cannot
+    change behaviour by accident: the only way the bytes differ is the id list.
+
+    The ids come from `AZOTH_INVENTORY_IDS_FILE`, one per line. An empty or missing file keeps the
+    captured list, and an id that cannot be parsed is skipped rather than written as garbage.
+
+    Returns ``(body, report)`` so the caller can log what it did.
+    """
+    report: dict = {"entries": 0, "changed": 0, "source": "capture"}
+    entries = inventory.split_entries(template)
+    report["entries"] = len(entries)
+    if not entries:
+        return template, report
+    try:
+        raw = Path(INVENTORY_IDS_FILE).read_text(encoding="utf-8")
+    except OSError:
+        return template, report
+    wanted = [line.strip() for line in raw.splitlines() if line.strip()]
+    if not wanted:
+        return template, report
+    report["source"] = "file"
+    patched: list = []
+    for index, entry in enumerate(entries):
+        if index < len(wanted):
+            new_id = "".join(ch for ch in wanted[index] if ch.isdigit())
+            if new_id and new_id != entry.id_text:
+                patched.append(entry.with_id(new_id))
+                report["changed"] += 1
+                continue
+        patched.append(entry)
+    return inventory.render_body(template, patched), report
 
 
 def _deferred_decision(
@@ -1891,6 +2482,18 @@ class PeerSession:
         self.state_stream_queue: list = []
         self.state_stream_player: list = []
         self.state_stream_player_queue: list = []
+        # Bundles that carry the local player's position, on their own timer (see
+        # STATE_STREAM_POSITION_PERIOD_S).
+        self.state_stream_position: list = []
+        self.state_stream_position_queue: list = []
+        self.state_stream_position_next_at = 0.0
+        self.state_stream_position_sent = 0
+        # The last position actually written into a position-bearing bundle, so a mid-session
+        # change is visible in the log as a transition instead of per-send noise.
+        self.state_position_last_written: tuple[float, float] | None = None
+        # The last position written into the server-owned entity, so the log shows transitions.
+        self.server_entity_last_written: tuple[float, float] | None = None
+        self.server_entity_written = 0
         self.state_stream_next_at = 0.0
         self.state_stream_player_next_at = 0.0
         self.state_stream_player_sent = 0
@@ -1906,6 +2509,49 @@ class PeerSession:
         self.input_response_sent = 0
         # Latest channel-1 client body, captured for the experimental echo.
         self.channel1_last_body: bytes | None = None
+        # Movement observation (see MOVEMENT_OBSERVE_ENABLED): the client's own claim, the
+        # load gate, the plausibility check and the desync comparison. Created lazily on the
+        # first channel-1 record so a session that never reaches the world pays nothing.
+        self.movement_gate = None
+        self.movement_tracker = None
+        self.movement_validator = None
+        self.movement_calibrator = None
+        self.movement_simulator = None
+        self.movement_simulation_last: tuple[float, float] | None = None
+        # The CORRECTION POLICY: what the server does about a divergence, and its escalation.
+        self.movement_policy: object | None = None
+        self.movement_last_action: str | None = None
+        # Periodic summary so a live run is verifiable without a client-side probe: the server's own
+        # position, how far it has moved, and how many decisions it has made.
+        self.movement_summary_at = 0.0
+        # The last provocation written, so the log records transitions and not every sample.
+        self.movement_forced_last: tuple[float, float] | None = None
+        # Its own dedup flag: sharing `movement_reject_logged` with the validator made this log once
+        # per sample, because the validator's reference resets after a rejection and it then reports
+        # the next sample as its own "first sample" (not a rejection), clearing the shared flag.
+        self.movement_held_logged = False
+        # The DUPLICATED ENTITY: its armed body, its next send time and a transition-only log flag.
+        self.npc_body = None
+        self.npc_source_body = None
+        self.npc_captured_position: tuple[float, float] | None = None
+        self.npc_next_at = 0.0
+        self.npc_sent = 0
+        # The created entity's OWN actor id, and how many times it has been registered. A duplicated
+        # record that keeps the capture's actor id declares an actor that already exists, so the
+        # client has no reason to build a second body; registering a new id is what makes it new.
+        # The captured actor the server moves (see MOVE_ACTOR_SEQ). Transition-only logging.
+        self.moved_actor_written = 0
+        self.moved_actor_last: tuple[float, float] | None = None
+        self.npc_actor: bytes | None = None
+        self.npc_registrations = 0
+        self.npc_position_last: tuple[float, float] | None = None
+        self.movement_truth: tuple[float, float] | None = None
+        self.movement_desync_logged = False
+        self.movement_reject_logged = False
+        # Corrections actually sent this session (see MOVEMENT_CORRECT_MAX).
+        self.movement_corrections_sent = 0
+        # The cap is reached once and stays reached; the log line must fire once too.
+        self.movement_cap_logged = False
         self.channel1_echo_next_at = 0.0
         self.channel1_echo_sent = 0
         # Experimental typed position reply (see POSITION_REPLY_* above).
@@ -1926,7 +2572,22 @@ class PeerSession:
                 try:
                     self.conn.do_handshake()
                     self.handshaken = True
-                    log_event({"event": "dtls-established", "peer": f"{self.peer[0]}:{self.peer[1]}"})
+                    # `peers` is the number of live sessions, INCLUDING this one (the
+                    # UDP loop inserts the session in `self.peers` before feeding it).
+                    # WHY it is logged: two private clients against one world server is
+                    # a real configuration (Start-NwPrivate.ps1 -Instance N), and both
+                    # clients are 127.0.0.1 with the same gateway character id, so the
+                    # only thing that distinguishes them on the wire is the source port.
+                    # One `dtls-established` line per client plus this count is what
+                    # makes a two-client run verifiable from world.log alone: the `peer`
+                    # field says which client, the count says the other one is still up.
+                    log_event(
+                        {
+                            "event": "dtls-established",
+                            "peer": f"{self.peer[0]}:{self.peer[1]}",
+                            "peers": len(server.peers),
+                        }
+                    )
                 except SSL.WantReadError:
                     pass  # flight sent below; keep the session for the next datagram
                 except SSL.Error as exc:
@@ -1985,6 +2646,8 @@ class PeerSession:
         # "Mixed Nuts" finding) instead of using an independent counter.
         inbound_recs = parse_datagram(inbound_body).messages
         self._note_inbound_typed(inbound_recs)
+        if MOVEMENT_OBSERVE_ENABLED:
+            self._observe_movement_claim(inbound_recs)
         if INBOUND_DISPATCH_ENABLED:
             self._dispatch_inbound(server, inbound_recs)
         self._process_acks(inbound_recs)
@@ -2105,10 +2768,126 @@ class PeerSession:
         self.maybe_input_response(server)
         self.maybe_channel1_echo(server)
         self.maybe_position_reply(server)
+        self.maybe_npc_duplicate(server)
         now_mono = time.monotonic()
         if now_mono - self.last_resend_pump >= RESEND_PUMP_MIN_INTERVAL_S:
             self.last_resend_pump = now_mono
             self.maybe_resend(server)
+
+    def maybe_npc_duplicate(self, server) -> None:
+        """Send the DUPLICATED entity on its own timer.
+
+        WHY A SEPARATE EMITTER. The duplicated record uses a record id the capture never used, so it is
+        not in `state_stream_all` and would never be sent by the stream. It is armed once from the
+        source record and re-sent on this timer, which is what makes the entity persist: a creation slot
+        that is written once and never refreshed is an entity the client has no reason to keep.
+
+        MEASURED 2026-10-19: the client's record dispatcher CREATES when the record's handler slot is
+        empty and UPDATES when it is present, so the same message is correct for both - the first send
+        creates and the rest update. No separate handshake is needed for a duplicate.
+        """
+        if not NPC_DUPLICATE_SLOT or self.gone or not self.v3_responded:
+            return
+        if self.replay_queue or not self.greetings_after_replay:
+            return  # the client's object graph is not built yet
+        if self.npc_body is None:
+            return
+        if NPC_MAX_SENDS and self.npc_sent >= NPC_MAX_SENDS:
+            return
+        now = time.monotonic()
+        if now < self.npc_next_at:
+            return
+        self.npc_next_at = now + NPC_SEND_PERIOD_S
+        # REGISTER THE ACTOR FIRST. A record binds component state to an actor id, so the id has to
+        # exist before the record arrives - which is why the capture sends `ClientAddEntryMsg` twice
+        # for the player before the spawn. Sent a few times rather than once because the client's
+        # registry is built during load and a single early message can land before it exists.
+        if self.npc_actor is not None and self.npc_registrations < 3:
+            from .javelin.replay_store import ReplayMessage
+
+            self._send_replay_message(
+                server,
+                ReplayMessage(
+                    seq=-1,
+                    type_id=entities.CLIENT_ADD_ENTRY_TYPE,
+                    direction="R",
+                    body=entities.client_add_entry(self.npc_actor),
+                    has_redaction=False,
+                ),
+            )
+            self.npc_registrations += 1
+            log_event(
+                {
+                    "event": "npc-actor-registered",
+                    "actor": self.npc_actor.hex(),
+                    "n": self.npc_registrations,
+                    "size": 20,
+                }
+            )
+        # Re-derive the body when the position file changes, so the entity can be MOVED mid-session.
+        position = npc_position_spec()
+        if position is not None and position != self.npc_position_last:
+            body, report = entities.duplicate_entity(
+                self.npc_source_body,
+                record_id=NPC_DUPLICATE_SLOT,
+                position=position,
+                captured_position=self.npc_captured_position,
+            )
+            if "error" in report:
+                log_event({"event": "npc-duplicate-refused", **report})
+            else:
+                self.npc_body = body
+                self.npc_position_last = position
+                log_event(
+                    {
+                        "event": "npc-duplicate-moved",
+                        "slot": NPC_DUPLICATE_SLOT,
+                        "position": [round(position[0], 3), round(position[1], 3)],
+                        "replacements": report["replacements"],
+                    }
+                )
+        from .javelin.replay_store import ReplayMessage
+
+        # THE REPLICATION COUNTER MUST ADVANCE, or the client drops the bundle before dispatching it.
+        #
+        # MEASURED 2026-10-19, and it is what made the first two attempts invisible: the duplicated body
+        # keeps the SOURCE record's counter (0x26 = 38) because `duplicate_entity` re-encodes the
+        # payload but not the prologue. The client's gate (`FUN_14643e7b0`) drops any unreliable
+        # replication whose seq is not strictly greater than `port[+0x78]`, and on a live session that
+        # high-water was **1216** - so every NPC bundle was discarded in the gate, never reaching the
+        # record dispatcher. The probe proved it: 81 distinct record ids arrived at `FUN_141717fc0` and
+        # **95 was not among them**, while the server logged the send every second.
+        #
+        # The state stream already solves exactly this (`with_replication_seq` above the high-water),
+        # so the NPC shares that counter: one monotone sequence for every bundle the server sends is
+        # what the client's single high-water tracks.
+        try:
+            body = javelin_bundle.with_replication_seq(self.npc_body, self.state_stream_seq)
+        except javelin_bundle.BundleError as exc:
+            log_event({"event": "npc-seq-rewrite-failed", "error": str(exc)[:160]})
+            return
+        self.state_stream_seq += 1
+
+        self._send_replay_message(
+            server,
+            ReplayMessage(
+                seq=-1, type_id=0x08, direction="R", body=body, has_redaction=False
+            ),
+        )
+        self.npc_sent += 1
+        if self.npc_sent == 1:
+            log_event(
+                {
+                    "event": "npc-duplicate-sent",
+                    "slot": NPC_DUPLICATE_SLOT,
+                    "source_seq": hex(NPC_SOURCE_SEQ),
+                    "fragments": entities.duplicate_entity(
+                        self.npc_source_body, record_id=NPC_DUPLICATE_SLOT
+                    )[1].get("fragments"),
+                    "size": len(self.npc_body),
+                    "actor": self.npc_actor.hex() if self.npc_actor else None,
+                }
+            )
 
     def _arm_replay(self) -> None:
         if not REPLAY_ENABLED:
@@ -2197,6 +2976,152 @@ class PeerSession:
                 if _state_stream_record_id(m) == STATE_STREAM_PLAYER_RECORD
             ]
             self.state_stream_player_queue = list(self.state_stream_player)
+            # The bundles that CARRY THE PLAYER'S POSITION, selected by the measured VALUE rather
+            # than by seq, because they sit BELOW `STATE_STREAM_MIN_SEQ` and so are not in
+            # `state_stream_all` at all. Their own timer, off unless the period is positive.
+            self.state_stream_position = []
+            if STATE_STREAM_POSITION_PERIOD_S > 0 or MOVEMENT_CORRECT_ENABLED:
+                for m in store.replay_messages_after_v3(
+                    REPLAY_MAX_SEQ, include_redacted=True
+                ):
+                    if m.type_id != 0x08 or CAPTURED_PLAYER_POSITION not in m.body:
+                        continue
+                    try:
+                        javelin_bundle.decode_bundle(m.body)
+                    except javelin_bundle.BundleError:
+                        continue
+                    self.state_stream_position.append(m)
+            # The QUEUE is pre-filled ONLY in loop mode. In correction mode it must start EMPTY:
+            # it is filled by `_queue_movement_correction` with exactly one bundle, on a
+            # detection. Pre-filling it here was a real defect (2026-10-18): with the period at 0
+            # the timer never advanced, so a full queue drained at tick rate and the server
+            # re-sent 4-5 spawn records (46 KB each) per second, which made the local character
+            # invisible while every protocol counter stayed clean (0 unmarshal, 0 ValidationError,
+            # 0 transportError). Valid bytes, wrong message, at the wrong rate.
+            self.state_stream_position_queue = (
+                list(self.state_stream_position)
+                if STATE_STREAM_POSITION_PERIOD_S > 0
+                else []
+            )
+            # The CORRECTION body. TWO shapes exist and only one is measured to be worth sending:
+            #
+            #   * minimal (record 1 + the position fragment only, 101 B): ACCEPTED by the client
+            #     with 0 errors and NO EFFECT (measured 2026-10-18). The dispatcher FUN_141717fc0
+            #     branches on a virtual call derived from the record's FIRST fragment, so a record
+            #     is not an unordered bag and a 1-fragment record does not take the path the spawn
+            #     record takes.
+            #   * hybrid (the 7154-byte record-1 bundle the client demonstrably APPLIES at 4 Hz,
+            #     plus the position fragment: 7256 B, record_id=1, fragment_count=10).
+            #
+            # The hybrid is what the correction uses: it keeps the composition the client already
+            # takes the right path for, and adds the field. The full 46 KB spawn record is never
+            # sent as a correction - that made the local character invisible (measured).
+            self.state_position_minimal_body = None
+            self.state_position_correction_body = None
+            if self.state_stream_position and self.state_stream_player:
+                spawn_body = self.state_stream_position[0].body
+                player_body = self.state_stream_player[0].body
+                self.state_position_minimal_body = minimal_position_bundle(spawn_body, 0)
+                raw_fragment = position_fragment_from_spawn(spawn_body)
+                if raw_fragment is not None:
+                    self.state_position_correction_body = player_body_with_position_fragment(
+                        player_body,
+                        list(STATE_PLAYER_FRAGMENT_BOUNDARIES),
+                        raw_fragment,
+                        0,
+                    )
+            log_event(
+                {
+                    "event": "state-stream-position-armed",
+                    "count": len(self.state_stream_position),
+                    "seqs": [hex(m.seq) for m in self.state_stream_position][:8],
+                    "period_s": STATE_STREAM_POSITION_PERIOD_S,
+                    "loop": STATE_STREAM_POSITION_PERIOD_S > 0,
+                    "correction_body_bytes": (
+                        len(self.state_position_correction_body)
+                        if self.state_position_correction_body else None
+                    ),
+                    "minimal_body_bytes": (
+                        len(self.state_position_minimal_body)
+                        if self.state_position_minimal_body else None
+                    ),
+                    "position": STATE_POSITION or None,
+                    "position_mode": (
+                        "sim" if STATE_POSITION == "sim"
+                        else ("file" if STATE_POSITION == "file"
+                              else ("fixed" if STATE_POSITION else "capture"))
+                    ),
+                }
+            )
+            # ARM THE DUPLICATED ENTITY. Its source is a captured record, kept verbatim so every
+            # undecoded fragment byte stays as the client produced it; `duplicate_entity` changes only
+            # the record id (to a creation slot) and, when a position is configured, the position.
+            self.npc_source_body = None
+            self.npc_captured_position = None
+            self.npc_actor = npc_actor_id() if NPC_DUPLICATE_SLOT else None
+            if NPC_DUPLICATE_SLOT:
+                source = next(
+                    (m for m in store.messages
+                     if m.seq == NPC_SOURCE_SEQ and m.direction == "R" and m.type_id == 0x08),
+                    None,
+                )
+                if source is not None:
+                    position = npc_position_spec()
+                    body, report = entities.duplicate_entity(
+                        source.body,
+                        record_id=NPC_DUPLICATE_SLOT,
+                        position=position,
+                        captured_position=entities.template_from_replay(NPC_SOURCE_SEQ).captured_position
+                        if position is not None else None,
+                    )
+                    if "error" in report:
+                        log_event({"event": "npc-duplicate-refused", **report})
+                    else:
+                        self.npc_source_body = source.body
+                        # A NEW ACTOR, not a moved one. Without this the duplicated record declares
+                        # the capture's actor id, i.e. an actor the client already has, so there is
+                        # nothing to create. `rewrite_actor_id` changes exactly 16 bytes and is
+                        # refused (with a report) if the record carries no slice instance.
+                        if self.npc_actor is not None:
+                            body, actor_report = entities.rewrite_actor_id(body, self.npc_actor)
+                            if "error" in actor_report:
+                                log_event({"event": "npc-actor-refused", **actor_report})
+                                self.npc_actor = None
+                            else:
+                                log_event(
+                                    {
+                                        "event": "npc-actor-rewritten",
+                                        "actor": self.npc_actor.hex(),
+                                        "previous": actor_report["previous"],
+                                        "replacements": actor_report["replacements"],
+                                    }
+                                )
+                        self.npc_body = body
+                        template = entities.template_from_replay(NPC_SOURCE_SEQ)
+                        self.npc_captured_position = (
+                            template.captured_position if template else None
+                        )
+                        self.npc_position_last = position
+                        log_event(
+                            {
+                                "event": "npc-duplicate-armed",
+                                "slot": NPC_DUPLICATE_SLOT,
+                                "source_seq": hex(NPC_SOURCE_SEQ),
+                                "fragments": report["fragments"],
+                                "size": len(body),
+                                "position": list(position) if position else None,
+                                "period_s": NPC_SEND_PERIOD_S,
+                                "actor": self.npc_actor.hex() if self.npc_actor else None,
+                            }
+                        )
+                else:
+                    log_event(
+                        {
+                            "event": "npc-duplicate-refused",
+                            "reason": f"no captured R bundle at seq {NPC_SOURCE_SEQ:#x}",
+                        }
+                    )
+
             highest = 0
             for msg in self.state_stream_all:
                 # The counter the client's replication gate compares is the
@@ -2448,6 +3373,382 @@ class PeerSession:
         used by `maybe_state_stream`, which MUST wait for the drain.
         """
         return self.v3_responded
+
+    def _observe_movement_claim(self, records) -> None:
+        """Read the position the CLIENT reports and compare it with the server's own.
+
+        Step 3 of the authority loop. The client already sends its claim ~20x/s on channel 1
+        (`javelin/alc.py`), so this costs nothing and touches no wire behaviour. It logs only
+        on TRANSITIONS — load, the start of a divergence, the start of an implausible move —
+        because per-sample logging at 20 Hz would bury the log it exists to inform.
+
+        The three verdicts are kept apart on purpose (see `movement.py`):
+
+        * the load gate replaces a fixed grace period with the client's own state, measured
+          at t+8..14 s rather than 60 s;
+        * the validator answers "could a player have moved like this" (anti-cheat);
+        * the tracker answers "does the server agree", comparing the claim with the
+          position the SERVER wrote — not with the client's accessor, whose 2-4 u difference
+          is an instrument offset and not a divergence.
+
+        Nothing here corrects anything. Correction is replicated state and is still
+        spawn-only, so a desync logged here is expected to persist; that is the measurement.
+        """
+        # THE LIVE POSITION COMES FROM THE MOVEMENT BUFFER, not from the claim. The claim reads the
+        # spawn ANCHOR, which does not follow the player (measured: it stayed fixed through a 23 u
+        # walk). The buffer's newest entry does follow, verified 600 of 600 entries landing on the
+        # client's own accessor trajectory. `read_live_position` returns the anchor when the player is
+        # idle, so this degrades to the old behaviour rather than to nothing.
+        claim = None
+        for rec in records:
+            if rec.channel != 1:
+                continue
+            payload = getattr(rec, "payload", b"") or b""
+            live = javelin_alc.read_live_position(payload)
+            if live is not None:
+                class _Live:
+                    __slots__ = ("x", "y")
+                claim = _Live()
+                claim.x, claim.y = live
+            else:
+                claim = javelin_alc.read_claim(payload)
+            if claim is not None:
+                break
+
+        gate = self.movement_gate
+        if gate is None:
+            gate = movement.LoadGate()
+            self.movement_gate = gate
+            self.movement_tracker = movement.DesyncTracker(
+                floor=MOVEMENT_DESYNC_FLOOR,
+                sustained_samples=5,
+                rtt_s=MOVEMENT_RTT_S,
+            )
+            self.movement_validator = movement.MovementValidator()
+            self.movement_calibrator = movement.ReferenceOffset(
+                samples=MOVEMENT_CALIBRATION_SAMPLES
+            )
+            # THE SERVER'S OWN POSITION. Seeded from the position the server itself decided at
+            # spawn (the capture's, or an override), so the simulator starts from a value the
+            # server owns rather than from the client's first claim.
+            # PREDICTIVE: it derives its own expected position from consecutive server-held
+            # positions and reports how far the client's claim was from it. That is a prediction the
+            # server makes on its own, not a restatement of the client's word.
+            # YAW-AWARE: it predicts from consecutive server-held positions AND expresses the
+            # resulting velocity in the player's own frame, using the camera yaw the client
+            # reports in the same input sample (measured 2026-10-18: 1008 displacements classify
+            # as strafe/back/strafe/forward relative to it, i.e. it is a camera yaw).
+            # SEEDED IN THE WIRE FRAME, not the accessor's. `CAPTURED_PLAYER_POSITION` is what the
+            # client's accessor reported at capture time; the wire carries the same point offset by
+            # `MOVEMENT_FRAME_OFFSET` (measured 2026-10-18: wire = accessor + offset, constant to
+            # 0.000 u). Seeding with the accessor value while feeding wire values would put a
+            # permanent 4.03 u inconsistency in the simulator's own state.
+            captured = struct.unpack(">ff", CAPTURED_PLAYER_POSITION)
+            self.movement_simulator = movement.YawAwareSimulator(
+                start=(
+                    captured[0] + javelin_alc.MOVEMENT_FRAME_OFFSET[0],
+                    captured[1] + javelin_alc.MOVEMENT_FRAME_OFFSET[1],
+                ),
+                validator=movement.MovementValidator(),
+            )
+            # The policy turns the simulator's result into a DECISION, and its escalation is what
+            # gives the server a real lever: past `freeze_after` implausible claims the player state
+            # stream stops, which was measured to freeze the client's simulation (2026-10-13).
+            self.movement_policy = movement.CorrectionPolicy(
+                freeze_after=MOVEMENT_FREEZE_AFTER,
+                disconnect_after=MOVEMENT_DISCONNECT_AFTER,
+            )
+
+        now = time.monotonic()
+        if gate.observe(ready=claim is not None, now=now):
+            log_event(
+                {
+                    "event": "movement-ready",
+                    "after_s": round(gate.ready_after_s or 0.0, 3),
+                    "observations": gate.observations,
+                    "x": round(claim.x, 3),
+                    "y": round(claim.y, 3),
+                    "source": "channel-1 position marker",
+                }
+            )
+        if claim is None or not gate.is_ready:
+            return
+
+        # THE TRUTH IS WHAT THE SERVER CURRENTLY HOLDS, and it MOVES. It used to be set once from the
+        # captured position, which made the tracker compare a live claim against a frozen seed - the
+        # same class of error as the anchor, one level up. The server's position is authoritative and
+        # follows the player, so the truth has to be read fresh every sample, in the WIRE frame (the
+        # same frame as the claim; the captured value is an ACCESSOR value and differs by
+        # `MOVEMENT_FRAME_OFFSET`, measured constant to 0.000 u).
+        if self.movement_truth is None:
+            captured = struct.unpack(">ff", CAPTURED_PLAYER_POSITION)
+            self.movement_truth = (
+                captured[0] + javelin_alc.MOVEMENT_FRAME_OFFSET[0],
+                captured[1] + javelin_alc.MOVEMENT_FRAME_OFFSET[1],
+            )
+        # THE PROVOCATION. It moves the SERVER's position, not the client's, so the client's next
+        # claim diverges by construction and the escalation ladder can be observed. Off unless
+        # AZOTH_MOVEMENT_FORCE is set.
+        forced = movement_force_spec()
+        if forced is not None and self.movement_simulator is not None:
+            self.movement_simulator.position = forced
+            self.movement_truth = forced
+            # Logged on CHANGE only: this runs on every sample, and logging each one buried the
+            # session log during the provocation run (measured: hundreds of identical lines).
+            if forced != self.movement_forced_last:
+                self.movement_forced_last = forced
+                log_event(
+                    {
+                        "event": "movement-forced",
+                        "server_position": [round(forced[0], 3), round(forced[1], 3)],
+                        "note": "deliberate provocation: the server moved, not the client",
+                    }
+                )
+        if self.movement_simulator is not None and self.movement_simulator.position:
+            self.movement_truth = self.movement_simulator.position
+
+        rejection = self.movement_validator.observe(claim.x, claim.y, now)
+        if rejection.verdict is movement.Verdict.REJECT:
+            if not self.movement_reject_logged:
+                self.movement_reject_logged = True
+                log_event(
+                    {
+                        "event": "movement-reject",
+                        "reason": rejection.reason,
+                        "x": round(claim.x, 3),
+                        "y": round(claim.y, 3),
+                    }
+                )
+        else:
+            self.movement_reject_logged = False
+
+        # THE SERVER'S OWN POSITION. Fold the validated claim in, and publish the result so the
+        # send path can write the SERVER's position instead of a configured constant. Logged on
+        # transitions only: a per-sample line at 20 Hz would bury the session log.
+        if MOVEMENT_SIMULATE_ENABLED and self.movement_simulator is not None:
+            # The camera yaw comes from the SAME input sample, so the prediction is expressed in
+            # the frame the player actually moves in. A body without the movement block yields
+            # None and the simulator falls back to a plain prediction.
+            move_state = javelin_alc.read_movement_from_payload(
+                next(
+                    (getattr(r, "payload", b"") for r in records
+                     if r.channel == 1 and javelin_alc.read_claim(
+                         getattr(r, "payload", b"") or b""
+                     ) is not None),
+                    b"",
+                )
+            )
+            yaw = move_state.camera_yaw if move_state is not None else None
+            pitch = move_state.camera_pitch if move_state is not None else None
+            result = self.movement_simulator.consume_with_yaw(
+                (claim.x, claim.y), yaw, now, pitch
+            )
+            set_simulated_position(result.position)
+            # THE DECISION. Logged on TRANSITION only, so a run shows when the server escalated
+            # rather than repeating the same line 20 times a second.
+            decision = self.movement_policy.observe(result, (claim.x, claim.y))
+            if decision.action.value != self.movement_last_action:
+                self.movement_last_action = decision.action.value
+                log_event(
+                    {
+                        "event": "movement-correction-decision",
+                        "action": decision.action.value,
+                        "reason": decision.reason,
+                        "violations": decision.violations,
+                        "divergence_u": round(decision.error, 3),
+                        "stream_flowing": self.movement_policy.stream_should_flow,
+                        "server_position": [
+                            round(result.position[0], 3),
+                            round(result.position[1], 3),
+                        ],
+                        "client_claim": [round(claim.x, 3), round(claim.y, 3)],
+                    }
+                )
+            # A SUMMARY every 10 s, because the transition-only logging above cannot show that the
+            # server is FOLLOWING the player - it only shows when the decision changes.
+            if now >= self.movement_summary_at:
+                self.movement_summary_at = now + MOVEMENT_SUMMARY_PERIOD_S
+                d = self.movement_simulator.as_dict()
+                log_event(
+                    {
+                        "event": "movement-simulation-summary",
+                        "position": d.get("position"),
+                        "authority": d.get("authority"),
+                        "samples": d.get("samples"),
+                        "adopted": d.get("adopted"),
+                        "held": d.get("held"),
+                        "violations": d.get("violations"),
+                        "forward_speed": d.get("forward_speed"),
+                        "lateral_speed": d.get("lateral_speed"),
+                        "mean_prediction_error_u": d.get("mean_prediction_error_u"),
+                        "stream_flowing": self.movement_policy.stream_should_flow,
+                    }
+                )
+            if decision.action is movement.CorrectionAction.DISCONNECT:
+                log_event(
+                    {
+                        "event": "movement-correction-disconnect",
+                        "violations": decision.violations,
+                        "reason": decision.reason,
+                    }
+                )
+                self.gone = True
+                return
+            if result.rejected and not self.movement_held_logged:
+                self.movement_held_logged = True
+                log_event(
+                    {
+                        "event": "movement-simulation-held",
+                        "reason": result.reason,
+                        "position": [round(result.position[0], 3),
+                                     round(result.position[1], 3)],
+                        "violations": result.violations,
+                        "claim": [round(claim.x, 3), round(claim.y, 3)],
+                    }
+                )
+            elif not result.rejected:
+                self.movement_held_logged = False
+            if not result.rejected and self.movement_simulation_last is None:
+                self.movement_simulation_last = result.position
+                log_event(
+                    {
+                        "event": "movement-simulation-live",
+                        "position": [round(result.position[0], 3),
+                                     round(result.position[1], 3)],
+                        "authority": result.authority.value,
+                        "moved_u": round(result.moved, 3),
+                    }
+                )
+
+        # NO CALIBRATION GATE HERE ANY MORE, and removing it is the point.
+        #
+        # The tracker used to wait for a calibrated instrument offset because the claim and the
+        # server's position were in DIFFERENT FRAMES - an accessor value against a wire value - which
+        # produced a constant 4.0311 u that made an in-sync player look permanently desynced.
+        #
+        # That was an artefact of the comparison, not a property of the player. Now:
+        #   * the claim is the LIVE position from the movement buffer (wire frame),
+        #   * the truth is the server's own position, which adopts that claim (wire frame),
+        # so they are the same quantity in the same frame and the offset is 0 BY CONSTRUCTION. The
+        # live run confirms it: `movement-calibrated offset [0.0, -0.0] magnitude_u 0.0`.
+        #
+        # `ReferenceOffset` is kept, but for what it was always for: validating the instrument from
+        # paired probe samples offline, not gating the live path.
+        # ONCE, not per sample: `set_offset` clears the streak (a new frame invalidates a streak
+        # built in the old one), so calling it on every sample would reset the streak forever and
+        # the tracker could never reach `sustained_samples`. That is exactly what happened when this
+        # line was unconditional - the desync never fired.
+        if not self.movement_tracker.calibrated:
+            self.movement_tracker.set_offset((0.0, 0.0))
+
+        report = self.movement_tracker.observe(
+            (claim.x, claim.y), self.movement_truth
+        )
+        if report.verdict is movement.Verdict.CORRECT:
+            if not self.movement_desync_logged:
+                self.movement_desync_logged = True
+                log_event(
+                    {
+                        "event": "movement-desync",
+                        "error_u": round(report.error, 3),
+                        "threshold_u": round(report.threshold, 3),
+                        "streak": report.streak,
+                        "claim": [round(claim.x, 3), round(claim.y, 3)],
+                        "truth": [round(self.movement_truth[0], 3),
+                                  round(self.movement_truth[1], 3)],
+                        "correct": MOVEMENT_CORRECT_ENABLED,
+                    }
+                )
+            # EVENT-DRIVEN CORRECTION: one bundle per divergence episode, never a stream.
+            #
+            # The client is predictive, so sending its position on a timer fights its own
+            # prediction; and the position lives in the SPAWN record, so a loop re-processes the
+            # whole area's spawn. One send on the transition is what a server correction is.
+            if MOVEMENT_CORRECT_ENABLED:
+                self._queue_movement_correction(report)
+        else:
+            self.movement_desync_logged = False
+
+    def _queue_movement_correction(self, report) -> None:
+        """Queue ONE position-bearing bundle carrying the server's position.
+
+        Deliberately not a stream: `state_stream_position_queue` is a one-shot here, consumed by
+        the next `maybe_state_stream` tick, and the tracker is rebaselined so the same divergence
+        is not corrected twice. The per-session cap is the guard that the 2026-10-18 1 Hz attempt
+        lacked - it sent 93 bundles before anyone noticed.
+        """
+        if not self.state_stream_position:
+            log_event(
+                {
+                    "event": "movement-correction-unavailable",
+                    "reason": "no position-bearing bundle armed",
+                    "hint": "set AZOTH_REPLAY_STATE_STREAM_POSITION_PERIOD_S>0 only to ARM; "
+                            "the correction consumes the list as a one-shot",
+                }
+            )
+            return
+        minimal_body = getattr(self, "state_position_minimal_body", None)
+        # The hybrid body is the one to send: the record the client demonstrably applies, plus the
+        # position fragment. The minimal body is kept only as the fallback that documents what was
+        # already measured NOT to work, so a run that silently degrades is visible in the log.
+        correction_body = getattr(self, "state_position_correction_body", None)
+        if not correction_body:
+            log_event(
+                {
+                    "event": "movement-correction-unavailable",
+                    "reason": "no hybrid correction body could be composed",
+                    "hint": "needs both the spawn record and the 9-fragment player record",
+                    "minimal_body_available": bool(minimal_body),
+                }
+            )
+            return
+        if self.movement_corrections_sent >= MOVEMENT_CORRECT_MAX:
+            # Log ONCE. This path runs on every sample while the divergence persists, so an
+            # unguarded log wrote hundreds of lines a second during a measured run (2026-10-18)
+            # and buried the session log it exists to inform.
+            if not self.movement_cap_logged:
+                self.movement_cap_logged = True
+                log_event(
+                    {
+                        "event": "movement-correction-capped",
+                        "sent": self.movement_corrections_sent,
+                        "max": MOVEMENT_CORRECT_MAX,
+                        "error_u": round(report.error, 3),
+                        "note": "no further corrections this session",
+                    }
+                )
+            return
+        self.movement_corrections_sent += 1
+        # One send of the HYBRID bundle: the 7154-byte record-1 composition the client applies,
+        # plus the position fragment. A correction must never re-send the area spawn (48
+        # fragments), which is what made the character invisible in the measured run, and must not
+        # send the fragment alone, which is accepted but ignored.
+        #
+        # It must be a ReplayMessage, not a SimpleNamespace: `_send_state_bundle` calls
+        # `dataclasses.replace(msg, body=...)`, and replace() only accepts dataclass instances.
+        # A namespace raised `TypeError: replace() should be called on dataclass instances`,
+        # which the UDP loop caught, and the swallowed error then killed the session with a
+        # client `transportError 4` (measured 2026-10-18).
+        from .javelin.replay_store import ReplayMessage
+
+        correction = ReplayMessage(
+            seq=-1, type_id=0x08, direction="R", body=correction_body, has_redaction=False
+        )
+        self.state_stream_position_queue = [correction]
+        self.state_stream_position_next_at = 0.0
+        self.movement_tracker.rebaseline()
+        log_event(
+            {
+                "event": "movement-correction-queued",
+                "error_u": round(report.error, 3),
+                "sent": self.movement_corrections_sent,
+                "max": MOVEMENT_CORRECT_MAX,
+                "body_bytes": len(correction_body),
+                "body_kind": "hybrid",
+                "truth": [round(self.movement_truth[0], 3),
+                          round(self.movement_truth[1], 3)],
+            }
+        )
 
     def _note_inbound_typed(self, records) -> None:
         """Log each distinct typed message the CLIENT sends, once per session.
@@ -2832,13 +4133,37 @@ class PeerSession:
         if self.replay_queue or not self.greetings_after_replay:
             return  # the replay itself still carries the captured bundles
         if not (self.state_stream_all or self.state_stream_queue
-                or self.state_stream_player_queue):
+                or self.state_stream_player_queue
+                or self.state_stream_position_queue):
             return
         now = time.monotonic()
+        # The POSITION-bearing bundles. TWO modes, and the difference matters:
+        #
+        #   * LOOP (STATE_STREAM_POSITION_PERIOD_S > 0): refill and send forever. This is the
+        #     2026-10-18 1 Hz attempt. It fights the client's prediction and re-processes the
+        #     whole spawn record, so it is off by default and kept only for measurement.
+        #   * ONE-SHOT (correction): the queue is filled by `_queue_movement_correction` with
+        #     exactly one bundle and is NOT refilled here. A one-shot must never turn into a
+        #     loop by accident, which is what `STATE_STREAM_POSITION_PERIOD_S > 0` guards.
+        if self.state_stream_position_queue and now >= self.state_stream_position_next_at:
+            position_msg = self.state_stream_position_queue.pop(0)
+            if STATE_STREAM_POSITION_PERIOD_S > 0:
+                self.state_stream_position_next_at = now + STATE_STREAM_POSITION_PERIOD_S
+                if not self.state_stream_position_queue:
+                    self.state_stream_position_queue = list(self.state_stream_position)
+            self._send_state_bundle(
+                server, position_msg, "position", flags=MOVEMENT_CORRECT_FLAGS
+            )
         # Two rates, because the two kinds of state matter differently (measured):
         # the LOCAL PLAYER's own record has to keep the ALC stamp younger than the
         # cable's amber threshold (~2 s), while the rest of the world state only has
         # to keep flowing at roughly the rate the real server used.
+        # THE CORRECTION LEVER. Measured 2026-10-13: with the local player's state stream off, the
+        # client's position is frozen and W does nothing. So withholding it IS the server's strongest
+        # available response to a client that keeps claiming impossible movement.
+        policy = getattr(self, "movement_policy", None)
+        if policy is not None and not policy.stream_should_flow:
+            return
         if self.state_stream_player_queue and now >= self.state_stream_player_next_at:
             self.state_stream_player_next_at = now + STATE_STREAM_PLAYER_PERIOD_S
             player_msg = self.state_stream_player_queue.pop(0)
@@ -2854,15 +4179,21 @@ class PeerSession:
         self.state_stream_next_at = now + STATE_STREAM_PERIOD_S
         self._send_state_bundle(server, self.state_stream_queue.pop(0), "world")
 
-    def _send_state_bundle(self, server, msg, kind: str) -> None:
+    def _send_state_bundle(self, server, msg, kind: str, flags: int | None = None) -> None:
         """Send one captured state bundle with a fresh, gate-passing counter.
 
-        `kind` is "player" or "world" and is only used for the log, so an A/B can tell
-        which of the two rates produced a given send.
+        `kind` is "player", "world" or "position" and is only used for the log, so an A/B
+        can tell which of the three rates produced a given send.
+
+        `flags` overrides the Carrier record's flag byte. It matters: the flag selects which
+        gate the client runs (see `_send_replay_message`), and only the unreliable path advances
+        the client's replication high-water.
         """
         self.state_stream_sent += 1
         if kind == "player":
             self.state_stream_player_sent += 1
+        elif kind == "position":
+            self.state_stream_position_sent += 1
         sent_seq = None
         if STATE_STREAM_REWRITE_SEQ:
             # Continue the counter above the client's high-water, or the bundle
@@ -2927,11 +4258,42 @@ class PeerSession:
                     }
                 )
                 self.state_authoritative_sent += 1
-        self._send_replay_message(server, msg)
+        # THE POSITION OVERRIDE, on the position-bearing bundles.
+        #
+        # This is what turns "the server decided the starting point" into "the server decides
+        # where the player is". `apply_position_override` anchors on the measured CAPTURE value,
+        # so it fires only in a body that actually carries the position and cannot corrupt one
+        # that does not. The replacement is the same width as what it replaces, so the payload
+        # length does not change and the body is still re-encoded through the verified parser.
+        #
+        # `state_position_spec()` is called per send on purpose: with AZOTH_STATE_POSITION=file
+        # the position can be changed MID-SESSION, which is the only way to prove that authority
+        # holds over time rather than only at spawn. The written value is logged on TRANSITION so
+        # the log shows when the server moved the player instead of 20 identical lines a second.
+        if kind == "position":
+            position = state_position_spec()
+            if position is not None:
+                patched, count = apply_position_override(msg.body, position)
+                if count:
+                    msg = replace(msg, body=patched)
+                    if position != self.state_position_last_written:
+                        self.state_position_last_written = position
+                        log_event(
+                            {
+                                "event": "state-position-written",
+                                "x": round(position[0], 4),
+                                "y": round(position[1], 4),
+                                "replacements": count,
+                                "seq": hex(msg.seq),
+                                "sent": self.state_stream_position_sent,
+                            }
+                        )
+        self._send_replay_message(server, msg, flags=flags)
         log_event(
             {
                 "event": "state-stream",
                 "kind": kind,
+                "flags": hex(flags) if flags is not None else None,
                 "seq": hex(msg.seq),
                 "size": len(msg.body),
                 "n": self.state_stream_sent,
@@ -3183,13 +4545,28 @@ class PeerSession:
                 }
             )
 
-    def _send_replay_message(self, server, msg) -> None:
+    def _send_replay_message(self, server, msg, flags: int | None = None) -> None:
         """Wrap a captured typed-stream body in a Carrier record + envelope.
 
         Mirrors the V3 response wrap (ch=0, flag=0x21, VLQ32 length-prefixed
         body). The replay body already carries the [00 01 <type>] preamble,
         so it is forwarded verbatim. Bodies above the DTLS plaintext cap are
         split with MF_CHUNKS (total-count by default; countdown is selectable).
+
+        ``flags`` overrides the default (0x21 single / 0x25 chunked). It exists because the
+        Carrier record's FLAG BYTE selects which gate the client runs, and the two gates are
+        not equivalent (decompiled FUN_14643e7b0, 2026-10-18):
+
+            byte[msg+8] == 0  -> the RELIABLE path: the dispatcher runs and `port[0x78]`
+                                 (the replication high-water) is NOT advanced;
+            byte[msg+8] != 0  -> the UNRELIABLE replication gate: the instance id must match
+                                 and the seq must be strictly greater than the high-water,
+                                 then `port[0x78] = seq` and the dispatcher runs.
+
+        Every captured state bundle the client actually applies arrived through the second
+        path (flags 0x20). Sending 0x21 therefore takes a path that never advances the
+        high-water, which is the leading explanation for a correction that is accepted with
+        zero errors and has no effect.
         """
         from .javelin.wire import chunk_replay_payload, encode_vlq32
 
@@ -3225,6 +4602,81 @@ class PeerSession:
                     }
                 )
                 self.state_position_override_sent += 1
+        # THE SERVER-OWNED ENTITY, BY VALUE. Measured 2026-10-19: one entity's position is carried by
+        # TWO records - record 68 (replay seq 0x7a) CREATES it and carries the pair at payload offsets
+        # 159/227, and record 70 (seq 0xb0) UPDATES it at offsets 6/74. The creation record is BELOW
+        # the stream floor, so the replay sends it once; patching only the update record therefore
+        # moved an entity that had already been created at the capture's position, which is exactly
+        # what the first attempt did and why nothing appeared.
+        #
+        # Anchoring on the VALUE covers both records with one rule and cannot touch a body that does
+        # not carry this entity's position.
+        if SERVER_ENTITY:
+            template = server_entity_template()
+            entity_position = server_entity_spec()
+            if template is not None and entity_position is not None:
+                body, entity_replacements = entities.replace_entity_position(
+                    body, template.captured_position, entity_position
+                )
+                if entity_replacements:
+                    self.server_entity_written += 1
+                    if entity_position != self.server_entity_last_written:
+                        self.server_entity_last_written = entity_position
+                        log_event(
+                            {
+                                "event": "server-entity-position-written",
+                                "captured_from": [
+                                    round(template.captured_position[0], 3),
+                                    round(template.captured_position[1], 3),
+                                ],
+                                "x": round(entity_position[0], 4),
+                                "y": round(entity_position[1], 4),
+                                "replacements": entity_replacements,
+                                "seq": hex(msg.seq),
+                                "writes": self.server_entity_written,
+                            }
+                        )
+        # MOVE A CAPTURED ACTOR (see MOVE_ACTOR_SEQ). This is the re-scope of the entity work: the
+        # bodies that render are the capture's own, and their position is a big-endian f32 pair inside
+        # a bundle the stream already re-sends, so moving one needs no new entity, no Transform and no
+        # registration - unlike creating one, which four independent measurements say is unreachable.
+        move_to = move_actor_spec()
+        if move_to is not None and msg.seq == MOVE_ACTOR_SEQ:
+            captured = move_actor_captured_position()
+            if captured is not None:
+                body, moved = entities.replace_entity_position(body, captured, move_to)
+                if moved:
+                    self.moved_actor_written += 1
+                    if move_to != self.moved_actor_last:
+                        self.moved_actor_last = move_to
+                        log_event(
+                            {
+                                "event": "actor-moved",
+                                "seq": hex(msg.seq),
+                                "captured_from": [round(captured[0], 3), round(captured[1], 3)],
+                                "x": round(move_to[0], 4),
+                                "y": round(move_to[1], 4),
+                                "replacements": moved,
+                                "writes": self.moved_actor_written,
+                            }
+                        )
+
+        # THE SERVER-OWNED INVENTORY. The server re-renders the captured response from its own list of
+        # item ids instead of forwarding the capture. Byte-identical when nothing is changed (asserted
+        # over all 428 entries), so switching this on cannot alter behaviour by accident.
+        if INVENTORY_COMPOSE and msg.type_id == INVENTORY_RESPONSE:
+            composed, report = compose_inventory_body(body)
+            if report.get("source") == "file":
+                body = composed
+                if report["changed"]:
+                    log_event(
+                        {
+                            "event": "server-inventory-composed",
+                            "entries": report["entries"],
+                            "changed": report["changed"],
+                            "size": len(body),
+                        }
+                    )
         inner = encode_vlq32(len(body)) + body
         seq = self.out_msg_seq
         self.out_msg_seq = (seq + 1) & 0xFFFF
@@ -3238,7 +4690,7 @@ class PeerSession:
                 reliable_sequence=rel,
                 reliable=True,
                 connecting=False,
-                flags_override=0x21,
+                flags_override=(0x21 if flags is None else flags),
             )
             self._send_datagram(server, [rec])
             log_event(
@@ -3248,6 +4700,7 @@ class PeerSession:
                     "type": hex(msg.type_id),
                     "size": len(body),
                     "chunks": 0,
+                    "flags": hex(rec.flags_override),
                     "remaining": len(self.replay_queue),
                 }
             )
@@ -3275,7 +4728,9 @@ class PeerSession:
                 reliable=True,
                 connecting=False,
                 num_chunks=(len(chunks) if REPLAY_CHUNK_COUNT_TOTAL else remaining),
-                flags_override=0x25,  # RELIABLE | CHUNKS | DATA_CHANNEL
+                # RELIABLE|CHUNKS|DATA_CHANNEL by default; a caller that needs the
+                # unreliable path passes 0x24 (CHUNKS|DATA_CHANNEL).
+                flags_override=(0x25 if flags is None else (flags | 0x04)),
             )
             self._send_datagram(
                 server,
@@ -3641,6 +5096,35 @@ class RepServer:
                 "state_player_boundaries": list(STATE_PLAYER_FRAGMENT_BOUNDARIES),
                 "state_position": STATE_POSITION or None,
                 "state_position_captured": CAPTURED_PLAYER_POSITION.hex(),
+                "state_position_mode": (
+                    "sim" if STATE_POSITION == "sim"
+                    else ("file" if STATE_POSITION == "file"
+                          else ("fixed" if STATE_POSITION else "capture"))
+                ),
+                "state_stream_position_period_s": STATE_STREAM_POSITION_PERIOD_S,
+                # Movement observation (read-only, step 3 of the authority loop).
+                # Recorded in the config line so a run states which behaviour was active
+                # instead of leaving it to be inferred from the code.
+                "movement_observe": MOVEMENT_OBSERVE_ENABLED,
+                "movement_desync_floor": MOVEMENT_DESYNC_FLOOR,
+                "movement_rtt_s": MOVEMENT_RTT_S,
+                "movement_calibration_samples": MOVEMENT_CALIBRATION_SAMPLES,
+                "movement_correct": MOVEMENT_CORRECT_ENABLED,
+                "movement_correct_max": MOVEMENT_CORRECT_MAX,
+                "movement_correct_flags": hex(MOVEMENT_CORRECT_FLAGS),
+                "movement_simulate": MOVEMENT_SIMULATE_ENABLED,
+                "movement_freeze_after": MOVEMENT_FREEZE_AFTER,
+                "movement_disconnect_after": MOVEMENT_DISCONNECT_AFTER,
+                "movement_force": MOVEMENT_FORCE or None,
+                "server_entity": SERVER_ENTITY or None,
+                "server_entity_seq": hex(SERVER_ENTITY_SEQ),
+                "npc_duplicate_slot": NPC_DUPLICATE_SLOT or None,
+                "npc_source_seq": hex(NPC_SOURCE_SEQ),
+                "npc_period_s": NPC_SEND_PERIOD_S,
+                "npc_actor_id": NPC_ACTOR_ID or None,
+                "move_actor_seq": hex(MOVE_ACTOR_SEQ) if MOVE_ACTOR_SEQ else None,
+                "move_actor_position_file": MOVE_ACTOR_POSITION_FILE if MOVE_ACTOR_SEQ else None,
+                "inventory_compose": INVENTORY_COMPOSE,
                 "ack_coalesce_s": ACK_COALESCE_S,
             }
         )
@@ -3756,8 +5240,14 @@ class RepServer:
                 # kept the 16-bit overflow hidden for two hours (see the tick-error
                 # note). The loop must survive the error, so the exception is still
                 # swallowed; it just has to be identifiable next time.
-                import traceback
-
+                #
+                # `traceback` is imported at module scope (line 36) and MUST NOT be imported
+                # here: a local import makes `traceback` a local name for the WHOLE function,
+                # so the other handler in this function (the tick-error one) raised
+                # `UnboundLocalError: cannot access local variable 'traceback'` before it could
+                # log anything - and that killed the world server outright (measured
+                # 2026-10-18: three consecutive sessions failed to reach the world because the
+                # process died at this exact line).
                 log_event(
                     {
                         "event": "feed-error",
