@@ -176,6 +176,36 @@ The previous entry claimed the server owned a captured actor's position but admi
 remote-player slice is never placed. Items 1 and 2 are blocked by **one** thing, not two, and it is not
 reachable from the position or the record.
 
+### The screenshot, analysed properly, and a conclusion of mine that was wrong (2026-10-20, last)
+
+**The image.** Cropped and upscaled at full resolution instead of read as a thumbnail: the road 3 u
+ahead of the camera is **completely empty**. There *is* a rendered human figure in the scene, and it
+looks exactly like the created entity — so I ran the **control** arm (same session, no actor moved) and
+**the same figure is there**. It is a world NPC from the capture. That is the false-positive class this
+project already paid for once, caught by taking the control.
+
+**And a conclusion of mine that the evidence now overturns.** The roadmap has been resting on "this
+build does not implement `{83482F97-…}`, so a remote slice can never get a `GameTransformComponent`",
+supported by a census that found **0 of 31 objects** answering the query. That census was measuring
+**one** `QueryInterface` function — the one reachable from the slice job's vtable. Every other class
+has its own QI, so the census could only ever see the slice-job family.
+
+The static evidence is unambiguous:
+
+| measurement | value |
+| --- | --- |
+| call sites of the TLS getter for that type id (`FUN_1407fbe80`) | **631** |
+| distinct vtable slots pointing at functions that query it | **274** |
+
+So the interface is **implemented by 274 classes in this image** — it is a *common* interface, not a
+missing one. What remains true is narrower and more useful: the **slice job's** QI compares against
+exactly **two** getters and returns null for ours. So the question changes from *"the interface does not
+exist"* to *"the object the gate asks is not one that provides it, while 274 others do"* — which is a
+much better question, and it is open.
+
+**Not achieved:** a body that renders. The position path works end to end and was re-verified today;
+the render path is still the only blocker.
+
 ### What that means
 
 The bodies that render are **not** the actor records this project has been rewriting, so "move one"

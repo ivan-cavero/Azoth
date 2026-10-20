@@ -400,6 +400,15 @@ premise did not survive: **neither character record is a body that renders.**
   path works; the render path does not, and it is the same 26 `Couldn't get Transform component on the
   slice` warnings every session on this build emits. Do not spend more sessions on the position, the
   record shape or the slot — none of them is the blocker.
+- **CORRECTED 2026-10-20: the interface is NOT missing from this build.** The "this build does not
+  implement `{83482F97-…}`" reading rested on a census of **0 of 31 objects**, but that census hooked
+  **one** `QueryInterface` — the one reachable from the slice job's vtable — and every other class has
+  its own. Statically: the TLS getter for that type id has **631 call sites**, and **274 distinct vtable
+  slots** point at functions that query it. So the interface is implemented by **274 classes**; it is a
+  common interface. What stays true is narrower: the **slice job's** QI compares against exactly two
+  getters and returns null for ours. The question is therefore not *"does the interface exist"* but
+  *"why is the gate asking an object that does not provide it, when 274 others do"* — and that is open.
+  `the_transform_interface_is_implemented_by_274_vtables_so_the_census_was_measuring_one_qi_20261020`.
 
 ### DONE 2026-10-19 (kept for the record)
 
