@@ -520,6 +520,10 @@ Two consequences worth remembering:
   during a burst. Caddy's access log (`.azoth/logs/caddy.log`, `logger ==
   "http.log.access"`) is the authoritative record of what the client actually
   requested, including hosts, URI, status, and remote port.
+- `Game.log` is a SINGLE path per Windows user, so two concurrent private
+  clients share it and each launch truncates it. That is a property of the
+  binary, not of the launcher; see "Two clients at once" for the workaround and
+  for the per-peer evidence in `.azoth/logs/world.log`.
 
 ## Gate 6 — local-player possession (server setting)
 
@@ -839,6 +843,109 @@ real scan code (`0x39` for Space) did. Mouse clicks need
 `scripts/click-window.py` and a DPI-aware process. `focus-window.py --check`
 proves the target window is actually foreground before a key is sent.
 
+## Two clients at once (second client, same world server)
+
+Prepared 2026-10-19. Two private clients can run at the same time against one
+local stack, each with its own window, and the server gives each one its own REP
+session. What it does **not** give you yet is presence: both clients are the same
+character and there is no peer-to-peer replication, so "each can see the other"
+is not implemented (see "Identity" below). Treat "two clients connect" and
+"each client sees the other" as separate results, like every other gate here.
+
+### Start them
+
+```powershell
+# 1. the stack and the FIRST client, exactly as before
+$env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'
+$env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'
+$env:AZOTH_RESEND_INTERVAL_S        = '1.0'
+python az.py dev
+python scripts/patch-dtls-disk.py apply
+python scripts/private-run.py                       # client 1 (unchanged path)
+
+# 2. the SECOND client: own launcher state, same executable, same server
+python scripts/run-second-client.py                 # = private-run.py --instance 2
+```
+
+The mechanism is one launcher flag: `Start-NwPrivate.ps1 -Instance N` (or
+`AZOTH_CLIENT_INSTANCE=N`). Instance 1 keeps every historical path, so a
+single-client run is unchanged. To start the second client by hand:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File services/launcher/src/Start-NwPrivate.ps1 -Instance 2
+```
+
+`scripts/run-second-client.py` adds only the preflight that the second launch
+cannot break the first one (DTLS patch present, shared log snapshotted) and then
+runs `scripts/private-run.py --instance 2`.
+
+### What collides, and what was done about it
+
+| Thing | Collides? | Handling |
+| --- | --- | --- |
+| Window title | **yes** — both windows are `New World` | the runner resolves the launcher's pid (`private-client/state[/instance-N]/game.pid`) and targets that HWND for the Space key and the Play click. The world-phase patch scripts still select `send-input.find_windows("New World")[0]`, so the runner refuses to patch unless that topmost window is the client it drives. |
+| Launcher state (`game.pid`, `eos.pid`, `client-source.json`, TEMP) | **yes** | per-instance dirs: `private-client/state` for instance 1, `private-client/state/instance-N` for N>1; TEMP goes to `.azoth/tmp/instance-N`. The launcher also only refuses a second copy of the *same* instance. |
+| `Game.log`, `savedata` | **yes, unavoidable** | the client resolves both through the Windows known-folder API and ignores the launcher's `LOCALAPPDATA`/`APPDATA` override (measured 2026-10-07). Every launch **truncates** `Game.log`, so the second launch erases the first client's log. `run-second-client.py` snapshots it to `.azoth/logs/game-before-instance2-<stamp>.log` before launching, and a two-client run is verified in `.azoth/logs/world.log`, where every REP event carries its `peer`. |
+| Private executable | shared **on purpose** | one 179 MB copy (`private-client/runtime/Bin64/NewWorld.exe`), one DTLS disk patch, both clients. A separate `-RuntimeRoot` would need its own DTLS patch and `scripts/patch-dtls-disk.py` only patches the default path. |
+| REP source port | no, **inferred** | the client starts at 27000 for every process and the seen sequence skips values (`rep_traffic.jsonl`: `27001 -> 27003`), so a port it cannot take does not pin it to 27000 and the second client should take the next free one. Not yet observed with two live clients — it is the first thing to check in a two-client run. |
+| Gateway identity | **yes** | see "Identity" below — the gateway serves one fixed character and persona, so both clients are the same character. |
+| `-Watch` (Frida set) | **yes** | refused for `-Instance > 1`: those scripts select the first `NewWorld.exe` window and would patch the other client. Use the fixed-byte patches. |
+
+### The server already supports two concurrent peers
+
+Read from the code and asserted by a test (no live run needed):
+
+| Fact | Evidence |
+| --- | --- |
+| Sessions are keyed by `(ip, port)`, not by IP or character | `services/world/src/azoth_world/rep.py:5143` (`self.peers: dict[tuple[str, int], PeerSession]`), `:5228` (a new `PeerSession` per unseen peer) |
+| Every session is ticked every loop iteration | `rep.py:5161` |
+| Replay, state stream, reliable-resend table, learned actor id and V3 identity are **per session** | `rep.py:2407` (`class PeerSession`), `:2443`, `:2565`, `:2668` |
+| Captured replay bodies are shared but immutable (`bytes`), the queues are not | `replay_store.py` returns new bodies; `_arm_replay` builds a fresh `replay_queue` per session |
+| `dtls-established` now logs the live session count | `rep.py:2586` (`"peers": len(server.peers)`) |
+| Test | `services/world/tests/test_rep.py::TestTwoClientsShareOneWorldServer` — two real DTLS clients through the live loop, asserting two sessions and the logged count |
+
+### Identity: both clients are the SAME character
+
+Measured/read 2026-10-19. Two facts make the two clients identical on the wire:
+
+1. The gateway serves one fixed identity — `AZOTH_CHARACTER_ID` and
+   `AZOTH_PERSONA` in `services/gateway/src/azoth_gateway/routes/identity.py:11`.
+   Both logins get the same character, so both V3 registrations carry the same
+   `character_id` (the server keeps it per session, `rep.py:2435`, but the value
+   is equal).
+2. The replay is one capture. `replay_local_player_uuid=character` rewrites the
+   same redacted span in each session's own copy of the same bundles, and the
+   actor id `1a954abc4b3185bfbe37c3d8592618e0` (`rep.py:4465`, the position-reply
+   fallback) is the capture's actor, not a per-client one. `client_actor_id`
+   (`rep.py:2668`) *is* per session and is learned from that client's own
+   channel-1 record — but both clients stream about the same actor.
+
+So each client possesses its own copy of the captured player. Neither renders
+the other as a distinct actor, and no code iterates `self.peers` to broadcast one
+client's state to another (grep `for peer`/`broadcast` in `rep.py`: none). Making
+them see each other needs (a) a distinct character per login in the gateway and
+(b) peer-to-peer presence (actor registration plus state records for the other
+peer), which does not exist yet. `AZOTH_NPC_DUPLICATE_SLOT` / `AZOTH_SERVER_ENTITY`
+create a *second* actor from the capture, which is the closest existing
+mechanism and is not per-peer.
+
+### Verify a two-client run
+
+```powershell
+# two sessions, and the count each one reported on establishing
+grep '"dtls-established"' .azoth/logs/world.log | tail -4
+# expect: peer 127.0.0.1:27000 peers 1  and  peer 127.0.0.1:2700N peers 2
+```
+
+A second client whose REP never appears here is a Gate 4 or port problem, not a
+window problem: check `transport_security_error` in its `Game.log` first.
+
+Known unverified assumption: the two clients must end up with different REP
+source ports. The port sequence is per process starting at 27000 and it skips
+ports it cannot take (see the collision table), but no run has yet had two live
+clients at once, so if the second client stalls in `WaitingForREPConnection`
+with no `dtls-established` line, suspect the port before the transport.
+
 ## Quick triage table
 
 | Observation | First thing to check |
@@ -855,3 +962,6 @@ proves the target window is actually foreground before a key is sent.
 | Two gateway/world processes by command line | process hygiene — kill duplicates |
 | APPCRASH `c0000005` in `ntdll` at startup | Frida attached during mapping — use the disk patch |
 | `transportError 4` or REP disconnect | Check the current server error and decompression/loop path in `STATUS.md`; do not increase replay gap without a fresh A/B that isolates it |
+| Second client's window appeared but its `Game.log` is gone/mixed | both clients share `%LOCALAPPDATA%\AGS\New World\Game.log` and each launch truncates it — verify that client in `.azoth/logs/world.log` (`peer`, `peers`) instead |
+| Only one `dtls-established` in `world.log` with two clients running | the second client never reached REP: Gate 4 (`transport_security_error`) or its source port is taken — check its own log lines and the `peer` ports |
+| `FAIL: the patch scripts would target hwnd=…` | with two clients the patch scripts pick the topmost `New World` window; bring the target client's window to the front and re-run (they write process memory, so the runner refuses) |
