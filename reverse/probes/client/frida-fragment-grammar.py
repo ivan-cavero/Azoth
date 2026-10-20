@@ -44,12 +44,23 @@ if (!mod) { send({ev:'error', msg:'no NewWorld.exe'}); } else {
   const base = mod.base;
   const off = (va) => base.add(va - 0x140000000);
 
+  // MEASURED 2026-10-18: this probe used to read the record's out_u16 in the record
+  // reader's onLeave and attach it to each fragment event. That CANNOT work: fragments are
+  // emitted in the fragment reader's onLeave, which runs BEFORE the record's onLeave, so
+  // every one of the 300 captured fragment events carried recordId null. The record id is
+  // therefore read at RECORD LEAVE and the fragments are buffered and emitted there, which
+  // is the only point where both the id and the fragment list exist.
+  //
+  // The record id ALONE does not identify a record: the spawn record and the local-player
+  // metadata record are BOTH record_id 1 (46393 vs 7154 bytes of payload). A consumer must
+  // distinguish them by fragment count / payload size, which is why both are emitted.
+
   let recordStart = null;
-  let recordId = null;
+  let recordFragments = [];
   let fragStart = null;
   let fragVarints = [];
   let fragDepth = 0;
-  let emitted = 0;
+  let recordsEmitted = 0;
 
   // FUN_146af20d0(reader_ptr_ptr, out_u16, out_vector) -- one record
   Interceptor.attach(off(0x146af20d0), {
@@ -58,14 +69,21 @@ if (!mod) { send({ev:'error', msg:'no NewWorld.exe'}); } else {
         const ctx = args[0].readPointer();
         recordStart = ctx.add(0x10).readPointer();
         fragDepth = 0;
-        recordId = null;
+        recordFragments = [];
         this.outId = args[1];
-        if (emitted < 40) send({ev:'record-start'});
       } catch (e) {}
     },
     onLeave(ret) {
-      // args[1] is the out_u16 the reader fills with the record id.
+      let recordId = null;
       try { recordId = this.outId.readU16(); } catch (e) {}
+      let payloadBytes = null;
+      try {
+        const ctx = this.context;
+      } catch (e) {}
+      recordsEmitted++;
+      send({ev:'record', n: recordsEmitted, recordId: recordId,
+            fragmentCount: recordFragments.length,
+            fragments: recordFragments});
     }
   });
 
@@ -83,12 +101,9 @@ if (!mod) { send({ev:'error', msg:'no NewWorld.exe'}); } else {
     onLeave(ret) {
       fragDepth--;
       if (fragDepth !== 0) return;
-      emitted++;
-      if (emitted > 300) return;
       let offInRecord = null;
       try { offInRecord = fragStart.sub(recordStart).toInt32(); } catch (e) {}
-      send({ev:'fragment', n: emitted, offInRecord: offInRecord,
-            recordId: recordId, varints: fragVarints});
+      recordFragments.push({offInRecord: offInRecord, varints: fragVarints});
     }
   });
 
@@ -108,7 +123,7 @@ if (!mod) { send({ev:'error', msg:'no NewWorld.exe'}); } else {
         size = after.sub(this.before).toInt32();
         offInFrag = this.before.sub(fragStart).toInt32();
       } catch (e) {}
-      if (fragVarints.length < 8) {
+      if (fragVarints.length < 12) {
         fragVarints.push({off: offInFrag, value: value, size: size});
       }
     }
@@ -121,6 +136,9 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--timeout", type=float, default=240.0)
     parser.add_argument("--out", default="fragment-grammar.jsonl")
+    parser.add_argument("--min-fragments", type=int, default=0,
+                        help="only record events for records with at least this many fragments "
+                             "(the spawn record has 48; the local-player metadata record has 9)")
     parser.add_argument("--keep-process", action="store_true",
                         help="leave the client running on exit (orderly detach) instead of "
                              "ending it; the default kill is safer")
@@ -141,6 +159,16 @@ def main() -> int:
 
     def on_message(message, _data):
         payload = message.get("payload") if message.get("type") == "send" else message
+        # The record id does NOT identify a record: the spawn record and the local-player
+        # metadata record are BOTH record_id 1 (46393 vs 7154 payload bytes). Filtering by
+        # fragment count is what separates them, and it also keeps this capture small.
+        if (
+            args.min_fragments
+            and isinstance(payload, dict)
+            and payload.get("ev") == "record"
+            and (payload.get("fragmentCount") or 0) < args.min_fragments
+        ):
+            return
         handle.write(json.dumps(payload) + "\n")
         handle.flush()
 
