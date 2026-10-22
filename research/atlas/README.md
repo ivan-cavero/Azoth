@@ -11,6 +11,7 @@ not a substitute.
 | `errors.json` | Observed errors and confirmed causes |
 | `levers.md` | Client settings, runtime controls, and their measured effects |
 | `client-functions.json` | Confirmed native function names, VAs, behavior, and evidence |
+| `presence-codecs.json` | The six actor-replication message types a server needs, with identity and the record of which decoding routes were tried |
 | `builds.json` | Installed client build identity (full SHA-256), which build each body of evidence was measured on, and per-session official-service facts |
 | `decomp-campaign.json` | Committed phase manifest for the incremental decompilation campaign |
 | `client-map/` | Growing per-screen knowledge plan (launch, login, server select, character select, world entry, in-world) |

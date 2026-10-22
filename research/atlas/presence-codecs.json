@@ -1,0 +1,62 @@
+{
+  "$comment": "The six message types a server needs to replicate actors, identified in build 1.460.6033.6024067. This file records IDENTITY, not layouts: each layout still has to be decoded. It exists because rep.py carried the claim 'the missing ones are the server's replica updates W-direction counterparts. Nothing known to send yet.' \u2014 that claim is false, and this is the evidence.",
+  "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "evidence": "observed",
+  "method": "The client registers these types, so it can unmarshal them. Identity came from the descriptor region (name + brace type id + dashed wire id) and from research/derived/wire-type-names.json, which resolves each wire number to its GUID.",
+  "descriptor_region": "0x1485800E0 holds 'AddActorMessage' followed by its brace type id and its dashed wire id, preceded by the same six-qword shared tail the facet descriptors use.",
+  "messages": [
+    {
+      "wire_type": 449,
+      "name": "AddActorMessage",
+      "type_id": "96C829CE-DFBC-4763-959C-32A6B22D81EF",
+      "wire_id": "bc291efa-72fe-4c7b-b9f6-859ee42fb1a0",
+      "layout": "NOT DECODED"
+    },
+    {
+      "wire_type": 574,
+      "name": "SpawnActorsMsg",
+      "type_id": "D1B5B725-B1B5-4A87-9582-AC4509FB9CC4",
+      "wire_id": null,
+      "layout": "NOT DECODED"
+    },
+    {
+      "wire_type": 391,
+      "name": "Replicate",
+      "type_id": "FF1EC011-3D18-4F09-A0AC-3FB27B313984",
+      "wire_id": null,
+      "layout": "NOT DECODED"
+    },
+    {
+      "wire_type": 407,
+      "name": "ReplicateClient",
+      "type_id": "6BB22EA1-FEB6-4F4B-81AB-79372B9F1F3D",
+      "wire_id": null,
+      "layout": "NOT DECODED"
+    },
+    {
+      "wire_type": 422,
+      "name": "FragmentUpdateMsg",
+      "type_id": "951EF3ED-C9A0-4E3D-A6FD-7FE0673D28D2",
+      "wire_id": null,
+      "layout": "NOT DECODED"
+    },
+    {
+      "wire_type": 106,
+      "name": "UpdateMsg",
+      "type_id": "1619D3B8-8B45-46AA-B95E-A414DFEB C931",
+      "wire_id": null,
+      "layout": "NOT DECODED"
+    }
+  ],
+  "decoding_method_that_did_not_work_statically": {
+    "evidence": "observed",
+    "what_was_tried": "Rip-relative references to the name string, to the dashed wire-id string, and to both 16-byte GUID forms; and the callers of FUN_1407de270, the descriptor builder recorded for 1.400 in client-functions.json.",
+    "result": "All zero. The name and GUID strings have no static referrer, the 16-byte GUID forms occur zero times, and FUN_1407de270 has no callers in this build.",
+    "conclusion": "The descriptor tables are assembled at runtime. These layouts cannot be recovered by static xref walking alone; they need the type dispatcher hooked in the live client (the atlas already names vtable+0x90 as that dispatch) and the unmarshal read when a message arrives."
+  },
+  "the_method_that_worked_for_movement": {
+    "evidence": "documented",
+    "note": "client-functions.json (movement_message_codecs_decoded_20261011) records how the movement family WAS decoded on 1.400: each descriptor getter calls FUN_1407de270 and stores a codec facet at descriptor+0x48, a 6-slot table whose +0x20 is MARSHAL and +0x28 is UNMARSHAL, and both are read independently as the cross-check. That route is not reachable statically on 1.460 because the getter chain is no longer discoverable by callers."
+  },
+  "consequence": "Presence is not blocked by missing knowledge of WHICH messages exist. It is blocked by not having their LAYOUTS, and getting those is a live-instrumentation task, not a static one."
+}
