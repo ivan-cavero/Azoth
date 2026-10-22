@@ -1,0 +1,18 @@
+[package]
+name = "azoth-wire"
+description = "Javelin wire codecs: the exact bytes the New World client sends and accepts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+# A test-only JSON reader for the parity fixtures. Not a runtime dependency: the
+# shipped crate's tree stays empty on purpose (plan §18).
+serde_json = "1"

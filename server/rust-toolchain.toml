@@ -1,0 +1,13 @@
+# Pinned so a build is reproducible and so this machine can link at all.
+#
+# WHY GNU AND NOT MSVC
+# ====================
+# There is no Visual Studio or Windows SDK installed here, so the MSVC linker is
+# absent and `link.exe` on PATH resolves to MSYS coreutils' hardlink tool, which
+# fails with "link: missing operand". The GNU toolchain ships its own import
+# libraries and links with the toolchain's lld, so it builds out of the box.
+#
+# On a machine with the C++ build tools, MSVC is the better choice for a Windows
+# server binary: change the channel below to `stable-x86_64-pc-windows-msvc`.
+[toolchain]
+channel = "stable-x86_64-pc-windows-gnu"

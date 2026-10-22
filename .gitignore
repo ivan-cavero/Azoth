@@ -48,3 +48,6 @@ site/src/data/repo-facts.gen.json
 
 # --- live probe captures (raw, local-only; research/sessions has its own rule) ---
 /reverse/sessions/
+
+# --- Rust workspace build output (regenerable; ~125 MB after a debug build) ---
+server/target/
