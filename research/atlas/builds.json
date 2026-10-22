@@ -1,0 +1,201 @@
+{
+  "$comment": "Build identity registry. Every address, offset, wire type and function name in this repository is only valid for the exact client build it was measured on, so a build must be identified before any of that evidence is reused. Identity is the full SHA-256 of Bin64/NewWorld.exe, never a short hash or a version string alone (AGENTS.md). Ghidra projects and corpora stay in the ignored reverse/builds/<sha256>/.",
+  "installed": {
+    "sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+    "file_version": "1.460.6033.6024067",
+    "product_version": "1.460.6033.6024067",
+    "size_bytes": 179214008,
+    "source": "Steam app 1063730, C:/Program Files (x86)/Steam/steamapps/common/New World/Bin64/NewWorld.exe",
+    "measured": "2026-10-22",
+    "measured_by": "sha256sum on disk; FileVersion via VersionInfo",
+    "evidence": "research/sessions/live_20261022_r1460_first/session.json"
+  },
+  "previous": {
+    "sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
+    "file_version": "1.400.6031.6004151",
+    "size_bytes": 179204176,
+    "note": "The build every existing client-map entry, client-functions.json entry, corpus and decompilation campaign was measured on. Not the build currently installed."
+  },
+  "consequence": {
+    "evidence": "inferred",
+    "statement": "The installed build differs from the analyzed build in version, SHA-256 and size. Every VA in client-functions.json, every offset in the client-map and the 423,579-range corpus are historical for this install until re-derived. Static analysis and the live server experiments must be re-measured against 30fe6461 before their conclusions are reused.",
+    "not_yet_done": "No Ghidra project, no function scan and no corpus exists for 30fe6461. reverse/builds/30fe6461.../ is empty because the directory was created after the format."
+  },
+  "sessions": [
+    {
+      "session": "research/sessions/live_20261022_r1460_first",
+      "date": "2026-10-22",
+      "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+      "service": "official Amazon live servers",
+      "method": "passive only: Game.log watcher + pktmon at the NIC + netstat + DNS cache. No process memory, no injection, no debugger, EAC EOS active throughout (pid 1772).",
+      "duration_sec": 1246.87,
+      "ladder": "launcher -> InGame, complete (QueryGameUpdateCheck, QueueGameLogin, WaitingForQueuedLogin, QueryForRemoteConfigClass, ObtainREPRequirements, StartREPConnection, WaitingForREPConnection, WaitingForActorGameConnection, WaitingForSpawnPoint, WaitingForPlayerSpawn, InGame)",
+      "observed": {
+        "rep": {
+          "endpoint": "35.71.153.244:53731",
+          "local_port": 27000,
+          "udp_packets": 55563,
+          "udp_bytes": 16271945,
+          "dtls_hellos": 16,
+          "evidence": "observed",
+          "note": "Unambiguous: the only UDP flow carrying DTLS handshakes and application records."
+        },
+        "voice": {
+          "endpoints": [
+            "3.66.188.43:27028",
+            "18.185.248.109:27026",
+            "18.184.77.74:27022",
+            "3.75.89.251:27020",
+            "18.199.121.9:27022",
+            "3.68.78.188:27028",
+            "3.67.92.41:27020",
+            "3.67.92.41:27028"
+          ],
+          "evidence": "inferred",
+          "note": "Four flows of ~1585 packets on local ports 63738-63741 plus four of ~620 on 64031-64034, ports 27020-27028. Game.log shows [Vivox] connecting and logging in with a per-character channel name, and the DNS snapshot holds nwxp0euc1*.vivox.com plus www5-alb-nwxp0euc1-460873681.eu-central-1.elb.amazonaws.com. Not proven: these flows carry no SNI."
+        },
+        "rmi_names": {
+          "evidence": "observed",
+          "note": "Live facet names in the log of this official session. They are not in javelin-messages.json, which is a binary scan of the previous build's type table.",
+          "names": [
+            "GlobalStorageComponentClientFacet_ReceiveStorageSearchItems",
+            "GridTrackingComponentClientFacet_UpdatePhasing",
+            "GatherableControllerComponentClientFacet_GatheringInterrupted",
+            "EventNotificationComponentClientFacet_SyncNotifications",
+            "GameModeParticipantComponentClientFacet_OnLeftQueueForGameModeMsg"
+          ]
+        },
+        "client_errors": {
+          "evidence": "observed",
+          "note": "Five errors in a clean official session: an IapClient init failure, two CameraLockComponentClientFacet 'Combat Profile is invalid', two SlayerScriptComponent unknown-entity references. These are the client's own words against Amazon, not server gaps of ours."
+        }
+      }
+    },
+    {
+      "session": "research/sessions/live_20261022_r1460_auction_craft",
+      "date": "2026-10-22",
+      "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+      "service": "official Amazon live servers",
+      "intent": "auction house (trading post) and crafting coverage",
+      "verdict": "INSUFFICIENT FOR ITS INTENT",
+      "duration_sec": 492.09,
+      "ingame_window": "09:41:55 -> 09:45:15 (about 3 min 20 s)",
+      "end_reason": "CSystem::Quit invoked from thread 12240 - a clean user-initiated quit, not a crash or a disconnect by the server",
+      "rep": "52.223.18.203:44430",
+      "evidence": "observed",
+      "why_insufficient": "The capture holds 7 distinct RMI names against 5 in the previous session, and the only two new ones are TimeComponentClientFacet_SyncTimeChange and TimeComponentClientFacet_SyncDayPhase. No auction, trading-post, recipe or crafting facet name appears at all.",
+      "trap_avoided": "GlobalStorageComponentClientFacet_ReceiveStorageSearchItems fired 23 times and could easily be read as trading-post activity. All 23 carry the same timestamp, 09:41:54.580, which is ONE SECOND BEFORE the InGame transition at 09:41:55.817. That is the login/spawn burst, not a user search. The previous session shows the same 23 count. Do not treat this facet as evidence of auction coverage.",
+      "errors": "30 RMIDispatch missing-facet-target errors, 2 SlayerScriptComponent unknown-entity, 2 '[ERROR] 0xCCC7000' at startup (09:38:49-50, before the world loaded)"
+    }
+  ],
+  "static_regeneration_2026_10_22": {
+    "evidence": "observed",
+    "why": "The registries are build-scoped and carried build_sha256 of the old build, so they were regenerated against the installed 1.460 binary. Both regenerations passed their own pinned validations.",
+    "ok": {
+      "az-type-registry.json": {
+        "new_count": "5105 names, 5109 name+guid entries (328 from the 1.460 field-block form), 939 present in the type table",
+        "old_entries": 4818,
+        "validation": "all 17 hand-verified GUIDs reproduce",
+        "fixed_regression": "The first 1.460 regeneration used only the 1.400 brace form and lost 111 registry-sourced names (722 table-resident pairs vs 750 on 1.400), which broke scripts/inbound-inventory.py --check on wire 7048. The 1.460 form can carry pointer qwords between the name and the {GUID}; scan-az-types.py now reads that field-block form, giving 939 table-resident pairs against 722."
+      },
+      "javelin-messages.json": {
+        "new_count": 147,
+        "old_count": 144,
+        "validation": "all 12 known movement wire types reproduce; 146/147 resolve to a wire type (RoutingSubscribeMsg unresolved)",
+        "families": {
+          "movement": 14,
+          "session": 17,
+          "actor_spawn": 8,
+          "record_fragment": 11,
+          "hub_routing": 11,
+          "other": 86
+        }
+      },
+      "typeindex": {
+        "path": "private-client/runtime/typeindex.json (copied from the install)",
+        "generationTime": "2025-10-22T03:13:16Z",
+        "entries": 7052
+      },
+      "pak-summary.json": {
+        "entries": 1414367,
+        "paks": 123,
+        "old_entries": 1413205,
+        "content_delta": "+765 .meta, +288 .dynamicslice, +11 .dds, +5 .mtl, +2 .cgf, +2 .cgfheap, +1 each of the numbered shard extensions: a real content patch, small as expected for a point release",
+        "fixed": "exe_sha256_prefix was a hardcoded '8654f01d324636d9' literal, so every rebuild stamped the OLD build's hash on the new inventory. Now measured from the installed exe with exe_sha256_prefix(); tests in reverse/tools/tests/test_pakindex.py. The regenerated summary reports 30fe6461f929ba44."
+      },
+      "wire-type-names.json": {
+        "named": 2239,
+        "wire_types": 7052,
+        "note": "Regenerated by the parent on top of the fixed registry: coverage rose from 2037 to 2239 named and wire 7048 now resolves to GlobalStorageComponentClientFacet_ReceiveStorageSearchItems.",
+        "provenance": "The subagent that fixed the registry could not write this path (outside its edit surface) and correctly flagged the unexplained change. It was the parent's regeneration."
+      }
+    },
+    "blocked": {
+      "scan-client-facets.py": {
+        "state": "FIXED for 1.460 \u00e2\u20ac\u201d tables=369 named=369, 368 distinct names identical character-for-character to the 1.400 artifact",
+        "root_cause": "Address pinning, not a layout or compiler change. The five-qword descriptor tail [SHARED_A][SHARED_B][FACTORY][SHARED_D][SHARED_E] is unchanged and the factory still has the same CreateByName body, but the four SHARED slots are .text function pointers that move with every build. None of the four 1.400 values occurs anywhere in the 1.460 image (0 raw-qword hits each), so the find() never matched and the tool reported 0 tables on a build that still contains all 368 facets.",
+        "second_bug": "resolve_name imported Capstone, which is not installed in .azoth/venv, so even a matching tail would have died with ModuleNotFoundError at the first name. Replaced with a stdlib rip-relative lea/mov reader.",
+        "new_values": {
+          "tail": [
+            "0x1406C7CD0",
+            "0x1416A1F50",
+            "0x14171B6D0",
+            "0x1417ABDD0"
+          ],
+          "deltas_from_1_400": "SHARED_A +0x1a0, SHARED_B +0xc10, SHARED_D +0xc20, SHARED_E +0xf40",
+          "anchors": {
+            "PlayerPositionTrackingComponentClientFacet": "0x142D00110",
+            "PositionInTheWorldComponentClientFacet": "0x145C21B20",
+            "PositionalTicketingComponentClientFacet": "0x142606910",
+            "GameRigidBodyComponentClientFacet": "0x141699AB0/0x141699AC0"
+          }
+        },
+        "invariants_kept": "EXPECTED_TABLES=369, EXPECTED_DISTINCT=368, all names must be *ClientFacet, all anchor VAs enforced. Nothing was relaxed to make it pass.",
+        "stale_pin_is_dangerous": "Old address 0x141698eb0 was a GameRigidBody facet factory in 1.400 and is a live factory in 1.460 for AoiGhostListenTestComponentClientFacet. That is why the scan requires all five words plus the name family and never a partial match.",
+        "still_unknown": "The identity and role of the four SHARED slot functions on 1.460 (only observed to be shared .text pointers); 21 further *ClientFacet strings have no table in this family, and the same classes are absent from the 1.400 artifact too, so it is not a 1.460 regression, but their creation path is unknown."
+      },
+      "scan-az-types.py (partially)": {
+        "state": "FIXED for the field-block form: registry 4781 -> 5109 entries, table-resident 722 -> 939, 328 entries from the 1.460 pointer-field-block form, 0 conflicts, 17 pinned GUIDs reproduce",
+        "grammar": "In 1.460 a descriptor can be <name>\u0000<pad><k qwords, all in-image .text pointers>\u0000{padded}{GUID}. Measured on GlobalStorageComponentClientFacet_ReceiveStorageSearchItems at 0x8137680: 5 NUL pad, six pointer qwords at 0x81376c0, then {AA0A0B64-...} at 0x81376f0 = typeindex[7048]. k is variable, observed 0..28, capped at 32.",
+        "why_a_naive_rule_is_wrong": "Accidental adjacency is real: FxScriptsData at 0x85f4250 is followed by 331 qwords and then a GUID the type table does not know. The adopted rule needs all four conditions (maximal in-image-pointer run before an 8-byte-aligned brace, preceded by >=1 NUL, k <= 32, whole NUL-terminated identifier-shaped name on an 8-byte boundary) plus a no-rename guard.",
+        "trust_audit": "Of the added pairs the independent .rdata route can check, 12 of 13 agree; the pre-existing NUL form scores 58 of 60 under the same test.",
+        "still_unrecoverable": "110 of the 4818 1.400 pairs, cause measured per pair: 38 the 1.460 image only has the brace before the first occurrence of that name, 33 another {GUID} sits between name and brace, 26 the interstice is neither NULs nor an all-pointer block, 8 the brace GUID is absent from 1.460, 5 other. At wire level that leaves 37 rows unnamed."
+      }
+    }
+  },
+  "build_delta_1_400_to_1_460": {
+    "evidence": "observed-with-caveat",
+    "registry_diff": "13 message names present in the 1.460 registry and absent from the committed 1.400 registry, 10 the reverse, 134 in both",
+    "caveat": "That difference is a difference between two REGISTRY SCANS, not a proven protocol change. client-functions.json records a whole-image scan that found 156 name+GUID pairs, while the registry holds 144 (old) and 147 (new), so the registry is a filtered subset and its coverage may differ between runs.",
+    "wire_type_moved": {
+      "ReceiveActorMsg": {
+        "old": {
+          "guid": "764599e8-3d44-4eb3-bf44-77097cb414e3",
+          "wire": 921
+        },
+        "new": {
+          "guid": "b232749e-1c9b-4b96-bd9a-8ad04a23b6b4",
+          "wire": 522
+        },
+        "discriminator": "The GUIDs are different, and BOTH exist in the 1.460 type table (index 921 holds 764599E8, index 522 holds B232749E). So this is not a shifted index: either the message type identity changed between builds, or the name-to-GUID pairing drifted. Not yet resolved."
+      },
+      "RoutingUnsubscribeMsg": {
+        "old": {
+          "guid": "a6d36734-45b4-4d99-94e8-46ff2819f576",
+          "wire": null
+        },
+        "new": {
+          "guid": "f2e8d463-c71e-4bec-bea8-78b7b2403233",
+          "wire": 1002
+        }
+      }
+    },
+    "needed_to_resolve": "Decompile the descriptor getter for ReceiveActorMsg on 1.460 and read which GUID it registers, the same way client-functions.json resolved the movement family. That needs a Ghidra project for this build, which does not exist yet."
+  },
+  "capture_purity": {
+    "evidence": "observed",
+    "statement": "pktmon runs with --comp nics, so a session pcap contains every flow on the machine, not only the game's. Measured on live_20261022_r1460_first: after the SNI fix the pcap named api.github.com, code.verboo.ai, telemetry.gentlemanprogramming.com, ecs.office.com, api.steampowered.com and store.steampowered.com, none of which the game contacts.",
+    "consequence": "Flow attribution must be filtered by the game's PID connections or by the game's own host list before any traffic is treated as protocol evidence. A top-IP table from a raw pcap is not a game-flow table.",
+    "corrected_claim": "The 22,273-packet TCP flow to 51.222.108.239 was first read as voice/Vivox from its OVH reverse DNS. With SNI extraction fixed it is code.verboo.ai, an agent-tooling host. The reverse-DNS inference was wrong."
+  }
+}

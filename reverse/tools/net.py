@@ -218,14 +218,25 @@ def extract_sni(payload: bytes) -> str | None:
     if len(rec) < 9 or rec[5] != 0x01:  # handshake ClientHello
         # handshake type is after 5-byte record header
         pass
-    # Hunt SNI extension: 00 00 | list_len | 00 | name_len | hostname
+    # Hunt the SNI extension. Its layout is
+    #   [00 00][ext_len][list_len][name_type][name_len][hostname]
+    # so the lengths start after the extension header, not inside it: reading
+    # name_len two bytes early yields a value in the tens of thousands and the
+    # guard below then rejects every real ClientHello.
     i = 0
     while i + 9 < len(rec):
-        if rec[i : i + 2] == b"\x00\x00" and rec[i + 4] == 0x00:
-            list_len = struct.unpack_from("!H", rec, i + 2)[0]
-            name_len = struct.unpack_from("!H", rec, i + 5)[0]
-            if 3 < name_len < 253 and list_len >= name_len + 3:
-                host = rec[i + 7 : i + 7 + name_len]
+        if rec[i : i + 2] == b"\x00\x00" and rec[i + 6] == 0x00:
+            ext_len = struct.unpack_from("!H", rec, i + 2)[0]
+            list_len = struct.unpack_from("!H", rec, i + 4)[0]
+            name_len = struct.unpack_from("!H", rec, i + 7)[0]
+            # ext_len counts the list length field plus the list itself.
+            if (
+                ext_len == list_len + 2
+                and 3 < name_len < 253
+                and list_len >= name_len + 3
+                and i + 9 + name_len <= len(rec)
+            ):
+                host = rec[i + 9 : i + 9 + name_len]
                 try:
                     s = host.decode("ascii")
                 except UnicodeDecodeError:

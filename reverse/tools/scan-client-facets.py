@@ -8,27 +8,64 @@ created" (`position_facets_absent_on_the_live_entity_20261012`). Answering it ne
 the mechanism that creates a component's client facet, not another message guess.
 
 That mechanism is a **by-name factory per class**, registered in a descriptor table
-in `.rdata`. A factory is small and always shaped the same way:
+in `.rdata`. A factory is small and always shaped the same way. Measured on 1.460,
+factory `0x141699ac0` for `GameRigidBodyComponentClientFacet`:
 
-    lVar = <global reflection registry>.CreateByName(<class name>, <size>, <align>, ...);
-    <owner> + 0x80 = <ctor>(lVar);          // the facet slot on the owner
-    <facet> + 8    = <owner>;               // back pointer
+    48 8b 05 .. b7 c7 08            mov  rax,[rip+..]     ; global reflection registry 0x14a315278
+    48 8d 48 30                     lea  rcx,[rax+0x30]   ; its registration interface
+    48 8b 01                        mov  rax,[rcx]        ; interface vtable
+    89 7c 24 38 / 89 7c 24 30 / 48 89 7c 24 28  ; args 2..4 = 0 (edi was zeroed by `33 ff`)
+    48 8d 15 e1 46 9a 06            lea  rdx,[rip+..]     ; class name string 0x14803e250
+    48 89 54 24 20                  mov  [rsp+20],rdx     ; arg 1 (stack) = name
+    45 33 c9                        xor  r9d,r9d
+    ba 90 01 00 00 / 41 b8 08 00 00 00  ; size 0x190, align 8
+    ff 50 08                        call qword ptr [rax+8] ; CreateByName(...)
+    ...
+    48 89 ad 80 00 00 00            mov  [rbp+0x80],rdi    ; owner + 0x80 = the new facet
+    48 89 6f 08                     mov  [rdi+8],rbp       ; facet + 8    = back pointer
 
-The registry is the global at `0x14a313ff8` -- the same object that backs the
-`IPositionReceiver` register-by-name (`FUN_143f98300`) and installer
-(`FUN_143f983d0`). So "what creates the ClientFacet" and "what creates the
-IPositionReceiver" are the same question about the same registry.
+The registry is the same object that backs the `IPositionReceiver` register-by-name
+(`FUN_143f98300`) and installer (`FUN_143f983d0`), so "what creates the
+ClientFacet" and "what creates the IPositionReceiver" are the same question about
+the same registry.
 
 THE TABLE SIGNATURE
 -------------------
-Each class owns a table whose tail is
+Each class owns a table whose last five qwords are
 
-    [0x1406c7b30][0x1416a1340][FACTORY][0x14171a8b0][0x1417aae90]
+    [SHARED_A][SHARED_B][FACTORY][SHARED_D][SHARED_E]
 
-with `FACTORY` in `.text` and unique per class. Scanning for that tail reproduces
-every client facet in the build. The class NAME is then recovered without Ghidra:
-disassemble the factory and read the rip-relative string operand it passes as the
-`CreateByName` name argument.
+Only `FACTORY` is per class and lives in `.text`; the other four slots are the
+same four function pointers in all 369 tables, so the five-word tail identifies
+the family. Scanning for that tail reproduces every client facet in the build. The
+class NAME is then recovered without Ghidra: read the rip-relative string operand
+the factory passes to `CreateByName`.
+
+BUILD SCOPE: THE SHARED SLOTS MOVE, THE SHAPE DOES NOT
+-----------------------------------------------------
+The four shared slots are function pointers inside `.text`, so they move whenever
+`.text` grows; the table layout and the factory body do not change. That is the
+whole difference between 1.400 and 1.460:
+
+    slot        1.400 (sha 8654f01d)    1.460 (sha 30fe6461)    delta
+    SHARED_A    0x1406c7b30             0x1406c7cd0             +0x1a0
+    SHARED_B    0x1416a1340             0x1416a1f50             +0xc10
+    SHARED_D    0x14171a8b0             0x14171b6d0             +0xc20
+    SHARED_E    0x1417aae90             0x1417abdd0             +0xf40
+
+None of the four 1.400 words occurs anywhere in the 1.460 image (0 raw-qword
+hits), which is why a 1.400-pinned scan reported `0 tables` on a build that still
+contains all 368 facets. To re-derive the tail on a new build:
+
+  1. find a known class-name string, e.g. b"GameRigidBodyComponentClientFacet";
+  2. take the factory that loads it, i.e. the `lea rXX,[rip+disp]` feeding
+     `CreateByName` (the string's xref sites tell you which function);
+  3. search `.rdata` for that factory address as a qword: the four values around
+     it are the new shared slots;
+  4. repeat for the ANCHORS below and re-measure the counts.
+
+When the scan comes back empty this prints which pinned shared word is missing, so
+a build move shows up as evidence instead of a bare zero.
 
 VALIDATION
 ----------
@@ -37,11 +74,18 @@ VALIDATION
 * every resolved name ends in `ClientFacet` (the table family is exactly the
   client facets, so a stray name means the signature drifted);
 * 368 distinct names over 369 tables, with `GameRigidBodyComponentClientFacet`
-  the only duplicate;* the three position facets resolve to the VAs they were first measured at.
+  the only duplicate;
+* the position facets and `GameRigidBodyComponentClientFacet` resolve to the VAs
+  measured on this build.
+
+The 1.460 run reproduces 369 tables and the same 368 names as 1.400, character for
+character, which is the cross-check on the re-derived signature: a wrong tail or a
+wrong name operand would not land on the old build's name set.
 
 A name that stops resolving is a hard failure, not a silently dropped row: the
 previous version of the component registry in this repo went wrong exactly by
-degrading quietly.
+degrading quietly. Name resolution reads `lea`/`mov` rip-relative operands with the
+standard library only, so a checkout without Capstone still resolves names.
 
 Usage:
     python reverse/tools/scan-client-facets.py [--exe PATH] [--check] [--out PATH]
@@ -52,7 +96,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 import struct
 import sys
 from pathlib import Path
@@ -64,19 +107,20 @@ from common import default_paths  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "research" / "derived" / "client-facet-factories.json"
 
-BUILD_SHA256 = "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e"
+BUILD_SHA256 = "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033"
 
-# The five-word table tail. Slot 2 is the per-class factory.
-TAIL = (0x1406C7B30, 0x1416A1340, None, 0x14171A8B0, 0x1417AAE90)
+# The five-word table tail. Slot 2 is the per-class factory; the other four are the
+# same function pointers in every table of this build (see BUILD SCOPE above).
+TAIL = (0x1406C7CD0, 0x1416A1F50, None, 0x14171B6D0, 0x1417ABDD0)
 
 # Independently established anchors: class -> factory VAs measured by hand from the
-# decompiled factory body (`CreateByName` name argument). A name may legitimately
-# own more than one table (`GameRigidBodyComponentClientFacet` owns two).
+# decompiled factory body (`CreateByName` name argument) on this build. A name may
+# legitimately own more than one table (`GameRigidBodyComponentClientFacet` owns two).
 ANCHORS: dict[str, tuple[int, ...]] = {
-    "PlayerPositionTrackingComponentClientFacet": (0x142CFF160,),
-    "PositionInTheWorldComponentClientFacet": (0x145C209F0,),
-    "PositionalTicketingComponentClientFacet": (0x142605970,),
-    "GameRigidBodyComponentClientFacet": (0x141698EA0, 0x141698EB0),
+    "PlayerPositionTrackingComponentClientFacet": (0x142D00110,),
+    "PositionInTheWorldComponentClientFacet": (0x145C21B20,),
+    "PositionalTicketingComponentClientFacet": (0x142606910,),
+    "GameRigidBodyComponentClientFacet": (0x141699AB0, 0x141699AC0),
 }
 
 EXPECTED_DISTINCT = 368
@@ -85,7 +129,7 @@ EXPECTED_TABLES = 369
 
 def _sections(pe: PE) -> tuple[int, int] | None:
     """(start, end) of the section holding the first anchor factory."""
-    probe = ANCHORS["PlayerPositionTrackingComponentClientFacet"][0]
+    probe = next(iter(ANCHORS.values()))[0]
     for s in pe.sections:
         if s["va"] <= probe < s["va"] + s["rsize"]:
             return s["va"], s["va"] + s["rsize"]
@@ -141,16 +185,35 @@ def find_tables(pe: PE, text: tuple[int, int]) -> list[tuple[int, int]]:
     return out
 
 
-def _rip_targets(code: bytes, base: int):
-    """Yield the rip-relative memory targets of `lea`/`mov` in a code window."""
-    import capstone
+def tail_presence(pe: PE) -> list[tuple[int, bool]]:
+    """Which pinned shared tail words still occur in the image, and which do not.
 
-    md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
-    for insn in md.disasm(code, base):
-        if insn.mnemonic not in ("lea", "mov"):
+    A build that moved the shared slots yields zero tables and no other symptom, so
+    this turns "0 tables" into evidence about what actually drifted.
+    """
+    return [
+        (word, bool(pe.find_all(struct.pack("<Q", word))))
+        for word in (TAIL[0], TAIL[1], TAIL[3], TAIL[4])
+    ]
+
+
+def _rip_targets(code: bytes, base: int):
+    """Yield the rip-relative memory targets of `lea`/`mov r64,[rip+disp32]`.
+
+    Both encodings are exactly seven bytes (REX.W, opcode, ModRM with mod=00 and
+    rm=101, disp32), so the target is `site + 7 + disp` without a disassembler.
+    Standard library only: the harness virtualenv has no Capstone, and a resolver
+    that cannot import must fail loudly rather than drop names.
+    """
+    for i in range(len(code) - 7):
+        if code[i] not in (0x48, 0x4C, 0x49, 0x4D):  # REX with W set
             continue
-        for m in re.finditer(r"\[rip \+ (0x[0-9a-f]+)\]", insn.op_str):
-            yield insn.address + insn.size + int(m.group(1), 16)
+        if code[i + 1] not in (0x8D, 0x8B):  # lea / mov
+            continue
+        if (code[i + 2] & 0xC7) != 0x05:  # mod=00, rm=101 -> [rip+disp32]
+            continue
+        disp = struct.unpack_from("<i", code, i + 3)[0]
+        yield base + i + 7 + disp
 
 
 def resolve_name(pe: PE, factory: int) -> str | None:
@@ -229,6 +292,10 @@ def main() -> int:
     problems = check(result)
     for p in problems:
         print(f"INVARIANT FAILED: {p}")
+    if not result["facets"]:
+        for word, present in tail_presence(PE(exe)):
+            if not present:
+                print(f"  shared tail word 0x{word:x} is absent from the image")
     named = sum(1 for r in result["facets"] if r["name"])
     print(f"tables={len(result['facets'])} named={named}")
     if args.check and problems:
