@@ -46,7 +46,7 @@ port order.
 | **The channel-1 container, locator and field layout** | `odd/tasks/remeasure-1460.md` L3: 229,304 records, len+crc valid on all, 222,389 with exactly one marker |
 | **The yaw frame `forward = (−sin, cos)`** | same, L4: W/A/D give offsets 90/180/0 at fixed camera yaw; S is predicted only |
 | **Walk speed 5.39 u/s** (not 3.83) | same, L4: nine episodes, three directions, 5.21–5.59 |
-| **The five-position sliding buffer** | same, L4: 5 pairs in the 351/411-payload forms, 1 in the idle form |
+| **The five-position sliding buffer, newest-first** | same, L4: 343 records with 5 pairs; `buf(n+1)[1] ~ buf(n)[0]` at 0.0073 u on 341/342 |
 | **State-stream cadence 1.00 Hz** for both kinds | same, L3 and L4 |
 | **The spawn-record position reaches the client** | same, L5: server wrote (9500,2800), client reported (9498.4, 2801.4) |
 | **The correction ladder fires on 1.460** | same, L5: HOLD → FREEZE → 1,478 `movement-correction-disconnect` |
@@ -68,7 +68,7 @@ unchanged.
 | channel-1 container, locator, `(yaw,pitch,x,y)` layout | `javelin/alc.py` | **verified** — 229,304/229,304 records pass len+crc; 222,389 carry exactly one `0.05` marker and the pair sits at `marker+12`, body offset 103 |
 | yaw frame `forward = (−sin, cos)` | `movement.py` | **verified** — W/A/D give 90/180/0 at fixed camera yaw; S is predicted, not measured |
 | walk speed 3.83 u/s | `movement.py` | **superseded** — 1.460 walks at **5.39 u/s** (9 episodes, 5.21–5.59) |
-| five-position sliding buffer | `alc.py` | **verified present**; slot order still open (needs a sprint) |
+| five-position sliding buffer | `alc.py` | **verified**: 5 pairs in the 351/401-payload forms, 1 in the idle form, and **newest-first** (341/342 transitions at 0.0073 u vs 0.1847 u for oldest-first) |
 | state-stream cadence (1 Hz world / 4 Hz player) | `rep.py` | **measured 1.00 Hz for both**; whether 4 Hz is needed for the ALC cable is still open |
 | spawn-record position | `rep.py::apply_position_override` | **verified by effect** — the client spawned where the server wrote |
 | State-bundle layout: `[00 01][varint 08][prologue][len][records]` | `javelin/bundle.py` | layout accepted in practice; **prologue invariants unverified** |
@@ -1768,7 +1768,7 @@ Nothing here is phrased as a guess.
 | Q6 | Does the client ever call the privacy endpoint against our stack, and what does it send? | log `Host` + path for every proxied request (the inventory has **zero** privacy paths despite the endpoint being load-bearing) | the one endpoint whose requirement is proven and whose shape is not |
 | Q7 | What does the catalog service answer on a zone transition? | 5 parallel requests per transition, measured; capture the responses by proxying `client.catalogservice.amazongames.com` and iterating the body against the client's travel flow | whether travel can work at all |
 | Q8 | Does an **instance** (expedition) open its own REP session? | run an expedition (it needs no other players) and compare the UDP flows before/after: new 5-tuple and DTLS handshake, or the same session? | the whole instance-content model. Named in `ANALYSIS.md` as the single most valuable next experiment |
-| Q9 | What is the sprint/teleport speed bound for the validator? | measure displacement per input sample while sprinting and while mounting; the walk is 3.83 u/s and the validator's window must not reject legitimate movement | the validator's thresholds, which today are tuned on a walk |
+| Q9 | What is the sprint/teleport speed bound for the validator? | measure displacement per input sample while sprinting and while mounting. **STILL OPEN**: Shift+W produced zero displacement, so the binding is unknown, and the walk itself measured 2.76 u/s in one clean segment against 5.39 u/s in an earlier set — the constant is not settled either | the validator's thresholds. Until it closes, the validator must not use a hard speed constant: it validates against the server's own previous position with a per-session calibrated reference, which is the structure the Python code already has |
 | Q10 | What is the official state-stream cadence (world state vs player record)? | count the `0x08` bundle records per second in the capture and separate by `record_id`; the prototype's 1 Hz world / 4 Hz player is a tuning choice, and the ALC cable's ~2 s amber threshold depends on it | the replication cadence, which is a bandwidth and a cable-correctness input |
 | Q11 | **What arms the client's teardown at ~1 h?** | probe-free soak runs; the four teardown anchors recorded zero hits in 24 clean minutes and the session reached 1 h 24 min once, so the question is what *occasionally* arms it | the 2-hour gate, which caps every phase after Phase 3 |
 | Q12 | Is batching to ~1200 B safe for the client's Carrier reader? | send the same logical stream in one-datagram-per-record and in batched datagrams, and compare the client's own unmarshal/validation error counts and the delivered message counts | whether the biggest available egress saving is available at all (the 12.7 KB record was acked and never delivered) |

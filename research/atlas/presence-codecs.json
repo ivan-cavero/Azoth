@@ -58,5 +58,39 @@
     "evidence": "documented",
     "note": "client-functions.json (movement_message_codecs_decoded_20261011) records how the movement family WAS decoded on 1.400: each descriptor getter calls FUN_1407de270 and stores a codec facet at descriptor+0x48, a 6-slot table whose +0x20 is MARSHAL and +0x28 is UNMARSHAL, and both are read independently as the cross-check. That route is not reachable statically on 1.460 because the getter chain is no longer discoverable by callers."
   },
-  "consequence": "Presence is not blocked by missing knowledge of WHICH messages exist. It is blocked by not having their LAYOUTS, and getting those is a live-instrumentation task, not a static one."
+  "consequence": "Presence is not blocked by missing knowledge of WHICH messages exist. It is blocked by not having their LAYOUTS, and getting those is a live-instrumentation task, not a static one.",
+  "descriptor_route_is_statically_reachable": {
+    "evidence": "observed",
+    "measured": "2026-10-22",
+    "method": "python scripts/map-descriptors.py over the 1.460 decompiled corpus (423,609 ranges, 421,742 ok). The corpus is what makes this possible: reverse/builds/30fe6461.../corpus/ did not exist when the claim below was written.",
+    "correction": "An earlier version of this file said the descriptor tables are assembled at runtime and the six layouts 'cannot be recovered by static xref walking alone'. That was true of the SPECIFIC ADDRESS recorded for 1.400, not of the route: FUN_1407de270 has no callers on 1.460, but the descriptor builder exists under a new address and every descriptor is statically reachable through it.",
+    "builder": {
+      "function": "FUN_1461aa880",
+      "call_sites": 3520,
+      "shape": "getter loads `apuStack_48[0] = &UNK_<descriptor>`, calls the builder, caches the result in a DAT_ symbol",
+      "descriptor_stride": "0x40 (the builder advances its arena pointer by 0x40)",
+      "constructor_slot": "the getter's stack object holds a constructor at +0x38, invoked virtually as (**(code **)*puVar2)(puVar2, descriptor)"
+    },
+    "descriptor_getters_mapped": 3517,
+    "descriptor_address_range": [
+      "0x147f42d88",
+      "0x1485840e8"
+    ],
+    "add_actor_message_descriptor": {
+      "address": "0x1485800b0",
+      "layout": {
+        "+0x00": "0x146a57540",
+        "+0x08": "0x146a57540",
+        "+0x10": "0x146a57550",
+        "+0x18": "0x146a575e0",
+        "+0x20": "0x14078fbb0 (no static call sites in the corpus)",
+        "+0x28": "0x14046de30 (481 call sites \u2014 a shared helper, not codec-specific)",
+        "+0x30": "\"AddActorMessage\u0000\""
+      },
+      "getter": "FUN_140273730",
+      "cache_symbol": "DAT_14a56ce7b",
+      "note": "0x1485800e0, the address this file previously cited, is where the NAME STRING, the brace type id and the dashed wire id begin \u2014 the descriptor itself starts at 0x1485800b0."
+    },
+    "next_step": "Read FUN_146a57540 / FUN_146a57550 / FUN_146a575e0 \u2014 the three pointers at +0x00..+0x18 \u2014 and the constructor invoked from +0x38. One of them installs the per-type codec, and the 1.400 note's 'codec facet at descriptor+0x48 whose +0x20 is MARSHAL and +0x28 is UNMARSHAL' is the shape to look for. This is now a static task; live instrumentation is the fallback, not the only route."
+  }
 }

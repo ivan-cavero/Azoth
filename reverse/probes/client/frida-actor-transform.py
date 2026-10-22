@@ -64,7 +64,7 @@ CAPTURED = {
 JS = r"""
 const PATTERNS = %PATTERNS%;   // [{label, pattern: "aa bb cc .."}]
 const WINDOW = %WINDOW%;       // bytes read FORWARD from a hit
-const BUDGET = 3000 * 1024 * 1024;
+const BUDGET = %BUDGET%;   // scanning budget in bytes; see --budget-mb
 
 // Memory.scan is the NATIVE scanner; a hand-written JS byte loop over 13 patterns x 3 GB did not
 // finish in 7 minutes (measured 2026-10-20) and produced no result. Scan natively, then read the
@@ -146,13 +146,35 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--window", type=int, default=768, help="bytes read around a hit")
     ap.add_argument("--timeout", type=int, default=300)
+    ap.add_argument("--only", default=None,
+                    help="scan ONE captured label only (e.g. 'player(rid 1)'). "
+                         "The full scan is 13 patterns x ~3 GB, which does not "
+                         "finish in 15 minutes on this machine; the positive "
+                         "control alone is 1/13 of that and answers whether the "
+                         "scan works at all.")
+    ap.add_argument("--budget-mb", type=int, default=3000,
+                    help="memory budget in MB. Lowering it trades coverage for "
+                         "time; the positive control must still be found.")
     args = ap.parse_args()
 
+    selected = CAPTURED
+    if args.only:
+        selected = {k: v for k, v in CAPTURED.items() if args.only.lower() in k.lower()}
+        if not selected:
+            print(f"[census] --only {args.only!r} matched none of: "
+                  f"{', '.join(CAPTURED)}")
+            return 2
     patterns = [
         {"label": label, "pattern": " ".join(f"{b:02x}" for b in bytes.fromhex(actor))}
-        for label, actor in CAPTURED.items()
+        for label, actor in selected.items()
     ]
-    source = JS.replace("%PATTERNS%", json.dumps(patterns)).replace("%WINDOW%", str(args.window))
+    # The scan cost is patterns x budget, so state both up front: the earlier
+    # version reported only the ranges and a 15-minute run looked unexplained.
+    print(f"[census] {len(patterns)} pattern(s) x {args.budget_mb} MB budget "
+          f"= {len(patterns) * args.budget_mb} MB of scanning", flush=True)
+    source = (JS.replace("%PATTERNS%", json.dumps(patterns))
+               .replace("%WINDOW%", str(args.window))
+               .replace("%BUDGET%", str(args.budget_mb * 1024 * 1024)))
 
     device = frida.get_local_device()
     pid = next((p.pid for p in device.enumerate_processes()
@@ -188,7 +210,7 @@ def main() -> int:
         return 1
 
     print("\n%-14s %6s %9s" % ("actor", "hits", "with pair"))
-    for label in CAPTURED:
+    for label in selected:
         row = done.get(label) or {}
         print("%-14s %6d %9d" % (label, row.get("hits", 0), row.get("withPair", 0)))
 
@@ -199,7 +221,7 @@ def main() -> int:
         return 2
 
     print("\n-- hits carrying a world position (the interesting ones) --")
-    for label in CAPTURED:
+    for label in selected:
         row = done.get(label) or {}
         for sample in row.get("samples", []):
             if sample.get("pairs"):
