@@ -1,5 +1,139 @@
 # Live status
 
+## 2026-10-22 (final) — the private client RENDERS on build 1.460, against our own server
+
+**This machine now runs the whole stack end to end.** Verified, not inferred:
+
+```
+player spawn succeeds, in game
+Update state WaitingForPlayerSpawn to new state InGame
+verdict: InGame reached, world streaming (26 slice lines), player possessed
+```
+
+The three markers the runbook defines for a rendered world, all met: `InGame`, **26**
+`Slice:` lines (the documented baseline; it was **0**), and **0**
+`Exceeded max recursion for deferred actions` (it was 11). A screenshot shows the
+settlement, NPCs, the full HUD, the minimap, the chat and the player from behind.
+
+### What actually unblocked it, in order
+
+1. **The server side was never the problem.** Caddy, gateway and world come up and
+   answer: the channel config returns `"channelName": "Azoth"`, `/ping` is healthy, the
+   world logs `listening-dtls 127.0.0.1:9000`.
+2. **The client patch suite was 1.400-shaped.** Every patch reported `mismatch` on
+   1.460. Re-derived per build into `build_sites.py`, keyed by the exe SHA-256, with the
+   byte check kept. The short version of how: a raw byte pattern proves nothing (`b0 01`
+   occurs 64,128 times), so each anchor is a stable neighbouring instruction or a unique
+   co-location in the image.
+3. **And then the actual blocker, which was not a patch at all: three world env vars.**
+   Without them the client reaches `InGame` and renders **black** with 0 slice lines:
+
+   ```bash
+   AZOTH_REPLAY_LOCAL_PLAYER_UUID=character   # world renders + player possessed
+   AZOTH_REPLAY_INPUT_RESPONSE=1              # the local player simulates
+   AZOTH_RESEND_INTERVAL_S=1.0                # keeps the session alive
+   ```
+
+   They must be exported in the **same shell** that runs `python az.py dev`; `az.py dev`
+   does not inherit variables set elsewhere. A missing variable is not an error — it is a
+   silently different experiment, which is exactly how this cost an afternoon.
+
+### Reproduce it
+
+```powershell
+python az.py mode private
+$env:AZOTH_REPLAY_LOCAL_PLAYER_UUID='character'; $env:AZOTH_REPLAY_INPUT_RESPONSE='1'; $env:AZOTH_RESEND_INTERVAL_S='1.0'
+python az.py dev
+python scripts/patch-dtls-disk.py apply      # once per copy
+python scripts/private-run.py
+```
+
+### Two data-loss traps found while closing this
+
+- `research/atlas/observed-endpoints.json` is regenerated from the gateway's traffic log,
+  which is gitignored and did not survive the reinstall. A fresh run **truncated it from
+  75 endpoint families to 42** (49 lost, 16 gained). It was restored, not committed:
+  regenerating it on a fresh machine silently discards accumulated knowledge.
+- `site/public/live.json` reports live service state. Committing it records "running"
+  forever; it is runtime state and stays uncommitted.
+
+### Still open
+
+- `patch-exit-to-menu.py` and `frida-rep-force-ladder.py` remain 1.400-only. Neither
+  blocks the render, because the spawn gate and the state stream are enough.
+- `frida-anticheat-patch.py` still reports 10 of 10 sites `mismatch` on 1.460. The client
+  runs without it, so it is not required on this build.
+- The **remote-actor render blocker** from the original roadmap is untouched: the player
+  here is the LOCAL player. A captured remote body still does not render, which is a
+  different problem and the one the entity/Transform work was about.
+
+
+### 2026-10-22 — the DTLS site is fixed; the rest of the launcher's patch suite is still 1.400-shaped
+
+The DTLS verify site was re-derived and fixed, and it is worth recording that the instruction never changed — only its
+address:
+
+| | 1.400 | 1.460 |
+| --- | --- | --- |
+| CMP `[rdi+0x288],0` | `0x145DCE8AD` | `0x145DCF9ED` |
+| JZ (`0f 84 19 01 00 00`) | `0x145DCE8B5` | `0x145DCF9F5` |
+| patch (`e9 1a 01 00 00 90`) | same | same |
+| delta | — | **+0x1140** |
+
+Found with `python reverse/tools/bytepat.py dtls-verify`, which keys on the stable CMP rather than the JZ. `scripts/patch-dtls-disk.py`
+now resolves the site per build hash and still refuses on a byte mismatch; `frida-trust-patch.py` uses the new site and skips
+entirely when the disk copy is already patched. Applied to the private copy; the official Steam executable is untouched.
+
+**The client then got further — 38,718 bytes of log against 19,657 — and still exited.** And the launcher log shows why, plainly:
+
+| patch | result on 1.460 |
+| --- | --- |
+| DTLS verify | now skipped (disk-patched) |
+| `spawn-gate-force` | **FAILED** |
+| `predicate-flag` | **FAILED** |
+| `timeout-watchdog` | **FAILED** (`wanted b001`, found `8d05`) |
+| `anticheat` | 10 of 10 sites `mismatch` |
+| `ladder force` | 3 of 3 `mismatch`, yet prints "ok" |
+
+The client exits with no `CSystem::Quit` and no crash line. That is the signature the launcher's own comment describes: without
+the predicate flag the ClientContext self-cleans and every state bundle is dropped with `clientContext == nullptr`.
+
+**So the active blocker is now precise:** the launcher's patch suite must be re-derived for build 1.460, site by site, with the
+same byte-check discipline used for the DTLS site. Four tools plus the anticheat and ladder tables. `bytepat.py` is the pattern
+that works, and the corpus can confirm each site by decompiling the surrounding function instead of pattern-guessing.
+
+Server side remains verified good and untouched by this: Caddy, gateway and world answer, routing is `in-sync`, and the client
+does read our channel (`Channel name: Azoth`).
+
+### 2026-10-22 — the stack comes up; the private CLIENT does not, and the reason is a 1.400-shaped patch
+
+First end-to-end attempt on this machine, and it splits cleanly in two.
+
+**The server side works.** `switch-mode.ps1 private` brought host routing in sync
+(`blocked=34`, `in-sync`). `python az.py dev` started Caddy (13836), gateway (1120) and world (13200).
+Verified by request, not by process: `https://d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`
+returns `"channelName": "Azoth"`, `/ping` returns `healthy`, and the world logs
+`listening-dtls 127.0.0.1:9000`.
+
+**The client starts, reads our channel, and dies.** `python az.py game` launched pid 6600 and the log
+proves the routing works: `Channel service uri: https://d2c74t4zimux3r.cloudfront.net/...` then
+`Channel name: Azoth` — not `Retail`. Then the process exits during startup asset loading.
+
+**The cause, and the repo already documented the symptom.** The launcher's Frida DTLS verify bypass is
+applied at a **1.400 address**. In 1.460, VA `0x145DCE8B5` holds `48 89 40 18 / 48 89 40 20` (a run of
+`mov`), **not** the `0f 84 19 01 00 00` (`je rel32`) the patch was written for, so the launcher overwrites a
+real instruction with a `jmp` and corrupts the function. The launcher does **not** verify the bytes before
+writing; `scripts/patch-dtls-disk.py` does, and correctly refuses with
+`unexpected bytes at 0x145dce8b5: 401048894018`.
+
+Note the trap: the 1.400 byte pattern still occurs **1,036 times** elsewhere in the 1.460 image, so
+re-finding the site by pattern alone is not a fix either — it needs the same treatment the facet and
+wire-name scans just got: re-derive the site from the 1.460 bytes and keep a byte check before writing.
+
+**So the active blocker is narrow and named:** re-derive the DTLS verify site for build 1.460 (or drop the
+bypass in favour of the disk patch once its site is re-derived), then re-run `scripts/private-run.py`. The
+gateway, world and routing are already verified good; only the client-side startup patch is wrong.
+
 ## 2026-10-22 (later) — the capture phase is closed, and OUR OWN STACK HAS NEVER RUN ON THIS MACHINE
 
 Two facts, and the second is the one that matters.
