@@ -22,8 +22,9 @@ before** it. Inside an entry, in order:
 
     container name   NUL-padded, starts at the entry start        ("w-world|")
     marker           00 01 82 5a
-    u32 BE           length of the type name
-    type name        that many bytes                              ("SkinCollectionGnew-world|")
+    u32 BE           zero in every captured entry (reserved)
+    u8               length of the type name
+    type name        that many bytes                              ("SkinCollection")
     16 bytes         item GUID
     4 bytes          flags
     literal          "isCollected"
@@ -31,6 +32,18 @@ before** it. Inside an entry, in order:
     0x02             a tag, not a length
     1 byte           id length
     char[..]         item id as DECIMAL ASCII                     ("1027224182")
+
+RE-MEASURED ON THE 1.460 CORPUS, 2026-10-22
+===========================================
+`scripts/measure-inventory-grammar.py` re-reads the committed block and confirms the numbers
+above: the empty form is **153 B**, the populated form is **99,819 B**, it holds **427 entries**
+(428 marker occurrences, 427 gaps), `marker - 68` lands exactly on the NUL-padded container name,
+and the marker-to-marker gaps span **231..233 B** (427 distinct gaps: 233 x338, 232 x79, 231 x10).
+
+The one correction is the field after the marker: it is a **zero u32 followed by a `u8` length**,
+not a u32 length. Measured on the first entry, `marker + 4` is `00 00 00 00` and `marker + 8` is
+`0e` (14), which is exactly `len("SkinCollection")`. The docstring previously described the
+length as a u32, which would read 0 and make the type name empty.
 
 THE SIZE VARIES, AND THAT IS THE TRAP
 =====================================
