@@ -1,5 +1,46 @@
 # Live status
 
+## 2026-10-22 (close) — every launcher patch is on 1.460, and the remote-entity blocker is confirmed structural
+
+**Point 3 is closed.** All five launcher patches now carry 1.460 sites, keyed by the exe
+SHA-256 with a byte check before every write, and the default configuration renders with
+**no environment overrides at all**: `InGame`, 26 `Slice:` lines, player possessed.
+
+| patch | 1.460 site | runtime verdict |
+| --- | --- | --- |
+| DTLS verify | `0x145DCF9F5` | works |
+| predicate-flag | `0x14644A152` / `0x14644A232` | works |
+| timeout-watchdog | `0x1464471BB` | works |
+| exit-to-menu | `0x1410043FF` | works (proven: patched, then rendered) |
+| force-ladder | `0x145A934A0` +2 | **sites correct, patch HARMFUL** |
+
+The ladder is the interesting one. Its three getters moved by exactly `+0x1130` and each
+pattern is unique in the image, so the addresses are right — but forcing them kills the
+client 34 s after launch. On 1.400 the client needed them forced to walk 11->12->13; on
+1.460 it walks them itself, so forcing them reports "spawn done" before it is. It is now
+opt-in behind `AZOTH_FORCE_LADDER=1` with that reasoning recorded in the launcher.
+
+### The remote-entity blocker is confirmed, and it is not a server problem
+
+The existing `AZOTH_NPC_DUPLICATE` lever was re-run on 1.460. The created entity **reaches
+the client**: slot 95 resolved from the client's own table, 19 fragments, 1007 bytes sent,
+**0** `Failed to unmarshal`, **0** `ValidationError`.
+
+**And it does not render.** All 26 `Couldn't get Transform component on the slice!` warnings
+name **`slices/remoteplayer.dynamicslice`** — every one of them. That is the same structural
+condition the roadmap recorded on 2026-10-19, unchanged by the build move: a slice instance
+without a `GameTransformComponent` has no world matrix and cannot be placed.
+
+So "spawn every entity" is **not** reachable by server-side work on this build. The roadmap
+already named the two honest options and they stand: (a) provide a real client-side
+implementation of the interface the gate asks for — a client modification, out of scope for
+a server-faithful implementation — or (b) re-scope the item to what the server can own.
+
+What IS proven on 1.460: the server owns the local player's state, the client simulates and
+renders it, the session is stable, and every lever that reaches the client is accepted
+without a decode error. That is the base the Rust port needs.
+
+
 ## 2026-10-22 (final) — the private client RENDERS on build 1.460, against our own server
 
 **This machine now runs the whole stack end to end.** Verified, not inferred:
