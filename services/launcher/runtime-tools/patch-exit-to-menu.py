@@ -53,10 +53,42 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 IMAGE_BASE = 0x140000000
 
-# (va, original, patched, label)
+# (va, original, patched, label) — per build, keyed by the executable SHA-256.
+#
+# The call bytes are identical between builds; only the address moves.
+# 1.400.6031.6004151 / 8654f01d...: 0x14100425F
+# 1.460.6033.6024067 / 30fe6461...: 0x1410043FF   (delta +0x1A0)
+#
+# `ff 90 d8 01 00 00` alone occurs 156 times in the 1.460 image, so the address
+# was pinned by CONTEXT, and both neighbours are unique in the whole image:
+#   before: 48 8b 01 33 d2   mov rax,[rcx] ; xor edx,edx      (1 occurrence)
+#   after : 83 3b 02         cmp dword ptr [rbx],2            (1 occurrence)
+PATCH_SITES = {
+    "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e": 0x14100425F,
+    "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033": 0x1410043FF,
+}
+DEFAULT_SITE = 0x1410043FF
+
+def resolve_site() -> int:
+    """The virtual-call address for this build, by the OFFICIAL exe's hash.
+
+    The private copy's hash changes once it carries the on-disk DTLS patch, so the
+    Steam executable is the stable identity.
+    """
+    import hashlib
+    import os
+
+    install = os.environ.get("AZOTH_GAME_INSTALL") or r"C:\Program Files (x86)\Steam\steamapps\common\New World"
+    official = Path(install) / "Bin64" / "NewWorld.exe"
+    try:
+        digest = hashlib.sha256(official.read_bytes()).hexdigest()
+    except OSError:
+        digest = ""
+    return PATCH_SITES.get(digest, DEFAULT_SITE)
+
 PATCHES = (
     (
-        0x14100425F,
+        resolve_site(),
         bytes.fromhex("FF90D8010000"),  # call qword ptr [rax+0x1d8]
         bytes.fromhex("909090909090"),  # NOP x6
         "delegate exit-to-main-menu virtual call",

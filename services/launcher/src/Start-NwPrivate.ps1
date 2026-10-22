@@ -330,10 +330,17 @@ if ($Watch) {
     Write-Host '  Anticheat gate byte-patch...'
     & $python -u (Join-Path $repo 'services\launcher\runtime-tools\frida-anticheat-patch.py')
     if ($LASTEXITCODE -ne 0) { Write-Host '  anticheat-patch FAILED' }
-    if ($env:AZOTH_NATURAL_SPAWN -eq '1') {
-        Write-Host '  Natural spawn ladder enabled (state patches skipped)'
+    # The forced ladder is OPT-IN on 1.460. On 1.400 the client needed its three
+    # connection getters forced to 1 to walk 11->12->13; on 1.460 it walks them by
+    # itself, and forcing them tells the state machine "spawn done" before it is,
+    # which kills the client during the frontend settle (measured 2026-10-22: with
+    # the ladder forced the process died 34 s after launch, before any world-phase
+    # patch ran; with it skipped the same configuration renders with 26 Slice lines).
+    # Set AZOTH_FORCE_LADDER=1 to re-enable it for an A/B.
+    if ($env:AZOTH_NATURAL_SPAWN -eq '1' -or $env:AZOTH_FORCE_LADDER -ne '1') {
+        Write-Host '  Natural spawn ladder (state patches skipped; default on 1.460)'
     } else {
-        Write-Host '  Force actor/spawn ladder (skip 2min timeout)...'
+        Write-Host '  Force actor/spawn ladder (AZOTH_FORCE_LADDER=1)...'
         & $python -u (Join-Path $repo 'services\launcher\runtime-tools\frida-rep-force-ladder.py')
         if ($LASTEXITCODE -ne 0) { Write-Host '  ladder-force FAILED' }
     }
