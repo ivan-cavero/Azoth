@@ -1,6 +1,6 @@
 {
   "$comment": "Every Javelin message type this client build ships, with its AZ type GUID and the wire type number that actually goes on the wire. Source: a scan of NewWorld.exe for the packed 'XxxMsg' name + dashed-GUID descriptor region, then each GUID resolved to its POSITION in the per-build type table (private-client/runtime/typeindex.json; disk.py copies it from the install). The wire carries the table index, not the GUID, so this table is what turns a message name into bytes. Validated independently: all 12 previously-known movement-family wire types reproduce exactly. A null wire_type means the GUID is registered in the binary but absent from the type table, so it cannot be addressed on the wire. Regenerate on a client update with reverse/tools/scan-message-registry.py.",
-  "build_sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
+  "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
   "type_table_entries": 7052,
   "messages": [
     {
@@ -22,21 +22,15 @@
       "family": "movement"
     },
     {
-      "name": "ActorQueryMsg",
-      "guid": "3b75f658-048e-4e13-b96b-47973f4f1ae6",
-      "wire_type": null,
-      "family": "actor_spawn"
+      "name": "ActorQueryResponseMsg",
+      "guid": "a2693136-197c-41bb-80a1-a57ca9bb4edb",
+      "wire_type": 613,
+      "family": "other"
     },
     {
       "name": "AddEntryMsg",
       "guid": "04c84157-b7aa-4912-8d81-fae46f93ec92",
       "wire_type": 149,
-      "family": "other"
-    },
-    {
-      "name": "AdvanceTestMsg",
-      "guid": "e00f4b58-7475-4beb-921a-f50594717801",
-      "wire_type": 2227,
       "family": "other"
     },
     {
@@ -55,6 +49,12 @@
       "name": "CheckMovementStatusMsg",
       "guid": "44ba8334-c3aa-476e-855c-27364bf8a964",
       "wire_type": 747,
+      "family": "other"
+    },
+    {
+      "name": "ClearRegistryMsg",
+      "guid": "010cd6ad-18a5-40f8-a1c7-f6965630d218",
+      "wire_type": 1022,
       "family": "other"
     },
     {
@@ -100,12 +100,6 @@
       "family": "movement"
     },
     {
-      "name": "CompleteDelayedMigrationsMsg",
-      "guid": "15203a91-c8b6-43ee-bdf6-571a30c8b8b0",
-      "wire_type": 5032,
-      "family": "other"
-    },
-    {
       "name": "ConfigurablePayloadMsg",
       "guid": "a0dcfefc-2684-48b6-a7ef-83bedff00e45",
       "wire_type": 1011,
@@ -136,6 +130,12 @@
       "family": "hub_routing"
     },
     {
+      "name": "CrashMoveActorMsg",
+      "guid": "5bdd7d92-95e2-4262-9aa0-99fb0412cfa4",
+      "wire_type": 814,
+      "family": "movement"
+    },
+    {
       "name": "CrashMoveActorToHubMsg",
       "guid": "6f298c98-a99e-4210-ad2a-e48d3cd775ee",
       "wire_type": 5045,
@@ -146,12 +146,6 @@
       "guid": "61fdb168-4ac2-4e31-8cd1-c4b9f40f7d16",
       "wire_type": 5046,
       "family": "actor_spawn"
-    },
-    {
-      "name": "DebugStartActorQuerySeqMsg",
-      "guid": "180f5983-16c0-4389-bf5d-fe820a15a439",
-      "wire_type": 295,
-      "family": "other"
     },
     {
       "name": "DelayMigrationsMsg",
@@ -172,12 +166,6 @@
       "family": "other"
     },
     {
-      "name": "ExitPeeringMsg",
-      "guid": "538cf087-049b-41d1-9df1-a7b23b55e8c6",
-      "wire_type": 591,
-      "family": "hub_routing"
-    },
-    {
       "name": "FilterChatResponseMsg",
       "guid": "951d5056-809a-4019-b6d5-30f89d9c96a8",
       "wire_type": 317,
@@ -187,6 +175,12 @@
       "name": "FilterTextResponseMsg",
       "guid": "e4b8c624-9165-4a9a-9dfd-61b670b32ee3",
       "wire_type": 313,
+      "family": "other"
+    },
+    {
+      "name": "ForgetPeerMsg",
+      "guid": "4845383e-16fa-4564-b0eb-979ae752ffed",
+      "wire_type": 604,
       "family": "other"
     },
     {
@@ -232,12 +226,6 @@
       "family": "other"
     },
     {
-      "name": "GuildsComponentClientFacet_OnDepositGuildTreasuryFundsMsg",
-      "guid": "caa452ad-8701-40d9-8f00-0795ad0b32a7",
-      "wire_type": 5201,
-      "family": "other"
-    },
-    {
       "name": "GuildsComponentClientFacet_OnEditGuildCrestFailedMsg",
       "guid": "839314ba-2436-4d3e-b428-4ecccd94a407",
       "wire_type": 3467,
@@ -253,6 +241,12 @@
       "name": "GuildsComponentClientFacet_OnEditGuildMOTDFailedMsg",
       "guid": "52ca232d-e0cf-4693-93c5-15af6d5faade",
       "wire_type": 1305,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnEditGuildNameFailedMsg",
+      "guid": "bff69803-14f0-4b7c-8fb2-7e8ce49ef16c",
+      "wire_type": 3602,
       "family": "other"
     },
     {
@@ -274,9 +268,21 @@
       "family": "other"
     },
     {
+      "name": "GuildsComponentClientFacet_OnGetOrderedGuildsMsg",
+      "guid": "d46616ef-981b-4e37-8814-0c4f8fe032b9",
+      "wire_type": 1410,
+      "family": "other"
+    },
+    {
       "name": "GuildsComponentClientFacet_OnGetUnorderedGuildsMsg",
       "guid": "5cbfe0ed-30ed-4f43-8c72-8726d54963c1",
       "wire_type": 3610,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnGuildCreatedFailedMsg",
+      "guid": "db81c668-0e55-46a9-8fdf-0c52f93c3be9",
+      "wire_type": 3542,
       "family": "other"
     },
     {
@@ -301,6 +307,12 @@
       "name": "GuildsComponentClientFacet_OnInviteCreatedFailedMsg",
       "guid": "68125d17-75cd-4266-87a0-072865663c26",
       "wire_type": 3599,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnKickedFromGuildMsg",
+      "guid": "f1473536-324f-44fa-bed9-556c50bee65a",
+      "wire_type": 3598,
       "family": "other"
     },
     {
@@ -346,12 +358,6 @@
       "family": "other"
     },
     {
-      "name": "GuildsComponentClientFacet_OnSetGuildTreasuryWithdrawalLimitFailedMsg",
-      "guid": "402eb227-1b30-439f-b136-b37286de6fd3",
-      "wire_type": 1469,
-      "family": "other"
-    },
-    {
       "name": "GuildsComponentClientFacet_OnSetSiegeWindowFailedMsg",
       "guid": "cff9287b-bc6a-4e4d-95e6-1f2690cae5c2",
       "wire_type": 326,
@@ -361,6 +367,12 @@
       "name": "GuildsComponentClientFacet_OnWithdrawGuildTreasuryFundsFailedMsg",
       "guid": "e3e85ee0-8196-4c02-8cdd-f7ac61b10f31",
       "wire_type": 3460,
+      "family": "other"
+    },
+    {
+      "name": "GuildsComponentClientFacet_OnWithdrawGuildTreasuryFundsMsg",
+      "guid": "1dddf77e-dcf4-4b79-9e09-13ac93756098",
+      "wire_type": 5200,
       "family": "other"
     },
     {
@@ -508,10 +520,10 @@
       "family": "other"
     },
     {
-      "name": "OnTargetSpawnedMsg",
-      "guid": "558c24ec-6697-420b-83bd-acc4d1a42029",
-      "wire_type": 2237,
-      "family": "actor_spawn"
+      "name": "OnTargetCrashedMsg",
+      "guid": "54c8a2e4-3cfb-461a-8509-142bc71ef376",
+      "wire_type": 2233,
+      "family": "other"
     },
     {
       "name": "PeerPresenceAckMsg",
@@ -530,12 +542,6 @@
       "guid": "259734dd-9277-4e08-b11f-1ab9e71de1be",
       "wire_type": 310,
       "family": "session"
-    },
-    {
-      "name": "PokeMsg",
-      "guid": "1f141400-3979-4069-acbb-ce11f549dc64",
-      "wire_type": 1009,
-      "family": "other"
     },
     {
       "name": "PrefabSpawnerComponentClientFacet_RequestServerAuthPrefabIdResponseMsg",
@@ -563,8 +569,8 @@
     },
     {
       "name": "ReceiveActorMsg",
-      "guid": "764599e8-3d44-4eb3-bf44-77097cb414e3",
-      "wire_type": 921,
+      "guid": "b232749e-1c9b-4b96-bd9a-8ad04a23b6b4",
+      "wire_type": 522,
       "family": "actor_spawn"
     },
     {
@@ -602,6 +608,12 @@
       "guid": "39ca8bca-2ee8-4104-b0e9-7c2a51b52fb4",
       "wire_type": 4216,
       "family": "movement"
+    },
+    {
+      "name": "ReceivePlayerPositionWithCameraClientMsg",
+      "guid": "02f865f3-d50d-4fa8-91ca-f76ed167a8cd",
+      "wire_type": 4217,
+      "family": "other"
     },
     {
       "name": "RegisterFragmentAccessMsg",
@@ -646,6 +658,12 @@
       "family": "hub_routing"
     },
     {
+      "name": "RequestCrashMsg",
+      "guid": "ffcd4567-b4dd-41e6-af1a-392e3e75a0af",
+      "wire_type": 2239,
+      "family": "other"
+    },
+    {
       "name": "RequestHubInfoForActorsMsg",
       "guid": "21be4bfa-5bc7-423f-99dc-960fc0fd95ab",
       "wire_type": 194,
@@ -688,9 +706,15 @@
       "family": "other"
     },
     {
-      "name": "RoutingUnsubscribeMsg",
-      "guid": "a6d36734-45b4-4d99-94e8-46ff2819f576",
+      "name": "RoutingSubscribeMsg",
+      "guid": "3c7db8f7-a135-4a87-b629-871cfa04681c",
       "wire_type": null,
+      "family": "other"
+    },
+    {
+      "name": "RoutingUnsubscribeMsg",
+      "guid": "f2e8d463-c71e-4bec-bea8-78b7b2403233",
+      "wire_type": 1002,
       "family": "other"
     },
     {
@@ -764,12 +788,6 @@
       "guid": "5f4ce846-ecbc-415b-aae0-85f7e83cde2c",
       "wire_type": 532,
       "family": "record_fragment"
-    },
-    {
-      "name": "StartUpdatingMsg",
-      "guid": "fee0688d-06c8-4d66-813d-044d0bd1b70d",
-      "wire_type": 822,
-      "family": "other"
     },
     {
       "name": "StopObservingFragmentMsg",

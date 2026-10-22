@@ -1,8 +1,9 @@
 {
-  "$comment": "Every AZ type this build registers, as name + GUID, read from the brace-wrapped '<name>\\0{padding}\\0{GUID}' descriptor form in .rdata (the only trustworthy pairing; see reverse/tools/scan-az-types.py). A name can map to SEVERAL GUIDs -- 'Transform' is both the AZ math struct and a reflected type -- so disambiguate with another signal. 'wire_type' is the index into the per-build type table, present only for types the table knows. This file supersedes the shifted GUID list in the old local_player_has_no_physics_20261004 atlas note.",
-  "build_sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
-  "names": 4814,
-  "entries": 4818,
+  "$comment": "Every AZ type this build registers, as name + GUID, read from the brace-wrapped '<name>\\0<padding>[<field block>]{GUID}' descriptor form in .rdata (the only trustworthy pairing; see reverse/tools/scan-az-types.py). The field block is the descriptor's own run of in-image pointers and is empty when the type registers no callbacks, which is why both a NUL-padded and a pointer-separated interstice occur. A name can map to SEVERAL GUIDs -- 'Transform' is both the AZ math struct and a reflected type -- so disambiguate with another signal. 'wire_type' is the index into the per-build type table, present only for types the table knows. This file supersedes the shifted GUID list in the old local_player_has_no_physics_20261004 atlas note.",
+  "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "names": 5105,
+  "entries": 5109,
+  "pointer_form_entries": 328,
   "superseded_wrong_pairings": {
     "0bcab3ac-6abb-4462-9253-44565e6bd8d8": "GameRigidBodyConfig, NOT GameRigidBodyClientFacetConfig",
     "0c1f07a3-01d4-426f-b853-3b2ff9979913": "GameRigidBodyServerFacetConfig, NOT GameRigidBodyComponentBase",
@@ -10,6 +11,7 @@
     "824e1e63-89eb-49fd-8d85-64aa899a61ca": "RockNRoll::CharacterSupportInfo, NOT CharacterControllerConfig",
     "b1237004-14e1-4327-8774-d2c5796230e7": "absent from this build (no name pairs with it)"
   },
+  "field_block_conflicts": [],
   "types": [
     {
       "name": "A0D5CD40F6A",
@@ -18,9 +20,9 @@
       "in_type_table": true
     },
     {
-      "name": "A6DBFB562BB",
-      "guid": "97c2ffbe-edb2-4562-9550-f03e9b533bdc",
-      "wire_type": 1563,
+      "name": "A68EA1B283C",
+      "guid": "78ddbfdf-887c-4ca6-85f8-38b52c910a31",
+      "wire_type": 6925,
       "in_type_table": true
     },
     {
@@ -462,6 +464,12 @@
       "in_type_table": false
     },
     {
+      "name": "AbilityComponentClientFacet_MasteryTreeRespecResponse",
+      "guid": "bda9c618-2e5f-4474-ad69-6a36f462c136",
+      "wire_type": 2858,
+      "in_type_table": true
+    },
+    {
       "name": "AbilityComponentNotficationBusHandler",
       "guid": "3143586b-1392-4273-a1f5-54323a742a33",
       "wire_type": null,
@@ -472,6 +480,12 @@
       "guid": "513475f1-e2ad-4628-90a7-5220eb8828d8",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "AbilityComponentServerFacet_RequestMasteryTreeRespec",
+      "guid": "f5bccf27-8788-40db-b6b5-24121b119750",
+      "wire_type": 186,
+      "in_type_table": true
     },
     {
       "name": "AbilityCooldownNotificationsBusHandler",
@@ -558,10 +572,28 @@
       "in_type_table": false
     },
     {
+      "name": "Aborting",
+      "guid": "4e34775b-b226-44e5-985d-92b8300e4dc1",
+      "wire_type": 6286,
+      "in_type_table": true
+    },
+    {
       "name": "AchievementComponentClientFacet",
       "guid": "4043af23-760d-4058-9be4-c28ac57a19b4",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "AchievementComponentClientFacet_DebugAllNPAsServerStateResponse",
+      "guid": "ef21cc3a-bd30-47c8-b7f5-7fabd7af6a64",
+      "wire_type": 6893,
+      "in_type_table": true
+    },
+    {
+      "name": "AchievementComponentClientFacet_DebugIndividualNPAServerStateResponse",
+      "guid": "82d7d385-3df8-409b-bda1-1e38ead8dab4",
+      "wire_type": 6894,
+      "in_type_table": true
     },
     {
       "name": "AchievementComponentServerFacet",
@@ -582,12 +614,6 @@
       "in_type_table": true
     },
     {
-      "name": "AchievementComponentServerFacet_DebugRequestForceEvaluateIndividualNPA",
-      "guid": "5fa3c7d5-f059-4c5b-8190-8faca0e70a8a",
-      "wire_type": 6897,
-      "in_type_table": true
-    },
-    {
       "name": "AchievementComponentServerFacet_DebugRequestIndividualNPAServerState",
       "guid": "49444919-4efa-46e5-82f6-c8a6103cf0d1",
       "wire_type": 6896,
@@ -597,6 +623,12 @@
       "name": "AchievementComponentServerFacet_DebugSetAchievement",
       "guid": "e3ffd356-2deb-4dbf-b654-d1f33f3e7d83",
       "wire_type": 3209,
+      "in_type_table": true
+    },
+    {
+      "name": "AchievementComponentServerFacet_DebugSetAchievementsByLoreChapter",
+      "guid": "3e226362-0a17-4c93-9cd0-85ff51e9392d",
+      "wire_type": 6978,
       "in_type_table": true
     },
     {
@@ -640,6 +672,12 @@
       "guid": "e64de26e-5a69-4b4b-9764-f549fa860805",
       "wire_type": 5987,
       "in_type_table": true
+    },
+    {
+      "name": "AcknowledgeTransactionsResponse",
+      "guid": "618d759d-fca4-4a24-8810-992fa764fe4d",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "ActionCausingSyncData",
@@ -1896,6 +1934,12 @@
       "in_type_table": false
     },
     {
+      "name": "ActorPersistenceData",
+      "guid": "e53bcc7c-3b04-4fde-9fa4-794f279b853f",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "ActorPersistenceParams",
       "guid": "3071eaf9-ae3a-45f1-8ece-bc32e65b58dd",
       "wire_type": null,
@@ -1948,6 +1992,12 @@
       "guid": "90752f2d-cbd3-4ee9-9cdd-447e797c8408",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "AdvanceEncounter",
+      "guid": "d52fbdcb-9c52-4a5c-8251-b3b05c23dd36",
+      "wire_type": 1527,
+      "in_type_table": true
     },
     {
       "name": "AfflictionData",
@@ -2082,6 +2132,12 @@
       "in_type_table": false
     },
     {
+      "name": "AnimNameWhenTagInactive",
+      "guid": "55a5fed5-b91e-4cec-b605-1ba0553735bd",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "AnimatedEntityId",
       "guid": "b99efe3d-3f1d-4630-8a7b-31c70cc1f53c",
       "wire_type": null,
@@ -2124,16 +2180,16 @@
       "in_type_table": false
     },
     {
-      "name": "AoiComponentClientFacet_RequestDebugGridLayerListResponse",
-      "guid": "e4f6b709-c218-47bd-8dce-9eec2f605db8",
-      "wire_type": 1910,
-      "in_type_table": true
-    },
-    {
       "name": "AoiComponentServerFacet",
       "guid": "f11683d8-7adb-4285-ad98-dd3ba433de82",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "AoiComponentServerFacet_RequestDebugGridLayerList",
+      "guid": "6bcfee24-5f6a-41e0-ac2a-29901662eac8",
+      "wire_type": 288,
+      "in_type_table": true
     },
     {
       "name": "AoiExceptionComponent",
@@ -2234,6 +2290,12 @@
     {
       "name": "AppearanceData",
       "guid": "62cc6b96-21ec-45a9-818b-dbbe8da657a0",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "AppearanceTransformDataManager",
+      "guid": "6682289a-61c7-47ce-8d13-f99ca3a8daaa",
       "wire_type": null,
       "in_type_table": false
     },
@@ -2374,6 +2436,12 @@
       "guid": "cb418ea0-3a18-40ff-bca8-0566df4596cb",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "ArenaComponentClientFacet_OnArenaActivateResult",
+      "guid": "23054447-4ec6-489a-a826-0cc2d6cfee12",
+      "wire_type": 2392,
+      "in_type_table": true
     },
     {
       "name": "ArenaComponentServerFacet",
@@ -2634,12 +2702,6 @@
       "in_type_table": false
     },
     {
-      "name": "AttributeComponentServerFacet_DebugRequestMaxAttributes",
-      "guid": "23054447-4ec6-489a-a826-0cc2d6cfee12",
-      "wire_type": 2392,
-      "in_type_table": true
-    },
-    {
       "name": "AudioAreaEnvironmentComponent",
       "guid": "52300012-ffcd-4559-9479-20f463940320",
       "wire_type": null,
@@ -2830,6 +2892,12 @@
       "guid": "b58d152f-ce7b-4785-abe7-2cb296356594",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "AutoSpellComponentClientFacet_OnLifetimeExpire",
+      "guid": "19c024d7-31d1-4661-a5ad-95a7d6a77450",
+      "wire_type": 2863,
+      "in_type_table": true
     },
     {
       "name": "AutoSpellComponentServerFacet",
@@ -3072,15 +3140,9 @@
       "in_type_table": false
     },
     {
-      "name": "B0616B8F2368",
-      "guid": "bef61c52-4509-4cf6-a869-ac76baa445ac",
-      "wire_type": 6142,
-      "in_type_table": true
-    },
-    {
-      "name": "B574F20CE07",
-      "guid": "47cf6970-735c-412b-8132-faf7bebe3c9c",
-      "wire_type": 5929,
+      "name": "BUNDLE",
+      "guid": "b3cc092d-033b-4b14-80c7-a561dcb98202",
+      "wire_type": 6889,
       "in_type_table": true
     },
     {
@@ -3096,6 +3158,12 @@
       "in_type_table": true
     },
     {
+      "name": "Base",
+      "guid": "4fdea55c-4f76-49eb-930c-efa756711204",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "BaseAssetProcessorMessage",
       "guid": "366a7093-c57b-4514-a1bd-a6437aef2098",
       "wire_type": null,
@@ -3108,10 +3176,10 @@
       "in_type_table": false
     },
     {
-      "name": "BatchCastQueryResponseTrait::State",
-      "guid": "6901a55a-f369-48ed-8788-d56e91bb835c",
-      "wire_type": 6473,
-      "in_type_table": true
+      "name": "BattleBannersData",
+      "guid": "0ff5d020-6599-4887-bf52-d159e427d93c",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "BeamAimModeData",
@@ -3696,6 +3764,12 @@
       "in_type_table": false
     },
     {
+      "name": "BlueprintItemDefinitions",
+      "guid": "9b6a7f3e-733c-4789-adb1-52657952d4e6",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "BootstrapReaderComponent",
       "guid": "35f2a89d-ecb0-49ed-8306-e65a358f354b",
       "wire_type": null,
@@ -3856,6 +3930,12 @@
       "guid": "42c9a9d5-85ea-463f-829b-7d3b53bb5e02",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "BotsPerRow",
+      "guid": "3ae8a9c6-aa54-49b7-9b1f-87e8b18e0638",
+      "wire_type": 31,
+      "in_type_table": true
     },
     {
       "name": "BoxShapeConfig",
@@ -4332,6 +4412,18 @@
       "in_type_table": false
     },
     {
+      "name": "CacheCurrentInventory",
+      "guid": "cc74ffc4-d096-4377-89d8-e47a21416586",
+      "wire_type": 2464,
+      "in_type_table": true
+    },
+    {
+      "name": "CacheCurrentPosition",
+      "guid": "ba59da0e-3683-44a4-b45f-a55b627e9516",
+      "wire_type": 5548,
+      "in_type_table": true
+    },
+    {
       "name": "CachedEquippedAbilityData",
       "guid": "ac1f4cbf-b55d-4858-aadb-75e6ce6f5614",
       "wire_type": null,
@@ -4348,6 +4440,12 @@
       "guid": "e409f5c0-9919-4ca5-9488-1fe8a041768e",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "CameraControl",
+      "guid": "c2b054e0-d816-4294-93c8-645242a79c14",
+      "wire_type": 2467,
+      "in_type_table": true
     },
     {
       "name": "CameraEffectsComponent",
@@ -4470,6 +4568,18 @@
       "in_type_table": false
     },
     {
+      "name": "CampingComponentClientFacet_CampReconnectFailure",
+      "guid": "7556b933-3363-4353-9660-01d5a005cad1",
+      "wire_type": 4249,
+      "in_type_table": true
+    },
+    {
+      "name": "CampingComponentClientFacet_DemolishCamp",
+      "guid": "fb3e2e88-0542-431d-9cb4-b832844a972a",
+      "wire_type": 6760,
+      "in_type_table": true
+    },
+    {
       "name": "CampingComponentNotificationBusHandler",
       "guid": "744fc810-caf2-49d9-93c3-094b4e969a2c",
       "wire_type": null,
@@ -4560,6 +4670,12 @@
       "in_type_table": false
     },
     {
+      "name": "CapturePointComponentServerFacet_DEBUG_SetCapturePointFlag",
+      "guid": "4084dc35-b02f-40e9-bbc1-da45544c5e03",
+      "wire_type": 5836,
+      "in_type_table": true
+    },
+    {
       "name": "CapturePointGroupingId",
       "guid": "e1a48ef9-0a44-43ec-b2b2-776a975e08ab",
       "wire_type": null,
@@ -4580,6 +4696,18 @@
     {
       "name": "CapturePointState",
       "guid": "d35ad693-a587-4fa4-928f-679b09a15197",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "CaptureTheFlagData",
+      "guid": "9cf0b270-7a45-4dca-a3e2-a71261866533",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "CaptureTheFlagPvpBalanceDataManager",
+      "guid": "6d0fc278-47ea-43be-b0c8-e1c608e94634",
       "wire_type": null,
       "in_type_table": false
     },
@@ -4610,6 +4738,12 @@
     {
       "name": "CastSpellTargeting",
       "guid": "4480816d-4d36-4df0-8339-a1fbc59366ef",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "CatacombsGameplayTileData",
+      "guid": "68bbba08-63e3-4f35-8389-f7be76a33a50",
       "wire_type": null,
       "in_type_table": false
     },
@@ -4716,6 +4850,12 @@
       "in_type_table": false
     },
     {
+      "name": "CategoricalProgressionTarget",
+      "guid": "dc0f7dde-aca1-4582-a598-3077ed3a7940",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "CategoricalProgressionTypeData",
       "guid": "2e2711fc-588b-4214-bd85-5fe0037637b7",
       "wire_type": null,
@@ -4772,6 +4912,12 @@
     {
       "name": "ChangeStatMultiplierData",
       "guid": "205908f3-0a08-4b4c-9f24-e269971ef8bc",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "ChangeStorageSessionForPlayer",
+      "guid": "e921cc34-3bf4-48ae-8df1-35941fb81db3",
       "wire_type": null,
       "in_type_table": false
     },
@@ -4876,6 +5022,12 @@
       "guid": "e9c20ecf-9de9-4969-b76d-91582ed7294d",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "CharacterComponentServerFacet_DebugUnregisterFromGrid",
+      "guid": "9cb82306-4bbd-45f8-8bda-785ec7fb9277",
+      "wire_type": 1839,
+      "in_type_table": true
     },
     {
       "name": "CharacterControllerComponent",
@@ -5002,6 +5154,12 @@
       "guid": "230d6de3-3ae4-4412-996f-e0feba596479",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "ChatComponentClientFacet_OnCrossWorldChatSubscriptionsResponse",
+      "guid": "fed71eca-4635-45e7-87b0-450ab0b00bf9",
+      "wire_type": 5863,
+      "in_type_table": true
     },
     {
       "name": "ChatComponentServerFacet",
@@ -5388,6 +5546,12 @@
       "in_type_table": false
     },
     {
+      "name": "Cold",
+      "guid": "8d1eeda9-0095-4a91-8e46-72ddc879ad86",
+      "wire_type": 6604,
+      "in_type_table": true
+    },
+    {
       "name": "CollapsableScrollList",
       "guid": "560f2d3f-0446-4a24-b5fe-ebef4c55db1b",
       "wire_type": null,
@@ -5420,6 +5584,12 @@
     {
       "name": "CollisionFiltersAsset",
       "guid": "3f5634a1-8683-4783-8acb-07478cb686fe",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "Color",
+      "guid": "d03d0cf6-9a61-4dba-ac53-e62453ce940d",
       "wire_type": null,
       "in_type_table": false
     },
@@ -5551,8 +5721,8 @@
     },
     {
       "name": "CompanyCompensateMessage",
-      "guid": "b77eb12f-6fef-42cf-96f4-ad5e4f67ca39",
-      "wire_type": 6511,
+      "guid": "b42b3e49-b674-405c-a6ad-0cc5a8e368ba",
+      "wire_type": 6745,
       "in_type_table": true
     },
     {
@@ -5650,6 +5820,12 @@
       "guid": "eab234b6-05d1-4d85-8e75-661efbbf8aa1",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "Consumable",
+      "guid": "af1e2899-b881-4dc9-8409-3348bd0a6fc9",
+      "wire_type": 5858,
+      "in_type_table": true
     },
     {
       "name": "ConsumeAmmoData",
@@ -5856,12 +6032,6 @@
       "in_type_table": false
     },
     {
-      "name": "ContractsComponentServerFacet_SetDebugSendContractEventsToClient",
-      "guid": "71d848e7-8e4d-488b-ae8d-127737462414",
-      "wire_type": null,
-      "in_type_table": false
-    },
-    {
       "name": "ContractsJsonDataWrapper",
       "guid": "2a5faee2-4772-4e4f-a352-afabcdc69515",
       "wire_type": null,
@@ -5976,6 +6146,12 @@
       "in_type_table": true
     },
     {
+      "name": "ConversationComponentServerFacet_RequestCompleteObjective",
+      "guid": "db95b99e-afb9-425c-a566-863be9b508fb",
+      "wire_type": 4762,
+      "in_type_table": true
+    },
+    {
       "name": "ConversationEventsBusHandler",
       "guid": "1f66d33a-b27b-4dbe-a886-3db414bf118d",
       "wire_type": null,
@@ -6051,6 +6227,12 @@
       "name": "CooldownTimersComponentServerFacet_Debug_OnCooldownsGodModeChanged",
       "guid": "c117ad91-2b58-4457-8c4c-5e3865ef7959",
       "wire_type": 3964,
+      "in_type_table": true
+    },
+    {
+      "name": "CooldownTimersComponentServerFacet_Debug_ResetGeneralCooldown",
+      "guid": "9df13260-5f00-4607-8e64-4c60cb9879c4",
+      "wire_type": 4810,
       "in_type_table": true
     },
     {
@@ -6150,6 +6332,12 @@
       "in_type_table": true
     },
     {
+      "name": "CraftingComponentServerFacet_InitiateMountDye",
+      "guid": "5c9b9ae2-1b43-4b9f-b4d6-e952ef660e1c",
+      "wire_type": 6026,
+      "in_type_table": true
+    },
+    {
       "name": "CraftingComponentServerFacet_InitiateSalvageByClass",
       "guid": "dee44ec1-1a9f-47e2-8b3e-9ed2290737e7",
       "wire_type": 6024,
@@ -6157,8 +6345,8 @@
     },
     {
       "name": "CraftingComponentServerFacet_SalvageItemsInInventory",
-      "guid": "fff40d4b-d06e-4985-91c3-ec13bd3ff665",
-      "wire_type": 6468,
+      "guid": "ed66b33c-1331-4a83-8a6a-6a196aa5355a",
+      "wire_type": 6188,
       "in_type_table": true
     },
     {
@@ -6202,12 +6390,6 @@
       "guid": "75cfb9e3-fe11-4d1d-ac0a-44916a5c27a0",
       "wire_type": null,
       "in_type_table": false
-    },
-    {
-      "name": "CraftingStationPropertiesReference",
-      "guid": "ed66b33c-1331-4a83-8a6a-6a196aa5355a",
-      "wire_type": 6188,
-      "in_type_table": true
     },
     {
       "name": "Crawl",
@@ -6342,10 +6524,22 @@
       "in_type_table": false
     },
     {
+      "name": "Currency",
+      "guid": "23e2fe9a-f7ae-4110-baf2-8b093175fc6e",
+      "wire_type": 2511,
+      "in_type_table": true
+    },
+    {
       "name": "CurrencyComponentClientFacet",
       "guid": "b6e77f9c-03b3-439f-8964-c60f184a450b",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "CurrencyComponentClientFacet_OnCurrencyLost",
+      "guid": "e29b61fe-8a1b-4d9e-9b81-15545d26c8e1",
+      "wire_type": 3785,
+      "in_type_table": true
     },
     {
       "name": "CurrencyComponentClientFacet_OnCurrencyTransferRefund",
@@ -6474,21 +6668,15 @@
       "in_type_table": false
     },
     {
-      "name": "D11A07A317",
-      "guid": "8ef86bb2-40cc-474d-b20a-d482daf4b327",
-      "wire_type": 5756,
+      "name": "D59922",
+      "guid": "e5aa5b43-f801-452f-8aa5-1f26c5d7549f",
+      "wire_type": 1407,
       "in_type_table": true
     },
     {
       "name": "D8E5715EBA6C",
       "guid": "63ac61ad-8e59-4231-88fc-c490f9fa299f",
       "wire_type": 5796,
-      "in_type_table": true
-    },
-    {
-      "name": "D95C124B3",
-      "guid": "74a64fc9-adfa-4799-b4ee-fbb00936b961",
-      "wire_type": 5301,
       "in_type_table": true
     },
     {
@@ -6500,6 +6688,12 @@
     {
       "name": "DEBUG_CONTEXT_NAME",
       "guid": "354437ec-6bfd-41d4-a0f2-7740018d3589",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DISPLAY_CONSOLE",
+      "guid": "34c5a046-123f-458d-9840-58c2488a01b0",
       "wire_type": null,
       "in_type_table": false
     },
@@ -6702,6 +6896,12 @@
       "in_type_table": false
     },
     {
+      "name": "DebugConsoleClientMessages::State",
+      "guid": "11f92e5c-122f-4faf-a2a4-15bd4e2ed629",
+      "wire_type": 2170,
+      "in_type_table": true
+    },
+    {
       "name": "DebugConsoleComponent",
       "guid": "a0045e22-eab0-4d2d-b35e-a98b6c7a000f",
       "wire_type": null,
@@ -6778,6 +6978,12 @@
       "guid": "76b9aed9-1fb7-4246-8e19-7918a8675746",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "DebugSpawnInfoReceiverInterface_ReceiveAISpawnManagerDebugInfo",
+      "guid": "5227ac94-4f53-4bfb-816b-500407798ce2",
+      "wire_type": 6634,
+      "in_type_table": true
     },
     {
       "name": "DebugValue",
@@ -6964,6 +7170,12 @@
       "guid": "9bff49d6-1527-4258-b892-3410570060ae",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "DestroySlice",
+      "guid": "2d24d216-08cb-4643-801f-facaeeca9951",
+      "wire_type": 1867,
+      "in_type_table": true
     },
     {
       "name": "DestroySliceAction",
@@ -7236,6 +7448,12 @@
       "in_type_table": false
     },
     {
+      "name": "DirectionAngle",
+      "guid": "f54498d3-7035-42ff-a460-af2afebea6f2",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "DisableCameraControls",
       "guid": "9f114f5d-8dcb-40d8-ab01-79b1c7f397b6",
       "wire_type": null,
@@ -7380,6 +7598,12 @@
       "in_type_table": false
     },
     {
+      "name": "Dismiss",
+      "guid": "e189a66c-c2da-4f3f-98b4-a0eea88dec1a",
+      "wire_type": 6623,
+      "in_type_table": true
+    },
+    {
       "name": "DisplayGenericTextParams",
       "guid": "633c8bc1-618a-418f-bbc6-4203ef201462",
       "wire_type": null,
@@ -7458,16 +7682,22 @@
       "in_type_table": false
     },
     {
+      "name": "DuelState",
+      "guid": "d230b5d7-4032-49b5-a55d-cc0c9734b78c",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "DummyTickOrder",
       "guid": "8f725746-a4bc-4df7-a249-02931973c864",
       "wire_type": null,
       "in_type_table": false
     },
     {
-      "name": "DumpPersistenceHeapProfilerMessage",
-      "guid": "7b5a0ca3-923a-4d01-903f-82984d306e4b",
-      "wire_type": 731,
-      "in_type_table": true
+      "name": "DungeonBrimstoneSands00Data",
+      "guid": "394ccf8e-1281-4aac-a69b-1304e0356e31",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "DungeonClientServerSharedData",
@@ -7478,6 +7708,18 @@
     {
       "name": "DungeonCreatedInfo",
       "guid": "49b26842-c64a-40f1-a9bb-a632c6cb39bc",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DungeonCutlassKeys00Data",
+      "guid": "f4c45b9f-1cdd-469b-bfa1-99877dc1b63f",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DungeonDunwood02Data",
+      "guid": "505f1a37-a8df-4733-bc48-5a4d785980db",
       "wire_type": null,
       "in_type_table": false
     },
@@ -7536,6 +7778,30 @@
       "in_type_table": false
     },
     {
+      "name": "DungeonFirstLight01Data",
+      "guid": "d7319544-2d62-4932-8b17-68a4363db210",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DungeonGreatCleave00Data",
+      "guid": "f3597845-e554-485a-a000-0d716d099755",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DungeonGreatCleave01Data",
+      "guid": "56d5e841-56ee-4c29-8489-9bd90b675f8f",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DungeonMasterTrait::State",
+      "guid": "a3bc5c58-a599-4cb5-89de-030b35365036",
+      "wire_type": 1964,
+      "in_type_table": true
+    },
+    {
       "name": "DungeonPersistentData",
       "guid": "2b36e13e-f302-4d61-95ee-ac698c1fd3d0",
       "wire_type": null,
@@ -7544,6 +7810,30 @@
     {
       "name": "DungeonReekwater00Data",
       "guid": "3ab0037f-af8d-48ce-bca0-a170d18b2c03",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DungeonShatterMtn00",
+      "guid": "6df716e6-126c-430e-b7fb-2cb3334d1296",
+      "wire_type": 6464,
+      "in_type_table": true
+    },
+    {
+      "name": "DungeonShatterMtn00Data",
+      "guid": "821b79cf-bd0d-4398-8c5a-62376823ef15",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DungeonShatteredObeliskData",
+      "guid": "ab3d042b-e9e4-4dba-9b61-d2ca53776528",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "DungeonsCommonData",
+      "guid": "b4b553d1-65b7-4d4b-a0e2-d00acafe15ad",
       "wire_type": null,
       "in_type_table": false
     },
@@ -7626,27 +7916,15 @@
       "in_type_table": false
     },
     {
-      "name": "E3497006D14",
-      "guid": "2909ac6c-0a6b-444d-9929-a26806060936",
-      "wire_type": 5543,
-      "in_type_table": true
-    },
-    {
       "name": "EAchievementConditionalValueData",
       "guid": "f8d4ac5f-ea93-4869-8faa-1af35caff71c",
       "wire_type": null,
       "in_type_table": false
     },
     {
-      "name": "EF58AE8C944",
-      "guid": "d56f0c81-65a4-4759-ad84-1dc87b56bf1f",
-      "wire_type": 6472,
-      "in_type_table": true
-    },
-    {
-      "name": "EFB113BE6",
-      "guid": "e76c899c-f276-4b3e-a5b8-3e18657b1b97",
-      "wire_type": 6540,
+      "name": "ED069A8B55F",
+      "guid": "8f3aa99f-38c0-46a0-940a-439d62f38333",
+      "wire_type": 4163,
       "in_type_table": true
     },
     {
@@ -7686,6 +7964,12 @@
       "in_type_table": true
     },
     {
+      "name": "EasyAntiCheat",
+      "guid": "f3a1b293-e96f-49f9-a2bc-24bc75f8acb7",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "EconomyTrackerComponent",
       "guid": "de59431a-d644-4c47-bece-9b80908ced78",
       "wire_type": null,
@@ -7696,6 +7980,12 @@
       "guid": "bce81364-b266-4a2c-a2dc-1cc6922b4a57",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "EconomyTrackerComponentClientFacet_Debug_OnSyncMonitorData",
+      "guid": "07d6d2a3-399d-4db9-8554-54d5532f4bab",
+      "wire_type": 4839,
+      "in_type_table": true
     },
     {
       "name": "EconomyTrackerComponentServerFacet",
@@ -7956,12 +8246,6 @@
       "in_type_table": false
     },
     {
-      "name": "EntitlementComponentServerFacet_DebugRequestLockGameplayEntitlement",
-      "guid": "07d6d2a3-399d-4db9-8554-54d5532f4bab",
-      "wire_type": 4839,
-      "in_type_table": true
-    },
-    {
       "name": "EntitlementName",
       "guid": "ab03bfad-743b-438a-a806-2e902c58a56a",
       "wire_type": 6128,
@@ -8044,6 +8328,12 @@
       "guid": "2e242417-98a0-499e-96b3-cc4e400c91ae",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "EquipItem",
+      "guid": "a2f533d6-4d6d-4263-a778-49261dc31c8a",
+      "wire_type": 443,
+      "in_type_table": true
     },
     {
       "name": "EquipTypeData",
@@ -8190,12 +8480,6 @@
       "in_type_table": false
     },
     {
-      "name": "ExchangeEntitlements",
-      "guid": "b0e6bcd7-0822-4c25-bf27-4166bbc2a9b7",
-      "wire_type": 6905,
-      "in_type_table": true
-    },
-    {
       "name": "ExcludeAOIComponent",
       "guid": "704e9c3f-8784-4f6e-9fb6-1ca7e769f5a3",
       "wire_type": null,
@@ -8268,6 +8552,18 @@
       "in_type_table": false
     },
     {
+      "name": "ExpansionDataManager",
+      "guid": "a2469d66-1b13-4479-aee5-160136eb8c25",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "Expression",
+      "guid": "6b2d6ce1-390e-4f65-ad47-d2528220cfb5",
+      "wire_type": 6069,
+      "in_type_table": true
+    },
+    {
       "name": "EyeColorData",
       "guid": "2c2294dc-58e2-43c4-b1dc-c6c81643f701",
       "wire_type": null,
@@ -8278,6 +8574,18 @@
       "guid": "31643d5c-ebf9-4680-be4c-e86927fc8807",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "F25CD2FED55",
+      "guid": "a5b32642-f001-4e8a-af84-59e5abb592a8",
+      "wire_type": 643,
+      "in_type_table": true
+    },
+    {
+      "name": "F62BE99E0A36",
+      "guid": "e0c6019c-aae0-4c31-aaf1-c7a674c89751",
+      "wire_type": 1270,
+      "in_type_table": true
     },
     {
       "name": "F78B43997",
@@ -8293,8 +8601,8 @@
     },
     {
       "name": "FD7AB9695C",
-      "guid": "db23da0f-a049-42ec-8058-3a8247a978f8",
-      "wire_type": 6168,
+      "guid": "77012a9a-25f2-4633-8b9f-af99f13176ba",
+      "wire_type": 6447,
       "in_type_table": true
     },
     {
@@ -8418,6 +8726,12 @@
       "in_type_table": true
     },
     {
+      "name": "FactionComponentServerFacet_Debug_ForcePvpValue",
+      "guid": "e7e9f792-ab71-4143-8e33-d387509a69e3",
+      "wire_type": 3164,
+      "in_type_table": true
+    },
+    {
       "name": "FactionComponentServerFacet_Debug_ResetFactionCooldown",
       "guid": "05ef2bef-22bf-4bfe-8c1f-54677f9daefd",
       "wire_type": 2020,
@@ -8538,6 +8852,12 @@
       "in_type_table": false
     },
     {
+      "name": "FakeAISpawns",
+      "guid": "ba7ffc7a-9423-485e-b7f0-31aea903b58d",
+      "wire_type": 1450,
+      "in_type_table": true
+    },
+    {
       "name": "FakeAction",
       "guid": "9bf01d9c-9bb2-4609-abc7-6f81ab2473be",
       "wire_type": null,
@@ -8572,6 +8892,18 @@
       "guid": "c102281e-5e7b-4962-93bd-abfc9ff5f243",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "FcsMessage",
+      "guid": "6901a55a-f369-48ed-8788-d56e91bb835c",
+      "wire_type": 6473,
+      "in_type_table": true
+    },
+    {
+      "name": "Featured",
+      "guid": "775bf059-5e48-4d94-9c87-e0a136772314",
+      "wire_type": 1993,
+      "in_type_table": true
     },
     {
       "name": "FictionalCurrencyPrice",
@@ -8892,6 +9224,12 @@
       "in_type_table": true
     },
     {
+      "name": "FishingComponentServerFacet_DebugCloseBaitBoxAction",
+      "guid": "f15f942f-94fd-4da2-b271-fa00a93b9d1a",
+      "wire_type": 3179,
+      "in_type_table": true
+    },
+    {
       "name": "FishingComponentServerFacet_DebugResetFishingAction",
       "guid": "71325dd7-b86c-434c-9da5-dc1b77888612",
       "wire_type": 3181,
@@ -8919,6 +9257,12 @@
       "name": "FishingComponentServerFacet_DebugUpdateDebugParams",
       "guid": "4209f870-40e9-4d43-996b-a823bfe0dc45",
       "wire_type": 3006,
+      "in_type_table": true
+    },
+    {
+      "name": "FishingComponentServerFacet_OnFishingStateReceived",
+      "guid": "7f2de159-b7ac-4a81-82f8-824909b7ae9a",
+      "wire_type": 5339,
       "in_type_table": true
     },
     {
@@ -9186,6 +9530,18 @@
       "in_type_table": false
     },
     {
+      "name": "FortSpawnId",
+      "guid": "e33b763b-35fb-4fb0-8430-01e5d1aec494",
+      "wire_type": 626,
+      "in_type_table": true
+    },
+    {
+      "name": "Found valid generator via registry",
+      "guid": "b566929b-4cb5-43e5-98b2-7f061adce785",
+      "wire_type": 1698,
+      "in_type_table": true
+    },
+    {
       "name": "FoundationState",
       "guid": "7895920c-e69f-43b9-93b8-2fac9ad25f03",
       "wire_type": null,
@@ -9402,6 +9758,12 @@
       "in_type_table": false
     },
     {
+      "name": "Fundamental generic memory allocator",
+      "guid": "9f835ee3-f23c-454e-b4e3-011e2f3c8118",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "FxScript",
       "guid": "92526db1-6f2c-4b06-ae1a-76508752a30f",
       "wire_type": null,
@@ -9451,9 +9813,9 @@
     },
     {
       "name": "FxScriptNodeExecuteAudioTrigger",
-      "guid": "76755064-9bba-46e0-8720-cef087f1f3fc",
-      "wire_type": null,
-      "in_type_table": false
+      "guid": "5fa3c7d5-f059-4c5b-8190-8faca0e70a8a",
+      "wire_type": 6897,
+      "in_type_table": true
     },
     {
       "name": "FxScriptNodeLoopExecute",
@@ -9762,6 +10124,12 @@
       "in_type_table": true
     },
     {
+      "name": "GameMasterComponentServerFacet_ResetPlaytestBroker",
+      "guid": "f1aad3d3-1c56-451a-b7fb-7ac5f6b42521",
+      "wire_type": 3248,
+      "in_type_table": true
+    },
+    {
       "name": "GameMasterComponentServerFacet_TeleportPlayerToMeByCharacterId",
       "guid": "e213aac7-07b1-4ba9-97f3-490a92c6a40a",
       "wire_type": 6765,
@@ -9858,6 +10226,12 @@
       "in_type_table": true
     },
     {
+      "name": "GameModeDynamicDifficultyManager",
+      "guid": "e76aa98b-8214-4ae4-8d0b-c393f1267e5b",
+      "wire_type": 3314,
+      "in_type_table": true
+    },
+    {
       "name": "GameModeEvent",
       "guid": "6097aea8-e541-41f4-ba5d-e34806b658e4",
       "wire_type": null,
@@ -9912,6 +10286,12 @@
       "in_type_table": false
     },
     {
+      "name": "GameModeParticipantComponentClientFacet_DebugOnRecieveProceduralLevelJson",
+      "guid": "8e2fe2d6-c6cc-4372-a912-c097b39646cd",
+      "wire_type": 6961,
+      "in_type_table": true
+    },
+    {
       "name": "GameModeParticipantComponentClientFacet_DebugReceiveGameModeStatus",
       "guid": "95e4b5cc-53ae-4c05-9e6d-41ecca4816b1",
       "wire_type": 6555,
@@ -9939,6 +10319,18 @@
       "name": "GameModeParticipantComponentClientFacet_OnGameModePlayerRemovedUpdate",
       "guid": "86e02a7c-4a0b-44ee-8d9c-5dc78c6681e4",
       "wire_type": 6414,
+      "in_type_table": true
+    },
+    {
+      "name": "GameModeParticipantComponentClientFacet_OnGameModeSchedulerRefreshed",
+      "guid": "1b2b3eb1-4348-466e-a058-21e358400e18",
+      "wire_type": 6426,
+      "in_type_table": true
+    },
+    {
+      "name": "GameModeParticipantComponentClientFacet_OnInviteUpdateMsg",
+      "guid": "812ea2d3-205b-49aa-a76e-70048bd46c60",
+      "wire_type": 5100,
       "in_type_table": true
     },
     {
@@ -9981,6 +10373,12 @@
       "name": "GameModeParticipantComponentClientFacet_OnReceiveDebugMRV2UpdateData",
       "guid": "b729384b-51a7-4a29-994d-4af98a876321",
       "wire_type": 6789,
+      "in_type_table": true
+    },
+    {
+      "name": "GameModeParticipantComponentClientFacet_OnReceiveDebugRequestMGResponse",
+      "guid": "b51aeefe-9806-4b59-ae0e-9834554b6352",
+      "wire_type": 6404,
       "in_type_table": true
     },
     {
@@ -10050,6 +10448,12 @@
       "in_type_table": true
     },
     {
+      "name": "GameModeParticipantComponentServerFacet_DebugDetermineAndGrantIncentiveRewards",
+      "guid": "4cda6f13-a4b5-462b-9187-6bb9226f3699",
+      "wire_type": 6331,
+      "in_type_table": true
+    },
+    {
       "name": "GameModeParticipantComponentServerFacet_DebugGetQueuedActivities",
       "guid": "3edcbfe6-762d-4393-881a-829b5157def5",
       "wire_type": 6407,
@@ -10059,6 +10463,18 @@
       "name": "GameModeParticipantComponentServerFacet_DebugJoinMatchmakingServiceQueue",
       "guid": "bd3f2fc2-fbee-4409-8658-c9ff1dbbaf85",
       "wire_type": 5445,
+      "in_type_table": true
+    },
+    {
+      "name": "GameModeParticipantComponentServerFacet_DebugJoinMatchmakingServiceV2Queue",
+      "guid": "f58dcbf9-6f80-4b7f-83fa-29422860567c",
+      "wire_type": 6267,
+      "in_type_table": true
+    },
+    {
+      "name": "GameModeParticipantComponentServerFacet_DebugLeaveMatchmakingServiceQueue",
+      "guid": "2476300c-8c23-4dca-8d3b-3ecfbc100814",
+      "wire_type": 5554,
       "in_type_table": true
     },
     {
@@ -10080,6 +10496,24 @@
       "in_type_table": true
     },
     {
+      "name": "GameModeParticipantComponentServerFacet_DebugRequestProceduralLevelJson",
+      "guid": "ebf0b269-eeba-4077-9735-43c521188d89",
+      "wire_type": 6955,
+      "in_type_table": true
+    },
+    {
+      "name": "GameModeParticipantComponentServerFacet_DebugResetPlayerMetadata",
+      "guid": "0faaac89-00ba-4487-92e7-356bc6aa098e",
+      "wire_type": 6357,
+      "in_type_table": true
+    },
+    {
+      "name": "GameModeParticipantComponentServerFacet_DebugSetPlayerMetadata",
+      "guid": "210263da-9ab1-40a4-acf7-cfd50fd2733a",
+      "wire_type": 6358,
+      "in_type_table": true
+    },
+    {
       "name": "GameModeParticipantComponentServerFacet_DebugStartMatch",
       "guid": "e2339a48-4d42-4af6-bca7-bd28d2659bcd",
       "wire_type": 6959,
@@ -10089,12 +10523,6 @@
       "name": "GameModeParticipantComponentServerFacet_OnReceivedDebugClientEvent",
       "guid": "bd37f1d2-ced0-4903-9984-d3764a2ea836",
       "wire_type": 4911,
-      "in_type_table": true
-    },
-    {
-      "name": "GameModeParticipantComponentServerFacet_OnRequestEndGameModeCinematic",
-      "guid": "d65e5686-1d6d-47dd-82a3-91e7ca04a253",
-      "wire_type": 4940,
       "in_type_table": true
     },
     {
@@ -10134,6 +10562,12 @@
       "in_type_table": true
     },
     {
+      "name": "GameModeParticipantComponentServerFacet_RequestJoinQueueForActivities",
+      "guid": "89d0f887-3834-433b-bab4-7804a4784e5f",
+      "wire_type": 6254,
+      "in_type_table": true
+    },
+    {
       "name": "GameModeParticipantComponentServerFacet_RequestJoinQueueForGameMode",
       "guid": "f575e523-f264-46af-bdb5-b679fc303219",
       "wire_type": 3109,
@@ -10149,6 +10583,12 @@
       "name": "GameModeParticipantComponentServerFacet_RequestLeaveGameMode",
       "guid": "27496a66-b97c-4828-8fa7-fe527bd58a94",
       "wire_type": 5124,
+      "in_type_table": true
+    },
+    {
+      "name": "GameModeParticipantComponentServerFacet_RequestLeaveQueueForAllGameModes",
+      "guid": "f129d79c-c2b5-45d9-8372-6b49efc3df5f",
+      "wire_type": 2385,
       "in_type_table": true
     },
     {
@@ -10192,6 +10632,12 @@
       "guid": "9e440d20-8d53-4edc-bc60-889849a4e632",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "GameModeResults",
+      "guid": "af9dc5c2-ec5d-4ffd-94cd-984d4984161c",
+      "wire_type": 5242,
+      "in_type_table": true
     },
     {
       "name": "GameModeRoutingStatusSub",
@@ -10548,6 +10994,12 @@
       "in_type_table": false
     },
     {
+      "name": "GetPositionOffset",
+      "guid": "1b6f250d-8142-4114-9888-c2983891a8db",
+      "wire_type": 6087,
+      "in_type_table": true
+    },
+    {
       "name": "GetRelativeProductPathFromFullSourceOrProductPathRequest",
       "guid": "2ed7888b-959c-451c-90b6-8ef7b0b4e385",
       "wire_type": null,
@@ -10556,6 +11008,12 @@
     {
       "name": "GetRelativeProductPathFromFullSourceOrProductPathResponse",
       "guid": "4bad0a94-ee97-42a7-acec-0698012114a8",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "GetUnacknowledgedTransactionsResponse",
+      "guid": "9b4384f7-3586-45e4-afcb-c168a32aa3f1",
       "wire_type": null,
       "in_type_table": false
     },
@@ -10572,10 +11030,10 @@
       "in_type_table": false
     },
     {
-      "name": "GhostClientActor",
-      "guid": "81af08f6-2423-422b-a66f-e298e95b709b",
-      "wire_type": null,
-      "in_type_table": false
+      "name": "GhostBaseTrait",
+      "guid": "8b589c3f-5a66-4a08-9be5-f0b46e7c289b",
+      "wire_type": 343,
+      "in_type_table": true
     },
     {
       "name": "GhostWrapper",
@@ -10620,9 +11078,9 @@
       "in_type_table": false
     },
     {
-      "name": "GlobalKeyForSpawnedEntityId",
-      "guid": "a2f533d6-4d6d-4263-a778-49261dc31c8a",
-      "wire_type": 443,
+      "name": "GlobalKey",
+      "guid": "9ce34abb-251a-418a-a97e-1b048e485b66",
+      "wire_type": 6317,
       "in_type_table": true
     },
     {
@@ -10722,6 +11180,12 @@
       "in_type_table": true
     },
     {
+      "name": "GlobalStorageComponentServerFacet_DebugClearStorage",
+      "guid": "7bafd6a5-531b-4445-975b-440c0b85403f",
+      "wire_type": 7000,
+      "in_type_table": true
+    },
+    {
       "name": "GlobalStorageComponentServerFacet_DebugRequestForcePersistenceDirty",
       "guid": "50038a04-2a34-46a1-9bce-d9e025018676",
       "wire_type": 6149,
@@ -10743,6 +11207,12 @@
       "name": "GlobalStorageComponentServerFacet_RequestReplicateStorageSearchResults",
       "guid": "86d7f8ed-fe89-4fa8-bd96-4256922ef2c8",
       "wire_type": 7039,
+      "in_type_table": true
+    },
+    {
+      "name": "GlobalStorageComponentServerFacet_RequestSearchStorage",
+      "guid": "4f234d55-188d-4a7d-a10a-02209fdbceb6",
+      "wire_type": 7044,
       "in_type_table": true
     },
     {
@@ -10842,9 +11312,21 @@
       "in_type_table": false
     },
     {
+      "name": "GridActor",
+      "guid": "8c9c88ff-952d-49c1-8afe-353689f7ab5a",
+      "wire_type": 6539,
+      "in_type_table": true
+    },
+    {
       "name": "GridChangeListenerTrait",
-      "guid": "31cfa403-199c-485e-a673-ee2e238029ab",
-      "wire_type": 6790,
+      "guid": "352f5954-4193-46bb-a271-3321a80f31a2",
+      "wire_type": 1785,
+      "in_type_table": true
+    },
+    {
+      "name": "GridChangeListenerTrait::State",
+      "guid": "d8d0d052-a6f3-4eee-88ba-f47190e77f34",
+      "wire_type": 2026,
       "in_type_table": true
     },
     {
@@ -10860,6 +11342,18 @@
       "in_type_table": true
     },
     {
+      "name": "GridManagerPublicDynamic",
+      "guid": "3d2ad744-b5e9-41e9-9cea-c057166ea485",
+      "wire_type": 1917,
+      "in_type_table": true
+    },
+    {
+      "name": "GridTrackingComponent",
+      "guid": "f19491b9-0526-4b34-b55f-913fe8b01f02",
+      "wire_type": 6362,
+      "in_type_table": true
+    },
+    {
       "name": "GridTrackingComponentClientFacet",
       "guid": "a1bd6f50-55c6-4551-9d7d-6241877a076f",
       "wire_type": null,
@@ -10870,6 +11364,12 @@
       "guid": "9e844694-8478-4bac-a2f8-a17cec496e2a",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "GridTrackingComponentServerFacet_DebugSubscribePhaseStatus",
+      "guid": "8d16a3ea-cd3e-4395-8195-8c23a5399bd9",
+      "wire_type": 1992,
+      "in_type_table": true
     },
     {
       "name": "GritComponentClientFacet",
@@ -11040,6 +11540,18 @@
       "in_type_table": true
     },
     {
+      "name": "GroupsComponentClientFacet_OnAbandonGameModeVoteStarted",
+      "guid": "6c2e5e3d-2bcd-4f12-ad3f-6f59de6d78c6",
+      "wire_type": 6303,
+      "in_type_table": true
+    },
+    {
+      "name": "GroupsComponentClientFacet_PlatformGameInviteJoinGroupBypassFlow",
+      "guid": "9c79e085-e249-4e9e-ad3e-f327dc4836e0",
+      "wire_type": 6485,
+      "in_type_table": true
+    },
+    {
       "name": "GroupsComponentResponseHandler",
       "guid": "9b9cc626-e09b-4f9c-865b-5267c406cf1c",
       "wire_type": null,
@@ -11076,20 +11588,8 @@
       "in_type_table": true
     },
     {
-      "name": "GroupsComponentServerFacet_RequestRemoveGroupFinderGroup",
-      "guid": "89554b0f-dfa6-4730-bc31-cf8a8c087bd2",
-      "wire_type": 3497,
-      "in_type_table": true
-    },
-    {
       "name": "GuaranteedItemTransferData",
       "guid": "6583011a-4493-4fc9-9407-6ea993257296",
-      "wire_type": null,
-      "in_type_table": false
-    },
-    {
-      "name": "GuildCrest",
-      "guid": "99cc71c1-1204-4446-8614-4b7c94665011",
       "wire_type": null,
       "in_type_table": false
     },
@@ -11260,6 +11760,12 @@
       "guid": "a42fec70-06cc-41fb-99e5-d4fa358809c6",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "HandlerRegistrySingletonActor",
+      "guid": "7e714152-34c8-4f73-a9b5-08c1b24ee485",
+      "wire_type": 5874,
+      "in_type_table": true
     },
     {
       "name": "HasItemTutorialStep",
@@ -11652,6 +12158,18 @@
       "in_type_table": true
     },
     {
+      "name": "HousingPlotComponentServerFacet_DebugRequestGetMonikerKey",
+      "guid": "056375e2-636c-4f6a-8e9d-ca7731797e3f",
+      "wire_type": 3686,
+      "in_type_table": true
+    },
+    {
+      "name": "HousingPlotComponentServerFacet_DebugRequestTopHouses",
+      "guid": "ce4c47a9-f580-47db-9045-9a81520cf2f1",
+      "wire_type": 3130,
+      "in_type_table": true
+    },
+    {
       "name": "HubConnectionChangedMsg",
       "guid": "b73ccf2d-cb1d-4ad6-9296-a7b4d5a0d992",
       "wire_type": 953,
@@ -11820,6 +12338,12 @@
       "in_type_table": false
     },
     {
+      "name": "IComponentDebugHelperServer_RegisterClientForDebug",
+      "guid": "ba18ee7d-c1e3-4e36-bcb4-00c3dd89e8e5",
+      "wire_type": 4852,
+      "in_type_table": true
+    },
+    {
       "name": "IComponentDebugHelperServer_UnregisterClientForDebug",
       "guid": "69b77abb-b87a-4eb8-b466-2f14cd40e478",
       "wire_type": 4849,
@@ -11833,8 +12357,14 @@
     },
     {
       "name": "ICraftingNotifications",
-      "guid": "5c9b9ae2-1b43-4b9f-b4d6-e952ef660e1c",
-      "wire_type": 6026,
+      "guid": "e09e2c0b-cb5d-4673-923f-eadbec7a5da8",
+      "wire_type": 2992,
+      "in_type_table": true
+    },
+    {
+      "name": "IDamageReceiverRemoteListener",
+      "guid": "93a9a50f-ba6c-4bd6-a6f9-ab680d10b5b7",
+      "wire_type": 3030,
       "in_type_table": true
     },
     {
@@ -11856,6 +12386,12 @@
       "in_type_table": false
     },
     {
+      "name": "IFactionControlMessageHandler",
+      "guid": "6008b315-4bd4-43b7-be49-5772033ae9ff",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "IFriendsDataManagerNotifications",
       "guid": "7df1c7f3-fff8-4f3f-a3b1-2737723ca37d",
       "wire_type": 4464,
@@ -11864,6 +12400,12 @@
     {
       "name": "IGCData",
       "guid": "99f04285-6549-45e5-a1c0-d3d5932b4467",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "IGameModeComponentExternalEventsHandler",
+      "guid": "103ae493-7527-46c4-87fc-9850cf43c3df",
       "wire_type": null,
       "in_type_table": false
     },
@@ -11910,6 +12452,12 @@
       "in_type_table": false
     },
     {
+      "name": "IMBRMI",
+      "guid": "164473fb-fa8f-4a8d-8957-ace50bac1b66",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "IMannequinKey",
       "guid": "c94c3df0-b68a-4da6-8b66-17ed79ec8a0c",
       "wire_type": null,
@@ -11944,12 +12492,6 @@
       "guid": "73d02b36-ceac-4c5c-b576-09e3a52b1a76",
       "wire_type": null,
       "in_type_table": false
-    },
-    {
-      "name": "IRaidListener",
-      "guid": "5276f07b-f8d7-4bd3-afc7-e74a383cd76e",
-      "wire_type": 377,
-      "in_type_table": true
     },
     {
       "name": "IRenderMesh",
@@ -11994,9 +12536,33 @@
       "in_type_table": false
     },
     {
+      "name": "ITrait",
+      "guid": "ecf37104-9c30-42c1-9ce0-7f3500085b06",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "ITranslationNotifications",
+      "guid": "59b7ddaf-aad3-4bbc-aed9-bb7f57dce5d6",
+      "wire_type": 1943,
+      "in_type_table": true
+    },
+    {
+      "name": "IUiAnimSequence",
+      "guid": "26d795dd-6732-4a2f-81a5-b17b53a3adaa",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "IdAsString",
       "guid": "b8245d3b-2fe0-4fe2-b1a9-9ef7c4fb1cc9",
       "wire_type": 2484,
+      "in_type_table": true
+    },
+    {
+      "name": "IfMannequinTag",
+      "guid": "fa63e2a4-28a5-4039-aee9-4a0ac82812ab",
+      "wire_type": 2447,
       "in_type_table": true
     },
     {
@@ -12066,10 +12632,34 @@
       "in_type_table": false
     },
     {
+      "name": "InFaction",
+      "guid": "3097a91b-7d18-4178-aad3-db1a6bba8e7b",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "InGameSurveyResponse",
       "guid": "d3f9ceac-0837-42ee-aa06-ce36f0b82ef4",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "InGridLayer",
+      "guid": "3cf28001-f009-48a6-a1a4-693b6e3f324d",
+      "wire_type": 2442,
+      "in_type_table": true
+    },
+    {
+      "name": "InGroup",
+      "guid": "9cabd4a9-7caf-4c61-86bc-a1cf119a2e05",
+      "wire_type": 5963,
+      "in_type_table": true
+    },
+    {
+      "name": "InQueue",
+      "guid": "bc101e16-4f91-4377-9c41-146498445e11",
+      "wire_type": 5701,
+      "in_type_table": true
     },
     {
       "name": "IncapacitatedCharacterComponentClientFacet",
@@ -12082,6 +12672,12 @@
       "guid": "ff66a5d5-2369-49ef-b2ae-4c424c72cf45",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "IncapacitatedCharacterComponentServerFacet_TestActivate",
+      "guid": "6e2a29b1-af9e-441c-8a71-67c409fdeebc",
+      "wire_type": 4854,
+      "in_type_table": true
     },
     {
       "name": "Include Sequence Number",
@@ -12565,8 +13161,8 @@
     },
     {
       "name": "InterestComponentClientFacet_ReceiveDebugInfo",
-      "guid": "61a35ae7-2a24-4150-99eb-3cc1aaa88b40",
-      "wire_type": 5851,
+      "guid": "d7315f98-989a-4360-ae5f-7c7aaaf2b702",
+      "wire_type": 6465,
       "in_type_table": true
     },
     {
@@ -12708,6 +13304,12 @@
       "in_type_table": true
     },
     {
+      "name": "InventoryServiceCommon",
+      "guid": "df1d04fe-c769-4a6d-8f10-c5f9eaa645d4",
+      "wire_type": 6369,
+      "in_type_table": true
+    },
+    {
       "name": "InventoryTransactionResponse",
       "guid": "c0bd9540-382c-4195-bf7e-41b41c3a9539",
       "wire_type": null,
@@ -12720,9 +13322,27 @@
       "in_type_table": false
     },
     {
+      "name": "IsMounted",
+      "guid": "b0be3fc0-0bf9-4bb1-911d-faf6d4aff5b8",
+      "wire_type": 6599,
+      "in_type_table": true
+    },
+    {
+      "name": "IsRelativeToStartPos",
+      "guid": "63111e46-2310-4f0b-b0b5-a16f1a4c4ec1",
+      "wire_type": 2498,
+      "in_type_table": true
+    },
+    {
       "name": "IsSearchRecursive",
       "guid": "2cb3bace-b8a5-4e40-8fff-da31c16bd408",
       "wire_type": 6084,
+      "in_type_table": true
+    },
+    {
+      "name": "IsSummoningMount",
+      "guid": "d4e60c03-84f8-44e4-b357-bb866014783c",
+      "wire_type": 2445,
       "in_type_table": true
     },
     {
@@ -12804,6 +13424,12 @@
       "in_type_table": false
     },
     {
+      "name": "ItemInInventory",
+      "guid": "0fb4a476-ecb5-442e-9bd1-2f6b809a72af",
+      "wire_type": 1181,
+      "in_type_table": true
+    },
+    {
       "name": "ItemKey",
       "guid": "bef72fd6-1a4c-484f-a242-f7ad12850c98",
       "wire_type": null,
@@ -12840,9 +13466,9 @@
       "in_type_table": true
     },
     {
-      "name": "ItemNameFilter",
-      "guid": "518968c5-6d00-4973-b7af-fc5244cfb66d",
-      "wire_type": 6025,
+      "name": "ItemManagementComponentServerFacet_DebugSyncData",
+      "guid": "4a3f2775-8dca-47cb-bcee-b84d5bd82fa1",
+      "wire_type": 5436,
       "in_type_table": true
     },
     {
@@ -12924,6 +13550,12 @@
       "in_type_table": true
     },
     {
+      "name": "ItemSheathed",
+      "guid": "2d61c1de-156d-46ef-b6f1-87e908dfb9be",
+      "wire_type": 1320,
+      "in_type_table": true
+    },
+    {
       "name": "ItemSkinningComponent",
       "guid": "aea91927-91be-419b-8688-68ea5294111b",
       "wire_type": null,
@@ -12957,12 +13589,6 @@
       "name": "ItemType",
       "guid": "47a1cc98-1159-41c2-b1c4-679a840d3597",
       "wire_type": 7050,
-      "in_type_table": true
-    },
-    {
-      "name": "ItemVersionData",
-      "guid": "a1e68591-fc5b-4b8d-9f3e-08bbef8b8a5f",
-      "wire_type": 5856,
       "in_type_table": true
     },
     {
@@ -13126,6 +13752,12 @@
       "guid": "a78aac62-84d0-4e2e-958e-564f51a140d2",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "JoinDungeonQueue",
+      "guid": "40a93b7b-1a9c-4177-8ac6-3757c8ae097d",
+      "wire_type": 2472,
+      "in_type_table": true
     },
     {
       "name": "JournalDataEntry",
@@ -13341,6 +13973,12 @@
       "name": "LeaderboardComponentServerFacet_OnClientLeaderboardDataRequest",
       "guid": "a57245eb-0977-4508-89ae-6399d9b36690",
       "wire_type": 5166,
+      "in_type_table": true
+    },
+    {
+      "name": "LeaderboardComponentServerFacet_OnClientLeaderboardStatDataRequest",
+      "guid": "5c0bf25e-b129-46db-a2e7-585d84b4a4b9",
+      "wire_type": 5425,
       "in_type_table": true
     },
     {
@@ -13572,15 +14210,15 @@
       "in_type_table": true
     },
     {
-      "name": "LocalPlayerDebugComponentClientFacet_SyncToggleLootResults",
-      "guid": "981bd805-e420-4444-b4c5-12abf21f2591",
-      "wire_type": 5671,
-      "in_type_table": true
-    },
-    {
       "name": "LocalPlayerDebugComponentClientFacet_SyncTogglePerkResults",
       "guid": "aa38960e-0b8f-4d1e-a99d-3010cce041b7",
       "wire_type": 7030,
+      "in_type_table": true
+    },
+    {
+      "name": "LocalPlayerDebugComponentClientFacet_UpdateClientNetTrackDebugInfo",
+      "guid": "90bc71be-382f-4d3b-9098-760b5e4f5bfc",
+      "wire_type": 5805,
       "in_type_table": true
     },
     {
@@ -13590,9 +14228,21 @@
       "in_type_table": false
     },
     {
+      "name": "LocalPlayerDebugComponentServerFacet_RequestServerNetTrackDebugInfo",
+      "guid": "d315e982-b517-4198-ada6-90c9a9256db6",
+      "wire_type": 5797,
+      "in_type_table": true
+    },
+    {
       "name": "LocalPlayerDebugComponentServerFacet_SetDebugForceLootBiasing",
       "guid": "61b2faca-decd-4d94-9d36-3779fa83f4dc",
       "wire_type": 6105,
+      "in_type_table": true
+    },
+    {
+      "name": "LocalPlayerDebugComponentServerFacet_SetDebugGlobalRollBonus",
+      "guid": "99edb7cb-d1e3-4f08-9543-4ee214fd9b51",
+      "wire_type": 5193,
       "in_type_table": true
     },
     {
@@ -13602,9 +14252,21 @@
       "in_type_table": true
     },
     {
+      "name": "LocalPlayerDebugComponentServerFacet_ToggleDebugPerkRolls",
+      "guid": "5a573908-b846-4a51-ad13-4b30787afd85",
+      "wire_type": 5354,
+      "in_type_table": true
+    },
+    {
       "name": "LocalPlayerDebugComponentServerFacet_UpdateServerNetTrackDebugInfo",
       "guid": "b6485dc5-d9bf-4213-802a-7c557c84a56d",
       "wire_type": 5804,
+      "in_type_table": true
+    },
+    {
+      "name": "LocalPlayerDebugComponentServerFacet_XperfCapture",
+      "guid": "ceee5da1-9c4b-4917-bb99-0d67e255563d",
+      "wire_type": 5712,
       "in_type_table": true
     },
     {
@@ -13630,6 +14292,12 @@
       "guid": "8e71e677-cbfb-4b13-9428-738cb158e9b6",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "LocalPresenceSubscriberTrait",
+      "guid": "23830a4a-17a7-4c90-9a93-fb939ab87a76",
+      "wire_type": 6122,
+      "in_type_table": true
     },
     {
       "name": "LockIfFort",
@@ -13746,6 +14414,12 @@
       "in_type_table": false
     },
     {
+      "name": "LootBucketDataManager",
+      "guid": "a37b66d4-73ae-4785-9f66-f80355628164",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "LootDivertEnumsRelfectionHelper",
       "guid": "91b8aef0-25fd-48fb-b1c3-4a8f29152000",
       "wire_type": null,
@@ -13836,6 +14510,12 @@
       "in_type_table": true
     },
     {
+      "name": "LootTrackerComponentServerFacet_DebugExpireLimit",
+      "guid": "503756c4-672f-4948-99ad-7e0b9c85896c",
+      "wire_type": 4760,
+      "in_type_table": true
+    },
+    {
       "name": "LootTrackerComponentServerFacet_DebugResetCollectible",
       "guid": "5006b5c3-1c23-49f8-89c8-f6ef83e20d6a",
       "wire_type": 4827,
@@ -13869,12 +14549,6 @@
       "name": "LootTrackerComponentServerFacet_DebugSyncGlobalRollMod",
       "guid": "fc01f33e-d1ea-4879-b6ce-8048a4f21e49",
       "wire_type": 4838,
-      "in_type_table": true
-    },
-    {
-      "name": "LootTrackerComponentServerFacet_DebugSyncLootLimits",
-      "guid": "dcd3c91a-176f-4b1e-9b59-4cf5b9c2fe78",
-      "wire_type": 4761,
       "in_type_table": true
     },
     {
@@ -13974,12 +14648,6 @@
       "in_type_table": false
     },
     {
-      "name": "MTX",
-      "guid": "b50fcb58-c1e3-4e35-ab2c-1cf4c8d7277e",
-      "wire_type": 1239,
-      "in_type_table": true
-    },
-    {
       "name": "MaestroModule",
       "guid": "ed1c74e6-bb73-4ac5-bd4b-91efb400baf4",
       "wire_type": null,
@@ -14034,6 +14702,12 @@
       "in_type_table": true
     },
     {
+      "name": "MakeGoodContract",
+      "guid": "ed8eb27e-69e8-4be3-ad8d-8735a3e0ff59",
+      "wire_type": 5483,
+      "in_type_table": true
+    },
+    {
       "name": "ManaComponentClientFacet",
       "guid": "85fe1088-212f-4531-a76f-b52417307a53",
       "wire_type": null,
@@ -14044,6 +14718,12 @@
       "guid": "e9d965d8-a445-4216-9802-c4a3f4dc0655",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "ManaComponentServerFacet_ForceServerSyncRequestedFromClient",
+      "guid": "408c06bb-7dfe-4338-a06e-4728a181be10",
+      "wire_type": 1790,
+      "in_type_table": true
     },
     {
       "name": "ManaState",
@@ -14062,6 +14742,12 @@
       "guid": "f1a99ed1-f7f2-4734-bcd8-e08773210fc1",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "ManifoldSystemComponent",
+      "guid": "8003dbee-685b-4b76-981c-6b56ffd6ff07",
+      "wire_type": 5439,
+      "in_type_table": true
     },
     {
       "name": "MannequinAnimationDatabaseAsset",
@@ -14102,6 +14788,12 @@
     {
       "name": "ManualTargeting",
       "guid": "b43b80ec-6554-447e-a56f-d39b948b8de4",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "Manually Stopped",
+      "guid": "7add8cf1-4c5a-46d5-b856-c70189d3dea2",
       "wire_type": null,
       "in_type_table": false
     },
@@ -14442,6 +15134,18 @@
       "in_type_table": false
     },
     {
+      "name": "MessageOverhead>",
+      "guid": "20d2224e-fac8-4f92-8c80-a30889d1c269",
+      "wire_type": 5536,
+      "in_type_table": true
+    },
+    {
+      "name": "MessageTypes::CheckMember",
+      "guid": "4976c7bb-af8e-4e62-9afe-5ebf3fd97456",
+      "wire_type": 6334,
+      "in_type_table": true
+    },
+    {
       "name": "MetaAchievementComponentClientFacet",
       "guid": "b237bbc2-582d-4653-ac87-8a62eb00f999",
       "wire_type": null,
@@ -14449,14 +15153,20 @@
     },
     {
       "name": "MetaAchievementComponentClientFacet_ClientFixupPlatformAchievements",
-      "guid": "e599d9cd-5c55-4148-94e7-3982ba087ae6",
-      "wire_type": 6461,
+      "guid": "48446d25-8ab2-4b26-af8e-598c6cf8ff0f",
+      "wire_type": 3784,
       "in_type_table": true
     },
     {
       "name": "MetaAchievementComponentClientFacet_ClientMetaAchievementsReceived",
       "guid": "e7275c18-9d88-4abf-a887-9679db941330",
       "wire_type": 3649,
+      "in_type_table": true
+    },
+    {
+      "name": "MetaAchievementComponentClientFacet_ClientMetaAchievementsUnlocked",
+      "guid": "0e0675df-853e-4bbf-a7cc-d65f3b29aef3",
+      "wire_type": 3801,
       "in_type_table": true
     },
     {
@@ -14472,6 +15182,12 @@
       "in_type_table": true
     },
     {
+      "name": "MetaAchievementComponentClientFacet_ClientReceiveMetaAchievementsProgress",
+      "guid": "ea30f48f-f57a-40bd-8d15-354dde74aa1b",
+      "wire_type": 3800,
+      "in_type_table": true
+    },
+    {
       "name": "MetaAchievementComponentClientFacet_ClientReceiveMetaAchievementsSummaryInformation",
       "guid": "c1f8c6b2-2746-489c-bb8a-0ff6037c893d",
       "wire_type": 1679,
@@ -14479,8 +15195,8 @@
     },
     {
       "name": "MetaAchievementComponentClientFacet_ClientUnlockPlatformAchievements",
-      "guid": "0aad8664-9f47-47a5-ad26-58c7bf6da470",
-      "wire_type": 6462,
+      "guid": "f7ead241-0f7e-4ec1-8d02-5bdf845535a9",
+      "wire_type": 3797,
       "in_type_table": true
     },
     {
@@ -14497,8 +15213,8 @@
     },
     {
       "name": "MetaAchievementComponentServerFacet_DEBUG_ClearMetaAchievementProgress",
-      "guid": "0e0675df-853e-4bbf-a7cc-d65f3b29aef3",
-      "wire_type": 3801,
+      "guid": "4dc331ac-e66c-45d1-95d0-2902cd4354f6",
+      "wire_type": 1108,
       "in_type_table": true
     },
     {
@@ -14523,18 +15239,6 @@
       "name": "MetaAchievementComponentServerFacet_DEBUG_ServerSetMetaAchievementProgress",
       "guid": "3730ebaa-2bd8-488f-8176-49de2564c621",
       "wire_type": 3795,
-      "in_type_table": true
-    },
-    {
-      "name": "MetaAchievementComponentServerFacet_DEBUG_UnlockSteamAchievements",
-      "guid": "f7ead241-0f7e-4ec1-8d02-5bdf845535a9",
-      "wire_type": 3797,
-      "in_type_table": true
-    },
-    {
-      "name": "MetaAchievementComponentServerFacet_RequestGetCompletedMetaAchievementsForAccount",
-      "guid": "48446d25-8ab2-4b26-af8e-598c6cf8ff0f",
-      "wire_type": 3784,
       "in_type_table": true
     },
     {
@@ -14634,6 +15338,12 @@
       "in_type_table": false
     },
     {
+      "name": "MissingResponse",
+      "guid": "42643cec-2e0e-4720-86d8-2a7a9cff1897",
+      "wire_type": 6422,
+      "in_type_table": true
+    },
+    {
       "name": "MissionDestinationData",
       "guid": "77ef8098-ed1f-40b7-91e1-b9cd98fdfce5",
       "wire_type": null,
@@ -14683,8 +15393,8 @@
     },
     {
       "name": "ModifyObjectives",
-      "guid": "960f37f8-101f-410c-9569-973c7ce7ddab",
-      "wire_type": 1215,
+      "guid": "b86cc436-915d-43a9-aeba-7623579d6ea5",
+      "wire_type": 2488,
       "in_type_table": true
     },
     {
@@ -14766,6 +15476,12 @@
       "in_type_table": false
     },
     {
+      "name": "MotionRelativeFacing::OnUpdate",
+      "guid": "a27d8b29-fece-4abe-a620-413c27ada3a0",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "MotionRelativeFacingData",
       "guid": "f93ec168-f3ef-4c01-95fd-bb96e17d04a8",
       "wire_type": null,
@@ -14790,6 +15506,12 @@
       "in_type_table": true
     },
     {
+      "name": "MountComponentClientFacet_OnDebugMaxSpeedChanged",
+      "guid": "6f27be5e-4fc8-485d-9607-f200f54af6db",
+      "wire_type": 6261,
+      "in_type_table": true
+    },
+    {
       "name": "MountComponentClientFacet_OnMountTrampleNotification",
       "guid": "315ba2c5-c867-486a-b96b-31835cc99fcc",
       "wire_type": 6731,
@@ -14811,6 +15533,18 @@
       "name": "MountComponentClientFacet_ScheduleDismount",
       "guid": "fe378617-2cca-4e7f-b75d-b69fb19757dc",
       "wire_type": 5816,
+      "in_type_table": true
+    },
+    {
+      "name": "MountComponentClientFacet_SendMountRenameNotification",
+      "guid": "cb050867-6468-4f89-b688-b409c80cd84f",
+      "wire_type": 5969,
+      "in_type_table": true
+    },
+    {
+      "name": "MountComponentClientFacet_ShowDismountNotification",
+      "guid": "a600ba0e-2c4b-4101-b313-9794858cc5e6",
+      "wire_type": 5937,
       "in_type_table": true
     },
     {
@@ -14871,6 +15605,18 @@
       "name": "MountComponentServerFacet_OnMountSlowWalkChanged",
       "guid": "f56e3380-24b5-4676-80f1-91fe2da66b2d",
       "wire_type": 6271,
+      "in_type_table": true
+    },
+    {
+      "name": "MountComponentServerFacet_OnRequestChangeMount",
+      "guid": "8883bf90-a7b0-4b49-b7cc-35451c2fa9b0",
+      "wire_type": 5619,
+      "in_type_table": true
+    },
+    {
+      "name": "MountComponentServerFacet_OnRequestCompleteSummon",
+      "guid": "f09cd09a-3d7b-40e5-aed2-cee05b294351",
+      "wire_type": 6068,
       "in_type_table": true
     },
     {
@@ -14992,6 +15738,12 @@
       "guid": "52559fa2-ccd9-4862-8784-027f265f8f59",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "MoveByOffset",
+      "guid": "960f37f8-101f-410c-9569-973c7ce7ddab",
+      "wire_type": 1215,
+      "in_type_table": true
     },
     {
       "name": "MoveIfTargetDead",
@@ -15246,6 +15998,12 @@
       "in_type_table": true
     },
     {
+      "name": "MusicalPerformancePlayerComponentServerFacet_RequestCreatePerformance",
+      "guid": "81895fff-f671-4d83-9535-94e9f8e660ff",
+      "wire_type": 4891,
+      "in_type_table": true
+    },
+    {
       "name": "MusicalPerformancePlayerComponentServerFacet_RequestEndPostShow",
       "guid": "b5409d51-90cc-4f65-8b16-535833bf42bb",
       "wire_type": 5233,
@@ -15255,6 +16013,12 @@
       "name": "MusicalPerformancePlayerComponentServerFacet_RequestLeavePerformance",
       "guid": "8174ec11-3862-4a1d-9d18-5c891691c932",
       "wire_type": 4881,
+      "in_type_table": true
+    },
+    {
+      "name": "MusicalPerformancePlayerComponentServerFacet_RequestSetClientReady",
+      "guid": "823052d2-de33-4492-803d-e0354d8574db",
+      "wire_type": 5091,
       "in_type_table": true
     },
     {
@@ -15312,6 +16076,12 @@
       "in_type_table": true
     },
     {
+      "name": "MusicalPerformancePlayerResponseMessages",
+      "guid": "3e3e3f74-5141-4c47-ac27-da60f8426a76",
+      "wire_type": 5006,
+      "in_type_table": true
+    },
+    {
       "name": "MusicalPerformancePlayerServerRuntimeData",
       "guid": "34f11200-6185-4b31-9462-ebdeb536c726",
       "wire_type": null,
@@ -15358,6 +16128,12 @@
       "guid": "1da4a8a2-9e7d-473a-95f4-73850235cfc9",
       "wire_type": 5275,
       "in_type_table": true
+    },
+    {
+      "name": "MutatorsCursesData",
+      "guid": "88c429b5-68c6-450c-a657-b2b06333cf27",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "MutatorsScoringData",
@@ -15418,6 +16194,12 @@
       "guid": "a2eaa879-b604-4d9a-920a-9447155f98ae",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "NPCWaypointSetComponent",
+      "guid": "094f8e16-9d68-40f9-aadd-335c3496a0e8",
+      "wire_type": 6495,
+      "in_type_table": true
     },
     {
       "name": "NPCWaypointSetGroup",
@@ -15588,6 +16370,12 @@
       "in_type_table": false
     },
     {
+      "name": "NetBindable",
+      "guid": "71f9d30e-13f7-40d6-a3c9-e5358004b31f",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "NetBindingComponent",
       "guid": "e9ca5d63-ed2d-4b59-b3c4-ebcd4a0013e4",
       "wire_type": null,
@@ -15690,6 +16478,12 @@
       "in_type_table": false
     },
     {
+      "name": "Not acceptable operator value",
+      "guid": "115b0c85-9770-43f8-9a21-716f25378143",
+      "wire_type": 5962,
+      "in_type_table": true
+    },
+    {
       "name": "NotificationBusHandler",
       "guid": "e43936a1-2ba8-4c0c-b873-67f6ec300b20",
       "wire_type": null,
@@ -15726,6 +16520,12 @@
       "in_type_table": true
     },
     {
+      "name": "NotifyHubCrashTrait::State",
+      "guid": "8de0be19-b832-4c6c-984e-586e36458596",
+      "wire_type": 496,
+      "in_type_table": true
+    },
+    {
       "name": "NpcComponentClientFacet",
       "guid": "3f951efe-465d-42e9-a3c1-95ba55ba55a4",
       "wire_type": null,
@@ -15744,10 +16544,22 @@
       "in_type_table": false
     },
     {
+      "name": "NumEntitiesFound",
+      "guid": "ebbd11ad-a54c-4816-872b-5a8a46f74407",
+      "wire_type": 6525,
+      "in_type_table": true
+    },
+    {
       "name": "NumStates",
       "guid": "aaccfe35-aab5-44d4-a61b-2614631a2917",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "NumValues",
+      "guid": "ffd991d6-bb79-4ef8-8c6a-36d80157628b",
+      "wire_type": 4987,
+      "in_type_table": true
     },
     {
       "name": "Obb",
@@ -15984,6 +16796,12 @@
       "in_type_table": true
     },
     {
+      "name": "ObjectivesComponentServerFacet_DebugDisableReleaseForObjectiveInstanceId",
+      "guid": "7b378aa6-a17e-4bd9-ab18-b2758162c91b",
+      "wire_type": 3484,
+      "in_type_table": true
+    },
+    {
       "name": "ObjectivesComponentServerFacet_DebugEnableReleaseForObjectiveInstanceId",
       "guid": "705e806f-a227-4018-83d8-fbe13deea1d5",
       "wire_type": 1436,
@@ -16206,6 +17024,12 @@
       "in_type_table": false
     },
     {
+      "name": "OnlyDisableIfTargetingFriendlies",
+      "guid": "15dcf654-9015-4593-9dfd-87a02e69c493",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "OnlyIfNotSet",
       "guid": "93192450-b6b3-4710-8eaa-38a77e8062f0",
       "wire_type": 1177,
@@ -16410,6 +17234,12 @@
       "in_type_table": false
     },
     {
+      "name": "P2PTradeComponentClientFacet_OnCancelOfferLockInResponse",
+      "guid": "b2fad1d8-c2ea-4cf3-95a6-650b726aff3b",
+      "wire_type": 5264,
+      "in_type_table": true
+    },
+    {
       "name": "P2PTradeComponentClientFacet_OnConfirmTradeResponse",
       "guid": "ddabe218-601a-4b38-a1a0-6bbbd6bd46e5",
       "wire_type": 4254,
@@ -16470,6 +17300,12 @@
       "in_type_table": false
     },
     {
+      "name": "P2PTradeComponentServerFacet_CancelOfferLockIn",
+      "guid": "57bbb19f-473c-4659-b254-466d18f6645e",
+      "wire_type": 5263,
+      "in_type_table": true
+    },
+    {
       "name": "P2PTradeComponentServerFacet_CancelTrade",
       "guid": "017c1fc4-f336-491d-a60a-fa9675e54a81",
       "wire_type": 4252,
@@ -16512,9 +17348,21 @@
       "in_type_table": false
     },
     {
-      "name": "POISpawnerTrait",
-      "guid": "28a1b63c-7820-4992-8682-414d26843c1e",
-      "wire_type": 6449,
+      "name": "PRODUCT",
+      "guid": "e76c899c-f276-4b3e-a5b8-3e18657b1b97",
+      "wire_type": 6540,
+      "in_type_table": true
+    },
+    {
+      "name": "PUGActivityInfo",
+      "guid": "878055b1-f79a-45ee-ba48-7d4438bd160f",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "PVPFlag",
+      "guid": "c72fb744-ca51-44f8-bf3f-d972b858a8d8",
+      "wire_type": 1806,
       "in_type_table": true
     },
     {
@@ -16530,15 +17378,51 @@
       "in_type_table": false
     },
     {
+      "name": "PaperdollComponentClientFacet_DebugSyncAverageArmorGS",
+      "guid": "f7e3ac89-4e8f-47ac-b5f1-03a406bc0a4d",
+      "wire_type": 3690,
+      "in_type_table": true
+    },
+    {
+      "name": "PaperdollComponentClientFacet_OnEquipItemFail",
+      "guid": "5c40a053-f92b-446f-aafa-6f9c819df06e",
+      "wire_type": 3626,
+      "in_type_table": true
+    },
+    {
+      "name": "PaperdollComponentClientFacet_SendLoadoutStatusNotification",
+      "guid": "aa1c3dfe-a7e9-47cb-acc5-87d4c8cf3140",
+      "wire_type": 5745,
+      "in_type_table": true
+    },
+    {
       "name": "PaperdollComponentServerFacet",
       "guid": "aca8ab76-ae4f-421e-9787-388715c262a1",
       "wire_type": null,
       "in_type_table": false
     },
     {
-      "name": "PaperdollComponentServerFacet_DebugSetLoadedAmmo",
-      "guid": "77a81f98-371e-47a2-b64b-537c7b9a5f18",
-      "wire_type": 4813,
+      "name": "PaperdollComponentServerFacet_DebugSetIgnoreDurabilityLoss",
+      "guid": "9425f33f-3934-4323-8250-65e14ac86ed2",
+      "wire_type": 6124,
+      "in_type_table": true
+    },
+    {
+      "name": "PaperdollComponentServerFacet_RequestAddItemToLoadouts",
+      "guid": "a37cf769-a46a-4dbd-8bf6-6404b3488fb7",
+      "wire_type": 5579,
+      "in_type_table": true
+    },
+    {
+      "name": "PaperdollComponentServerFacet_RequestAddLoadout",
+      "guid": "434ef5f1-2f6d-499f-a55f-70ede8e23267",
+      "wire_type": 5441,
+      "in_type_table": true
+    },
+    {
+      "name": "PaperdollComponentServerFacet_RequestRemoveAllItemsFromLoadout",
+      "guid": "4376a82b-fe47-49e7-bc22-d280d9724573",
+      "wire_type": 5427,
       "in_type_table": true
     },
     {
@@ -16548,15 +17432,39 @@
       "in_type_table": true
     },
     {
+      "name": "PaperdollComponentServerFacet_RequestRenameLoadout",
+      "guid": "0014e7c7-4941-4f0d-ad9d-5c961fdd6e9c",
+      "wire_type": 5487,
+      "in_type_table": true
+    },
+    {
       "name": "PaperdollComponentServerFacet_RequestSetIsLoadoutPanelOpen",
       "guid": "9dc360cc-2a14-4483-b5b5-cbd5e3298412",
       "wire_type": 5578,
       "in_type_table": true
     },
     {
-      "name": "PaperdollComponentServerFacet_RequestSwitchToLoadout",
-      "guid": "e5aa5b43-f801-452f-8aa5-1f26c5d7549f",
-      "wire_type": 1407,
+      "name": "PaperdollComponentServerFacet_ServerEquipAllItems",
+      "guid": "55d1164c-fb61-4c09-b6da-67c3e9424c47",
+      "wire_type": 5515,
+      "in_type_table": true
+    },
+    {
+      "name": "PaperdollComponentServerFacet_ServerUnequipItem",
+      "guid": "9842bde5-2a7d-4388-b128-524347a9e18e",
+      "wire_type": 1624,
+      "in_type_table": true
+    },
+    {
+      "name": "PaperdollComponentServerFacet_SetHidingSkinOnSlot",
+      "guid": "a7177e99-38f8-4576-83e8-93fd6c19eb57",
+      "wire_type": 5978,
+      "in_type_table": true
+    },
+    {
+      "name": "PaperdollComponentServerFacet_UnequipAllItems",
+      "guid": "86fc699d-4c28-466b-9725-9bac10ec7848",
+      "wire_type": 5955,
       "in_type_table": true
     },
     {
@@ -16632,6 +17540,12 @@
       "in_type_table": false
     },
     {
+      "name": "Participants",
+      "guid": "a1e68591-fc5b-4b8d-9f3e-08bbef8b8a5f",
+      "wire_type": 5856,
+      "in_type_table": true
+    },
+    {
       "name": "ParticleAsset",
       "guid": "6eb56b55-1b58-4ee3-a268-27680338ae56",
       "wire_type": null,
@@ -16676,6 +17590,12 @@
     {
       "name": "ParticleManager",
       "guid": "e7d76e3e-e6af-4eb0-b015-a2c5e2e5c25d",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "PassiveBatchCastQueryTrait::State",
+      "guid": "c415acf9-d30e-4688-905e-9259dea8aae4",
       "wire_type": null,
       "in_type_table": false
     },
@@ -16782,18 +17702,6 @@
       "in_type_table": false
     },
     {
-      "name": "PenaltyMessage",
-      "guid": "df1d04fe-c769-4a6d-8f10-c5f9eaa645d4",
-      "wire_type": 6369,
-      "in_type_table": true
-    },
-    {
-      "name": "Pending",
-      "guid": "6df716e6-126c-430e-b7fb-2cb3334d1296",
-      "wire_type": 6464,
-      "in_type_table": true
-    },
-    {
       "name": "PendingInventoriesRequestGroup<Javelin::InventoryService::AcknowledgeTransactionsRequest>",
       "guid": "12701336-bd7e-4ab8-b72e-4c9066f8929e",
       "wire_type": null,
@@ -16872,6 +17780,12 @@
       "in_type_table": false
     },
     {
+      "name": "PerformMusicAction",
+      "guid": "e90c3067-08a3-47dc-a2e9-65690303c44c",
+      "wire_type": 2512,
+      "in_type_table": true
+    },
+    {
       "name": "PerformPlayerActionTutorialStep",
       "guid": "77304152-4f4c-4021-8d59-4b6f56f26b8b",
       "wire_type": null,
@@ -16914,6 +17828,12 @@
       "in_type_table": false
     },
     {
+      "name": "PerkExclusiveLabelData",
+      "guid": "5aa204c2-6642-45cc-b473-d7f40a4abbbd",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "PerkGenerationData",
       "guid": "f9944c92-939c-4f11-b809-106ee60e48e9",
       "wire_type": null,
@@ -16948,6 +17868,12 @@
       "guid": "9ee5b681-f3c5-4b02-a42c-cacf54931da9",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "PersistenceSpawnerTrait",
+      "guid": "6a084040-418b-4d75-8d54-cb0b45197d1d",
+      "wire_type": 6662,
+      "in_type_table": true
     },
     {
       "name": "PersistentAbilitiesData",
@@ -17400,6 +18326,12 @@
       "in_type_table": false
     },
     {
+      "name": "PhasingGridCoordinatorTrait::State",
+      "guid": "c311d90e-3b0b-437d-b3db-d93756cddda6",
+      "wire_type": 6166,
+      "in_type_table": true
+    },
+    {
       "name": "PhysicalEntityTypesHolder",
       "guid": "0d6ff6ab-3c2b-4d44-a6ca-b3c41478ef94",
       "wire_type": null,
@@ -17574,10 +18506,34 @@
       "in_type_table": false
     },
     {
+      "name": "PlayerAppearanceComponentClientFacet_OnPurchaseError",
+      "guid": "1fc7a04b-048a-40bd-b7c0-64f8bbb39032",
+      "wire_type": 6436,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerAppearanceComponentClientFacet_OnPurchaseSuccess",
+      "guid": "d613688c-c174-4a20-b2fc-1beafc5d96a6",
+      "wire_type": 6855,
+      "in_type_table": true
+    },
+    {
       "name": "PlayerAppearanceComponentServerFacet",
       "guid": "b78af646-54cf-9f0f-3f9f-62a7d885835e",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "PlayerAppearanceComponentServerFacet_DebugSetAppearance",
+      "guid": "00fbd72a-917c-4f04-8c6c-94689e568ae4",
+      "wire_type": 6412,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerAppearanceComponentServerFacet_PurchaseAppearanceChange",
+      "guid": "aaa751af-844e-4dc1-80c9-ae261542819c",
+      "wire_type": 6420,
+      "in_type_table": true
     },
     {
       "name": "PlayerAppearanceSummary",
@@ -17616,6 +18572,12 @@
       "in_type_table": true
     },
     {
+      "name": "PlayerArenaComponentClientFacet_OnRemoteInteractResult",
+      "guid": "f69cc656-ce69-458c-b5fe-1b8f5b629bd4",
+      "wire_type": 5038,
+      "in_type_table": true
+    },
+    {
       "name": "PlayerArenaComponentServerFacet",
       "guid": "c0c2af6a-e702-4b25-9345-6394ece95c94",
       "wire_type": null,
@@ -17637,6 +18599,12 @@
       "name": "PlayerArenaComponentServerFacet_ForfeitArena",
       "guid": "f24c95b5-cfe8-4e01-8539-a9c154075810",
       "wire_type": 926,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerArenaComponentServerFacet_NotifyPlayerOfFtueQTECompletion",
+      "guid": "9716247b-a013-4006-87be-14b5a4af5dc8",
+      "wire_type": 6638,
       "in_type_table": true
     },
     {
@@ -17700,6 +18668,12 @@
       "in_type_table": false
     },
     {
+      "name": "PlayerComponentClientFacet_OnDebugReceiveAccountAge",
+      "guid": "3282bff0-3dd0-4e21-b123-78e98fec15f8",
+      "wire_type": 4843,
+      "in_type_table": true
+    },
+    {
       "name": "PlayerComponentClientFacet_OnTeleportRequestFailedOrCancelled",
       "guid": "d222e6be-3e07-40af-9326-27f0b117e95d",
       "wire_type": 7022,
@@ -17718,15 +18692,33 @@
       "in_type_table": false
     },
     {
-      "name": "PlayerComponentServerFacet_DebugForceUpdateDailyWarCount",
-      "guid": "a7177e99-38f8-4576-83e8-93fd6c19eb57",
-      "wire_type": 5978,
+      "name": "PlayerComponentServerFacet_DebugCancelTeleportRequest",
+      "guid": "15e7a5f6-aa2d-4cf3-93b3-0fb16061cdf9",
+      "wire_type": 3736,
       "in_type_table": true
     },
     {
-      "name": "PlayerComponentServerFacet_DebugSetMatchId",
-      "guid": "86fc699d-4c28-466b-9725-9bac10ec7848",
-      "wire_type": 5955,
+      "name": "PlayerComponentServerFacet_DebugRequestAccountAge",
+      "guid": "c3f077e5-6073-420d-8be2-799280a8b2c6",
+      "wire_type": 4842,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerComponentServerFacet_DebugRequestKick",
+      "guid": "a923ed9d-4d00-4d10-a557-f38861ecff70",
+      "wire_type": 4997,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerComponentServerFacet_DebugRequestOverpopulationTeleportMetadata",
+      "guid": "a066596d-f728-4803-a9a6-24e391e0007e",
+      "wire_type": 961,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerComponentServerFacet_DebugSetAccountAge",
+      "guid": "cd4a26ab-57ed-4e34-8f2d-33eb6b8dc1ac",
+      "wire_type": 4845,
       "in_type_table": true
     },
     {
@@ -17736,15 +18728,39 @@
       "in_type_table": true
     },
     {
+      "name": "PlayerComponentServerFacet_OnAckLevelInfoChanged",
+      "guid": "971ddbb2-67db-4beb-9632-85851d0ee00e",
+      "wire_type": 5181,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerComponentServerFacet_RequestImmediateOverpopulationTeleport",
+      "guid": "f16351a1-4c2c-419a-bb9a-df1e405661bb",
+      "wire_type": 2479,
+      "in_type_table": true
+    },
+    {
       "name": "PlayerComponentServerFacet_RequestRespawn",
       "guid": "b8cb56a0-da92-4bc8-b0d0-ad896a9ed359",
       "wire_type": 6113,
       "in_type_table": true
     },
     {
+      "name": "PlayerComponentServerFacet_RequestSetIsArmorDyeingOpen",
+      "guid": "a4d20874-d708-46b4-aa10-f124fdd6df68",
+      "wire_type": 6486,
+      "in_type_table": true
+    },
+    {
       "name": "PlayerComponentServerFacet_RequestSetIsInMountAttachmentMode",
       "guid": "d32955b8-3dae-4915-8bdb-1aa0d591c679",
       "wire_type": 6392,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerComponentServerFacet_RequestSyncGatherBanEnd",
+      "guid": "df8cb86f-fc92-44d3-9f10-3a72d24fb1a8",
+      "wire_type": 6470,
       "in_type_table": true
     },
     {
@@ -17842,6 +18858,12 @@
       "guid": "2d2bf21d-ee16-47fe-a933-88724c9c9fde",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "PlayerGenericInviteComponentServerFacet_RequestReplyToInvite",
+      "guid": "a02118e0-94ab-4945-b421-1fabfb0c4806",
+      "wire_type": 3408,
+      "in_type_table": true
     },
     {
       "name": "PlayerHomeComponent",
@@ -17994,9 +19016,21 @@
       "in_type_table": true
     },
     {
+      "name": "PlayerHousingComponentServerFacet_DebugClearStanding",
+      "guid": "f3273e6c-cc25-43b1-8da0-cffb7c657af7",
+      "wire_type": 5102,
+      "in_type_table": true
+    },
+    {
       "name": "PlayerHousingComponentServerFacet_DebugForceHandshake",
       "guid": "293d7817-5b69-4f6d-ba7b-d6ae14ca95b1",
       "wire_type": 4857,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerHousingComponentServerFacet_DebugForceRestore",
+      "guid": "5b1a57e0-0e40-4530-bc75-7e251caabef3",
+      "wire_type": 4858,
       "in_type_table": true
     },
     {
@@ -18006,9 +19040,21 @@
       "in_type_table": true
     },
     {
+      "name": "PlayerHousingComponentServerFacet_DebugUnloadAllHouses",
+      "guid": "63868f71-99c6-4eb1-abc2-63aec52957dd",
+      "wire_type": 6966,
+      "in_type_table": true
+    },
+    {
       "name": "PlayerHousingComponentServerFacet_InteractWithHousingItem",
       "guid": "56498ac7-43e1-4fe4-be5c-c2e270ce4309",
       "wire_type": 3730,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerHousingComponentServerFacet_OnInteractWithHousingItemEnded",
+      "guid": "bd8c0f88-71ae-4634-8845-6c5654667f32",
+      "wire_type": 695,
       "in_type_table": true
     },
     {
@@ -18048,15 +19094,9 @@
       "in_type_table": false
     },
     {
-      "name": "PlayerManagerRedirectorTrait::State",
-      "guid": "9b4384f7-3586-45e4-afcb-c168a32aa3f1",
-      "wire_type": null,
-      "in_type_table": false
-    },
-    {
-      "name": "PlayerManagerTrait",
-      "guid": "ffd991d6-bb79-4ef8-8c6a-36d80157628b",
-      "wire_type": 4987,
+      "name": "PlayerManagerDebugTrait",
+      "guid": "2b06028b-6179-4116-b8bb-5be03aae428f",
+      "wire_type": 5480,
       "in_type_table": true
     },
     {
@@ -18132,6 +19172,12 @@
       "in_type_table": false
     },
     {
+      "name": "PlayerPresenceTrackingTrait",
+      "guid": "61a35ae7-2a24-4150-99eb-3cc1aaa88b40",
+      "wire_type": 5851,
+      "in_type_table": true
+    },
+    {
       "name": "PlayerQuickCourseComponent",
       "guid": "c3e7adf7-4b15-48ba-8bd9-96c18d13b029",
       "wire_type": null,
@@ -18148,6 +19194,12 @@
       "guid": "75cb5448-73d2-4531-ae89-9f69d923837f",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "PlayerReceiverTrait",
+      "guid": "7be8fedb-8a86-48a3-8e55-76ae28350ef4",
+      "wire_type": 6140,
+      "in_type_table": true
     },
     {
       "name": "PlayerSaveData",
@@ -18178,6 +19230,18 @@
       "guid": "297025e7-4e2f-4627-afcf-45b885f26fdb",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "PlayerSpawnPointRequestTrait",
+      "guid": "e4f6b709-c218-47bd-8dce-9eec2f605db8",
+      "wire_type": 1910,
+      "in_type_table": true
+    },
+    {
+      "name": "PlayerSpawnPointResponseTrait::State",
+      "guid": "4cf74e06-e425-4d13-ae49-7b69f7a75375",
+      "wire_type": 6434,
+      "in_type_table": true
     },
     {
       "name": "PlayerTeleportContextRelfectionHelper",
@@ -18444,6 +19508,12 @@
       "in_type_table": false
     },
     {
+      "name": "Position Offset",
+      "guid": "91b8850b-3bdf-1d1f-16bb-4b7cb8ddc4e1",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "PositionInTheWorldComponentClientFacet",
       "guid": "e496f4b6-65ed-409d-ada5-201e14b27b9d",
       "wire_type": null,
@@ -18476,6 +19546,12 @@
     {
       "name": "PositionalTicketingComponentServerFacet",
       "guid": "8432a24f-cfaa-40d5-bbbe-fe8245936f8c",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "Post3DRenderer",
+      "guid": "51d0c018-a092-4e50-ae09-64dd432c6fc5",
       "wire_type": null,
       "in_type_table": false
     },
@@ -18536,6 +19612,12 @@
     {
       "name": "PrefabSpawnRandomizerServerFacet",
       "guid": "1f1edc51-4ba1-4ccc-ab56-ef5ef44729b3",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "PrefabSpawnRequestTrait: Duplicate GDEID detected, spawn denied",
+      "guid": "c9acc0e6-abd0-4557-a3e5-40cd7d4b9719",
       "wire_type": null,
       "in_type_table": false
     },
@@ -18774,6 +19856,12 @@
       "in_type_table": false
     },
     {
+      "name": "ProjectileSpawnerComponentClientFacet_OnServerSpawnAuthoritativeProjectile",
+      "guid": "9fc6383e-f50e-4cd6-ba36-17875049402d",
+      "wire_type": 2051,
+      "in_type_table": true
+    },
+    {
       "name": "ProjectileSpawnerComponentServerFacet",
       "guid": "dc02dacc-5315-4f5c-821d-5f8e40a4dd05",
       "wire_type": null,
@@ -18820,6 +19908,12 @@
       "guid": "a0e0689e-16c2-4e2f-9a4e-ee9f47ba6726",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "PublicWorldStatusChanged",
+      "guid": "2c9ac1ab-053d-4a17-9365-d661f3845a70",
+      "wire_type": 4797,
+      "in_type_table": true
     },
     {
       "name": "PublishedSocialData",
@@ -18930,14 +20024,128 @@
       "in_type_table": false
     },
     {
+      "name": "QuestAdianaData",
+      "guid": "85ab5c7f-6516-40c0-af6c-a82d6ee461dc",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestApophisData",
+      "guid": "a98c80e1-50ca-4a5f-9d7d-ff13d1165577",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestCaerDunData",
+      "guid": "351fd902-d73d-4ecb-a689-ac95d2619a19",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "QuestData",
       "guid": "a69e6733-2e03-4903-9e03-50778efe9fc0",
       "wire_type": null,
       "in_type_table": false
     },
     {
+      "name": "QuestDraculaData",
+      "guid": "b5faa2d9-50df-4602-89e6-767f8b6895f4",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestEmpressZhouData",
+      "guid": "0bacc115-3a1d-427a-8d0d-cec33b6f3ffc",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestGawainData",
+      "guid": "26b75478-90cd-4ee4-b3ee-68c4dbdf301b",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestHeartforgeData",
+      "guid": "e16faf44-43b8-4185-afb4-9702720eb212",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestIsabellaData",
+      "guid": "1463216e-2544-48cd-bec9-a8399535bff7",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestLiangData",
+      "guid": "fc64c2d7-e66f-4d2a-8982-43edd836c270",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestMammothData",
+      "guid": "7ab5871d-2360-4ce8-a9e9-c63eb70f7675",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestMedeaData",
+      "guid": "bb4b86e8-b8cd-444e-8e7d-79a6030e7b09",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestMedusaData",
+      "guid": "210cf69a-a66c-439e-95d3-9f77dcefff33",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestMorgaineData",
+      "guid": "60cf8ca3-94c3-4e5a-9fdf-dff11db224eb",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestMotherwellData",
+      "guid": "d8cdbd6c-ba6f-4945-9fb8-829a841c0298",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestNihiloData",
+      "guid": "8ae6433e-7440-40af-8a1d-14b2b539d239",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestSeraphimData",
+      "guid": "572333f7-5507-4907-9571-6925c7dd8c97",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "QuestSystemComponent",
       "guid": "474c5f5e-459e-4aa7-9691-cfa81c4ae7f3",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestVarlaamData",
+      "guid": "8a0f94d4-3b2c-4107-b57d-a44409f6af1e",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestWolfData",
+      "guid": "da61e78a-b1a6-41d8-802d-18ce156ac9a4",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "QuestYonasData",
+      "guid": "f2c5e927-aee4-43f1-b052-d5c2f5bd2090",
       "wire_type": null,
       "in_type_table": false
     },
@@ -18952,6 +20160,12 @@
       "guid": "1264c2db-8065-4687-a3a1-ef568bb4f595",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "QueuePollingActor",
+      "guid": "2e2f2513-7749-4db0-83a4-2c403807ef10",
+      "wire_type": 6636,
+      "in_type_table": true
     },
     {
       "name": "QuickCourseNode",
@@ -19022,6 +20236,12 @@
     {
       "name": "RagDollConstraintWrapper",
       "guid": "14f74513-e92a-4872-bee8-565abec8e93d",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "RaidCutlassKeys00Data",
+      "guid": "d02b8c2e-e670-4cad-ba43-05415ef2a697",
       "wire_type": null,
       "in_type_table": false
     },
@@ -19356,6 +20576,12 @@
       "in_type_table": false
     },
     {
+      "name": "RedeemSeasonsRewardsTransactionDetails",
+      "guid": "b58033e9-2005-4acc-b9f1-fa95ca8111ea",
+      "wire_type": 5631,
+      "in_type_table": true
+    },
+    {
       "name": "ReferenceBase",
       "guid": "51239399-42df-47c6-886d-f75e2862174c",
       "wire_type": null,
@@ -19410,6 +20636,12 @@
       "in_type_table": false
     },
     {
+      "name": "Regional",
+      "guid": "c3337868-2f4c-44a0-9454-2d601d3f7590",
+      "wire_type": 1540,
+      "in_type_table": true
+    },
+    {
       "name": "RegisterCheckCountdown",
       "guid": "b10bedd2-556d-4107-a755-779fa91d6bc4",
       "wire_type": 6512,
@@ -19434,10 +20666,28 @@
       "in_type_table": false
     },
     {
+      "name": "RegistryEntityDead",
+      "guid": "699e80a9-f24b-4be8-bc85-7ce7272893d1",
+      "wire_type": 5004,
+      "in_type_table": true
+    },
+    {
+      "name": "RegistryEntityInRange",
+      "guid": "07d3468d-a2cc-4073-8206-d1fbe03a3a4a",
+      "wire_type": 1734,
+      "in_type_table": true
+    },
+    {
+      "name": "RegistryEntityValid",
+      "guid": "33f04c9f-2372-4a48-a8ba-8f828cc5750e",
+      "wire_type": 2313,
+      "in_type_table": true
+    },
+    {
       "name": "RegistryValueString",
-      "guid": "a4cf5c98-487e-4db9-ac48-9698f965688d",
-      "wire_type": null,
-      "in_type_table": false
+      "guid": "eaf77423-3665-4441-b167-2218a665539e",
+      "wire_type": 445,
+      "in_type_table": true
     },
     {
       "name": "Reload",
@@ -19552,6 +20802,12 @@
       "guid": "d57bf2f1-5df9-4a59-a25a-678954ec9635",
       "wire_type": 1962,
       "in_type_table": true
+    },
+    {
+      "name": "Removing all fragment observations for ",
+      "guid": "97ef5c7f-62e2-4837-9931-374b2dbb2037",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "RenderGuildFlagComponent",
@@ -19896,6 +21152,12 @@
       "in_type_table": true
     },
     {
+      "name": "ReturnValueString",
+      "guid": "f83b557b-9ed2-40ec-89b7-ea1ed606d621",
+      "wire_type": 5113,
+      "in_type_table": true
+    },
+    {
       "name": "ReusableScoreboardComponent",
       "guid": "3e58abf2-395b-4714-8fc3-564a9db71533",
       "wire_type": null,
@@ -19944,6 +21206,12 @@
       "in_type_table": false
     },
     {
+      "name": "RewardDataManager",
+      "guid": "a83cc263-83da-4fec-8a70-63bb74d21875",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "RewardTrackComponent",
       "guid": "8b53a647-2d32-4bc4-8d70-c8e0b8361190",
       "wire_type": null,
@@ -19962,6 +21230,12 @@
       "in_type_table": false
     },
     {
+      "name": "RewardTrackComponentServerFacet_DebugForceSpecificRewards",
+      "guid": "a955dba3-e81b-4d4b-ab9c-983e4dc473ff",
+      "wire_type": 4945,
+      "in_type_table": true
+    },
+    {
       "name": "RewardTrackComponentServerFacet_DebugRefreshRewards",
       "guid": "360b0808-bf7a-4c1a-8971-107c63156c1e",
       "wire_type": 4933,
@@ -19969,8 +21243,8 @@
     },
     {
       "name": "RewardTrackComponentServerFacet_DebugSetTrackCount",
-      "guid": "f149f3c9-ee18-451b-b3e2-459311314a14",
-      "wire_type": 4912,
+      "guid": "dcd3c91a-176f-4b1e-9b59-4cf5b9c2fe78",
+      "wire_type": 4761,
       "in_type_table": true
     },
     {
@@ -19980,10 +21254,22 @@
       "in_type_table": true
     },
     {
+      "name": "RewardTrackComponentServerFacet_RequestPurchaseReward",
+      "guid": "ac1431a8-d6fa-4b9a-99fb-cb17b6cd6840",
+      "wire_type": 4932,
+      "in_type_table": true
+    },
+    {
       "name": "RewardTrackComponentServerFacet_RequestResetRewardTrack",
       "guid": "78959e84-2b4f-4509-8278-6e62f2084149",
       "wire_type": 4910,
       "in_type_table": true
+    },
+    {
+      "name": "RewardTrackItemData",
+      "guid": "554939bd-34db-413d-b63e-68b8f1ce1fc8",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "RigidBodyComponent",
@@ -20160,10 +21446,22 @@
       "in_type_table": false
     },
     {
+      "name": "RunBMS",
+      "guid": "b250fadf-9f76-48d1-a21b-898352cdf843",
+      "wire_type": 314,
+      "in_type_table": true
+    },
+    {
       "name": "RunFxScriptData",
       "guid": "10037076-5739-4241-877e-e037879a2cf0",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "S2STokenRefreshMessages",
+      "guid": "4c624824-3fa9-498c-95f7-c2bfad445294",
+      "wire_type": 6501,
+      "in_type_table": true
     },
     {
       "name": "SBItemClass",
@@ -20202,6 +21500,18 @@
       "in_type_table": false
     },
     {
+      "name": "STAT_MULTIPLIER_END",
+      "guid": "b715b520-5fc0-4245-84e7-7d974b8410f8",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "SafeClientMessage",
+      "guid": "c1e72717-fe3c-4683-b4c2-fc926549ce1f",
+      "wire_type": 5853,
+      "in_type_table": true
+    },
+    {
       "name": "SafeCraftingEventData",
       "guid": "a9f30fad-f4d9-4b3b-aa41-e93481bfe42a",
       "wire_type": null,
@@ -20224,6 +21534,12 @@
       "guid": "24ac37f4-a9d3-4364-899d-bf26503bb9c7",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "SampleDungeonMaster",
+      "guid": "65b9fbac-ef50-416b-b783-7f1a9f33b29d",
+      "wire_type": 1997,
+      "in_type_table": true
     },
     {
       "name": "SandComponent",
@@ -20538,6 +21854,12 @@
       "in_type_table": false
     },
     {
+      "name": "SculpturePuzzleData",
+      "guid": "38ae8577-52b3-4b4a-aaa1-78988d531cc2",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "SearchAggregateContractsRequestPayload",
       "guid": "5d53f46e-195b-4492-8dd2-653d52781bb4",
       "wire_type": null,
@@ -20578,12 +21900,6 @@
       "guid": "c63e69bf-67ca-4ed1-a581-d1e46a3d86ba",
       "wire_type": null,
       "in_type_table": false
-    },
-    {
-      "name": "Seasonal",
-      "guid": "775bf059-5e48-4d94-9c87-e0a136772314",
-      "wire_type": 1993,
-      "in_type_table": true
     },
     {
       "name": "SeasonsEntitlementInfo",
@@ -20650,6 +21966,12 @@
       "guid": "5e141163-ba46-4559-b4c8-d56ca8121551",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "SeasonsRewardsComponentClientFacet_DEBUG_OnPremiumStatusChanged",
+      "guid": "8000a304-afb7-4df0-9e63-7201fc15e758",
+      "wire_type": 5806,
+      "in_type_table": true
     },
     {
       "name": "SeasonsRewardsComponentClientFacet_DEBUG_OnRequestUpdateAccountXp",
@@ -20736,6 +22058,12 @@
       "in_type_table": true
     },
     {
+      "name": "SeasonsRewardsComponentServerFacet_ActivitiesRequestStampSquareDEBUG",
+      "guid": "004de0db-9555-42ac-9041-21803582ffa7",
+      "wire_type": 5587,
+      "in_type_table": true
+    },
+    {
       "name": "SeasonsRewardsComponentServerFacet_ActivitiesRerollTasksDEBUG",
       "guid": "b08cdefb-ce8e-4835-91bb-a8f9fc0fb6ac",
       "wire_type": 5630,
@@ -20769,12 +22097,6 @@
       "name": "SeasonsRewardsComponentServerFacet_DEBUG_AddAllTaskProgress",
       "guid": "8582dc55-4342-40ae-993b-8effca7cda57",
       "wire_type": 5703,
-      "in_type_table": true
-    },
-    {
-      "name": "SeasonsRewardsComponentServerFacet_DEBUG_AddTaskProgress",
-      "guid": "b58033e9-2005-4acc-b9f1-fa95ca8111ea",
-      "wire_type": 5631,
       "in_type_table": true
     },
     {
@@ -20856,6 +22178,12 @@
       "in_type_table": true
     },
     {
+      "name": "SeasonsRewardsComponentServerFacet_DEBUG_RequestResetFirstCharacterConnectTime",
+      "guid": "81fbe4c5-10ee-45f0-b64e-2fdb0322c2c9",
+      "wire_type": 6669,
+      "in_type_table": true
+    },
+    {
       "name": "SeasonsRewardsComponentServerFacet_DEBUG_RequestSeasonsReport",
       "guid": "420a7444-ff73-47f5-a5ac-707b833a1c65",
       "wire_type": 5864,
@@ -20877,6 +22205,12 @@
       "name": "SeasonsRewardsComponentServerFacet_DEBUG_ResetJourneyTasks",
       "guid": "ce8e1554-f799-4525-bb75-8e6af1ebde5c",
       "wire_type": 5609,
+      "in_type_table": true
+    },
+    {
+      "name": "SeasonsRewardsComponentServerFacet_DEBUG_ResetSeasonsPersistence",
+      "guid": "c430a839-7e90-4101-9cf2-279d3b396af3",
+      "wire_type": 5724,
       "in_type_table": true
     },
     {
@@ -20964,6 +22298,12 @@
       "in_type_table": false
     },
     {
+      "name": "SelectWeapon",
+      "guid": "099b2128-4652-4a2c-bb85-0fa8bcc5866f",
+      "wire_type": 2522,
+      "in_type_table": true
+    },
+    {
       "name": "Selector",
       "guid": "90e3433d-5074-47e7-9cf9-1e2524aa0dd0",
       "wire_type": null,
@@ -20994,6 +22334,12 @@
       "in_type_table": false
     },
     {
+      "name": "SeqNum",
+      "guid": "6f8c718d-f06b-48bf-b849-5fbcf8b91309",
+      "wire_type": 6603,
+      "in_type_table": true
+    },
+    {
       "name": "SequenceAgentComponent",
       "guid": "67dc06d3-1f16-4fab-b3f8-d8c0a3af4f61",
       "wire_type": null,
@@ -21002,6 +22348,12 @@
     {
       "name": "SequenceComponent",
       "guid": "027ce988-cf48-4589-a73a-73cd8d02f783",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "SequenceEvent",
+      "guid": "43db38b0-3c38-4e73-bc29-662efdf5405f",
       "wire_type": null,
       "in_type_table": false
     },
@@ -21064,6 +22416,18 @@
       "guid": "1f79dced-0220-41f9-af36-3e8d9843fd6c",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "ServerAttackRanged",
+      "guid": "fcfa3544-9218-4702-9ce8-6180aa276b3b",
+      "wire_type": 2181,
+      "in_type_table": true
+    },
+    {
+      "name": "ServerBot",
+      "guid": "dc5c79f2-3dac-4a91-96e7-b2a3de92525f",
+      "wire_type": 2457,
+      "in_type_table": true
     },
     {
       "name": "ServerFacet",
@@ -21152,6 +22516,12 @@
     {
       "name": "SetAudioSwitchState",
       "guid": "f1042b47-8f34-41c4-969b-9ead988b2f82",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "SetBackstory",
+      "guid": "b3fbca0b-358f-426c-9c8f-6d362e9b30de",
       "wire_type": null,
       "in_type_table": false
     },
@@ -21286,6 +22656,12 @@
       "guid": "d2ac05d5-e908-4672-a4b5-73d9fe9af66f",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "SetGroupRegistryKey",
+      "guid": "2f86bb7b-3397-4ae7-9b96-25a26fc41214",
+      "wire_type": 2527,
+      "in_type_table": true
     },
     {
       "name": "SetHaltMotionOnCollision",
@@ -21426,6 +22802,12 @@
       "in_type_table": false
     },
     {
+      "name": "SetProbation",
+      "guid": "1110f680-4a2f-46cd-8c01-6969081632f9",
+      "wire_type": 5981,
+      "in_type_table": true
+    },
+    {
       "name": "SetRadius",
       "guid": "e1dcb833-efc4-43ac-97b0-4e07aa0dfad9",
       "wire_type": null,
@@ -21478,6 +22860,12 @@
       "guid": "0be4f599-cb31-4897-86d8-1e1b27861ee4",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "SetStickyLockCvar",
+      "guid": "dcba63f7-6464-4558-ae66-24a1162797e6",
+      "wire_type": 2459,
+      "in_type_table": true
     },
     {
       "name": "SetTargetFriendliesFallbackForReEnteringCameraLock",
@@ -21604,12 +22992,6 @@
       "guid": "0319ae62-3355-4c98-873d-3139d0427a53",
       "wire_type": null,
       "in_type_table": false
-    },
-    {
-      "name": "ShapeCount",
-      "guid": "4508e8b0-558d-4232-42b5-b37e5081ce5a",
-      "wire_type": 79,
-      "in_type_table": true
     },
     {
       "name": "ShapeLocationComponent",
@@ -21834,6 +23216,12 @@
       "in_type_table": false
     },
     {
+      "name": "SimpleMessage",
+      "guid": "02ed7037-c958-41d8-b0e2-6d6d44193ca9",
+      "wire_type": 1976,
+      "in_type_table": true
+    },
+    {
       "name": "SimplePOI",
       "guid": "8466132e-adac-4b12-aec2-e22b30bc74f4",
       "wire_type": null,
@@ -21942,6 +23330,12 @@
       "in_type_table": false
     },
     {
+      "name": "SlayerScriptCharacterFunctionsInterface",
+      "guid": "b14a5999-2ef4-4a30-8cc2-e279e767359b",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "SlayerScriptClientFacet_SendEntityEvent",
       "guid": "cc74519f-ddc8-4200-b71d-25d534445ac4",
       "wire_type": 5322,
@@ -21968,6 +23362,12 @@
     {
       "name": "SlayerScriptDynamicTileData",
       "guid": "43375561-f91a-4dae-96c6-483d94c4fe9e",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "SlayerScriptEditCrc",
+      "guid": "1611905c-c51f-4ff2-adc1-a553763826ba",
       "wire_type": null,
       "in_type_table": false
     },
@@ -22518,6 +23918,12 @@
       "in_type_table": false
     },
     {
+      "name": "SocialComponentClientFacet_OnWarRequestSuccessful",
+      "guid": "f722baa2-61fa-4e3e-9881-c8091dc24e35",
+      "wire_type": 193,
+      "in_type_table": true
+    },
+    {
       "name": "SocialComponentClientFacet_PlayersPhaseDataResponse",
       "guid": "7b63975f-a86f-4b2c-a4d3-8518dfebcb42",
       "wire_type": 6675,
@@ -22548,6 +23954,12 @@
       "in_type_table": true
     },
     {
+      "name": "SocialComponentServerFacet_OnBlocklistChanged",
+      "guid": "40180530-b213-4a47-be48-f921eb8dba05",
+      "wire_type": 6565,
+      "in_type_table": true
+    },
+    {
       "name": "SocialComponentServerFacet_RequestClearSocialBlock",
       "guid": "7e7cafe8-640d-4316-9133-c10b3702f7e4",
       "wire_type": 6506,
@@ -22557,6 +23969,12 @@
       "name": "SocialComponentServerFacet_RequestFriendStatusChangeFromClient",
       "guid": "82aa0c42-d074-45d5-bd83-10cd3db3283e",
       "wire_type": 6533,
+      "in_type_table": true
+    },
+    {
+      "name": "SocialComponentServerFacet_RequestKickPlayerForBannedLocation",
+      "guid": "9e512b0c-bee2-4054-a2f8-88f89bb52a47",
+      "wire_type": 6884,
       "in_type_table": true
     },
     {
@@ -22598,6 +24016,12 @@
     {
       "name": "SocialRequestErrorTypesEnum",
       "guid": "d16cc0c4-1c18-459b-b519-5a3e508e66fb",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "SoulTrialTemplateData",
+      "guid": "f03e4615-84ac-499a-aae6-da97c0b7347f",
       "wire_type": null,
       "in_type_table": false
     },
@@ -22710,6 +24134,12 @@
       "in_type_table": true
     },
     {
+      "name": "SpawnParticleEffect",
+      "guid": "4caf2a03-a4cb-47c8-abc3-5979beb80c55",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "SpawnParticleEffect::OnEnter",
       "guid": "6be5553f-2d3b-405e-8e64-31365bbaa4a8",
       "wire_type": null,
@@ -22720,12 +24150,6 @@
       "guid": "2bde6efe-04bf-451b-87ed-f53093d053c3",
       "wire_type": null,
       "in_type_table": false
-    },
-    {
-      "name": "SpawnPointResponseTrait",
-      "guid": "0d970bea-ca13-4929-a57b-08f4c9cb417a",
-      "wire_type": 504,
-      "in_type_table": true
     },
     {
       "name": "SpawnProjectile",
@@ -22816,6 +24240,18 @@
       "guid": "321e01a0-a611-4af9-86ee-ac9633ea272e",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "SpawnerTrait::State",
+      "guid": "b0e6bcd7-0822-4c25-bf27-4166bbc2a9b7",
+      "wire_type": 6905,
+      "in_type_table": true
+    },
+    {
+      "name": "Special2",
+      "guid": "28a1b63c-7820-4992-8682-414d26843c1e",
+      "wire_type": 6449,
+      "in_type_table": true
     },
     {
       "name": "SpectatedPlayerComponent",
@@ -23082,12 +24518,6 @@
       "in_type_table": false
     },
     {
-      "name": "StateRecord",
-      "guid": "20d2224e-fac8-4f92-8c80-a30889d1c269",
-      "wire_type": 5536,
-      "in_type_table": true
-    },
-    {
       "name": "StateTransitionComponent",
       "guid": "536ae798-c376-486b-b802-b09fc69d11ca",
       "wire_type": null,
@@ -23352,6 +24782,12 @@
       "in_type_table": false
     },
     {
+      "name": "StatusEffectCategoryData",
+      "guid": "3279b49a-5329-42ee-8a46-12494250a5df",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "StatusEffectCategoryDataManager",
       "guid": "5a88175f-79df-4f40-b3a6-0ff8d41e3eb2",
       "wire_type": null,
@@ -23448,6 +24884,12 @@
       "in_type_table": true
     },
     {
+      "name": "StatusEffectsComponentServerFacet_Debug_UnpauseStatusEffects",
+      "guid": "083b78c1-6bfc-44e8-a14c-2b5ab66f1310",
+      "wire_type": 5727,
+      "in_type_table": true
+    },
+    {
       "name": "StatusEffectsComponentServerFacet_RequestTokenDebit",
       "guid": "9b9ef0b3-8d2e-488d-9504-276fef4b8fbe",
       "wire_type": 5818,
@@ -23476,12 +24918,6 @@
       "guid": "7a2abbd6-f7bd-4229-b35f-a19a2a5b46e1",
       "wire_type": null,
       "in_type_table": false
-    },
-    {
-      "name": "SteamRetailSync",
-      "guid": "c311d90e-3b0b-437d-b3db-d93756cddda6",
-      "wire_type": 6166,
-      "in_type_table": true
     },
     {
       "name": "StereoRendererComponent",
@@ -23514,6 +24950,12 @@
       "in_type_table": false
     },
     {
+      "name": "StopActorImmediateMessage",
+      "guid": "7b5a0ca3-923a-4d01-903f-82984d306e4b",
+      "wire_type": 731,
+      "in_type_table": true
+    },
+    {
       "name": "StopFocusUIElementTutorialStep",
       "guid": "276bc6e4-776b-4cc8-92e0-f89a921de65f",
       "wire_type": null,
@@ -23530,6 +24972,12 @@
       "guid": "d1048c2f-f5bf-4630-bfec-7c9fac8701f9",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "StopInteraction",
+      "guid": "4a8c0206-b988-4053-be77-7f5e0218ae1d",
+      "wire_type": 2483,
+      "in_type_table": true
     },
     {
       "name": "StopScriptOnSlotItem",
@@ -23694,6 +25142,18 @@
       "in_type_table": false
     },
     {
+      "name": "StubbedFcsService",
+      "guid": "6585fda0-3668-4b67-bd8d-33572607334a",
+      "wire_type": 1941,
+      "in_type_table": true
+    },
+    {
+      "name": "StubbedNotificationService_PublishMessage",
+      "guid": "af503428-d7e2-4294-97f2-35f0a89dd43c",
+      "wire_type": 760,
+      "in_type_table": true
+    },
+    {
       "name": "StyleSheetAsset",
       "guid": "afc5c81e-629f-4fb4-8231-df7d69707189",
       "wire_type": null,
@@ -23784,12 +25244,6 @@
       "in_type_table": false
     },
     {
-      "name": "Successfully moved or swapped players",
-      "guid": "b566929b-4cb5-43e5-98b2-7f061adce785",
-      "wire_type": 1698,
-      "in_type_table": true
-    },
-    {
       "name": "Successfully sent abandon vote cast",
       "guid": "0c61a87f-8f6e-4acc-a20e-db70951a115d",
       "wire_type": null,
@@ -23848,6 +25302,12 @@
       "guid": "9fa2f1cc-4da1-2a47-cc1d-f3a0ddb7c563",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "SyncGlobalRegistry",
+      "guid": "4dfa2abe-0532-48f9-82b0-7168c7a48f77",
+      "wire_type": 4820,
+      "in_type_table": true
     },
     {
       "name": "SyncSource",
@@ -24000,6 +25460,12 @@
       "in_type_table": false
     },
     {
+      "name": "TaskChooseFaction",
+      "guid": "9db246e7-0966-400d-bf19-5ba04b2f79e7",
+      "wire_type": 2905,
+      "in_type_table": true
+    },
+    {
       "name": "TaskCinematicComplete",
       "guid": "3030bf90-b2e1-484f-8f77-4c763d8d3033",
       "wire_type": 6544,
@@ -24018,10 +25484,34 @@
       "in_type_table": true
     },
     {
+      "name": "TaskCompleteDungeon",
+      "guid": "0e3f0d8c-dbf1-4a0f-801f-6a52210f1aa5",
+      "wire_type": 4754,
+      "in_type_table": true
+    },
+    {
+      "name": "TaskCompleteObjectiveType",
+      "guid": "44cf9bef-defe-4cb4-afd5-ad7fa0411bc3",
+      "wire_type": 4737,
+      "in_type_table": true
+    },
+    {
       "name": "TaskControlPoint",
       "guid": "4e89be23-d563-41df-a982-8aa948615b13",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "TaskConversationState",
+      "guid": "31621033-327f-4d5f-b8b1-020b8ad8b19d",
+      "wire_type": 3871,
+      "in_type_table": true
+    },
+    {
+      "name": "TaskConversationTopic",
+      "guid": "801381a1-09d5-46d4-ba3a-5b9b75ee6a79",
+      "wire_type": 3873,
+      "in_type_table": true
     },
     {
       "name": "TaskCraftMultipleRecipes",
@@ -24060,10 +25550,34 @@
       "in_type_table": true
     },
     {
+      "name": "TaskGatherCyclicState",
+      "guid": "0ae69555-e6e5-4e38-8031-d1183a52f5a8",
+      "wire_type": 4773,
+      "in_type_table": true
+    },
+    {
       "name": "TaskGoTo",
       "guid": "a32e7ffb-08f5-4bba-b6a1-96546232e755",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "TaskGoToDuration",
+      "guid": "47cce829-0b02-4912-bd57-7a912f9c8d37",
+      "wire_type": 3878,
+      "in_type_table": true
+    },
+    {
+      "name": "TaskHaveLevel",
+      "guid": "3d4cbf0f-a0ad-4526-8052-659f472b014d",
+      "wire_type": 3228,
+      "in_type_table": true
+    },
+    {
+      "name": "TaskHouseScore",
+      "guid": "15d0189a-8716-4163-9ed0-bd2b70843b29",
+      "wire_type": 3662,
+      "in_type_table": true
     },
     {
       "name": "TaskInteractData",
@@ -24168,6 +25682,12 @@
       "in_type_table": false
     },
     {
+      "name": "TerrainCollisionMeshProducerTrait::State",
+      "guid": "d02e1fa9-7024-40ec-bcee-686bbe3d52a3",
+      "wire_type": 6162,
+      "in_type_table": true
+    },
+    {
       "name": "TerrainConstraintComponent",
       "guid": "59b87f96-8012-45dc-a3ac-0f6133c786dd",
       "wire_type": null,
@@ -24208,6 +25728,12 @@
       "guid": "180454cf-ad7e-440b-91f9-a071574422f4",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "TerrainReadinessListener::State",
+      "guid": "a8a94d23-75ca-44f7-acfc-f1084a7f7c33",
+      "wire_type": 1916,
+      "in_type_table": true
     },
     {
       "name": "TerrainTopology",
@@ -24360,6 +25886,12 @@
       "in_type_table": true
     },
     {
+      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestSignup",
+      "guid": "6d848b2d-4791-43c2-a863-1bbadfcdc6c2",
+      "wire_type": 1505,
+      "in_type_table": true
+    },
+    {
       "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestSimulateMaintenanceMode",
       "guid": "5bb70b99-10e1-443b-81bb-354696f24814",
       "wire_type": 5019,
@@ -24405,6 +25937,12 @@
       "name": "TerritoryInteractorComponentServerFacet_RequestSetGroupData",
       "guid": "f5da125e-6258-449d-a0e1-c64433b82131",
       "wire_type": 1727,
+      "in_type_table": true
+    },
+    {
+      "name": "TerritoryInteractorComponentServerFacet_RequestSwapPlayers",
+      "guid": "2fbca6ec-4a61-4a97-9583-2d427b8098ac",
+      "wire_type": 1871,
       "in_type_table": true
     },
     {
@@ -24486,6 +26024,12 @@
       "in_type_table": false
     },
     {
+      "name": "TerritoryProgressionData",
+      "guid": "b7897de3-cd53-4f41-9292-0c54760dcf74",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "TerritoryProgressionDataManager",
       "guid": "cda269fb-ebd0-4507-b62d-faff209210fc",
       "wire_type": null,
@@ -24558,15 +26102,9 @@
       "in_type_table": false
     },
     {
-      "name": "TestFacetedComponentServerFacet_PushUserString",
-      "guid": "24429fdb-b385-45c2-929f-836f361fb9dd",
-      "wire_type": 356,
-      "in_type_table": true
-    },
-    {
       "name": "TestFacetedComponentServerFacet_ToggleReplicatedStateBool",
-      "guid": "d02e1fa9-7024-40ec-bcee-686bbe3d52a3",
-      "wire_type": 6162,
+      "guid": "fb541c6b-2a47-46bc-a1f7-a6f49060514b",
+      "wire_type": 1979,
       "in_type_table": true
     },
     {
@@ -24638,6 +26176,12 @@
     {
       "name": "TextureAtlasSystemComponent",
       "guid": "436e8e5a-76ca-458d-8dad-835c30d8c41b",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TextureMipFileData",
+      "guid": "4134c85c-2381-400b-8222-0b453e3edd85",
       "wire_type": null,
       "in_type_table": false
     },
@@ -25062,9 +26606,9 @@
       "in_type_table": false
     },
     {
-      "name": "TransactWriteItemsRequest",
-      "guid": "620a9aa4-8531-454f-ab76-b07ae47129ec",
-      "wire_type": 678,
+      "name": "TraitActor",
+      "guid": "240fc877-9893-406f-9e47-279458e9dc9c",
+      "wire_type": 1928,
       "in_type_table": true
     },
     {
@@ -25154,6 +26698,12 @@
     {
       "name": "TransferContractRequestPayload",
       "guid": "017b7150-c6b9-47ab-80ff-fb843f7dbf23",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TransferContractResponse",
+      "guid": "71d848e7-8e4d-488b-ae8d-127737462414",
       "wire_type": null,
       "in_type_table": false
     },
@@ -25260,6 +26810,12 @@
       "in_type_table": true
     },
     {
+      "name": "TransmogUnlockSkin",
+      "guid": "cd3513ab-e349-44bb-b953-a11109e5f6b4",
+      "wire_type": 6003,
+      "in_type_table": true
+    },
+    {
       "name": "TraversalComponent",
       "guid": "8a75053b-76b2-4858-a193-da37f956afdb",
       "wire_type": null,
@@ -25340,6 +26896,54 @@
     {
       "name": "TreeReference",
       "guid": "b3b42f29-736d-4dfa-be0a-4eeca6ef4154",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TrialBrimstoneSandwormData",
+      "guid": "cebc1b0c-b1a5-4ad3-8ec5-2909b9750abc",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TrialSeason01Data",
+      "guid": "a055cb3f-f5b9-4b3b-b56d-3636985699d9",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TrialSeason02Q12Data",
+      "guid": "f7541618-aed3-4e6c-a044-a4763191726d",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TrialSeason02Q13Data",
+      "guid": "476afd4f-dad4-45f0-b3a5-94414c09108b",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TrialSeason04Data",
+      "guid": "51d87442-b34a-4058-ba41-a215d2b9d543",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TrialSeason04Q02Data",
+      "guid": "61eaf7e3-82a3-4631-a3ca-e9fe6211ea21",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TrialSeason04Q05Data",
+      "guid": "fffedeea-8706-4d7e-9901-758ffcf3ee69",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "TrialSeason04Q06Data",
+      "guid": "656147fb-6dde-4ba0-a609-dca12bd4ec65",
       "wire_type": null,
       "in_type_table": false
     },
@@ -25494,6 +27098,12 @@
       "in_type_table": false
     },
     {
+      "name": "TurretMessageHandler",
+      "guid": "2f96f4c1-b256-829d-1431-11adf12e4150",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "TutorialAIComponent",
       "guid": "a24be56f-bda8-4330-aab1-1863710174a2",
       "wire_type": null,
@@ -25552,6 +27162,12 @@
       "guid": "1915117c-fb67-4047-815c-1ea3e1e5e771",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "TwitchDropsSync",
+      "guid": "82fcf324-37d9-417d-b2f4-14577cad646f",
+      "wire_type": 6384,
+      "in_type_table": true
     },
     {
       "name": "TwitchSubarmyNotificationBusHandler",
@@ -26412,9 +28028,27 @@
       "in_type_table": false
     },
     {
+      "name": "Unknown error",
+      "guid": "e757a5b4-b6ad-427f-b37b-83c028a68f95",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "Unlock",
       "guid": "07a037b1-7a27-484f-a781-eddbe1b99109",
       "wire_type": 6000,
+      "in_type_table": true
+    },
+    {
+      "name": "UnlockSteamAchievement",
+      "guid": "5c0980f0-1996-4388-9c0d-1aeaa9024877",
+      "wire_type": 4983,
+      "in_type_table": true
+    },
+    {
+      "name": "UnregisterFromGroup",
+      "guid": "2d252c6d-95e8-4ee9-bf81-059491623c03",
+      "wire_type": 1017,
       "in_type_table": true
     },
     {
@@ -26454,6 +28088,12 @@
       "in_type_table": false
     },
     {
+      "name": "UpdateLinks",
+      "guid": "f2b109ce-c68c-4104-a1c4-a20092dd60dc",
+      "wire_type": 1970,
+      "in_type_table": true
+    },
+    {
       "name": "UpdateNWTags",
       "guid": "1c8c9a24-b4df-4d5c-b819-3493ca4bd560",
       "wire_type": null,
@@ -26464,6 +28104,12 @@
       "guid": "93eaffc3-0ac7-4ce5-95ef-4e154b07aec9",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "UseRandomIndex",
+      "guid": "8b05a8a1-58de-45ea-8c07-5d74d1daf07b",
+      "wire_type": 6085,
+      "in_type_table": true
     },
     {
       "name": "UserSettingsComponent",
@@ -27204,6 +28850,12 @@
       "in_type_table": false
     },
     {
+      "name": "VirtualAudioTriggers",
+      "guid": "f75964e2-99e8-4727-8b81-c94d3914f3f0",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "VirtualCursorConfiguration",
       "guid": "35e223c9-9f2a-433e-8043-0ebf7f20d61f",
       "wire_type": null,
@@ -27234,8 +28886,20 @@
       "in_type_table": false
     },
     {
+      "name": "VisibleOnExit",
+      "guid": "66fe7aa6-908c-43e8-b7a7-c0eb0c829e2d",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "VisionPerceptionProfile",
       "guid": "cd3ccd34-bdc0-4329-b4ad-634618c3cebf",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "VitalsBaseDataManager",
+      "guid": "c4a052b9-8fd4-441b-9232-4d48c1fe6694",
       "wire_type": null,
       "in_type_table": false
     },
@@ -27244,6 +28908,18 @@
       "guid": "459b5158-9ff8-48ff-90d0-53b38f8897b7",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "VitalsComponentClientFacet_ClientSyncDeathRecapForAllGameModeParticipants",
+      "guid": "a2bbf0d3-a57e-4747-8a9c-ccace3479a71",
+      "wire_type": 5197,
+      "in_type_table": true
+    },
+    {
+      "name": "VitalsComponentClientFacet_Debug_SyncStatusModVitalsData",
+      "guid": "d1d08f5b-26f3-493d-b2e4-3cb45fc57a32",
+      "wire_type": 4256,
+      "in_type_table": true
     },
     {
       "name": "VitalsComponentNotificationBusHandler",
@@ -27256,6 +28932,36 @@
       "guid": "bd1eca6b-532a-493c-aa76-c381cd9e773a",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "VitalsComponentServerFacet_DebugRequestRevive",
+      "guid": "1603c00a-76c2-4ee6-b184-c8d2a061ca0d",
+      "wire_type": 4303,
+      "in_type_table": true
+    },
+    {
+      "name": "VitalsComponentServerFacet_Debug_ReApplyBuffBucketOverrides",
+      "guid": "b84f394b-556b-4225-ac7f-d05293e7c9cc",
+      "wire_type": 5298,
+      "in_type_table": true
+    },
+    {
+      "name": "VitalsComponentServerFacet_Debug_RequestSyncStatusModVitalsData",
+      "guid": "623b226c-6e66-4678-a29c-d2257c998357",
+      "wire_type": 4317,
+      "in_type_table": true
+    },
+    {
+      "name": "VitalsComponentServerFacet_RequestDamageSelf",
+      "guid": "37bcbcd5-ad51-48fb-be85-0b6b3997b6bb",
+      "wire_type": 38,
+      "in_type_table": true
+    },
+    {
+      "name": "VitalsComponentServerFacet_RequestResetDeathsDoorDelay",
+      "guid": "b91b25a8-beb1-4e15-b9e4-95a419037641",
+      "wire_type": 3966,
+      "in_type_table": true
     },
     {
       "name": "VitalsModifier",
@@ -27408,6 +29114,12 @@
       "in_type_table": false
     },
     {
+      "name": "WarAction",
+      "guid": "e66815b6-1fd6-11ed-861d-0242ac120002",
+      "wire_type": 5392,
+      "in_type_table": true
+    },
+    {
       "name": "WarCampComponent",
       "guid": "b5f38748-276f-4c67-a72a-4361388be453",
       "wire_type": null,
@@ -27430,6 +29142,12 @@
       "guid": "ffc155ef-a269-4d6e-a034-1fe7a4295bdc",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "WarCampTier",
+      "guid": "c87c18b1-f827-4791-9c7d-f682c326f60f",
+      "wire_type": 2353,
+      "in_type_table": true
     },
     {
       "name": "WarColorData",
@@ -27514,6 +29232,12 @@
       "guid": "e39c5fcd-34aa-496f-802c-8699b1606402",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "WarSignUp",
+      "guid": "914f2342-d20a-4419-b195-b809b72d3f70",
+      "wire_type": 2299,
+      "in_type_table": true
     },
     {
       "name": "WarSignupData",
@@ -27714,6 +29438,12 @@
       "in_type_table": false
     },
     {
+      "name": "WeaponAppearanceDefinitions",
+      "guid": "1be36174-fd4f-4a1c-8e52-7c28d50eec5a",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "WeaponEffectBusHandler",
       "guid": "14aed726-88ac-4d7d-9f12-8cf4523b3d9d",
       "wire_type": null,
@@ -27802,12 +29532,6 @@
       "guid": "fc5a0350-56b8-4323-b7c2-8688590ad93c",
       "wire_type": null,
       "in_type_table": false
-    },
-    {
-      "name": "WhisperPlayerComponentClientFacet_RequestStartWhisper",
-      "guid": "4aba7f5d-d0c7-42c1-a99e-01308b6ff3fe",
-      "wire_type": 5070,
-      "in_type_table": true
     },
     {
       "name": "WhisperPlayerComponentClientRuntimeData",
@@ -27900,6 +29624,12 @@
       "in_type_table": true
     },
     {
+      "name": "WorldEventCoordinatorTrait",
+      "guid": "939e0867-358e-4b50-a124-f8045fffea70",
+      "wire_type": 6194,
+      "in_type_table": true
+    },
+    {
       "name": "WorldEventCoordinatorTrait::State",
       "guid": "af5cf1f8-820d-4cdf-8843-828602e75174",
       "wire_type": 6200,
@@ -27910,6 +29640,12 @@
       "guid": "51aa2de7-cd24-45d2-9c8b-fd84fa4bd12d",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "WorldMetadataNotifierTrait::State",
+      "guid": "2e112376-80d9-4fd1-8f5b-1c2379f133ee",
+      "wire_type": 4993,
+      "in_type_table": true
     },
     {
       "name": "WorldMetrics",
@@ -27954,8 +29690,20 @@
       "in_type_table": false
     },
     {
+      "name": "WriteItemsTransaction",
+      "guid": "6ffc2e24-54a5-4615-9597-59f1991a109d",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "XpEvent",
       "guid": "d10c59a8-c6e9-4b9c-923f-d48b5eb917b6",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "Y_QuaternionXYZW",
+      "guid": "0e0ef911-f8e7-4d3c-afaa-68d5d370f244",
       "wire_type": null,
       "in_type_table": false
     },
@@ -27990,16 +29738,16 @@
       "in_type_table": true
     },
     {
-      "name": "_ParticlePriority",
-      "guid": "9697d425-3d28-4414-93dd-1890e576ab4b",
+      "name": "_Default",
+      "guid": "e16ca6c5-5c78-4ad0-8e9b-a8c1fb4d1da8",
       "wire_type": null,
       "in_type_table": false
     },
     {
-      "name": "a0541ba9f",
-      "guid": "5da21098-caca-436f-b921-effbcda478f8",
-      "wire_type": 77,
-      "in_type_table": true
+      "name": "_ParticlePriority",
+      "guid": "9697d425-3d28-4414-93dd-1890e576ab4b",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "a0bd58a701",
@@ -28014,15 +29762,9 @@
       "in_type_table": true
     },
     {
-      "name": "a1aa28c1ba60",
-      "guid": "1ca94e20-ef65-4a05-a2b6-1246d9deee04",
-      "wire_type": 3058,
-      "in_type_table": true
-    },
-    {
-      "name": "a58f594ab345",
-      "guid": "36f8ab7c-78ac-45ba-be06-50d5b5c2bdd3",
-      "wire_type": 6432,
+      "name": "a4f566d56a",
+      "guid": "8f01f063-c55c-494b-baf3-76ae46f7f888",
+      "wire_type": 6169,
       "in_type_table": true
     },
     {
@@ -28032,15 +29774,27 @@
       "in_type_table": true
     },
     {
+      "name": "a6cdcc9eff",
+      "guid": "81b1655e-57b3-4636-ab32-67315a131325",
+      "wire_type": 1487,
+      "in_type_table": true
+    },
+    {
+      "name": "a73c579d4",
+      "guid": "9eed57cf-6baa-4f2c-b6e7-feaff40384b3",
+      "wire_type": 6361,
+      "in_type_table": true
+    },
+    {
       "name": "a74294ef31c9",
       "guid": "239c6615-6fdb-49ab-be9f-296cd986481c",
       "wire_type": 2315,
       "in_type_table": true
     },
     {
-      "name": "aa2f9df085",
-      "guid": "ee4eb8b3-f13d-46b3-8299-eb30c324edaa",
-      "wire_type": 2085,
+      "name": "a847c1ce097",
+      "guid": "b196aabc-6e00-4a2a-b298-acfdfb188c7a",
+      "wire_type": 196,
       "in_type_table": true
     },
     {
@@ -28050,15 +29804,15 @@
       "in_type_table": true
     },
     {
-      "name": "actions",
-      "guid": "a88b053d-7fde-44a0-9f8b-1cea6b12a1fc",
-      "wire_type": 5667,
+      "name": "abb2b0c84d",
+      "guid": "89554b0f-dfa6-4730-bc31-cf8a8c087bd2",
+      "wire_type": 3497,
       "in_type_table": true
     },
     {
-      "name": "ad1e0121357",
-      "guid": "6f8c718d-f06b-48bf-b849-5fbcf8b91309",
-      "wire_type": 6603,
+      "name": "actions",
+      "guid": "a88b053d-7fde-44a0-9f8b-1cea6b12a1fc",
+      "wire_type": 5667,
       "in_type_table": true
     },
     {
@@ -28092,27 +29846,9 @@
       "in_type_table": false
     },
     {
-      "name": "b0ae37ed903f",
-      "guid": "becb3f3d-a8b3-455e-a670-78d60ac947f8",
-      "wire_type": 2141,
-      "in_type_table": true
-    },
-    {
-      "name": "b101d41e1f95",
-      "guid": "e540040e-047e-452c-8bdd-30c2fd399781",
-      "wire_type": 6066,
-      "in_type_table": true
-    },
-    {
       "name": "b1d725cf6e8",
       "guid": "7f64d124-1353-4088-ade2-10c5690c26f8",
       "wire_type": 1693,
-      "in_type_table": true
-    },
-    {
-      "name": "b2702a74d68",
-      "guid": "172eb24d-b26d-4e05-bf62-3822bf2ccd31",
-      "wire_type": 6463,
       "in_type_table": true
     },
     {
@@ -28122,21 +29858,15 @@
       "in_type_table": true
     },
     {
-      "name": "b5555f622267",
-      "guid": "f2c3b42e-db86-4b2c-840f-64748fe26c73",
-      "wire_type": 2133,
+      "name": "b6e79844f8a0",
+      "guid": "4508e8b0-558d-4232-42b5-b37e5081ce5a",
+      "wire_type": 79,
       "in_type_table": true
     },
     {
-      "name": "b5985df97c69",
-      "guid": "688a5d57-dafa-4549-81c5-c51039c17c87",
-      "wire_type": 3548,
-      "in_type_table": true
-    },
-    {
-      "name": "bb58df8a471",
-      "guid": "4e34775b-b226-44e5-985d-92b8300e4dc1",
-      "wire_type": 6286,
+      "name": "b8ecac33",
+      "guid": "7dbe99ac-8151-4da7-bf11-87559a9ec726",
+      "wire_type": 6907,
       "in_type_table": true
     },
     {
@@ -28158,15 +29888,9 @@
       "in_type_table": false
     },
     {
-      "name": "c0050bb4bf61",
-      "guid": "c415acf9-d30e-4688-905e-9259dea8aae4",
-      "wire_type": null,
-      "in_type_table": false
-    },
-    {
-      "name": "c14c5d6cb20",
-      "guid": "a3bc5c58-a599-4cb5-89de-030b35365036",
-      "wire_type": 1964,
+      "name": "c05b456a2e71",
+      "guid": "e52bc9be-0f74-4734-97a3-cd7144492e6a",
+      "wire_type": 6911,
       "in_type_table": true
     },
     {
@@ -28182,15 +29906,15 @@
       "in_type_table": true
     },
     {
-      "name": "c6d5b3789f1",
-      "guid": "dc9eb8b9-ced2-4c46-bd90-b74a6460361a",
-      "wire_type": 5855,
+      "name": "c7a861712",
+      "guid": "77a81f98-371e-47a2-b64b-537c7b9a5f18",
+      "wire_type": 4813,
       "in_type_table": true
     },
     {
-      "name": "c9134af9ce",
-      "guid": "37bcbcd5-ad51-48fb-be85-0b6b3997b6bb",
-      "wire_type": 38,
+      "name": "c89c6f16a9",
+      "guid": "ed31c746-1290-4b2a-b863-364a745c24c4",
+      "wire_type": 6374,
       "in_type_table": true
     },
     {
@@ -28200,34 +29924,28 @@
       "in_type_table": false
     },
     {
-      "name": "cd9c",
-      "guid": "555ee379-6ec1-4019-a661-57bb30690389",
-      "wire_type": 2503,
+      "name": "cb1aacca0ce3",
+      "guid": "bd4f134f-e9f0-4ab4-b134-60a54c6211e7",
+      "wire_type": 6605,
       "in_type_table": true
     },
     {
-      "name": "cdaab8d7fddf",
-      "guid": "23830a4a-17a7-4c90-9a93-fb939ab87a76",
-      "wire_type": 6122,
-      "in_type_table": true
+      "name": "cb665ba0a287",
+      "guid": "a938fda6-7ab8-44e5-aa38-da98e65a0796",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "cd4f34185247",
+      "guid": "b5ff094f-20f0-4dd9-b881-85b493edbb30",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "cfg",
       "guid": "81fd861e-07b9-4585-a974-0ad930b5f051",
       "wire_type": null,
       "in_type_table": false
-    },
-    {
-      "name": "child_item_id",
-      "guid": "bbb73ab4-6eeb-4d9c-9a27-1bca1b0821a8",
-      "wire_type": 5859,
-      "in_type_table": true
-    },
-    {
-      "name": "child_item_scope",
-      "guid": "2e2f2513-7749-4db0-83a4-2c403807ef10",
-      "wire_type": 6636,
-      "in_type_table": true
     },
     {
       "name": "const",
@@ -28272,15 +29990,27 @@
       "in_type_table": true
     },
     {
-      "name": "d1dedf6f",
-      "guid": "25c0bdb2-ff31-4bd1-bc58-72032d35c44a",
-      "wire_type": 4989,
+      "name": "d46cdbcb122",
+      "guid": "81af08f6-2423-422b-a66f-e298e95b709b",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "d6853d70",
+      "guid": "5276f07b-f8d7-4bd3-afc7-e74a383cd76e",
+      "wire_type": 377,
       "in_type_table": true
     },
     {
-      "name": "d57a9699",
-      "guid": "3ff8a080-636e-4e73-9d18-7c3c62766900",
-      "wire_type": 3963,
+      "name": "db3d145d",
+      "guid": "b1767da5-1d05-4ecd-880a-3c9c5ea1f104",
+      "wire_type": 6881,
+      "in_type_table": true
+    },
+    {
+      "name": "db9ca602c0ca",
+      "guid": "4aba7f5d-d0c7-42c1-a99e-01308b6ff3fe",
+      "wire_type": 5070,
       "in_type_table": true
     },
     {
@@ -28290,10 +30020,16 @@
       "in_type_table": false
     },
     {
-      "name": "deb7f151328",
-      "guid": "27a80853-b4c4-462a-a84e-b7267a3b7b32",
-      "wire_type": 1699,
-      "in_type_table": true
+      "name": "debug",
+      "guid": "c2314673-78fd-4306-8252-a228af0c8989",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "delay",
+      "guid": "3f00228f-f80f-4c00-8b8c-b7aaccd8b580",
+      "wire_type": null,
+      "in_type_table": false
     },
     {
       "name": "deque<T> too long",
@@ -28305,6 +30041,24 @@
       "name": "df20bfebd674",
       "guid": "bf2dd614-4bed-4a09-8575-573bdd25f010",
       "wire_type": 6393,
+      "in_type_table": true
+    },
+    {
+      "name": "df416889d7a8",
+      "guid": "ac5537fd-8b79-4055-8309-ece10c2e2a14",
+      "wire_type": 4814,
+      "in_type_table": true
+    },
+    {
+      "name": "disablePlayerToPlayerCollision",
+      "guid": "30612713-c8e7-45a4-a249-70f661516a70",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "distance",
+      "guid": "ecd10e39-6f1c-4148-8cc1-17ef02a5ddbf",
+      "wire_type": 1999,
       "in_type_table": true
     },
     {
@@ -28326,9 +30080,15 @@
       "in_type_table": false
     },
     {
-      "name": "e13c3f119e77",
-      "guid": "fb541c6b-2a47-46bc-a1f7-a6f49060514b",
-      "wire_type": 1979,
+      "name": "e013396bf1c",
+      "guid": "59762609-6d5b-48b4-b4a8-bff04e6e1b2b",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "e70c7be2f3a3",
+      "guid": "518968c5-6d00-4973-b7af-fc5244cfb66d",
+      "wire_type": 6025,
       "in_type_table": true
     },
     {
@@ -28338,21 +30098,9 @@
       "in_type_table": true
     },
     {
-      "name": "e7fda45cee",
-      "guid": "abbb059e-e4d8-440d-b1bd-8ce087204d19",
-      "wire_type": null,
-      "in_type_table": false
-    },
-    {
-      "name": "eb0300c9723",
-      "guid": "5727d03b-1b6a-4581-ab13-93982b136879",
-      "wire_type": 5430,
-      "in_type_table": true
-    },
-    {
-      "name": "ecbf2cdf5de",
-      "guid": "6e5c6c07-1cd1-4880-a46e-66b81138aa3a",
-      "wire_type": 2069,
+      "name": "e797e39c783",
+      "guid": "d33230c8-9b7c-4b25-afaa-254f8875a606",
+      "wire_type": 6310,
       "in_type_table": true
     },
     {
@@ -28386,38 +30134,14 @@
       "in_type_table": false
     },
     {
-      "name": "f0c824ef439",
-      "guid": "84afb81e-5366-4a65-99b1-34e0ee8eca24",
-      "wire_type": 1651,
-      "in_type_table": true
-    },
-    {
-      "name": "f2690cae5c2",
-      "guid": "8f3aa99f-38c0-46a0-940a-439d62f38333",
-      "wire_type": 4163,
-      "in_type_table": true
-    },
-    {
-      "name": "f289506",
-      "guid": "69024df1-0026-4de3-ad7f-0c67ecd907fd",
-      "wire_type": 5860,
-      "in_type_table": true
-    },
-    {
-      "name": "f4fd537c2d7b",
-      "guid": "714553b1-b732-44e5-9d4b-be710851e864",
-      "wire_type": 1764,
+      "name": "f179541fbcb",
+      "guid": "0d970bea-ca13-4929-a57b-08f4c9cb417a",
+      "wire_type": 504,
       "in_type_table": true
     },
     {
       "name": "f5957",
       "guid": "5f7ea931-6620-4a6e-912e-36ff0fec0753",
-      "wire_type": null,
-      "in_type_table": false
-    },
-    {
-      "name": "f6623e9cb",
-      "guid": "3f00228f-f80f-4c00-8b8c-b7aaccd8b580",
       "wire_type": null,
       "in_type_table": false
     },
@@ -28428,27 +30152,9 @@
       "in_type_table": false
     },
     {
-      "name": "failure",
-      "guid": "3a3fa74e-5db0-41b4-b8b0-a8b92ef2d3b1",
-      "wire_type": 4831,
-      "in_type_table": true
-    },
-    {
-      "name": "fbc97f8d",
-      "guid": "7e714152-34c8-4f73-a9b5-08c1b24ee485",
-      "wire_type": 5874,
-      "in_type_table": true
-    },
-    {
-      "name": "fbf09d7dfc",
-      "guid": "4841c346-1fcf-428b-aea6-446d76ce9f6c",
-      "wire_type": 1439,
-      "in_type_table": true
-    },
-    {
-      "name": "fc3dc3c39f74",
-      "guid": "0552ed14-3f76-47cc-844c-e1c1150766c0",
-      "wire_type": 1956,
+      "name": "f87b0a605c7",
+      "guid": "7507a9e9-defc-449a-af3a-2edede782207",
+      "wire_type": 2142,
       "in_type_table": true
     },
     {
@@ -28458,22 +30164,10 @@
       "in_type_table": true
     },
     {
-      "name": "fd80f3a6b81",
-      "guid": "9721637e-4538-4607-a470-f6cd0177b2e2",
-      "wire_type": 1990,
-      "in_type_table": true
-    },
-    {
       "name": "feb87ca52520",
       "guid": "18b4fc04-f029-4c55-80ef-6eee9926b616",
       "wire_type": 4859,
       "in_type_table": true
-    },
-    {
-      "name": "fee4a7362192",
-      "guid": "e53bcc7c-3b04-4fde-9fa4-794f279b853f",
-      "wire_type": null,
-      "in_type_table": false
     },
     {
       "name": "ff44baaa45c",
@@ -28518,15 +30212,9 @@
       "in_type_table": false
     },
     {
-      "name": "is_collected",
-      "guid": "186bc9c0-0c9f-4541-9529-be27d7926ce7",
-      "wire_type": 6475,
-      "in_type_table": true
-    },
-    {
-      "name": "item_id",
-      "guid": "445fe184-2d9f-4ced-b377-4ca2e4c1daa0",
-      "wire_type": 6474,
+      "name": "item",
+      "guid": "27a80853-b4c4-462a-a84e-b7267a3b7b32",
+      "wire_type": 1699,
       "in_type_table": true
     },
     {
@@ -28534,6 +30222,12 @@
       "guid": "29cd37ec-f7c0-4ca6-80a5-996c814ac75c",
       "wire_type": null,
       "in_type_table": false
+    },
+    {
+      "name": "level",
+      "guid": "672e96a2-c2fe-4145-a835-d52a0ff51473",
+      "wire_type": 4992,
+      "in_type_table": true
     },
     {
       "name": "llu",
@@ -28566,6 +30260,12 @@
       "in_type_table": false
     },
     {
+      "name": "m_exp",
+      "guid": "d381b357-c06e-4091-8aec-7bef2ca9fbf8",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "m_initialized",
       "guid": "9003cb7b-519d-4fd8-9451-1a11e1f1a6a6",
       "wire_type": null,
@@ -28578,8 +30278,20 @@
       "in_type_table": false
     },
     {
+      "name": "m_localOnly",
+      "guid": "3cb064c5-3f7d-4478-9c0a-8db9ac497122",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "m_localPlayerEntity",
       "guid": "21c192a0-cdc1-475c-9731-c23837bd1548",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "m_meleeDamageFilter",
+      "guid": "46f1804a-234d-4511-a5a0-70851cf1096f",
       "wire_type": null,
       "in_type_table": false
     },
@@ -28608,8 +30320,32 @@
       "in_type_table": false
     },
     {
+      "name": "m_points",
+      "guid": "fd4a72eb-f9bf-4fc9-8f1c-bdcdf312c4b3",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
       "name": "m_quickCoursePathCommon",
       "guid": "c3373997-c51d-4301-8e61-1542082b4b3e",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "m_readEvents",
+      "guid": "32bf81d9-b484-45e2-925a-664b8f1b1795",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "m_replicateToClient",
+      "guid": "711f015c-c03b-4735-8c69-b21a224ef2dd",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "m_rotation",
+      "guid": "a6bd80a7-d0d3-445d-ba68-f4ec586b224a",
       "wire_type": null,
       "in_type_table": false
     },
@@ -28626,6 +30362,12 @@
       "in_type_table": false
     },
     {
+      "name": "m_useTerritoryPostfixOverride",
+      "guid": "965812bf-3cb3-4a8d-b94b-9273c24f1971",
+      "wire_type": 3984,
+      "in_type_table": true
+    },
+    {
       "name": "m_warId",
       "guid": "25919bf4-090f-45cf-b316-b2d0310fd60e",
       "wire_type": null,
@@ -28635,6 +30377,18 @@
       "name": "maxDifficulty",
       "guid": "9a56f81d-931c-4a14-9acc-bebccb91d885",
       "wire_type": 2551,
+      "in_type_table": true
+    },
+    {
+      "name": "min",
+      "guid": "faf8bf74-2d81-42ee-932c-fe6f1d26a04c",
+      "wire_type": 67,
+      "in_type_table": true
+    },
+    {
+      "name": "min",
+      "guid": "91b3b0f7-1f96-4edb-af8d-6e3b81b8925f",
+      "wire_type": 5482,
       "in_type_table": true
     },
     {
@@ -28680,15 +30434,15 @@
       "in_type_table": true
     },
     {
-      "name": "only",
-      "guid": "6c03f5a7-f678-4bda-ba30-ea6d16b94abe",
-      "wire_type": 6390,
+      "name": "overlap",
+      "guid": "d782b1cd-aac4-4d37-8836-7baeeedd78fc",
+      "wire_type": 5854,
       "in_type_table": true
     },
     {
-      "name": "percent",
-      "guid": "2baf006c-dbe5-48ed-9cdf-9daaa2726334",
-      "wire_type": 2004,
+      "name": "percentage",
+      "guid": "10c59bb8-640b-4ae4-b50d-563da32b6a4a",
+      "wire_type": 1923,
       "in_type_table": true
     },
     {
@@ -28716,12 +30470,6 @@
       "in_type_table": false
     },
     {
-      "name": "query",
-      "guid": "f2b109ce-c68c-4104-a1c4-a20092dd60dc",
-      "wire_type": 1970,
-      "in_type_table": true
-    },
-    {
       "name": "quests",
       "guid": "c306bd85-59d3-48e6-8559-f06ddb47eb74",
       "wire_type": 6100,
@@ -28740,10 +30488,10 @@
       "in_type_table": false
     },
     {
-      "name": "relaxation",
-      "guid": "f5786aaf-54b3-4510-9401-bf2d423c1f27",
-      "wire_type": null,
-      "in_type_table": false
+      "name": "requests",
+      "guid": "b28dff2c-7a00-4740-a6e0-11b0dfe70a72",
+      "wire_type": 6139,
+      "in_type_table": true
     },
     {
       "name": "runs",
@@ -28776,20 +30524,8 @@
       "in_type_table": true
     },
     {
-      "name": "sheets",
-      "guid": "f4090afa-b84c-4067-bc5d-6ae2676915d1",
-      "wire_type": 5440,
-      "in_type_table": true
-    },
-    {
       "name": "short",
       "guid": "b8a56d56-a10d-4dce-9f63-405ee243dd3c",
-      "wire_type": null,
-      "in_type_table": false
-    },
-    {
-      "name": "speed",
-      "guid": "d8a16221-8347-40cd-b7eb-70c39ad1b6aa",
       "wire_type": null,
       "in_type_table": false
     },
@@ -28814,6 +30550,12 @@
     {
       "name": "sprite",
       "guid": "68e92460-5c0c-4031-9620-6f1a08763243",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "stimulusDurations",
+      "guid": "3d558252-5406-4457-b86d-d771bceaa905",
       "wire_type": null,
       "in_type_table": false
     },
@@ -28848,15 +30590,15 @@
       "in_type_table": false
     },
     {
-      "name": "telemetry",
-      "guid": "0c00cf3f-7420-45bb-ad58-68a6ecf6075d",
-      "wire_type": 3176,
+      "name": "tags",
+      "guid": "fff40d4b-d06e-4985-91c3-ec13bd3ff665",
+      "wire_type": 6468,
       "in_type_table": true
     },
     {
       "name": "telemetry",
-      "guid": "dee6e179-3d80-4160-9bad-cc5da6b60c46",
-      "wire_type": 5691,
+      "guid": "0c00cf3f-7420-45bb-ad58-68a6ecf6075d",
+      "wire_type": 3176,
       "in_type_table": true
     },
     {
@@ -28872,10 +30614,10 @@
       "in_type_table": true
     },
     {
-      "name": "tracker",
-      "guid": "e978b207-fc3e-41ae-a562-8dc7e293cbb2",
-      "wire_type": null,
-      "in_type_table": false
+      "name": "toggleInventoryWindow",
+      "guid": "56985fa2-5902-4c74-a879-c8c0f30ad569",
+      "wire_type": 6817,
+      "in_type_table": true
     },
     {
       "name": "ui_guildrankpublic",
@@ -28916,6 +30658,12 @@
     {
       "name": "void",
       "guid": "c0f1afad-5cb3-450e-b0f5-adb5d46b0e22",
+      "wire_type": null,
+      "in_type_table": false
+    },
+    {
+      "name": "zone",
+      "guid": "f5786aaf-54b3-4510-9401-bf2d423c1f27",
       "wire_type": null,
       "in_type_table": false
     }
