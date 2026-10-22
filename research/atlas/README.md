@@ -11,6 +11,7 @@ not a substitute.
 | `errors.json` | Observed errors and confirmed causes |
 | `levers.md` | Client settings, runtime controls, and their measured effects |
 | `client-functions.json` | Confirmed native function names, VAs, behavior, and evidence |
+| `presence-live-capture.json` | Live capture of the payloads the client's unmarshal receives, with the hook site and the argument correction |
 | `presence-codecs.json` | The six actor-replication message types a server needs, with identity and the record of which decoding routes were tried |
 | `builds.json` | Installed client build identity (full SHA-256), which build each body of evidence was measured on, and per-session official-service facts |
 | `decomp-campaign.json` | Committed phase manifest for the incremental decompilation campaign |

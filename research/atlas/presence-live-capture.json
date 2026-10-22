@@ -1,0 +1,43 @@
+{
+  "$comment": "LIVE capture of what the client's unmarshal actually receives, taken on build 1.460 with reverse/probes/client/frida-unmarshal.py. This is the raw material for the presence codec layouts: the payloads are real bytes the client handed to its reader, not a guess.",
+  "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "evidence": "observed",
+  "probe": "reverse/probes/client/frida-unmarshal.py, hook on FUN_1461adb90 (the 1.460 function that logs 'Failed to unmarshal'), located by a whole-corpus search for that string's VA 0x1484d7480 because it has zero rip-relative referrers",
+  "function_signature": "FUN_1461adb90(param_1, param_2*, param_3 uint* FLAGS, param_4 READER). The payload is param_4, NOT param_3: the body tests `*param_3 >> 2 & 1` and reads param_3+6 (i.e. +0x18 bytes) as a second flag block, while func_0x0001408733d0(param_4) is used as a read position. A first probe version read param_3 and returned all zeroes on 731 calls, which is the evidence for this correction.",
+  "reader_object": "param_4 holds begin/current/end pointers; p4+0x00 and p4+0x08 are the live positions and their differences match message sizes (e.g. 7168, the state-stream size). Following the first pointer qword gives the message bytes.",
+  "messages_observed": [
+    {
+      "count": 74,
+      "head_hex": "0001964293a3e477cb5fd51ebf85314bbc4a951a40c00000"
+    },
+    {
+      "count": 74,
+      "head_hex": "0001974293a3e477cb5fd51ebf85314bbc4a951a00000002"
+    },
+    {
+      "count": 1,
+      "head_hex": "00019d0500036f2110233144530069006e0075007e008900"
+    },
+    {
+      "count": 1,
+      "head_hex": "000108018f0e01010101000072160302a234010400010200"
+    },
+    {
+      "count": 1,
+      "head_hex": "00010801900e010101010000b26f0109379041023818abb4"
+    },
+    {
+      "count": 1,
+      "head_hex": "00010801910e010101010000b26f0109379041023818abb4"
+    },
+    {
+      "count": 1,
+      "head_hex": "00010801920e010101010000b26f0109379041023818abb4"
+    },
+    {
+      "count": 1,
+      "head_hex": "00010801930e010101010000b26f0109379041023818abb4"
+    }
+  ],
+  "note_on_type_decoding": "The typed-marker varint after `00 01` resolves to 8 for the state bundle, but the same decode gives 8470/8471 for two other shapes, which is OUT OF RANGE for the 7052-entry type table. So that varint is not the message type for those shapes; the marker means something else there. Recorded as an open question rather than forced into a wrong answer."
+}
