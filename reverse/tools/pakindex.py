@@ -28,6 +28,7 @@ import struct
 import sys
 import time
 import zipfile
+import hashlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -64,6 +65,22 @@ def _db_path() -> Path:
 def list_paks(assets: Path) -> list[Path]:
     paks = sorted(assets.glob("*.pak")) + sorted(assets.glob("levels/*/*.pak"))
     return paks
+
+def exe_sha256_prefix(exe: Path, length: int = 16) -> str | None:
+    """First `length` hex chars of the client executable's SHA-256.
+
+    The summary is a provenance record, so this has to be measured, never
+    assumed: a constant makes every rebuild claim the build it was written
+    for instead of the build it indexed.
+    """
+    try:
+        digest = hashlib.sha256()
+        with exe.open("rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()[:length]
+    except OSError:
+        return None
 
 
 def build() -> int:
@@ -103,7 +120,7 @@ def build() -> int:
     total = sum(per_pak.values())
     summary = {
         "generated": time.strftime("%Y-%m-%d"),
-        "exe_sha256_prefix": "8654f01d324636d9",
+        "exe_sha256_prefix": exe_sha256_prefix(default_paths()["exe"]),
         "paks": len(paks),
         "entries": total,
         "methods": {str(k): v for k, v in sorted(per_method.items())},
