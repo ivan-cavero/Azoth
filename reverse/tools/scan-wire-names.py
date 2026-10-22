@@ -38,10 +38,59 @@ VALIDATION
 4246 `TimeComponentClientFacet_SyncTimeChange`, 4247 `TimeComponentClientFacet_SyncDayPhase`,
 349 `PingMsg`.
 
+BUILD SCOPE: HOW THE 1.460 PIN WAS RE-DERIVED (2026-10-22)
+--------------------------------------------------------
+The pin was 8654f01d (1.400). It moved to 30fe6461 (1.460) only after each anchor was
+re-verified against that image: resolve `typeindex.json[wire]` to a GUID, then find that
+GUID as a dashed string in the image and read the run before it. File offsets below; a VA
+is the offset + 0x140000000.
+
+    wire  name                                                  guid offset   name offset  bytes between
+    349   PingMsg                                                0x7f48328     0x7f482f8   see below
+    726   StartMovementCommunicationMsg                          0x857ec58     0x857ec38   3 NULs
+    739   AckMovementMsg                                         0x857ef08     0x857eef8   2 NULs
+    740   CommitMovementMsg                                      0x857f380     0x857f368   7 NULs
+    1589  ActionListComponentServerFacet_ReceiveInputFromClient   0x838abb8     0x838ab80   3 NULs
+    4216  ReceivePlayerPositionClientMsg                         0x82eaa90     0x82eaa70   2 NULs
+    4246  TimeComponentClientFacet_SyncTimeChange                0x82ff020     0x82feff8   1 NUL
+    4247  TimeComponentClientFacet_SyncDayPhase                  0x82fdf70     0x82fdf48   3 NULs
+
+Every one of those GUID strings occurs EXACTLY ONCE in the 1.460 image, and seven of the
+eight name strings occur exactly once as well (`PingMsg` has a second hit inside the
+unrelated field name `isPingMsg` at 0x83e28f2). All 7052 GUIDs match the GUIDs the 1.400
+artifact recorded, so the wire NUMBERING did not change between builds - only the `.rdata`
+string layout did, which is why the pinned anchors were worth re-deriving and the wire
+numbers are worth trusting.
+
+`PingMsg` is the one anchor that is not a clean pair, and it is the trap this file already
+documents: the block is `PingMsg\0{85C7E01E-...}\0\0 6a379fb8-...`, and BOTH ids are in the
+type table (349 holds 6a379fb8, 5867 holds 85C7E01E). The dashed id is PingMsg's wire id:
+the same shape occurs for `ApplyResourcesCondition\0{96245228-...}\0\0 1db27353-...`, where the
+brace id is absent from the type table entirely, so only the dashed id can be addressed on
+the wire; and `research/derived/inbound-requests.json` shows wire 349 on channel 0 with
+6a379fb8 in captured traffic. The consequence to keep in mind: the AZ-registry route still
+names 5867 `PingMsg` too (same class, its own id), exactly as the 1.400 artifact did.
+
+Independent cross-checks, both regenerated for 1.460 by other tools: `javelin-messages.json`
+reports 726/739/740/4216 with these GUIDs and wire numbers, and the capture inventory reports
+349 and 1589 on channels 0 and 1.
+
+COVERAGE ON 1.460, AND WHERE THE NAMES COME FROM
+------------------------------------------------
+2037 of 7052 wire types get a name: 1398 from adjacent `.rdata` descriptors (`rdata`) and 639
+from `az-type-registry.json` (`az-registry`); 5015 stay honestly unnamed. `ambiguous_names` is
+178. The registry is the weaker source: the 1.460 scan holds 722 name+GUID pairs that are in
+the type table against 750 for 1.400, so 111 rows the 1.400 table named from the registry are
+unnamed here (e.g. wire 7048 `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`,
+whose brace descriptor is at 0x8137680 but which the registry regeneration missed). 536 of the
+unnamed wires do have a brace-wrapped GUID string in the image; reading that form here is NOT
+done on purpose, because the gap between the name and the brace contains pointer qwords and
+the name-like filter would start admitting neighbours. That route belongs in the tool that
+owns the brace form, `scan-az-types.py`.
+
 Usage:
     python reverse/tools/scan-wire-names.py [--check] [--exe PATH] [--out PATH]
 """
-
 from __future__ import annotations
 
 import argparse
@@ -58,7 +107,12 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "research" / "derived" / "wire-type-names.json"
 TYPEINDEX = ROOT / "private-client" / "runtime" / "typeindex.json"
 
-BUILD_SHA256 = "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e"
+BUILD_SHA256 = "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033"
+
+# A scan that names almost nothing has a broken adjacency rule, not a new build. Kept
+# below any measured build (2055 of 7052 on 1.400, 2055 of 7052 on 1.460) so it fires
+# on a real regression and never on a legitimate one.
+MIN_NAMED = 1500
 
 # Verified by hand in the atlas; the scan must reproduce every one.
 ANCHORS = {
@@ -219,7 +273,7 @@ def check(result: dict) -> list[str]:
             f"{len(malformed)} names are not identifier-shaped, e.g. "
             f"{[(r['wire_type'], r['name']) for r in malformed[:5]]}"
         )
-    if result["named"] < 1500:
+    if result["named"] < MIN_NAMED:
         problems.append(
             f"only {result['named']} of {result['wire_types']} wire types named; the "
             "adjacency scan is probably wrong, not the build"
