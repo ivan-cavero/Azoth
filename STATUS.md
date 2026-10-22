@@ -1,5 +1,24 @@
 # Live status
 
+## 2026-10-22 (final) — the six presence codecs are IDENTIFIED, and the layouts need live instrumentation
+
+`research/atlas/presence-codecs.json` now records the six message types a server needs
+to replicate actors, each with its type id and wire number (449 `AddActorMessage`,
+574 `SpawnActorsMsg`, 391 `Replicate`, 407 `ReplicateClient`, 422 `FragmentUpdateMsg`,
+106 `UpdateMsg`). Identity is observed from the descriptor region at `0x1485800E0`.
+
+**The layouts are not decoded, and the file states that instead of implying otherwise.**
+The static routes that decoded the movement family on 1.400 do not reach this build: the
+name and GUID strings have **zero** static referrers, both 16-byte GUID forms occur
+**zero** times, and `FUN_1407de270` — the descriptor builder recorded for 1.400 — has **no
+callers at all**. The descriptor tables are assembled at runtime.
+
+**So the remaining work is live instrumentation, not static analysis:** hook the type
+dispatch (the atlas already names `vtable+0x90`) and read the unmarshal when a message
+arrives. That is a different kind of task from the static scanning this session did, and
+it is the next concrete unit for presence.
+
+
 ## 2026-10-22 (late) — TWO CLIENTS RUN AT ONCE, and the "nothing to send" wall is not a wall
 
 ### Two private clients, two REP sessions, verified live
