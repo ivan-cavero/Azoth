@@ -1,5 +1,88 @@
 # Live status
 
+## 2026-10-22 (late) — TWO CLIENTS RUN AT ONCE, and the "nothing to send" wall is not a wall
+
+### Two private clients, two REP sessions, verified live
+
+```
+pid 16432  owner=barbara  udp=[27000]  responding=True   InGame
+pid  5796  owner=Azoth2   udp=[27001]  responding=True   InGame
+world.log  "event": "dtls-established", "peer": "127.0.0.1:27001", "peers": 2
+```
+
+The world server creates a `PeerSession` per unseen `(ip, port)` and ticks every session
+every loop iteration, so it already accepted a second client; the client side did not.
+Five blockers, in the order they bit:
+
+| # | Blocker | Fix |
+| --- | --- | --- |
+| 1 | `Join-Path` takes TWO args in PowerShell 5.1; the 3-arg form is pwsh-only and 5.1 re-parses the extra argument as a POSITIONAL script argument | nest the calls |
+| 2 | the shared `steam_api64.dll` copy failed with "being used by another process" | copy only when it differs; treat "in use" as success |
+| 3 | `CreateProcessWithLogonW` could not find `powershell.exe` | absolute path under `SystemRoot` |
+| 4 | **the Caddy root lived only in `CurrentUser\Root` of the first user** | import it into `LocalMachine\Root`; every local user inherits it |
+| 5 | the launcher overwrote `LOCALAPPDATA`/`APPDATA` even under another user's token, which pointed the client back at the first user's profile | clear the inherited profile vars so the client resolves its own through `SHGetFolderPathW` |
+
+Blocker 4 was the one that mattered: without it the second client died at
+`Channel Service data provider: Could not make request, Attempt: 6` and never reached the
+gateway. With it, it logs `Channel name: Azoth` and reaches `InGame` with its own
+`C:\Users\Azoth2\AppData\Local\AGS\New World\Game.log`.
+
+The runtime is **not** duplicated: `C:\ProgramData\Azoth\runtime` holds one 268 MB `Bin64`
+copy plus a **junction** to the Steam `assets`, so the ~76 GB of game data is shared, not
+re-copied. Disk after the whole exercise: 86.8 GB free.
+
+### The real blocker is that the server is a replayer, not a server
+
+`rep.py` says it plainly: *"Post-replay the server must send NEW typed messages (the official
+capture stops at r176; the missing ones are the server's replica updates W-direction
+counterparts). Nothing known to send yet."* Everything that looked like a presence bug
+follows from that one fact: there is no code that originates actor state, so no peer can be
+told about another peer.
+
+### "Nothing known to send" is now FALSE — the presence codecs exist in the client
+
+The client ships the message types a server needs to replicate actors, each with its AZ type
+id and its wire number:
+
+| wire | message | type id |
+| --- | --- | --- |
+| **449** | `AddActorMessage` | `96C829CE-DFBC-4763-959C-32A6B22D81EF` |
+| **574** | `SpawnActorsMsg` | `D1B5B725-B1B5-4A87-9582-AC4509FB9CC4` |
+| **391** | `Replicate` | `FF1EC011-3D18-4F09-A0AC-3FB27B313984` |
+| **407** | `ReplicateClient` | `6BB22EA1-FEB6-4F4B-81AB-79372B9F1F3D` |
+| **422** | `FragmentUpdateMsg` | `951EF3ED-C9A0-4E3D-A6FD-7FE0673D28D2` |
+| **106** | `UpdateMsg` | `1619D3B8-8B45-46AA-B95E-A414DFEB C931` |
+
+Measured from the image, not inferred: the descriptor region holds
+`AddActorMessage` followed by its brace type id and its dashed wire id at
+`0x1485800E0`. Because the client registers them, it can **unmarshal** them, so each wire
+layout is recoverable by decompiling its codec — the same method this repository already
+used to decode the movement family (`MoveActorMsg` 16 bytes, `AckMovementMsg` 113 bytes,
+`CommitMovementMsg` 40 bytes, ...).
+
+**So presence is not blocked by missing knowledge.** It is blocked by work not yet done:
+recover the six layouts, then originate actor state on the server.
+
+### One conclusion of mine that the evidence corrected
+
+Earlier in this session I reported that "the client never instantiates
+`GameTransformComponentClientFacet`" because its factory has zero direct callers. That
+reasoning was incomplete: **all five Transform factories have zero direct callers**
+(`AsyncRenderTransform`, `GameTransform`, `GDERootTransformReporter`, `TransformLinkChild`,
+`TransformLink`), because facet objects are created dynamically by `CreateByName` from the
+descriptor table, not by a direct call. "No callers" therefore does not prove "never
+created". The `remoteplayer.dynamicslice` Transform gate still returns null in practice, but
+the reason is the entity's component list, not a missing factory.
+
+### Still open
+
+- The six presence codecs are **identified, not decoded**. That is the next concrete unit.
+- Two clients are the SAME captured character: `fill_local_player_uuid` rewrites each
+  session's own copy of the same actor, and the gateway's identity plumbing is keyed on an
+  `X-Azoth-Instance` header the game client will never send.
+- Nothing in the client renders a remote body today, for the reasons above.
+
+
 ## 2026-10-22 (close) — every launcher patch is on 1.460, and the remote-entity blocker is confirmed structural
 
 **Point 3 is closed.** All five launcher patches now carry 1.460 sites, keyed by the exe
