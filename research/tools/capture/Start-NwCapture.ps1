@@ -214,7 +214,9 @@ try {
 
     Write-Host 'Writing REPORT.md...' -ForegroundColor Cyan
     & $PythonExe -u $PythonScript report --session $session
-    $re = Join-Path $RepoRoot 'tools\re'
+    # RepoRoot is the research root (sessions live in research/sessions); the
+    # analysis tools moved from tools/re to the repository root's reverse/tools.
+    $re = Join-Path $ProjectRoot 'reverse\tools'
     if (Test-Path -LiteralPath $pcap) {
         & $PythonExe -u (Join-Path $re 'net.py') analyze $pcap --out (Join-Path $session 'network\pktmon.analysis.json')
     } else {

@@ -21,6 +21,17 @@ sessions/**/network/pktmon.pcapng
 sessions/**/logs/Game.log.raw
 sessions/**/logs/Game.log.source
 
+# Live-session IDENTITY stays local. The blanket negations above re-include
+# REPORT.md and extracted/*.json, and both carry the player name, the Amazon
+# persona id, the character UUID and the REP endpoint of a real account. The
+# host/path catalogs are generic protocol facts and stay tracked; these are
+# account-scoped and do not. Last match wins in gitignore, so these come after
+# the negations on purpose. Verified with `git check-ignore` on 2026-10-22.
+sessions/**/REPORT.md
+sessions/**/extracted/identities.json
+sessions/**/extracted/rep_endpoints.json
+sessions/**/extracted/remote_json/identities.json
+
 tools/capture/.last-session
 _re/*.exe
 _re/*.dll
