@@ -56,3 +56,24 @@ Build in scope: `1.460.6033.6024067` /
 > Re-medir con sprin y leugo conctinua toda la noche investigando cosas, haciendo
 > decoding, con frida, etc lo que necesites y ves monitoreando el disco importante
 > no pasarte, cuando acabes todo pushea commitea y apaga el ordenador
+
+### L2 — slice boundaries, and why the first commit is large
+
+`c5754f2` is 4,533 authored lines in one commit, past the ~400-line review slice.
+That is deliberate and recorded here rather than split artificially:
+
+* **It is documentation and measurement, not behaviour.** The bulk is
+  `docs/PLAN-backend-rust.md` (1,950 lines, written before this session) and
+  `odd/tasks/remeasure-1460.md` (491 lines). Splitting a single coherent evidence
+  document across commits would make it harder to review, not easier: the plan's
+  §0.2 status table only makes sense next to the measurement log that produced it.
+* **It is the specification the later code commits are reviewed against.** Landing
+  it first means the crate commit can cite it instead of restating it.
+
+The code commits that follow are kept inside the slice limit: the `azoth-wire`
+crate and its parity fixtures land as their own commit, and the live-client
+measurements as another.
+
+Delivery strategy: `feature-branch-chain` on `feat/azoth-wire-parity`. No push or
+merge is implied by a commit; both remain the user's decision, and the user asked
+for a push at the end of the session (S6).
