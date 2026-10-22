@@ -214,6 +214,130 @@ Generic APM has no concept of a tick. What matters here:
   never sampled).
 - Profile with `perf` and flame graphs plus a frame profiler; do not guess where a tick goes.
 
+## The gameplay transport is UDP/DTLS, direct to the world — measured, not assumed
+
+From the live captures (`research/sessions/*/network/pktmon.analysis.json`):
+
+```text
+REP  192.168.50.12:27000  <->  35.71.153.244:53731
+UDP · 125,485 packets · 34 MB · ~272 bytes/packet average
+DTLS hellos 16 · DTLS records 125,485
+world tick_hz 50.0
+client -> server 13,186 packets; server -> client 42,377
+```
+
+**The gateway is HTTP/443 for entry only.** Once the client has a `RepAddress` all gameplay is UDP
+straight to the world. The gateway leaves the data path, which is what the routing research says it
+must do: a gateway hop adds latency to every packet and is a single point of failure.
+
+### Hard constraints this puts on the Rust design
+
+1. **DTLS in Rust is the project's biggest transport risk, and it must be settled before committing.**
+   `rustls` does **not** implement DTLS — it exposes no DTLS primitives, and the ecosystem is explicit
+   about it. The realistic options, and the plan must pick one **with evidence**:
+   - `webrtc-dtls` (pure Rust): ~4.9M downloads, 183 dependents, but pre-1.0, a 34-crate dependency
+     tree, and had a year-long gap without updates — a maintenance risk to measure, not assume.
+   - `dtls` (the newer crate, 0.17.x): pure Rust, recent releases, fewer dependents — check its
+     cipher-suite and server-side support against what the client offers.
+   - `openssl` with the DTLS feature: mature, but a C dependency and `openssl-sys` build complexity.
+   - `str0m` uses OpenSSL for DTLS today and has an open issue about replacing it with pure Rust,
+     which is itself evidence that the pure-Rust path is not settled.
+   **Compare them on: maintenance activity, server-side DTLS support, the cipher suites the client
+   accepts, record-layer behaviour under loss, and build friction on Windows.** State the choice and
+   the rejected alternatives.
+2. **UDP gives no ordering and no delivery, so the protocol implements both.** The repository already
+   proves this on the wire: an ACK window (`ack_window: 16384`), a per-session reliable-resend table,
+   sequence numbers, and a replication gate that **discards** a counter that does not advance. Nothing
+   may assume TCP semantics, and **every operation must be idempotent** because duplicates arrive.
+3. **One socket, many peers.** The world uses a single UDP socket and demuxes by `(ip, port)` into a
+   per-peer session. Keep that: one socket plus a map, **never one socket per player**. For scale,
+   `SO_REUSEPORT` with several reader threads sharing the port is the documented next step — a single
+   distributor task is a known bottleneck (Quilkin hit exactly this).
+4. **Read in batches, process per tick.** One task per datagram collapses the scheduler at thousands of
+   peers. Drain the socket into a bounded buffer, then run the tick over it. Prefer pre-allocated
+   buffers: the reference UDP servers that reach millions of packets per second are zero-allocation
+   after init.
+5. **The DTLS handshake must never touch the tick.** Handshakes are expensive crypto; a player joining
+   mid-tick must not stall a 20 ms budget. Handshake work goes to `spawn_blocking` or a dedicated
+   thread, and the tick only ever sees established sessions.
+6. **Datagram size is a design constant.** With DTLS overhead, stay under the path MTU (~1200 bytes);
+   IP fragmentation makes loss catastrophic. The current replay chunk is 1100 bytes for exactly this
+   reason.
+
+### The replay is over — this is a real server now
+
+State the difference plainly, because it changes what the code must do:
+
+| | Python prototype today | What this plan builds |
+| --- | --- | --- |
+| State | replays 176 captured messages | **originates** it |
+| Actors | one captured actor | N real actors with AOI |
+| Movement | client simulates over recorded data | **server arbitrates** |
+| Presence | does not exist | must **generate** the messages |
+
+And the concrete blocker that follows: the six actor-replication codecs (`AddActorMessage` wire 449,
+`SpawnActorsMsg` 574, `Replicate` 391, `ReplicateClient` 407, `FragmentUpdateMsg` 422, `UpdateMsg` 106)
+are **identified but their layouts are not decoded** (`research/atlas/presence-codecs.json`). Without
+those layouts the server cannot tell a client that another player exists. Decoding them is a live
+instrumentation task, and `reverse/probes/client/frida-unmarshal.py` already works for it.
+
+## 50 Hz, stable, with hundreds of players together — the performance contract
+
+The world must run at a **fixed 50 Hz** (20 ms per tick) and stay stable with hundreds of players in
+the same area. That is a contract, not an aspiration, and the plan must make it measurable.
+
+### What the tick budget means
+
+- 50 Hz means **20 ms per tick**, and everything in the tick must finish before the next fires.
+  Overrun does not merely slow things down: updates bunch up and become bursty, and players see
+  rubber-banding.
+- **Keep tick work under ~50% of the budget** so an input spike has headroom. A tick that normally
+  takes 19 ms has no headroom and is already broken.
+- When a tick runs long the visible failure mode is a dropped frame: the loop wakes late, the rate sags
+  below contract, and the effect compounds.
+- **Split expensive per-entity work across frames** (round-robin AI, staggered AOI recomputation)
+  rather than doing everything every tick.
+- Use a **fixed timestep with a time accumulator**, so the simulation is deterministic and independent
+  of how long the wall clock actually took. Ticks are a unit of simulation, not of real time.
+- Measure with a **tick-time manager**: a rolling window of tick durations reporting mean, p50, p99 and
+  overrun count. A server that cannot state its p99 tick time cannot claim 50 Hz.
+
+### Where the cost actually is, and what the design must do about it
+
+For hundreds of players in one area the dominant costs are, in order: **AOI recomputation**, then
+**replication serialization**, then the network write. So:
+
+- AOI must be **incremental**, not a full rebuild per tick: a player's subscription changes only when
+  it crosses a cell boundary.
+- Replication payloads are **serialized once and shared**, not re-encoded per recipient. This is where
+  `rkyv`-style zero-copy snapshots pay for themselves: build the archived form once per tick per
+  interest group.
+- The egress path must be **batched per tick**, not per event, and must never block on the socket.
+
+### The comparison the plan must include
+
+The owner's requirement is that this is **faster, more modern, better maintained and more stable** than
+what came before. A claim like that needs a method, so the plan must specify:
+
+1. **A baseline measurement of the Python prototype** on the same machine: ticks per second achieved,
+   tick duration p50/p99, bytes per player per second, and the player count at which it degrades.
+   Without that baseline, "better" is unfalsifiable.
+2. **A load harness** that drives synthetic clients through the real protocol — not a mock — stepping
+   player count up in stages and reading the server's own metrics at each step: ticks per second, tick
+   p50/p99, bytes sent, and the point where it falls behind.
+3. **The acceptance criterion**: 50 Hz sustained, tick p99 under budget, at the stated player count, on
+   the stated hardware. Name the hardware.
+4. **A profiling story**: `perf` with frame pointers plus flame graphs, and a frame/tick profiler, so
+   the answer to "why is the tick slow" is measured rather than guessed.
+
+### Technology choices are themselves a decision to justify
+
+The same requirement applies to every dependency the plan proposes — transport, async runtime,
+serialization, database driver, HTTP stack. For each, state: **why this one**, what its maintenance
+and release cadence look like, what it costs (dependency tree, C dependencies, build friction on
+Windows), and what was rejected. A choice that cannot be justified against "more modern, better
+maintained, more stable" is not a choice, it is a habit.
+
 ## Constraints
 
 - Do not invent protocol facts. An unrecorded client requirement is an **open question phrased as a
