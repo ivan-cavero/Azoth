@@ -187,7 +187,9 @@ class Handler(BaseHTTPRequestHandler):
             # accepts the x-amz-json content type (observed on its requests).
             key = "getlogininfo"
             region_id = region_from_headers(self.headers)
-            payload = getlogininfo_response(st.cfg.discovery_dir, region_id)
+            payload = getlogininfo_response(
+                st.cfg.discovery_dir, region_id, self.headers.get("X-Azoth-Instance")
+            )
             self._send_body(payload, ctype="application/x-amz-json-1.1", aws_id=True)
             st.metrics.hit(key)
             keep = {k: v[:200] for k, v in self.headers.items()}
@@ -217,7 +219,10 @@ class Handler(BaseHTTPRequestHandler):
             key, payload = "privacy", privacy_response(st.cfg.discovery_dir)
         elif is_queue_path(path):
             key, payload = "queue", queue_response(
-                st.cfg.discovery_dir, path, region_from_headers(self.headers)
+                st.cfg.discovery_dir,
+                path,
+                region_from_headers(self.headers),
+                self.headers.get("X-Azoth-Instance"),
             )
         elif is_entitlements_sync_path(path):
             key, payload = (

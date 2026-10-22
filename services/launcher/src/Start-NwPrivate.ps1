@@ -67,8 +67,20 @@ $profileRoaming = Join-Path $privateRoot 'profile\Roaming'
 # Per-instance state: instance 1 keeps `private-client\state` (az.py reads
 # `state\game.pid` there), instance N>1 gets `state\instance-N` so the two
 # clients cannot overwrite each other's pid file or source-hash record.
-$stateDir = if ($Instance -eq 1) { Join-Path $privateRoot 'state' } else { Join-Path $privateRoot 'state' "instance-$Instance" }
-$repoTmp = if ($Instance -eq 1) { Join-Path $repo '.azoth\tmp' } else { Join-Path $repo '.azoth\tmp' "instance-$Instance" }
+# Per-instance state: instance 1 keeps `private-client\state` (az.py reads
+# `state\game.pid` there), instance N>1 gets `state\instance-N` so the two
+# clients cannot overwrite each other's pid file or source-hash record.
+#
+# Join-Path takes TWO arguments in Windows PowerShell 5.1; the three-argument form is
+# pwsh 7 only. Written as 5.1-safe nesting on purpose: with the 3-arg form, 5.1 does not
+# throw at the call site, it re-parses the extra argument as a POSITIONAL argument of
+# this script and the launcher dies with
+#   "No se encuentra ningun parametro de posicion que acepte el argumento 'instance-2'"
+# which looks like a parameter-binding bug in the launcher, not a Join-Path bug. Measured
+# 2026-10-22: `pwsh` is absent on this machine, so `launcher_shell()` falls back to 5.1
+# and the second-client path never launched.
+$stateDir = if ($Instance -eq 1) { Join-Path $privateRoot 'state' } else { Join-Path (Join-Path $privateRoot 'state') "instance-$Instance" }
+$repoTmp = if ($Instance -eq 1) { Join-Path $repo '.azoth\tmp' } else { Join-Path (Join-Path $repo '.azoth\tmp') "instance-$Instance" }
 New-Item -ItemType Directory -Force -Path $repoTmp | Out-Null
 $env:TEMP = $repoTmp
 $env:TMP = $repoTmp
@@ -230,7 +242,29 @@ Get-ChildItem -LiteralPath (Join-Path $InstallRoot 'Bin64') -File | ForEach-Obje
     }
     Link-File $_.FullName (Join-Path $rtBin $_.Name)
 }
-Copy-Item -LiteralPath $stubDll -Destination (Join-Path $rtBin 'steam_api64.dll') -Force
+# The stub is SHARED by every instance, so it is already in place and open by a running
+# client. Copying it unconditionally made a second client die with
+#   Copy-Item : El proceso no puede obtener acceso al archivo '...steam_api64.dll'
+#   porque esta siendo utilizado en otro proceso
+# (measured 2026-10-22). Copy only when the destination is missing or differs, and treat
+# 'in use' as success: a running client already has the file it needs.
+$stubDst = Join-Path $rtBin 'steam_api64.dll'
+$stubNeedsCopy = $true
+if (Test-Path -LiteralPath $stubDst) {
+    try {
+        $stubNeedsCopy = (Get-FileHash -LiteralPath $stubDll -Algorithm SHA256).Hash -ne
+                         (Get-FileHash -LiteralPath $stubDst -Algorithm SHA256).Hash
+    } catch {
+        $stubNeedsCopy = $false
+    }
+}
+if ($stubNeedsCopy) {
+    try {
+        Copy-Item -LiteralPath $stubDll -Destination $stubDst -Force -ErrorAction Stop
+    } catch [System.IO.IOException] {
+        Write-Host '  steam_api64.dll is in use by a running client; keeping the existing copy'
+    }
+}
 Set-Content -LiteralPath (Join-Path $rtBin 'steam_appid.txt') -Value $SteamAppId -Encoding ascii -NoNewline
 Set-Content -LiteralPath (Join-Path $RuntimeRoot 'steam_appid.txt') -Value $SteamAppId -Encoding ascii -NoNewline
 

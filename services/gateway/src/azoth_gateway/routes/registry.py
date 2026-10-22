@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from .identity import AZOTH_CHARACTER_ID, AZOTH_PERSONA
+from .identity import AZOTH_CHARACTER_ID, AZOTH_PERSONA, character_for_instance, persona_for_instance
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DEFAULT_PATH = DATA_DIR / "worlds.json"
@@ -246,16 +246,16 @@ def _login_world_gate(w: dict) -> dict:
     }
 
 
-def _seed_character(w: dict) -> dict:
+def _seed_character(w: dict, instance: str | None = None) -> dict:
     """PascalCase CharacterMetadata (FUN_1474e1f60) so the character panel
     has something to render; the client then proceeds to validate/queue
     instead of stalling on an empty Characters vector.
     """
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     return {
-        "CharacterId": AZOTH_CHARACTER_ID,
+        "CharacterId": character_for_instance(instance),
         "Name": w.get("characterName", "Azoth_Dev"),
-        "PersonaId": AZOTH_PERSONA,
+        "PersonaId": persona_for_instance(instance),
         "WorldId": w.get("id", AZOTH_WORLD_ID),
         "CreatedDate": now,
         "ModifiedDate": now,
@@ -288,7 +288,11 @@ def _seed_character(w: dict) -> dict:
     }
 
 
-def getlogininfo_doc(reg: Registry, region_id: str | None = None) -> dict:
+def getlogininfo_doc(
+    reg: Registry,
+    region_id: str | None = None,
+    instance: str | None = None,
+) -> dict:
     """GetLoginInfoResult body — TWO schemas in one document, both proven on
     the live client by nw-private-server/first-light (Codex/Ghidra traces
     FUN_1474e01e0 / FUN_1474e42e0 / FUN_144f40780):
@@ -314,7 +318,7 @@ def getlogininfo_doc(reg: Registry, region_id: str | None = None) -> dict:
         "recommendedWorlds": [],
         "LoginInfoList": {
             "Worlds": [_login_world_gate(x) for x in worlds] or [_login_world_gate(w)],
-            "Characters": [_seed_character(w)],
+            "Characters": [_seed_character(w, instance)],
             "MaxChannelCharacters": 4,
             "CrossRegionTransferCooldownMins": 0,
             "NameReservations": [],

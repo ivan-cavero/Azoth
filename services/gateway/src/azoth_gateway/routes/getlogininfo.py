@@ -20,13 +20,15 @@ OVERRIDE_NAME = "getlogininfo.json"
 
 
 def getlogininfo_response(
-    discovery_dir: Path | None = None, region_id: str | None = None
+    discovery_dir: Path | None = None,
+    region_id: str | None = None,
+    instance: str | None = None,
 ) -> bytes:
     if discovery_dir is not None:
         fp = discovery_dir / OVERRIDE_NAME
         if fp.is_file():
             return fp.read_bytes()
-    body = getlogininfo_doc(load(discovery_dir), region_id)
+    body = getlogininfo_doc(load(discovery_dir), region_id, instance)
     return (json.dumps(body) + "\n").encode()
 
 

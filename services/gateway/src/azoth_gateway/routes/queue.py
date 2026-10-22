@@ -23,6 +23,8 @@ from pathlib import Path
 
 from .identity import (
     AZOTH_CHARACTER_ID,
+    character_for_instance,
+    persona_for_instance,
     AZOTH_PERSONA,
     AZOTH_STEAM_APP_ID,
     AZOTH_STEAM_ID,
@@ -34,14 +36,14 @@ OVERRIDE_NAME = "queue.json"
 _REFRESH_RE = re.compile(r"/queue/v2/[^/]+/jwt")
 
 
-def _ticket(rep: str, world_id: str, world_name: str) -> dict:
+def _ticket(rep: str, world_id: str, world_name: str, instance: str | None = None) -> dict:
     """The login-ticket envelope (parser: FUN_1474e4f20 family)."""
     ticket_id = str(uuid.uuid4())
     now = int(time.time())
     return {
         "AccountAge": 0,
         "AccountIsLocked": False,
-        "CharacterId": AZOTH_CHARACTER_ID,
+        "CharacterId": character_for_instance(instance),
         "ClientCapabilities": "",
         "GenerateTime": now,
         "HostHash": "",
@@ -51,7 +53,7 @@ def _ticket(rep: str, world_id: str, world_name: str) -> dict:
         "Location": "",
         "LocationGroupId": "",
         "LocationId": "",
-        "PersonaId": AZOTH_PERSONA,
+        "PersonaId": persona_for_instance(instance),
         "RepAddress": rep,
         "Signature": f"sig:{ticket_id}",  # handoff gate: must be non-empty
         "SteamAppId": AZOTH_STEAM_APP_ID,
@@ -67,6 +69,7 @@ def queue_response(
     discovery_dir: Path | None = None,
     path: str = "",
     region_id: str | None = None,
+    instance: str | None = None,
 ) -> bytes:
     if discovery_dir is not None:
         fp = discovery_dir / OVERRIDE_NAME
@@ -78,7 +81,7 @@ def queue_response(
         # Refresh path (GET /queue/v2/<ticketId>/jwt/omni): the ready
         # envelope. Position 0 + a full Token is what moves the client from
         # WaitingForQueuedLogin to StartREPConnection.
-        ticket = _ticket(rep, world_id, world_name)
+        ticket = _ticket(rep, world_id, world_name, instance)
         return (
             json.dumps(
                 {
@@ -98,7 +101,7 @@ def queue_response(
         ).encode()
 
     # Initial enqueue: issue a parseable ticket immediately (no real queue).
-    return (json.dumps({"LoginQueueResponse": _ticket(rep, world_id, world_name)}) + "\n").encode()
+    return (json.dumps({"LoginQueueResponse": _ticket(rep, world_id, world_name, instance)}) + "\n").encode()
 
 
 def is_queue_path(path: str) -> bool:
