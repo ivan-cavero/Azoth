@@ -47,3 +47,18 @@ def persona_for_instance(instance: str | int | None) -> str:
     if n <= 1:
         return AZOTH_PERSONA
     return f"amzn1.developerPersonaId.instance{n}"
+
+def character_name_for_instance(instance: str | int | None, default: str) -> str:
+    """The character NAME this instance should use.
+
+    A derived CharacterId alone is not enough: the client rendered the default
+    placeholder name at level 1 for a second instance and would not start a login
+    from it, so the name has to differ too.
+    """
+    try:
+        n = int(instance or 0)
+    except (TypeError, ValueError):
+        return default
+    if n <= 1:
+        return default
+    return f"{default}_{n}"

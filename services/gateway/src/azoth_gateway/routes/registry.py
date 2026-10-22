@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from .identity import AZOTH_CHARACTER_ID, AZOTH_PERSONA, character_for_instance, persona_for_instance
+from .identity import AZOTH_CHARACTER_ID, AZOTH_PERSONA, character_for_instance, character_name_for_instance, persona_for_instance
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DEFAULT_PATH = DATA_DIR / "worlds.json"
@@ -250,11 +250,17 @@ def _seed_character(w: dict, instance: str | None = None) -> dict:
     """PascalCase CharacterMetadata (FUN_1474e1f60) so the character panel
     has something to render; the client then proceeds to validate/queue
     instead of stalling on an empty Characters vector.
+
+    The NAME must also vary per instance. A derived CharacterId with the default
+    name produced a level-1 placeholder called `Azoth_Dev` on a second client, and
+    the client showed it in the panel but would not start a login from it — the
+    Play button did nothing, so that client never opened a REP socket at all
+    (measured 2026-10-22, screenshots of both windows).
     """
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     return {
         "CharacterId": character_for_instance(instance),
-        "Name": w.get("characterName", "Azoth_Dev"),
+        "Name": character_name_for_instance(instance, w.get("characterName", "Azoth_Dev")),
         "PersonaId": persona_for_instance(instance),
         "WorldId": w.get("id", AZOTH_WORLD_ID),
         "CreatedDate": now,

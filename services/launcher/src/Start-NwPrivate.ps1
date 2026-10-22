@@ -290,8 +290,35 @@ if ($Instance -gt 1) {
 # Official EOS "null anticheat client" switch (Epic integration checklist):
 # start the exe directly with this set so ClientSDK does not require EAC.
 $env:EOS_USE_ANTICHEATCLIENTNULL = '1'
-$env:LOCALAPPDATA = $profileLocal
-$env:APPDATA = $profileRoaming
+# DO NOT override the profile when this launcher runs as a DIFFERENT Windows user.
+#
+# The client resolves its profile through the known-folder API, so %LOCALAPPDATA% and
+# %APPDATA% are the only thing that makes a second client use a second profile. When the
+# launcher runs under another user's token those variables already point at that user's
+# folders, and overwriting them here put the second client back on the first user's
+# profile — measured 2026-10-22: the process ran as Azoth2 and still wrote the shared
+# C:\Users\barbara\AppData\Local\AGS\New World\Game.log.
+#
+# Override only when running as the SAME user who owns this checkout, which is the
+# historical single-client path and must stay byte-identical.
+$currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+$repoOwner = Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $repo))
+if ($currentUser -like "*\$repoOwner") {
+    $env:LOCALAPPDATA = $profileLocal
+    $env:APPDATA = $profileRoaming
+} else {
+    # Running under another user's token: the child inherits THIS process's environment
+    # block, so leaving the first user's values in place still pointed the client at the
+    # wrong profile. Remove them and let the client resolve them itself through
+    # SHGetFolderPathW, which answers per token and therefore gives this user its own
+    # %LOCALAPPDATA%\AGS\New World.
+    Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue
+    Remove-Item Env:APPDATA -ErrorAction SilentlyContinue
+    Remove-Item Env:USERPROFILE -ErrorAction SilentlyContinue
+    Remove-Item Env:HOMEDRIVE -ErrorAction SilentlyContinue
+    Remove-Item Env:HOMEPATH -ErrorAction SilentlyContinue
+    Write-Host "  running as ${currentUser}: clearing inherited profile vars so the client resolves its own"
+}
 $p = Start-Process -FilePath $exe -WorkingDirectory $rtBin -ArgumentList '+lc_listWorlds' -PassThru
 $pidFile = Join-Path $stateDir 'game.pid'
 Set-Content -LiteralPath $pidFile -Value $p.Id -Encoding ascii -NoNewline
