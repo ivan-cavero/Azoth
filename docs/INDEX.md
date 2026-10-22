@@ -13,6 +13,7 @@ at hand.
 | Repeat a world attempt | [World debug loop](../research/docs/WORLD-DEBUGGING.md), [live debug skill](../.agents/skills/azoth-live-debug/SKILL.md) |
 | Understand historical decisions | [`archive/`](archive/) and [`sessions/`](sessions/) |
 | Review what the official-server extraction produced | [Extraction inventory, build 1.460](EXTRACTION-2026-10-22.md) |
+| Plan the Rust gateway port | [Plan request](PLAN-REQUEST-gateway-rust.md) |
 
 Current implementation facts belong next to the code or in the client registry.
 This folder holds only project-wide guidance and historical material.
