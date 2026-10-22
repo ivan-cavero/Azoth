@@ -9,14 +9,21 @@ it unconditionally selects the permissive callback (always-trust).
 Site (VERIFIED byte-identical on build 1.400.6031.6004151 — see
 research/docs/REP-PROTOCOL.md and `bytepat.py dtls-verify`):
 
-    0x145dce8ad: 48 83 BF 88 02 00 00 00   CMP qword ptr [RDI+0x288], 0
-    0x145dce8b5: 0F 84 19 01 00 00         JZ  0x145dce9d4   <- patch here
-    patched:     E9 1A 01 00 00 90         JMP 0x145dce9d4 (recomputed)
+    1.400  0x145dce8ad: 48 83 BF 88 02 00 00 00   CMP qword ptr [RDI+0x288], 0
+    1.400  0x145dce8b5: 0F 84 19 01 00 00         JZ  0x145dce9d4   <- patch here
+    1.460  0x145dcf9ed: 48 83 BF 88 02 00 00 00   CMP (same bytes)
+    1.460  0x145dcf9f5: 0F 84 19 01 00 00         JZ  (same bytes, moved +0x1140)
+    patched:           E9 1A 01 00 00 90         JMP (identical on both builds)
 
-Re-derive with `python reverse/tools/bytepat.py dtls-verify`
-before trusting the VA on a newer client. This patch is IN-MEMORY ONLY (no
-on-disk modification), against OUR private runtime (no EAC — see
-research/docs/EAC.md for why this is forbidden on the official process).
+The instruction did not change between builds; only its address moved. The 1.460
+site was re-derived with `python reverse/tools/bytepat.py dtls-verify`, which
+keys on the stable CMP that precedes the JZ, and then read back.
+
+If the private exe already carries the patch ON DISK
+(`scripts/patch-dtls-disk.py apply`), this script exits without attaching: there
+is nothing left to do in memory, and the probe-free path is the one that reaches
+InGame. Re-derive with `python reverse/tools/bytepat.py dtls-verify` before
+trusting the VA on a newer client.
 
 Usage:
   python services/launcher/runtime-tools/frida-trust-patch.py          # attach
@@ -29,12 +36,13 @@ from __future__ import annotations
 import argparse
 import os
 import struct
+import sys
 import time
 from pathlib import Path
 
 IMAGE_BASE = 0x140000000
-PATCH_VA = 0x145DCE8B5  # the JZ itself (CMP starts at ...8AD)
-ORIGINAL = bytes.fromhex("0F8419010000")  # JZ rel32 -> 0x145dce9d4
+PATCH_VA = 0x145DCF9F5  # build 1.460 JZ (1.400 was 0x145DCE8B5)
+ORIGINAL = bytes.fromhex("0F8419010000")  # JZ rel32 -> permissive branch
 # NOTE: the externally archived patch bytes (E9 19 01 00 00 90) are off by
 # one: a 5-byte JMP at the 6-byte JZ slot has its next-instruction at
 # site+5, so rel32 must be 0x11A, not the JZ's 0x119. We NEVER trust
@@ -90,10 +98,29 @@ def main() -> int:
     ap.add_argument("--revert", action="store_true", help="restore original JZ bytes")
     args = ap.parse_args()
 
-    import frida
-
     target_va = PATCH_VA + 6 + struct.unpack("<i", ORIGINAL[2:6])[0]
     patched = rel32_jmp(PATCH_VA, target_va)
+
+    # If the on-disk copy already carries the patch there is nothing left to do in
+    # memory, and attaching only adds a failure mode. The probe-free path is the
+    # one that reaches InGame.
+    if not args.revert:
+        try:
+            exe = find_private_exe()
+            sys.path.insert(0, str(exe.parents[3] / "reverse" / "tools"))
+            from catalog import PE  # noqa: E402
+
+            pe = PE(exe)
+            off = pe.va_to_foff(PATCH_VA)
+            with exe.open("rb") as f:
+                f.seek(off)
+                if f.read(len(patched)) == patched:
+                    print(f"disk copy already patched at {PATCH_VA:#x}; no memory patch needed")
+                    return 0
+        except Exception as exc:  # noqa: BLE001 - never block the run on this check
+            print(f"disk-patch check skipped: {exc}")
+
+    import frida
     js = (
         FRIDA_JS.replace("%OFFSET%", str(PATCH_VA - IMAGE_BASE))
         .replace("%ORIGINAL%", "[" + ", ".join(map(str, ORIGINAL)) + "]")
