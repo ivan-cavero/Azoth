@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/azoth-wire", "xtask"]
+members = ["crates/azoth-wire", "crates/azoth-region", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
@@ -14,6 +14,10 @@ publish = false
 # std on purpose: they are the crate every other crate depends on, so their
 # dependency tree must stay empty until a measured need adds one (plan §18).
 anyhow = "1"
+# Serialization for the client's HTTP contract. serde is the ecosystem standard and
+# serde_json is what renders the exact byte shape the client parses.
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
