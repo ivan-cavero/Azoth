@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/azoth-wire", "crates/azoth-region", "xtask"]
+members = ["crates/azoth-wire", "crates/azoth-region", "crates/azoth-http", "xtask"]
 
 [workspace.package]
 version = "0.1.0"

@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "azoth-http"
+version = "0.1.0"
+
+[[package]]
 name = "azoth-region"
 version = "0.1.0"
 dependencies = [
