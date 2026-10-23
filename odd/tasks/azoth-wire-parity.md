@@ -457,3 +457,44 @@ its reader), but it is not one function read away and this log does not pretend 
 **`UpdateMsg` (106) is left unread.** With two of three polymorphic unmarshals confirmed identical
 in structure, the expected finding there is the same shape with a third constructor. That is an
 expectation, not a measurement, and it is recorded as such.
+
+### L12 — T6 done, and Phase 1 started
+
+`UpdateMsg` (106) turned out **not** to be polymorphic, correcting my own prediction: `FUN_1407c5840`
+→ `FUN_1407d8d50` reads a prefix-varint length (via `FUN_14087b760`, the same ladder this crate
+already implements), rejects anything at or above `0x201`, and copies the bytes. So **four** of the
+six presence messages have fixed layouts and only `Replicate`/`ReplicateClient` dispatch per
+component type. `presence.rs` now carries `UpdateMsg` with the 512-byte cap.
+
+### L13 — Phase 1: `azoth-region`, and the parity that found two real bugs
+
+The crate renders the channel document from the registry. The parity test requires the same 7,645
+bytes the Python gateway produces, and building it caught two ordering defects that **no semantic
+comparison would have found**:
+
+1. **`serde_json::Map` is a `BTreeMap` by default**, so every object in the document came out
+   alphabetised — `apiEndpoint, awsRegion, clientTag, stage, version` instead of the served
+   `awsRegion, version, apiEndpoint, clientTag, stage`. Fixed with the `preserve_order` feature.
+2. **The region's dotted `omni.privacy-settings.*` keys were a `BTreeMap`**, which sorted
+   `client-endpoint` before `region` and moved them out of the order the document fixes. Changed to
+   a `Vec` so the order is data rather than an accident of key names.
+
+Both are the class of bug the plan's §11.1 exists for: a field cannot drift *silently*, so the check
+has to be on bytes, not on parsed values. A JSON-value comparison passes on both of these.
+
+**What the crate decides, and the reason recorded in code:**
+
+* eligibility is a pure function including `build_sha256 == CHANNEL_BUILD_SHA256`, so a 1.400 world
+  can never be handed a 1.460 client;
+* allocation sorts by headroom then name, so two identical registries allocate the same world and a
+  load test is reproducible;
+* the ETag is FNV-1a 64 rather than the prototype's MD5 — the client needs a tag that changes with
+  the body, not a particular algorithm, and the route is polled;
+* the region's status is **not** rendered into the channel document (it is not part of that
+  contract); what changes the bytes is the display name, and the test says so rather than implying a
+  status flip is visible there.
+
+**Two files crossed the 400-line limit** (`registry.rs`, `presence.rs`) so their assertions moved to
+integration tests. The limit was not raised.
+
+**State:** 105 tests across the workspace, `xtask` clean, 0 build warnings, pushed.
