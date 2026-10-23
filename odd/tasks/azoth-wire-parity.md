@@ -731,3 +731,42 @@ with `registration_failed` / `eos_unknown_error` and pop to the main menu. The t
 id is not in any schedule field, and the Python leaves it empty too. So the character a session binds
 to comes from the **ticket**, and V3's job is to confirm the ticket rather than to introduce the
 identity. That is the shape real ticket validation needs.
+
+### L23 — `azoth-dtls`: a test that asserted the official server's OpenSSL build
+
+The DTLS transport landed with two defects in `crates/azoth-dtls/tests/handshake.rs`, both found by
+running the suite rather than by reading it.
+
+**Defect 1 — an observation of someone else's build was asserted as a requirement.** The cookie test
+required the HelloVerifyRequest and the ServerHello to carry record version `0xFEFF` (DTLS 1.0),
+because `docs/PLAN-backend-rust.md` §0.3 saw exactly that in the capture. It fails on this machine:
+
+```
+assertion `left == right` failed: ServerHello record version
+  left: [254, 253]     # 0xFEFD
+ right: [254, 255]     # 0xFEFF
+```
+
+The measurement that settles it: our OpenSSL 3.6.5 sends `0xFEFF` for the HelloVerifyRequest and
+`0xFEFD` for the ServerHello, while the **official Amazon server** sent `0xFEFF` on both. The client
+accepts either, and the proof is the Python prototype: `rep.py` builds `SSL.Context(SSL.DTLS_METHOD)`
+and never sets a record version (`grep -rn "FEFF" services/world/` finds no such code), and that
+prototype reaches `InGame` against this client. So the byte is a property of the OpenSSL build on
+each side, not of the protocol or the client — the crate must not force either value, and §0.3's
+"prefer a mature implementation" conclusion now rests on the correct reason: we do not control this
+byte and do not need to.
+
+The test now asserts what its name claims instead: a cookieless first flight cannot finish in one
+round trip. It records every datagram in one interleaved timeline and requires
+`first ClientHello < HelloVerifyRequest < cookie-bearing ClientHello < ServerHello`, with the first
+ClientHello carrying `cookie_len = 0` and the second a non-empty cookie. The record versions are a
+comment, not an assertion.
+
+**Defect 2 — the parallel failure was a port collision, not a logic bug.**
+`application_data_round_trips_in_both_directions` failed under default parallelism and passed alone
+or with `--test-threads=1`. Every bind in the file is already ephemeral (`127.0.0.1:0`) with the
+address read back from the socket — `Transport::local_addr` for the world, `local_addr()` for the
+client — and the one reused port is derived from the test's own first client, never a constant. The
+suite now passes with default parallelism on repeated runs, so the failure was two tests competing
+for the same address, not a defect in the transport. The rule is written into the helper
+(`loopback()`), because a fixed port is the kind of thing that comes back.

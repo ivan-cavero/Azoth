@@ -104,7 +104,7 @@ after zeroing `random` and `cookie`.
 
 | Item | Value |
 | --- | --- |
-| DTLS record versions present | `0xFEFD` (DTLS 1.2) for handshake and application data; **`0xFEFF`** on exactly two server records (HelloVerifyRequest, ServerHello) |
+| DTLS record versions present | `0xFEFD` (DTLS 1.2) for handshake and application data; **`0xFEFF`** on exactly two server records (HelloVerifyRequest, ServerHello) — that is the *official server's* OpenSSL build, not a requirement; ours sends `0xFEFD` on the ServerHello (§0.3, item 3) |
 | `client_version` | `0xFEFD` |
 | ClientHellos per session | 3: no cookie → HVR → cookie → **fresh** handshake (different `random`, same 5-tuple) |
 | Cookie | 20 bytes on the second ClientHello only |
@@ -128,10 +128,17 @@ Three design consequences, and they are not negotiable:
    (`STATUS.md` 2026-10-22: `CMP [rdi+0x288],0` at `0x145DCF9ED`, patch
    `e9 1a 01 00 00 90`). The certificate stays cosmetic; the **key type does
    not**.
-3. **The record-layer version differs from the negotiated version** for
-   HelloVerifyRequest and ServerHello (`0xFEFF`, i.e. DTLS 1.0). This is
-   OpenSSL's own behaviour and is a classic thing a hand-rolled DTLS stack gets
-   wrong. It is a reason to prefer a mature implementation over a new one.
+3. **The record-layer version is OpenSSL's to choose, and it is not the negotiated
+   version.** The official server sent `0xFEFF` (DTLS 1.0) for its HelloVerifyRequest
+   and ServerHello while negotiating 1.2. **Our** OpenSSL 3.6.5 sends `0xFEFF` for the
+   HelloVerifyRequest and `0xFEFD` for the ServerHello, and the client accepts both: the
+   OpenSSL-based Python prototype never sets a record version at all
+   (`SSL.Context(SSL.DTLS_METHOD)` and nothing more; `grep -rn FEFF services/world/` finds
+   no code that sets one) and reaches `InGame`. So the byte is not a client requirement
+   and not a server requirement — it is a property of the OpenSSL build on each side. A
+   crate that tried to force either value would be pinning someone else's internal
+   decision. This is still a reason to prefer a mature implementation over a new one, but
+   for the correct reason: we do not control this byte and do not need to.
 
 `extended_master_secret` is offered, so the server should honour it. A cookie
 exchange is mandatory: the client re-handshakes with a cookie, which means the
