@@ -17,6 +17,88 @@
                     "logs": {},
                     "routes": [
                         {
+                            "match": [
+                                {
+                                    "host": [
+                                        "tokenservice.amazongames.com",
+                                        "client.entitlementservice.amazongames.com",
+                                        "client.agsprivacysettingsservice.amazongames.com",
+                                        "2mfrik7h83.execute-api.us-east-1.amazonaws.com",
+                                        "kqqt5twsi7.execute-api.us-east-1.amazonaws.com",
+                                        "eudbjx6mig.execute-api.us-east-1.amazonaws.com",
+                                        "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
+                                        "q8hqllbg6k.execute-api.us-east-1.amazonaws.com",
+                                        "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+                                        "j4n6whncmi.execute-api.sa-east-1.amazonaws.com",
+                                        "0prplal5u1.execute-api.us-east-1.amazonaws.com",
+                                        "v7irlu1nrl.execute-api.us-west-2.amazonaws.com",
+                                        "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
+                                        "8otrnl8e8d.execute-api.eu-central-1.amazonaws.com",
+                                        "ei4rb8pwvd.execute-api.sa-east-1.amazonaws.com",
+                                        "3khxmonavl.execute-api.us-east-1.amazonaws.com",
+                                        "mwsyzhfoe5.execute-api.us-west-2.amazonaws.com",
+                                        "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
+                                        "d1w0bfy6smo4d1.cloudfront.net",
+                                        "d1cjlmzk0xrm0z.cloudfront.net",
+                                        "d2oeuvxi3kfsrw.cloudfront.net",
+                                        "d3bj4csovi1fe8.cloudfront.net",
+                                        "de4mfzk9wkelz.cloudfront.net",
+                                        "dynamodb.eu-central-1.amazonaws.com",
+                                        "dynamodb.us-east-1.amazonaws.com",
+                                        "dynamodb.us-west-2.amazonaws.com",
+                                        "dynamodb.sa-east-1.amazonaws.com",
+                                        "dynamodb.ap-southeast-2.amazonaws.com",
+                                        "client.catalogservice.amazongames.com",
+                                        "prod.identity-service.amazongames.com",
+                                        "ags-javelin-remote-config.s3.amazonaws.com"
+                                    ]
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "reverse_proxy",
+                                    "upstreams": [
+                                        {
+                                            "dial": "127.0.0.1:8082"
+                                        }
+                                    ],
+                                    "transport": {
+                                        "protocol": "http",
+                                        "keep_alive": {
+                                            "enabled": false
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "match": [
+                                {
+                                    "host": [
+                                        "d2c74t4zimux3r.cloudfront.net",
+                                        "d1hkbwzm1bktgo.cloudfront.net",
+                                        "client.content-service.amazongames.com"
+                                    ]
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "reverse_proxy",
+                                    "upstreams": [
+                                        {
+                                            "dial": "127.0.0.1:8080"
+                                        }
+                                    ],
+                                    "transport": {
+                                        "protocol": "http",
+                                        "keep_alive": {
+                                            "enabled": false
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
                             "handle": [
                                 {
                                     "handler": "reverse_proxy",
@@ -41,40 +123,40 @@
         "tls": {
             "certificates": {
                 "automate": [
-                    "d2c74t4zimux3r.cloudfront.net",
-                    "d1w0bfy6smo4d1.cloudfront.net",
+                    "0prplal5u1.execute-api.us-east-1.amazonaws.com",
                     "2mfrik7h83.execute-api.us-east-1.amazonaws.com",
-                    "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+                    "3khxmonavl.execute-api.us-east-1.amazonaws.com",
                     "8otrnl8e8d.execute-api.eu-central-1.amazonaws.com",
-                    "d1hkbwzm1bktgo.cloudfront.net",
+                    "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
+                    "ags-javelin-remote-config.s3.amazonaws.com",
+                    "client.agsprivacysettingsservice.amazongames.com",
+                    "client.catalogservice.amazongames.com",
                     "client.content-service.amazongames.com",
                     "client.entitlementservice.amazongames.com",
-                    "client.catalogservice.amazongames.com",
-                    "client.agsprivacysettingsservice.amazongames.com",
-                    "prod.identity-service.amazongames.com",
-                    "tokenservice.amazongames.com",
-                    "ags-javelin-remote-config.s3.amazonaws.com",
-                    "dynamodb.eu-central-1.amazonaws.com",
-                    "kqqt5twsi7.execute-api.us-east-1.amazonaws.com",
-                    "j4n6whncmi.execute-api.sa-east-1.amazonaws.com",
-                    "ei4rb8pwvd.execute-api.sa-east-1.amazonaws.com",
                     "d1cjlmzk0xrm0z.cloudfront.net",
-                    "0prplal5u1.execute-api.us-east-1.amazonaws.com",
-                    "eudbjx6mig.execute-api.us-east-1.amazonaws.com",
-                    "3khxmonavl.execute-api.us-east-1.amazonaws.com",
+                    "d1hkbwzm1bktgo.cloudfront.net",
+                    "d1w0bfy6smo4d1.cloudfront.net",
+                    "d2c74t4zimux3r.cloudfront.net",
                     "d2oeuvxi3kfsrw.cloudfront.net",
-                    "q8hqllbg6k.execute-api.us-east-1.amazonaws.com",
-                    "v7irlu1nrl.execute-api.us-west-2.amazonaws.com",
-                    "mwsyzhfoe5.execute-api.us-west-2.amazonaws.com",
                     "d3bj4csovi1fe8.cloudfront.net",
-                    "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
-                    "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
-                    "9jlv7mxmw1.execute-api.ap-southeast-2.amazonaws.com",
                     "de4mfzk9wkelz.cloudfront.net",
+                    "dynamodb.ap-southeast-2.amazonaws.com",
+                    "dynamodb.eu-central-1.amazonaws.com",
                     "dynamodb.sa-east-1.amazonaws.com",
                     "dynamodb.us-east-1.amazonaws.com",
                     "dynamodb.us-west-2.amazonaws.com",
-                    "dynamodb.ap-southeast-2.amazonaws.com"
+                    "ei4rb8pwvd.execute-api.sa-east-1.amazonaws.com",
+                    "ep1m9qoir8.execute-api.ap-southeast-2.amazonaws.com",
+                    "eudbjx6mig.execute-api.us-east-1.amazonaws.com",
+                    "hhf8nn71vb.execute-api.us-east-1.amazonaws.com",
+                    "j4n6whncmi.execute-api.sa-east-1.amazonaws.com",
+                    "kqqt5twsi7.execute-api.us-east-1.amazonaws.com",
+                    "mwsyzhfoe5.execute-api.us-west-2.amazonaws.com",
+                    "prod.identity-service.amazongames.com",
+                    "q8hqllbg6k.execute-api.us-east-1.amazonaws.com",
+                    "tokenservice.amazongames.com",
+                    "u433g9r00c.execute-api.eu-central-1.amazonaws.com",
+                    "v7irlu1nrl.execute-api.us-west-2.amazonaws.com"
                 ]
             },
             "automation": {

@@ -33,7 +33,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use azoth_http::envelope::{AwsEnvelope, CONTENT_TYPE_AMZ_JSON_1_1, CONTENT_TYPE_JSON};
 use azoth_http::route::{self, Response, RouteKind};
-use azoth_http::{cache, matches_if_none_match};
+use azoth_http::matches_if_none_match;
 
 use crate::state::AppState;
 
@@ -285,6 +285,6 @@ mod tests {
     fn the_etag_helper_matches_the_crate_it_comes_from() {
         // `Cached::new` must use azoth-http's algorithm, not its own.
         let cached = crate::state::Cached::new(b"hello".to_vec());
-        assert_eq!(cached.etag, cache::etag_for(b"hello"));
+        assert_eq!(cached.etag, azoth_http::etag_for(b"hello"));
     }
 }

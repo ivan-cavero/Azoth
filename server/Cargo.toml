@@ -4,7 +4,9 @@ members = [
     "crates/azoth-wire",
     "crates/azoth-region",
     "crates/azoth-http",
+    "crates/azoth-store",
     "apps/channeld",
+    "apps/regiond",
     "xtask",
 ]
 
@@ -29,7 +31,16 @@ serde_json = { version = "1", features = ["preserve_order"] }
 # the two quirks this client needs (HTTP/1.1 with Content-Length, TCP_NODELAY)
 # are already solved in azoth-http rather than re-derived here.
 axum = "0.8"
+# `tower`'s `util` feature provides `ServiceExt::oneshot`, which is how the route tests drive the
+# real axum router without binding a socket. It is already in the tree as axum's own dependency; the
+# feature is the only addition, and it is a dev-dependency of the crate that needs it.
+tower = { version = "0.5", features = ["util"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+# The identity and world databases. SQLite with the C library bundled, so a build needs no
+# system SQLite and no installer on the target machine (plan §9.1). The driver is blocking on
+# purpose: it makes calling the database from an async hot path impossible instead of merely
+# discouraged, so every access has to go through `spawn_blocking` or a persistence thread.
+rusqlite = { version = "0.37", features = ["bundled"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

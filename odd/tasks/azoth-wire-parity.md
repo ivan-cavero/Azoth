@@ -592,3 +592,88 @@ rung is deliberately out of scope.
 
 **Next:** Phase 2 (`regiond`) is what makes the 202 resolve — accounts, `getlogininfo`, the queue,
 and a real character. Nothing in Phase 1 needs revisiting first.
+
+## Session 3 — Phase 2: identity, the queue, and character select
+
+### L16 — the channel basename question, answered
+
+The 1.460 client requests exactly **two** channel-document basenames: `STEAM_APP_ID.json` (3 times in
+the log) and `STEAM_APP_ID.1063730.json` (30 times). The `STEAM_APP_ID.1.BRANCH.<rand>.json` form
+that forced a prefix match on 1.400 no longer appears. The prefix matcher already covers both, so
+nothing needed changing — recorded so a future reader does not "simplify" it back to an exact match.
+
+### L17 — `azoth-store`: durable characters, and the acceptance test that matters
+
+A new crate on `rusqlite` with the bundled SQLite. The driver is **blocking on purpose**: it makes it
+impossible to call the database from an async hot path by accident, which is the failure the plan's
+§18.2 warns about.
+
+Forward-only migrations, `foreign_keys = ON`, WAL, tombstone deletes, and a `SchemaAhead` guard that
+refuses to open a database newer than the binary — the check that stops a rolled-back binary
+corrupting newer data.
+
+**The acceptance test is the point**: open a file-backed store, create an account and a character,
+drop the store, reopen the same path, and assert every field is intact. That is "restart the region,
+log in again, the same character returns", proven in a unit test rather than asserted in a plan.
+
+### L18 — `regiond`: login succeeds end to end, and a header correction
+
+The service seeds account, Steam identity, persona and one character idempotently, then serves the
+Omni token set, credentials, entitlements, privacy, `getlogininfo`, `worlds/list` and both queue
+envelopes. **`OnCampfireLoginComplete, login successful`** with the Python gateway stopped.
+
+**A correction to the worker's own design, and it matters.** The implementation first declared
+`application/x-amz-json-1.1` plus the `x-amzn-*` envelope on **every** client route, arguing that one
+content type across the login chain is "one fewer difference to explain". That is backwards: only
+`getlogininfo` and `worlds/list` are measured as needing it (`app.py::_send_body(..., aws_id=True)`),
+and changing a header the client was measured accepting is an unmeasured change whose failure mode is
+a silently dropped body. Now per-route, via `RouteKind::needs_aws_envelope`, and verified on the wire:
+
+| route | content type | envelope |
+| --- | --- | --- |
+| `getlogininfo` | `x-amz-json-1.1` | yes |
+| `worlds/list` | `x-amz-json-1.1` | yes |
+| tokens, credentials, queue, entitlements, privacy | `application/json` | no |
+
+### L19 — the remote-config layers were the missing rung
+
+With login working the client stopped again, and Caddy's log said why: **twelve
+`configuration-sets` requests, all 404**. That layer was never in Phase 1 or Phase 2 as I scoped
+them, and it is load-bearing:
+
+* `enable-anticheat` on the `WorldId` layer is read by `FUN_146193620` as a **bare key**; without it
+  REP registration fails with `connection_server_requires_anticheat`;
+* `javelin.offline-id-version` and `javelin.enable-offline-capitals` are the portrayal gate; without
+  them the local player actor is never built and the world renders black;
+* `eos-product-id` / `eos-client-id` must stay **absent**, or ClientSDK tries to init EOS and the
+  login fails.
+
+The shapes were never captured in the clear (TLS to S3), so the service serves the measured **key
+set** padded to the captured `Content-Length`. That is a length fallback, not shape guessing.
+
+**One honest deviation.** The document is larger than the 146-byte captured `WorldId` layer, because
+it carries the bare, nested and dotted forms of five flags plus the two `javelin.*` gates — the
+bare-key lookup has to find them after an unknown merge order. When the document does not fit the
+captured size it is served **whole**, unpadded, and the test asserts "exactly the captured size when
+it fits, at least that size when it does not". Truncating to match a length would delete keys the
+client reads.
+
+### L20 — character select reached
+
+The panel renders **"SELECCIÓN DE PERSONAJE"** with the seeded character `Azoth_7a5241d5` under
+SA East, and the client's log shows `OnCampfireLoginComplete, login successful. ownership=permanent`.
+
+Every route in that run, from Caddy's log: 12 remote-config layers **200**, channel document **200**,
+CMS news/tiles/MOTD **200**, `credentials/omni` **200**, `getlogininfo` **200 ×2**, entitlements
+**200**, and **304 ×7** on the polled CMS routes.
+
+**The connection-failure dialog on screen was from the previous attempt, not this one**, and the log
+proves it: `credentials/omni` returned **502 ×5** while `regiond` was starting, then **200** once it
+was up. Caddy was answering before the upstream existed, which is what a restart looks like from the
+client's side. The successful login followed.
+
+**Still open, and it is the last visible gap:** the three `client.content-service.amazongames.com`
+image routes return 404 (five retries each). The client renders with blank art. `channeld` serves a
+generated placeholder DDS at `/images/`, but those requests carry the content-service host, which the
+Caddy split sends to `channeld` — so the placeholder should have answered. It did not, and that is
+the next concrete defect.

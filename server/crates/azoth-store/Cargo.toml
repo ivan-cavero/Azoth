@@ -1,0 +1,20 @@
+[package]
+name = "azoth-store"
+description = "Durable character records for the identity database."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rusqlite = { workspace = true }
+
+[dev-dependencies]
+# The same driver, on purpose. The schema-ahead test has to change the recorded
+# version from outside the store's own API: doing it through `Store` would test the
+# method that bumps the version rather than the guard that refuses a newer database.
+rusqlite = { workspace = true }
