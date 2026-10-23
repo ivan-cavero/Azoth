@@ -542,3 +542,53 @@ pull an async runtime need it.
 **State:** 158 tests, `xtask` clean, pushed. Phase 1 is **not** closed: the client-in-the-loop
 acceptance (login screen with the Python gateway stopped) has not been run, and that is the only
 thing that can close it.
+
+### L15 — Phase 1 acceptance: the client renders the title screen from Rust
+
+**Setup:** `channeld` on 8080, Caddy on 443, **the Python gateway confirmed absent** (`Get-CimInstance`
+found no `azoth_gateway` process, and nothing else was listening on 8080). The client was launched
+with `private-run.py --settle 45 --no-play`.
+
+**Result: the acceptance passes.** The client's own log, in order:
+
+```text
+Channel name: Azoth                                  <- it parsed our document
+Channel Service data provider: init success          <- the channel bootstrap completed
+Http Gateway Stack: https://de4mfzk9wkelz.cloudfront.net/prod
+Loading level NW_Frontend_NightHaven                 <- the frontend scene loaded
+[OmniAuthBackend] Initializing OmniSDK 1.6
+[OmniAuthBackend] Omni CreateSession complete with result: 202
+CGame::OnCampfireLoginFailed with error: @mm_authresult_Error_Persona
+```
+
+and a screenshot of the rendered **NEW WORLD AETERNUM** title screen with
+"PULSA CUALQUIER BOTÓN PARA CONTINUAR". No black screen, no stalled ladder.
+
+**What served what, from Caddy's log for this run only:**
+
+| path | status | served by |
+| --- | --- | --- |
+| `/STEAM_APP_ID.1063730.json` | 200 | **Rust** — the only channel request in the run |
+| `/ping` | 200 ×35 (after a 308 from Caddy's HTTPS redirect) | Rust |
+| `/games/new-world/tokens` | **404** | Rust, correctly: not a Phase 1 route |
+
+**The 202 is not a Phase 1 failure, and the log says why.** The client got a valid channel document,
+bootstrapped its channel service, and then stopped at the Omni token exchange — the first request
+that belongs to `regiond` (Phase 2). `202` is OmniSDK's "no session", which is exactly what a
+`404` from a gateway that refuses to fabricate produces. The client then failed login cleanly rather
+than hanging, which is the behaviour a missing route *should* produce.
+
+**So Phase 1's acceptance is met on its own terms** — "the client reaches the login screen with the
+Python gateway stopped and only Rust serving" — and the ladder does not go further because the next
+rung is deliberately out of scope.
+
+**Two things this run did not test, stated so they are not assumed:**
+
+* **CMS** (`/newsstories/…`, `/motd/…`) was never requested, because the client stops at the title
+  screen before the landing page fetches content. Those routes are verified at the byte level
+  (L14) but not by the client.
+* **The channel document was fetched exactly once**, so the ETag/304 path was not exercised by the
+  client either. It is verified against the running binary with `curl` (L14).
+
+**Next:** Phase 2 (`regiond`) is what makes the 202 resolve — accounts, `getlogininfo`, the queue,
+and a real character. Nothing in Phase 1 needs revisiting first.
