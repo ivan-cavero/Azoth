@@ -1625,6 +1625,7 @@ client result — not "the code is written".
 | --- | --- |
 | Work | channel document generated from a region registry; CMS (news, tiles, MOTD); ping/health; ETag and 304; `x-amzn-*` headers; `TCP_NODELAY`; HTTP/1.1 with `Content-Length` |
 | Acceptance | the client reaches the **login screen** with the Python gateway stopped and only Rust serving; every route's body is byte-identical to the prototype's for the same input (golden-body tests); a 304 is returned for a matching `If-None-Match`; the region ping the client displays is **< 5 ms** on loopback |
+| State after 2026-10-23 | **the document half is done, the HTTP half is not.** `crates/azoth-region` renders the channel document from the registry and is **byte-identical to the Python gateway** over a generated fixture (7,645 bytes). The two bugs that reaching that parity exposed — `serde_json` alphabetising every object, and a `BTreeMap` reordering the dotted privacy keys — are exactly what a semantic comparison would have missed. Not yet built: the HTTP surface (`azoth-http`, axum/hyper), CMS and MOTD routes, the `x-amzn-*` headers, and the 304 path |
 | Deferred | real content authoring, real images, object storage — Phase 6 |
 
 ### Phase 2 — `regiond`: identity, queue, character lifecycle
