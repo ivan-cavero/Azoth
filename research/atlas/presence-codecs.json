@@ -92,5 +92,146 @@
       "note": "0x1485800e0, the address this file previously cited, is where the NAME STRING, the brace type id and the dashed wire id begin \u2014 the descriptor itself starts at 0x1485800b0."
     },
     "next_step": "Read FUN_146a57540 / FUN_146a57550 / FUN_146a575e0 \u2014 the three pointers at +0x00..+0x18 \u2014 and the constructor invoked from +0x38. One of them installs the per-type codec, and the 1.400 note's 'codec facet at descriptor+0x48 whose +0x20 is MARSHAL and +0x28 is UNMARSHAL' is the shape to look for. This is now a static task; live instrumentation is the fallback, not the only route."
+  },
+  "codec_facet_route_CONFIRMED": {
+    "evidence": "observed",
+    "measured": "2026-10-23",
+    "how": "The 1.460 corpus (423,609 ranges) plus a read of the executable's .rdata at the facet table VA. No live session.",
+    "the_1400_shape_exists_on_1460": true,
+    "add_actor_message": {
+      "descriptor_getter": "FUN_146ac20a0",
+      "how_found": "the getter inlines the type name as little-endian immediates (0x726f746341646441 = 'AddActor', 0x7373654d = 'Mess', 0x6761 = 'ag'), then parses the brace GUID from &UNK_1485800f0, then installs a facet at descriptor+0x48",
+      "brace_guid_address": "0x1485800f0 (= 0x1485800e0 + 0x10, the '96C829CE-\u2026' string; its ONLY referrer is FUN_146ac20a0)",
+      "registrar": "FUN_146a57b20",
+      "facet_object": "0x10 bytes, vptr set to 0x148575298",
+      "facet_table": {
+        "address": "0x148575298",
+        "slots": [
+          "0x146a33a20",
+          "0x1407c7f40",
+          "0x14151e350",
+          "0x14151e3e0",
+          "0x146a33990",
+          "0x146a339a0"
+        ],
+        "slot_0_is_deleting_destructor": "confirmed: FUN_146a33a20 sets *param_1 = &UNK_148575298 and conditionally frees 0x10 bytes",
+        "MARSHAL_+0x20": "0x146a33990",
+        "UNMARSHAL_+0x28": "0x146a339a0"
+      }
+    },
+    "wire_layout_add_actor_message": {
+      "status": "DECODED \u2014 all fields below are read by code, not guessed",
+      "endianness": "big-endian throughout (every integer reader goes through ntohl: FUN_146168b00 for u64, FUN_146168aa0 for u32)",
+      "unmarshal_chain": "FUN_146a339a0 -> FUN_146a6b3e0 -> {FUN_1408787b0, FUN_146a6ebe0, FUN_14087af30, FUN_14087ae90, FUN_14087a570, FUN_14087a3c0, FUN_146a6e090 -> FUN_1415b62d0}",
+      "reader_primitives": {
+        "FUN_1408787b0(reader, dst, n, ok)": "n raw bytes",
+        "FUN_14087af30(ok, out, dst, reader)": "u64 BE (8 bytes)",
+        "FUN_14087ae90(ok, out, dst, reader)": "two u32 BE (8 bytes)",
+        "FUN_14087a3c0(ok, out, dst, reader)": "u32 BE (4 bytes)",
+        "FUN_14087a570": "length-prefixed vector (reads a count, then entries)",
+        "FUN_146a6ebe0": "u8 count + payload; branches on count < 2"
+      },
+      "fields_in_order": [
+        {
+          "offset": "0x00",
+          "size": 16,
+          "reader": "FUN_1408787b0(\u2026, 0x10)",
+          "field": "raw 16 bytes \u2014 the actor id"
+        },
+        {
+          "offset": "0x10",
+          "size": 1,
+          "reader": "direct",
+          "field": "u8"
+        },
+        {
+          "offset": "0x18",
+          "size": "variable",
+          "reader": "FUN_146a6ebe0",
+          "field": "u8 count + payload"
+        },
+        {
+          "offset": "0x28",
+          "size": 8,
+          "reader": "FUN_14087af30",
+          "field": "u64 BE"
+        },
+        {
+          "offset": "0x30",
+          "size": 8,
+          "reader": "FUN_14087af30",
+          "field": "u64 BE"
+        },
+        {
+          "offset": "0x38",
+          "size": 8,
+          "reader": "FUN_14087af30",
+          "field": "u64 BE"
+        },
+        {
+          "offset": "0x40",
+          "size": 8,
+          "reader": "FUN_14087ae90",
+          "field": "two u32 BE"
+        },
+        {
+          "offset": "0x48",
+          "size": 1,
+          "reader": "direct",
+          "field": "u8"
+        },
+        {
+          "offset": "0x50",
+          "size": "variable",
+          "reader": "FUN_14087a570",
+          "field": "length-prefixed vector"
+        },
+        {
+          "offset": "0x78",
+          "size": "variable",
+          "reader": "FUN_14087a570",
+          "field": "length-prefixed vector"
+        },
+        {
+          "offset": "0xa0",
+          "size": "variable",
+          "reader": "FUN_14087a570",
+          "field": "length-prefixed vector"
+        },
+        {
+          "offset": "0xc8",
+          "size": 4,
+          "reader": "FUN_14087a3c0",
+          "field": "u32 BE"
+        },
+        {
+          "offset": "0xcc",
+          "size": 1,
+          "reader": "FUN_1408787b0(\u2026, 1)",
+          "field": "bool"
+        },
+        {
+          "offset": "0xd0",
+          "size": "variable",
+          "reader": "FUN_1415b62d0",
+          "field": "sub-record"
+        },
+        {
+          "offset": "0xf4",
+          "size": "variable",
+          "reader": "FUN_1415b62d0",
+          "field": "sub-record"
+        }
+      ],
+      "field_MEANINGS": "NOT decoded. The offsets, widths and readers are measured; what each field MEANS is not established, and the three length-prefixed vectors and the two FUN_1415b62d0 sub-records are the remaining depth.",
+      "note_on_the_16_byte_head": "16 raw bytes is consistent with an actor id, and ClientAddEntryMsg (wire 164) is independently measured as [00 01][a4][16-byte actor id]. Not proven for this message."
+    },
+    "corrections_to_earlier_records": [
+      "The descriptor is at 0x1485800b0 only for a DIFFERENT message: its slot +0x10 registers FragmentUpdateMsg (its type object FUN_146ac6910 inlines 'FragmentUpdateMsg'). AddActorMessage's own descriptor getter is FUN_146ac20a0 and its facet table is 0x148575298.",
+      "The claim 'the GUID strings have zero static referrers' is false: 0x1485800f0 has exactly one, FUN_146ac20a0.",
+      "0x146a57540, 0x146a575e0, 0x14078fbb0 and 0x14046de30 are NOT functions in this build \u2014 they have no .pdata entry and appear nowhere in the corpus."
+    ],
+    "recipe_for_the_other_five": "Each getter inlines its type name as little-endian immediates. Grep the corpus for those constants (e.g. 'Replicate' -> 0x65746163696c6552), and each hit yields that type's FUN_1407de410 call plus its '*puVar = &UNK_1485\u2026' facet address. Then read 6 qwords at that VA: slot 4 is MARSHAL, slot 5 is UNMARSHAL.",
+    "why_this_matters": "presence-codecs.json previously said the layouts 'cannot be recovered by static xref walking alone' and that live instrumentation was required. The route was reachable the whole time; what was missing was the corpus and the correct builder address."
   }
 }

@@ -289,3 +289,83 @@ binding for sprint, from its options or its input map, before sending any key.
 integrity-checked with `gunzip -t`. Tonight's Frida agent directory (44 MB) was removed; four
 older ones from previous sessions were left alone because they are not this feature's artifacts.
 Free disk after cleanup: **~85 GB of 222 GB**.
+
+## Session 2 — the presence codec is decoded
+
+### L7 — AddActorMessage's layout, from the corpus, with no live session
+
+The previous session recorded the descriptor route and left the codec facet as the next task. It
+is done, and it went further than planned: **`AddActorMessage`'s wire layout is decoded.**
+
+**The facet exists on 1.460, and it is the 1.400 shape.** `AddActorMessage`'s real descriptor
+getter is `FUN_146ac20a0` — found by grepping the corpus for the type name inlined as
+little-endian immediates (`0x726f746341646441` = `"AddActor"`, `0x7373654d` = `"Mess"`, `0x6761` =
+`"ag"`). It parses the brace GUID from `0x1485800f0` and installs a facet at `descriptor+0x48`.
+Reading six qwords of `.rdata` at `0x148575298`:
+
+```text
++0x00  0x146a33a20   deleting destructor (confirms the table: it restores &UNK_148575298)
++0x08  0x1407c7f40
++0x10  0x14151e350
++0x18  0x14151e3e0
++0x20  0x146a33990   MARSHAL
++0x28  0x146a339a0   UNMARSHAL
+```
+
+**The layout, every field read by code:**
+
+| offset | size | reader | field |
+| --- | --- | --- | --- |
+| `0x00` | 16 | `FUN_1408787b0(…, 0x10)` | raw 16 bytes |
+| `0x10` | 1 | direct | u8 |
+| `0x18` | var | `FUN_146a6ebe0` | u8 count + payload |
+| `0x28` | 8 | `FUN_14087af30` | u64 BE |
+| `0x30` | 8 | `FUN_14087af30` | u64 BE |
+| `0x38` | 8 | `FUN_14087af30` | u64 BE |
+| `0x40` | 8 | `FUN_14087ae90` | two u32 BE |
+| `0x48` | 1 | direct | u8 |
+| `0x50` | var | `FUN_14087a570` | length-prefixed vector |
+| `0x78` | var | `FUN_14087a570` | length-prefixed vector |
+| `0xa0` | var | `FUN_14087a570` | length-prefixed vector |
+| `0xc8` | 4 | `FUN_14087a3c0` | u32 BE |
+| `0xcc` | 1 | `FUN_1408787b0(…, 1)` | bool |
+| `0xd0` | var | `FUN_1415b62d0` | sub-record |
+| `0xf4` | var | `FUN_1415b62d0` | sub-record |
+
+**Big-endian throughout**, and that is measured rather than assumed: every integer reader goes
+through `ntohl` — `FUN_146168b00` for the u64 path, `FUN_146168aa0` for the u32 path. That is the
+same endianness as every other field this project has decoded, which is a useful cross-check.
+
+**What is NOT decoded, stated plainly:** the *meaning* of each field. The offsets, widths and
+readers are measured. Which u64 is what, what the three vectors contain, and what the two
+`FUN_1415b62d0` sub-records carry are open. The 16-byte head is consistent with an actor id —
+`ClientAddEntryMsg` (wire 164) is independently measured as `[00 01][a4][16-byte actor id]` — but
+that is not proven for this message and is labelled as an inference in the atlas.
+
+### L8 — three corrections, two of them to my own previous session
+
+1. **The descriptor I recorded last session was the wrong one.** `0x1485800b0`'s slot `+0x10`
+   registers `FragmentUpdateMsg` (its type object `FUN_146ac6910` inlines `"FragmentUpdateMsg"`),
+   so those six qwords are not `AddActorMessage`'s. The real getter is `FUN_146ac20a0` and the
+   facet is `0x148575298`. My identification rested on address adjacency to the name string, which
+   is exactly the kind of inference the repository's rules warn about.
+2. **"The GUID strings have zero static referrers" is false.** `0x1485800f0` has exactly one
+   referrer, `FUN_146ac20a0`. The original claim was made against the 1.400 image.
+3. **Four of the addresses I listed are not functions at all** — `0x146a57540`, `0x146a575e0`,
+   `0x14078fbb0`, `0x14046de30` have no `.pdata` entry and appear nowhere in the corpus. They sit
+   in inter-function padding, which is why they read as plausible code pointers in a raw `.rdata`
+   dump.
+
+**The general lesson.** Reading a raw descriptor from `.rdata` gives you pointers, not meaning. Two
+of the four "functions" I reported were padding, and the descriptor I picked belonged to a
+different message. The corpus is what settles it: a function that exists has a `FUNC` block, and a
+type name appears as immediates inside the getter that owns it. That check costs one grep and would
+have caught both mistakes.
+
+### L9 — the recipe for the other five
+
+`presence-codecs.json` now carries it: each getter inlines its type name as little-endian
+immediates, so grepping those constants finds the getter, the `FUN_1407de410` call and the
+`*puVar = &UNK_1485…` facet address. Then six qwords at that VA: slot 4 is MARSHAL, slot 5 is
+UNMARSHAL. The same six-step read applies to `SpawnActorsMsg` (574), `Replicate` (391),
+`ReplicateClient` (407), `FragmentUpdateMsg` (422) and `UpdateMsg` (106).
