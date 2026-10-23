@@ -28,3 +28,25 @@ channel = "stable-x86_64-pc-windows-gnu"
 #
 # Crates that need nothing beyond core Rust (azoth-wire, azoth-region, azoth-http) build without
 # it; only the binaries that pull an async runtime need it.
+
+# DTLS: MSYS2's OpenSSL, and why
+# ==============================
+# The client offers exactly ONE cipher suite -- 0xC030, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 --
+# so a DTLS library that cannot negotiate it cannot serve this build at all. `dtls` 0.17.2
+# implements eleven suites and that one is not among them; `rustls` has no DTLS primitives.
+# `openssl` does, and the spike in odd/tasks/dtls-spike.md shows it accepting the suite as a
+# DTLS 1.2 server.
+#
+# Use the PACKAGED OpenSSL. Do not enable the `vendored` feature: the crate's bundled openssl-src
+# is incomplete (util/providers.num is missing) and Configure refuses. Do not build it from source
+# either -- MSYS2 already has it:
+#
+#     pacman -S mingw-w64-x86_64-openssl mingw-w64-x86_64-gcc
+#
+# then, before building:
+#
+#     export OPENSSL_DIR=C:/msys64/mingw64
+#     export PATH=/c/msys64/mingw64/bin:$PATH
+#
+# That PATH also supplies the mingw binutils (dlltool, gcc, mingw32-make) that `windows-sys`
+# needs, so it replaces the separate WinLibs install below.
