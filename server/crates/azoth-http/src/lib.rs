@@ -28,10 +28,12 @@
 
 pub mod cache;
 pub mod envelope;
+pub mod pyjson;
 pub mod route;
 
 pub use cache::{cache_control, etag_for, matches_if_none_match};
 pub use envelope::{AwsEnvelope, CONTENT_TYPE_JSON, CONTENT_TYPE_AMZ_JSON_1_0, CONTENT_TYPE_AMZ_JSON_1_1};
+pub use pyjson::to_python_bytes;
 pub use route::{Response, RouteKind};
 
 /// The only HTTP version the client accepts a body under.

@@ -11,3 +11,20 @@
 # server binary: change the channel below to `stable-x86_64-pc-windows-msvc`.
 [toolchain]
 channel = "stable-x86_64-pc-windows-gnu"
+
+# BUILD PREREQUISITE: mingw-w64 binutils on PATH
+# ==============================================
+# Any dependency that links Windows system libraries (tokio pulls in `windows-sys`) needs
+# `dlltool.exe` to build import libraries. The GNU toolchain's own copy cannot do it:
+#
+#     dlltool could not create import library ... -D ntdll.dll
+#
+# The MSVC target is not an option on this machine (no Visual Studio, and `link.exe` on PATH
+# resolves to MSYS coreutils' hardlink tool). Install mingw-w64 once and put its `bin` first on
+# PATH before building:
+#
+#     winget install --id BrechtSanders.WinLibs.POSIX.UCRT
+#     export PATH="/c/Users/<you>/AppData/Local/Microsoft/WinGet/Packages/#         BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin:$PATH"
+#
+# Crates that need nothing beyond core Rust (azoth-wire, azoth-region, azoth-http) build without
+# it; only the binaries that pull an async runtime need it.

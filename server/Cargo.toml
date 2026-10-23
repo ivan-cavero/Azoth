@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/azoth-wire", "crates/azoth-region", "crates/azoth-http", "xtask"]
+members = [
+    "crates/azoth-wire",
+    "crates/azoth-region",
+    "crates/azoth-http",
+    "apps/channeld",
+    "xtask",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -18,6 +24,12 @@ anyhow = "1"
 # serde_json is what renders the exact byte shape the client parses.
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+# The HTTP stack. Plan section 18.4 chose axum/hyper over actix and over a
+# hand-rolled server: it targets the same runtime as the rest of the stack, and
+# the two quirks this client needs (HTTP/1.1 with Content-Length, TCP_NODELAY)
+# are already solved in azoth-http rather than re-derived here.
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
