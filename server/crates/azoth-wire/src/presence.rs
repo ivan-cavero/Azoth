@@ -44,6 +44,13 @@ pub const SPAWN_ACTORS_MSG: u32 = 574;
 pub const FRAGMENT_UPDATE_MSG: u32 = 422;
 /// Wire type of `AddActorMessage`.
 pub const ADD_ACTOR_MESSAGE: u32 = 449;
+/// Wire type of `UpdateMsg`.
+pub const UPDATE_MSG: u32 = 106;
+
+/// The largest blob `UpdateMsg` accepts, in bytes.
+///
+/// Measured from `FUN_1407d8d50`, which rejects a length of `0x201` or more before copying.
+pub const UPDATE_MSG_MAX_BLOB: usize = 512;
 
 /// `SpawnActorsMsg`: one big-endian `u64`.
 ///
@@ -247,6 +254,69 @@ impl AddActorMessage {
     }
 }
 
+/// `UpdateMsg`: a prefix-varint length followed by that many raw bytes.
+///
+/// Measured from `FUN_1407c5840` → `FUN_1407d8d50`, which reads the length with the prefix-varint
+/// ladder and rejects anything at or above `0x201`. **This message is not polymorphic** — an
+/// earlier prediction that it would be a third per-type dispatcher was wrong.
+///
+/// A length-prefixed blob capped at 512 bytes is the natural carrier for one component fragment's
+/// payload, with [`FragmentUpdateMsg`] supplying the identity. That reading is consistent with the
+/// state-bundle model this project already decodes, but it is a reading: nothing here proves what
+/// the blob contains.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UpdateMsg {
+    /// The payload bytes, already length-stripped.
+    pub blob: Vec<u8>,
+}
+
+impl UpdateMsg {
+    /// Decode from a body.
+    ///
+    /// # Errors
+    /// [`WireError::Truncated`] when the length prefix or the declared bytes are missing, and
+    /// [`WireError::OutOfRange`] when the length exceeds [`UPDATE_MSG_MAX_BLOB`].
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let (declared, after_len) = crate::varint::decode(body, 0)?;
+        let declared = declared as usize;
+        if declared > UPDATE_MSG_MAX_BLOB {
+            return Err(WireError::OutOfRange {
+                field: "UpdateMsg length",
+                value: declared as u64,
+                limit: UPDATE_MSG_MAX_BLOB as u64 + 1,
+            });
+        }
+        let available = body.len() - after_len;
+        if available < declared {
+            return Err(WireError::truncated(
+                "UpdateMsg blob",
+                declared,
+                available,
+            ));
+        }
+        Ok(Self {
+            blob: body[after_len..after_len + declared].to_vec(),
+        })
+    }
+
+    /// Encode to a body.
+    ///
+    /// # Errors
+    /// [`WireError::OutOfRange`] when the blob exceeds [`UPDATE_MSG_MAX_BLOB`].
+    pub fn encode(&self) -> Result<Vec<u8>, WireError> {
+        if self.blob.len() > UPDATE_MSG_MAX_BLOB {
+            return Err(WireError::OutOfRange {
+                field: "UpdateMsg blob",
+                value: self.blob.len() as u64,
+                limit: UPDATE_MSG_MAX_BLOB as u64 + 1,
+            });
+        }
+        let mut out = crate::varint::encode(self.blob.len() as u64)?;
+        out.extend_from_slice(&self.blob);
+        Ok(out)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,15 +423,54 @@ mod tests {
     /// in the module is a lie and this test is where the reviewer sees it.
     #[test]
     fn the_polymorphic_messages_are_not_represented() {
-        // The constants exist so callers can dispatch on them without inventing numbers.
-        const POLYMORPHIC: [u32; 3] = [391, 407, 106];
-        assert_eq!(POLYMORPHIC.len(), 3);
-        // And the fixed ones are distinct from them.
-        for fixed in [SPAWN_ACTORS_MSG, FRAGMENT_UPDATE_MSG, ADD_ACTOR_MESSAGE] {
+        // Only these two dispatch per component type. UpdateMsg was predicted to be a third and
+        // turned out to be a length-prefixed blob, so it IS represented above.
+        const POLYMORPHIC: [u32; 2] = [391, 407];
+        for fixed in [
+            SPAWN_ACTORS_MSG,
+            FRAGMENT_UPDATE_MSG,
+            ADD_ACTOR_MESSAGE,
+            UPDATE_MSG,
+        ] {
             assert!(
                 !POLYMORPHIC.contains(&fixed),
                 "wire type {fixed} cannot be both fixed-layout and polymorphic"
             );
         }
+    }
+
+    #[test]
+    fn update_msg_is_a_length_prefixed_blob() {
+        let message = UpdateMsg {
+            blob: vec![0xAA, 0xBB, 0xCC],
+        };
+        let bytes = message.encode().expect("encodes");
+        assert_eq!(bytes, vec![0x03, 0xAA, 0xBB, 0xCC], "one-byte length prefix");
+        assert_eq!(UpdateMsg::decode(&bytes).expect("decodes"), message);
+    }
+
+    #[test]
+    fn update_msg_accepts_exactly_the_cap() {
+        let message = UpdateMsg {
+            blob: vec![0x11; UPDATE_MSG_MAX_BLOB],
+        };
+        let bytes = message.encode().expect("encodes at the cap");
+        assert_eq!(UpdateMsg::decode(&bytes).expect("decodes"), message);
+    }
+
+    #[test]
+    fn update_msg_rejects_one_byte_past_the_cap() {
+        let message = UpdateMsg {
+            blob: vec![0x11; UPDATE_MSG_MAX_BLOB + 1],
+        };
+        let err = message.encode().expect_err("must fail");
+        assert!(matches!(err, WireError::OutOfRange { .. }), "{err}");
+    }
+
+    #[test]
+    fn update_msg_rejects_a_truncated_blob() {
+        // length says 5, only 2 bytes follow
+        let err = UpdateMsg::decode(&[0x05, 0xAA, 0xBB]).expect_err("must fail");
+        assert!(matches!(err, WireError::Truncated { .. }), "{err}");
     }
 }

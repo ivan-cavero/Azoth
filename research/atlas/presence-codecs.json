@@ -287,7 +287,8 @@
         "facet": "0x147f44ca0",
         "marshal": "0x1407c1890",
         "unmarshal": "0x1407c5840",
-        "layout": "NOT DECODED \u2014 unmarshal body not read yet"
+        "layout": "FIXED \u2014 prefix-varint length (max 512, rejected above 0x200) followed by that many raw bytes. FUN_1407c5840 -> FUN_1407d8d50, which reads the length with FUN_14087b760 (the same prefix-varint ladder: 0x80/0xc0/0xe0/0xf0 with shifts 6/5/4/3), checks `length < 0x201`, and copies the bytes into a buffer. It is NOT polymorphic: my earlier expectation that it would be a third constructor plus the vtable+0x90 triple was wrong.",
+        "consequence": "A length-prefixed blob capped at 512 bytes is the natural carrier for one component fragment's payload: FragmentUpdateMsg (u64 + u32) supplies the identity, UpdateMsg carries the bytes. That is consistent with the state-bundle model this project already decodes, and it means the per-component codecs plug into a message that is already fully understood."
       }
     },
     "the_8_byte_prefix_collision": "Replicate and ReplicateClient share their first eight bytes ('Replicate'), so a name-key search returns both. Disambiguated by the immediates that FOLLOW the key: FUN_1407f36a0 continues with 0x65 ('e') = 'Replicate'; FUN_1407f38c0 continues with 0x696c4365 ('Clie') + 0x6e65 ('en') + 0x74 ('t') = 'ReplicateClient'. The script now matches per function body, so a longer name resolves to exactly one getter.",
@@ -297,14 +298,15 @@
       "fixed_layout_messages": [
         "AddActorMessage (449)",
         "SpawnActorsMsg (574)",
-        "FragmentUpdateMsg (422)"
+        "FragmentUpdateMsg (422)",
+        "UpdateMsg (106)"
       ],
       "polymorphic_messages": [
         "Replicate (391)",
-        "ReplicateClient (407) \u2014 same MARSHAL, own unmarshal",
-        "UpdateMsg (106) \u2014 unread"
+        "ReplicateClient (407)"
       ],
-      "why_the_split_matters": "The three fixed-layout messages are enough to tell a client an actor exists and to update one fragment. The polymorphic ones carry component state whose shape depends on the component type, so they need the per-type codecs \u2014 a larger body of work that the corpus makes tractable but that is not one function read away."
+      "why_the_split_matters": "FOUR of the six are fixed layouts, not three. Only Replicate and ReplicateClient dispatch per component type through vtable+0x90/+0xa0/+0xb0. UpdateMsg turned out to be a length-prefixed blob (max 512 bytes), which is the carrier a component codec would plug into \u2014 so the polymorphic surface is smaller than it looked, and the blob path is fully understood.",
+      "correction": "An earlier version of this file predicted UpdateMsg would be a third polymorphic message. It is not. That prediction was recorded as an expectation rather than a measurement, which is why the correction is cheap."
     }
   }
 }
