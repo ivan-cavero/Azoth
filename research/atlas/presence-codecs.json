@@ -233,5 +233,64 @@
     ],
     "recipe_for_the_other_five": "Each getter inlines its type name as little-endian immediates. Grep the corpus for those constants (e.g. 'Replicate' -> 0x65746163696c6552), and each hit yields that type's FUN_1407de410 call plus its '*puVar = &UNK_1485\u2026' facet address. Then read 6 qwords at that VA: slot 4 is MARSHAL, slot 5 is UNMARSHAL.",
     "why_this_matters": "presence-codecs.json previously said the layouts 'cannot be recovered by static xref walking alone' and that live instrumentation was required. The route was reachable the whole time; what was missing was the corpus and the correct builder address."
+  },
+  "all_six_facets_located": {
+    "evidence": "observed",
+    "measured": "2026-10-23",
+    "method": "scripts/find-codec-facet.py greps the type name as little-endian immediates inside a per-function block, then reads six qwords at the facet VA from the executable's .rdata. Validated against AddActorMessage, whose MARSHAL/UNMARSHAL were derived independently by following the descriptor getter.",
+    "facets": {
+      "AddActorMessage": {
+        "wire": 449,
+        "getter": "FUN_146ac20a0",
+        "facet": "0x148575298",
+        "marshal": "0x146a33990",
+        "unmarshal": "0x146a339a0",
+        "layout": "DECODED \u2014 15 fields, see wire_layout_add_actor_message"
+      },
+      "SpawnActorsMsg": {
+        "wire": 574,
+        "getter": "FUN_146ad7a90",
+        "facet": "0x14857a3f0",
+        "marshal": "0x1407cdbe0",
+        "unmarshal": "0x146a49b20",
+        "layout": "DECODED \u2014 ONE u64 big-endian. Not a list: a single identifier. FUN_146a49b20 reads exactly one value via FUN_14087af30 into param_3+1, then returns."
+      },
+      "Replicate": {
+        "wire": 391,
+        "getter": "FUN_1407f36a0",
+        "facet": "0x147f43110",
+        "marshal": "0x1407c1040",
+        "unmarshal": "0x1407c1090",
+        "layout": "NOT DECODED \u2014 unmarshal body not read yet"
+      },
+      "ReplicateClient": {
+        "wire": 407,
+        "getter": "FUN_1407f38c0",
+        "facet": "0x147f44b48",
+        "marshal": "0x1407c1040",
+        "unmarshal": "0x1407c5600",
+        "layout": "NOT DECODED \u2014 unmarshal body not read yet",
+        "note": "shares the MARSHAL with Replicate; only the unmarshal differs"
+      },
+      "FragmentUpdateMsg": {
+        "wire": 422,
+        "getter": "FUN_1407f2750",
+        "facet": "0x147f44128",
+        "marshal": "0x1407c4180",
+        "unmarshal": "0x1407c41a0",
+        "layout": "DECODED \u2014 one u64 big-endian (FUN_1407d9520 -> FUN_1407dae40) followed by one u32 big-endian (FUN_14087a3c0)"
+      },
+      "UpdateMsg": {
+        "wire": 106,
+        "getter": "FUN_1407f7480",
+        "facet": "0x147f44ca0",
+        "marshal": "0x1407c1890",
+        "unmarshal": "0x1407c5840",
+        "layout": "NOT DECODED \u2014 unmarshal body not read yet"
+      }
+    },
+    "the_8_byte_prefix_collision": "Replicate and ReplicateClient share their first eight bytes ('Replicate'), so a name-key search returns both. Disambiguated by the immediates that FOLLOW the key: FUN_1407f36a0 continues with 0x65 ('e') = 'Replicate'; FUN_1407f38c0 continues with 0x696c4365 ('Clie') + 0x6e65 ('en') + 0x74 ('t') = 'ReplicateClient'. The script now matches per function body, so a longer name resolves to exactly one getter.",
+    "what_this_changes_for_the_plan": "Phase 4 no longer depends on live instrumentation for the wire half. Three of the six layouts are decoded and the other three have their unmarshal addresses in hand. The remaining work is reading three functions, which is bounded and needs no client.",
+    "what_is_still_missing": "The MEANING of most fields. SpawnActorsMsg being one u64 is a strong hint that it names an actor rather than carrying a list, and AddActorMessage's 16-byte head is consistent with an actor id, but neither is proven."
   }
 }

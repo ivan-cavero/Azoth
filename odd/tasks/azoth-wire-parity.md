@@ -369,3 +369,41 @@ immediates, so grepping those constants finds the getter, the `FUN_1407de410` ca
 `*puVar = &UNK_1485…` facet address. Then six qwords at that VA: slot 4 is MARSHAL, slot 5 is
 UNMARSHAL. The same six-step read applies to `SpawnActorsMsg` (574), `Replicate` (391),
 `ReplicateClient` (407), `FragmentUpdateMsg` (422) and `UpdateMsg` (106).
+
+### L10 — all six facets located, three layouts decoded
+
+`scripts/find-codec-facet.py` automates the recipe and is validated against `AddActorMessage` (it
+reproduces the facet `0x148575298` and both slot addresses derived independently last session).
+
+| message | wire | facet | MARSHAL | UNMARSHAL | layout |
+| --- | --- | --- | --- | --- | --- |
+| `AddActorMessage` | 449 | `0x148575298` | `0x146a33990` | `0x146a339a0` | **decoded**, 15 fields |
+| `SpawnActorsMsg` | 574 | `0x14857a3f0` | `0x1407cdbe0` | `0x146a49b20` | **decoded: ONE u64 BE** |
+| `Replicate` | 391 | `0x147f43110` | `0x1407c1040` | `0x1407c1090` | not read yet |
+| `ReplicateClient` | 407 | `0x147f44b48` | `0x1407c1040` | `0x1407c5600` | not read yet |
+| `FragmentUpdateMsg` | 422 | `0x147f44128` | `0x1407c4180` | `0x1407c41a0` | **decoded: u64 BE + u32 BE** |
+| `UpdateMsg` | 106 | `0x147f44ca0` | `0x1407c1890` | `0x1407c5840` | not read yet |
+
+**`SpawnActorsMsg` is a single `u64` big-endian — not a list.** `FUN_146a49b20` reads exactly one
+value through `FUN_14087af30` into `param_3 + 1` and returns; there is no count, no loop, no
+vector. That is a meaningful design constraint for the server: the message that makes actors
+appear carries an *identifier*, and whatever the client does with it is driven by that id rather
+than by an inline payload. It also matches the observation that the client's record slots and
+actor ids are separate addressing schemes.
+
+**`FragmentUpdateMsg` is a `u64` then a `u32`**, both big-endian (`FUN_1407d9520` → `FUN_1407dae40`
+for the u64, then `FUN_14087a3c0` for the u32).
+
+**`Replicate` and `ReplicateClient` share their MARSHAL** (`0x1407c1040`) and differ only in the
+unmarshal — which makes sense for a message and its client-direction twin, and is a good sign the
+two facet tables were read correctly rather than swapped.
+
+**The 8-byte prefix collision, and how it is resolved.** Both names start with `Replicate`, so a
+first-eight-bytes search returns both getters. The disambiguator is the immediates that *follow*
+the key: `FUN_1407f36a0` continues with `0x65` (`'e'`) = `Replicate`, while `FUN_1407f38c0`
+continues with `0x696c4365` (`'Clie'`) + `0x6e65` (`'en'`) + `0x74` (`'t'`) = `ReplicateClient`.
+The script now matches per function body, so a longer name resolves to one getter.
+
+**What is left, and it is bounded.** Three unmarshal bodies to read (`0x1407c1090`,
+`0x1407c5600`, `0x1407c5840`), which needs no client and no probe. After that the wire half of
+Phase 4 is fully decoded and the only open question is what the fields *mean*.
