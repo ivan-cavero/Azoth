@@ -703,3 +703,31 @@ Two process notes worth keeping:
 * Caddy answered `502` for a few seconds while `channeld` was starting. That is the same signature
   as the earlier login failures, and it is why "the client saw 502" must be read against WHEN the
   upstream came up rather than as a body defect.
+
+## Session 4 — Phase 3: the world transport
+
+### L22 — the V3 codec, and two things it corrected
+
+`azoth-wire::v3` now carries both request formats (strict 832-byte, and the six-tagged-record retry
+form) plus the response encoder. Round trip is the invariant, for the reason the Python module gives:
+the layout has opaque regions whose meaning is not established, and a parser that discards them
+cannot prove it read the right bytes.
+
+**Correction 1 — the world-id region cannot hold a world id.** The first version exposed
+`world_id()` searching the 21-byte region before `session_uuid` for a UUID. A UUID string needs 36
+bytes; the region holds 21. The prototype's own name for it is `unknown_worldid_region` — a
+*prefix*. The authoritative world id comes from the login **ticket**, and the module now says that
+instead of pretending. A test asserts the region's length and that no UUID can fit.
+
+**Correction 2 — the response trailer is pinned to the working form.** `00 00 00 00`, not the
+captured `01 00 00 01`: measured 2026-09-27, the captured form makes the client fail registration
+with `registration_failed` / `eos_unknown_error` and pop to the main menu. The test exists so nobody
+"fixes" it back to the capture.
+
+**And a requirement worth restating:** the response record needs its VLQ32 length prefix. Measured
+2026-09-20, the un-prefixed form dies with `registration_unmarshal_error` before `InGame`.
+
+**One thing the port made explicit that was implicit before:** on the *strict* format the character
+id is not in any schedule field, and the Python leaves it empty too. So the character a session binds
+to comes from the **ticket**, and V3's job is to confirm the ticket rather than to introduce the
+identity. That is the shape real ticket validation needs.
