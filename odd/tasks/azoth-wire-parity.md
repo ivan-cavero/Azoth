@@ -249,3 +249,43 @@ the address correction, so the next session does not repeat the dead end.
 did not read the codec facet out of it. That is where the six layouts actually live, and it is the
 next session's first task — now with a script (`scripts/map-descriptors.py`) and an address instead
 of a live-attach prerequisite.
+
+### L6 — T5 (sprint), second attempt: still not measured, and why I stopped pushing
+
+A second live session ran the sprint test cleanly, with no probe attached:
+
+| Attempt | Input | Result |
+| --- | --- | --- |
+| walk | `W` (`0x11`) 3 s | **16.54 u** path, 2.76 u/s, **59 of 59** moving intervals at offset **+90°** |
+| sprint | `Shift` (`0x2A`) + `W` 3 s | **0.00 u**, 0 moving intervals |
+
+The walk segment is the cleanest single measurement of this whole campaign: 59 moving intervals
+and **every one** at +90° from the camera yaw, which is the yaw frame confirmed a third time on a
+third session.
+
+The sprint attempt moved nothing at all. Two candidate explanations, and I could not distinguish
+them tonight:
+
+1. **`Shift+W` is not the sprint binding.** New World may treat running as the default and
+   `Shift` as a walk modifier, or sprint may be bound elsewhere. The repository has no sprint
+   binding recorded — `research/atlas/levers.md` and the client-map notes do not mention one —
+   so this is an assumption I made, not a fact I looked up.
+2. **The character was blocked.** The preceding 7-second hold produced movement for two seconds
+   and then nothing, which is consistent with running into geometry.
+
+Either way, `Q9` stays **open**, and the plan now says what that means in practice: the movement
+validator must not use a hard speed constant. It validates against the server's own previous
+position with a per-session calibrated reference — the structure `movement.py` already has —
+because the walk speed itself measured 2.76 u/s here and 5.39 u/s in an earlier set, and a
+constant chosen from either would be wrong for the other.
+
+**I stopped here rather than keep guessing.** Three failed attempts at the same unknown is the
+signal to record it and move on, not to try a fourth key combination on a machine the owner is
+not watching. The next session has the specific thing to look up first: the client's own key
+binding for sprint, from its options or its input map, before sending any key.
+
+**Disk and cleanup.** Both raw logs from this session are compressed, not deleted:
+`world.log.gz` (1.5 MB from 28 MB) and `world-tanda-b.log.gz` (697 KB from 16.6 MB), both
+integrity-checked with `gunzip -t`. Tonight's Frida agent directory (44 MB) was removed; four
+older ones from previous sessions were left alone because they are not this feature's artifacts.
+Free disk after cleanup: **~85 GB of 222 GB**.
