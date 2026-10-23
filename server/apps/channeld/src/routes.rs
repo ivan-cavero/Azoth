@@ -35,6 +35,7 @@ use azoth_http::envelope::{AwsEnvelope, CONTENT_TYPE_AMZ_JSON_1_1, CONTENT_TYPE_
 use azoth_http::route::{self, Response, RouteKind};
 use azoth_http::matches_if_none_match;
 
+use crate::images;
 use crate::state::AppState;
 
 /// A per-process counter for the correlation-id fallback.
@@ -88,6 +89,14 @@ async fn handle(State(state): State<AppState>, request: Request<Body>) -> AxumRe
             kind,
             if_none_match.as_deref(),
         ),
+        RouteKind::Images => Response {
+            status: 200,
+            content_type: "image/dds",
+            // A 404 here makes the client retry five times and then render blank white art; a
+            // placeholder is the same effort and a better outcome. See `crate::images`.
+            body: images::placeholder(),
+            headers: Vec::new(),
+        },
         RouteKind::Ping => Response {
             status: 200,
             content_type: "text/plain",

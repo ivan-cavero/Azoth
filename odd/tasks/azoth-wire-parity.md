@@ -677,3 +677,29 @@ image routes return 404 (five retries each). The client renders with blank art. 
 generated placeholder DDS at `/images/`, but those requests carry the content-service host, which the
 Caddy split sends to `channeld` — so the placeholder should have answered. It did not, and that is
 the next concrete defect.
+
+### L21 — the image routes: a missing arm, not a missing host
+
+The three `client.content-service.amazongames.com/*.dds` requests returned 404 five times each.
+Diagnosis: `channeld` had **no `RouteKind::Images` arm at all**. `azoth_http::route::classify`
+classified them correctly as `Images`, and the router's catch-all then answered
+`{"error":"unknown-path","route":"Images"}` — a body that names the classification and still says
+nothing was served. Exactly the behaviour the design asks for: a gap was visible rather than
+disguised.
+
+`apps/channeld/src/images.rs` now serves a generated 256×256 BGRA DDS placeholder, ported from the
+prototype's `routes/images.py`. A 404 makes the client retry five times and then render blank white
+art; a dark placeholder is the same effort and a better outcome. Real art is Phase 6, and swapping
+the body is a change to one function.
+
+**Verified through TLS on the client's own path**: `200`, 262,272 bytes, `image/dds`, magic `DDS `.
+
+Two process notes worth keeping:
+
+* A stale `channeld.exe` was still running from an earlier launch, so the rebuilt binary was never
+  the one answering. The fix is to kill the process before rebuilding — `cargo build` silently fails
+  to replace a running binary on Windows (`failed to remove file …channeld.exe`), and the next start
+  silently reuses the old one.
+* Caddy answered `502` for a few seconds while `channeld` was starting. That is the same signature
+  as the earlier login failures, and it is why "the client saw 502" must be read against WHEN the
+  upstream came up rather than as a body defect.

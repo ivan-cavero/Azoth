@@ -21,6 +21,7 @@
 //! starting a server, and it is why this file can stay small.
 
 pub mod config;
+pub mod images;
 pub mod routes;
 pub mod state;
 
