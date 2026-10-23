@@ -261,7 +261,8 @@
         "facet": "0x147f43110",
         "marshal": "0x1407c1040",
         "unmarshal": "0x1407c1090",
-        "layout": "NOT DECODED \u2014 unmarshal body not read yet"
+        "layout": "POLYMORPHIC \u2014 not a fixed field list. FUN_1407c1090 does: (1) FUN_1407e3e10(reader, 1) constructs a record object (vtable 0x147f472d0) that already knows its component type; (2) FUN_146161c20(target, ok, reader) then calls THREE virtuals on that object in order \u2014 vtable+0x90, +0xa0, +0xb0 \u2014 and fails the record if any returns 0. So the wire shape is chosen by the record's own type, which is the 'vtable+0x90 dispatch' this atlas already named for the presence family. There is no per-message layout to transcribe; the layout is per COMPONENT TYPE.",
+        "consequence": "A server cannot emit Replicate without knowing the component type's reader, i.e. without the per-component codecs. That is the long tail the plan calls out in \u00a78.6, and it is a different kind of work from the three fixed-layout messages above."
       },
       "ReplicateClient": {
         "wire": 407,
@@ -269,7 +270,7 @@
         "facet": "0x147f44b48",
         "marshal": "0x1407c1040",
         "unmarshal": "0x1407c5600",
-        "layout": "NOT DECODED \u2014 unmarshal body not read yet",
+        "layout": "POLYMORPHIC \u2014 structurally identical to Replicate but with its own record constructor: FUN_1407c5600 calls FUN_1407e3fe0(reader, 1) where Replicate calls FUN_1407e3e10, then the same FUN_146161c20 and therefore the same vtable+0x90/+0xa0/+0xb0 triple. Two different constructors, one shared dispatch \u2014 which is why the two messages share a MARSHAL and not an UNMARSHAL.",
         "note": "shares the MARSHAL with Replicate; only the unmarshal differs"
       },
       "FragmentUpdateMsg": {
@@ -291,6 +292,19 @@
     },
     "the_8_byte_prefix_collision": "Replicate and ReplicateClient share their first eight bytes ('Replicate'), so a name-key search returns both. Disambiguated by the immediates that FOLLOW the key: FUN_1407f36a0 continues with 0x65 ('e') = 'Replicate'; FUN_1407f38c0 continues with 0x696c4365 ('Clie') + 0x6e65 ('en') + 0x74 ('t') = 'ReplicateClient'. The script now matches per function body, so a longer name resolves to exactly one getter.",
     "what_this_changes_for_the_plan": "Phase 4 no longer depends on live instrumentation for the wire half. Three of the six layouts are decoded and the other three have their unmarshal addresses in hand. The remaining work is reading three functions, which is bounded and needs no client.",
-    "what_is_still_missing": "The MEANING of most fields. SpawnActorsMsg being one u64 is a strong hint that it names an actor rather than carrying a list, and AddActorMessage's 16-byte head is consistent with an actor id, but neither is proven."
+    "what_is_still_missing": "The MEANING of most fields. SpawnActorsMsg being one u64 is a strong hint that it names an actor rather than carrying a list, and AddActorMessage's 16-byte head is consistent with an actor id, but neither is proven.",
+    "the_shape_split": {
+      "fixed_layout_messages": [
+        "AddActorMessage (449)",
+        "SpawnActorsMsg (574)",
+        "FragmentUpdateMsg (422)"
+      ],
+      "polymorphic_messages": [
+        "Replicate (391)",
+        "ReplicateClient (407) \u2014 same MARSHAL, own unmarshal",
+        "UpdateMsg (106) \u2014 unread"
+      ],
+      "why_the_split_matters": "The three fixed-layout messages are enough to tell a client an actor exists and to update one fragment. The polymorphic ones carry component state whose shape depends on the component type, so they need the per-type codecs \u2014 a larger body of work that the corpus makes tractable but that is not one function read away."
+    }
   }
 }

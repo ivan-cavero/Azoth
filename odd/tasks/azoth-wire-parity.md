@@ -407,3 +407,53 @@ The script now matches per function body, so a longer name resolves to one gette
 **What is left, and it is bounded.** Three unmarshal bodies to read (`0x1407c1090`,
 `0x1407c5600`, `0x1407c5840`), which needs no client and no probe. After that the wire half of
 Phase 4 is fully decoded and the only open question is what the fields *mean*.
+
+### L11 — the six split into three fixed layouts and three polymorphic ones
+
+Reading the last two unmarshals changed the shape of the remaining work, and it is worth stating
+because it is not what "decode the six codecs" implies.
+
+**Fixed layouts (transcribable):**
+
+| message | layout |
+| --- | --- |
+| `SpawnActorsMsg` (574) | one `u64` BE |
+| `FragmentUpdateMsg` (422) | `u64` BE + `u32` BE |
+| `AddActorMessage` (449) | 15 fields, `L7` |
+
+**Polymorphic (no fixed field list):** `Replicate` (391), `ReplicateClient` (407), `UpdateMsg` (106).
+
+`FUN_1407c1090` (Replicate's unmarshal) does exactly three things:
+
+```c
+lVar1 = FUN_1407e3e10(param_3, 1);              // construct a record object for its type
+FUN_146161c20(lVar1 + 0x10, param_2, param_4);  // -> three virtuals: vtable+0x90, +0xa0, +0xb0
+```
+
+and `FUN_146161c20` is the whole story:
+
+```c
+cVar1 = (**(code **)(*param_1 + 0x90))(param_1, param_3);   // if 0 -> record fails
+cVar1 = (**(code **)(*param_1 + 0xa0))(param_1, param_3);   // if 0 -> record fails
+cVar1 = (**(code **)(*param_1 + 0xb0))(param_1, param_3);   // if 0 -> record fails
+```
+
+So **the wire shape is chosen by the record's own component type**, and the dispatch is the
+`vtable+0x90` this atlas already named for the presence family. There is no per-message layout to
+transcribe for these three: the layout is per *component type*.
+
+`ReplicateClient` is the same structure with its own constructor — `FUN_1407e3fe0` instead of
+`FUN_1407e3e10` — then the same `FUN_146161c20` and the same virtual triple. Two constructors, one
+dispatch, which is exactly why the two messages share a MARSHAL and not an UNMARSHAL.
+
+**What this means for Phase 4, stated honestly.** The three fixed-layout messages are enough to
+tell a client that an actor exists (`SpawnActorsMsg` + `AddActorMessage`) and to update one
+fragment (`FragmentUpdateMsg`). That is the wire half of "another player exists", and it is
+decoded. Replicating *component state* — position, vitals, appearance — needs the per-component
+codecs, which is a different and larger body of work: one reader per component type, dispatched
+through `+0x90`. The corpus makes it tractable, and the same recipe applies (find the type, read
+its reader), but it is not one function read away and this log does not pretend otherwise.
+
+**`UpdateMsg` (106) is left unread.** With two of three polymorphic unmarshals confirmed identical
+in structure, the expected finding there is the same shape with a third constructor. That is an
+expectation, not a measurement, and it is recorded as such.
