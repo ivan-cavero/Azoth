@@ -39,6 +39,7 @@ pub mod error;
 pub mod fragment;
 pub mod lz4;
 pub mod marshal;
+pub mod player_record;
 pub mod presence;
 pub mod record;
 pub mod v3;

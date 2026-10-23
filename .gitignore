@@ -51,3 +51,8 @@ site/src/data/repo-facts.gen.json
 
 # --- Rust workspace build output (regenerable; ~125 MB after a debug build) ---
 server/target/
+
+# --- Rust wire fixtures (curated, small, and the parity tests read them) ---
+# `*.bin` above is for raw captures; this one is a 7 KB record payload exported from the
+# fragment census and read by azoth-wire's tests. It is not a capture.
+!server/crates/azoth-wire/tests/fixtures/*.bin
