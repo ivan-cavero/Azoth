@@ -498,3 +498,47 @@ has to be on bytes, not on parsed values. A JSON-value comparison passes on both
 integration tests. The limit was not raised.
 
 **State:** 105 tests across the workspace, `xtask` clean, 0 build warnings, pushed.
+
+### L14 — Phase 1's HTTP half: `channeld` serves, and every route is byte-identical
+
+`apps/channeld` is the first Rust binary that answers the client. It serves the channel document,
+both CMS bodies, the MOTD and ping/health, all pre-rendered at startup.
+
+**Verified against the running binary, not asserted:**
+
+| route | bytes | vs Python |
+| --- | --- | --- |
+| `GET /STEAM_APP_ID.1063730.json` | 7,645 | **identical** |
+| `GET /newsstories/…/metadata.json` | 14,329 | **identical** to the captured body |
+| `GET /marketingtiles/…/metadata.json` | 8,718 | **identical** to the captured body |
+| `GET /motd/worlds_…json` | 2,623 | **identical** |
+| `GET /ping` | 44 | `text/plain`, as measured |
+| `GET /healthz` | 12 | — |
+| `GET /cms/manifest` | 404 | correctly *unknown*, not a default |
+
+Headers checked on the wire: `HTTP/1.1 200 OK`, `content-length`, `etag`, `cache-control: max-age=30`,
+and a **304 with a zero-length body** when `If-None-Match` matches.
+
+**The MOTD needed one more fix, and it is the same class as the two before it.** `serde_json` writes
+`","` and `":"`; Python writes `", "` and `": "`. The bodies differed by 214 bytes of whitespace —
+semantically identical, and exactly the standard that let two ordering bugs through earlier. So
+`azoth-http::pyjson` now reproduces Python's separators, and the route is comparable with `cmp`.
+It is a serde `Formatter`, not a string replace, so a value containing `":"` is not mangled.
+
+**Two deliberate refusals to fabricate:**
+
+* `getlogininfo` and `worlds/list` answer an **explicit 404** naming the route and saying the Python
+  gateway serves it until `regiond` exists. A plausible stub is how a real request disappears.
+* an unknown path answers a 404 that names its classification, so an unrecognised request becomes a
+  research item rather than a silent success.
+
+**A build blocker, resolved and recorded.** `tokio` pulls in `windows-sys`, which needs `dlltool` to
+build import libraries. The GNU toolchain's own `dlltool` cannot do it (`dlltool could not create
+import library … -D ntdll.dll`), and the MSVC target is unavailable on this machine. Installed
+mingw-w64 binutils via winget and put its `bin` on PATH; the requirement and the exact command are
+now in `rust-toolchain.toml`. The three library crates build without it — only the binaries that
+pull an async runtime need it.
+
+**State:** 158 tests, `xtask` clean, pushed. Phase 1 is **not** closed: the client-in-the-loop
+acceptance (login screen with the Python gateway stopped) has not been run, and that is the only
+thing that can close it.
