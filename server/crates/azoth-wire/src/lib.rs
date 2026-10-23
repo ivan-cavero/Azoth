@@ -41,6 +41,7 @@ pub mod lz4;
 pub mod marshal;
 pub mod presence;
 pub mod record;
+pub mod v3;
 pub mod varint;
 pub mod vlq32;
 
