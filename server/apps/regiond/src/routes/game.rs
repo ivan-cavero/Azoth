@@ -325,8 +325,19 @@ fn ticket(identity: &Identity, world: &WorldPlacement) -> Result<Value, RouteErr
         "TokenVersion": 10,
         "WorldId": world.id.0,
         "WorldName": world.name,
+        // NOT a client field: the world reads it to decide whether a registration is still valid.
+        // The client never parses it (it is not in any measured response shape), and the world
+        // cannot validate a ticket without an expiry. Kept in the published copy, not in the wire
+        // body, by `publish_ticket` -- see the note there.
+        "ExpiresAtUnix": now + TICKET_TTL_SECONDS,
     }))
 }
+
+/// How long a minted ticket stays valid.
+///
+/// Long enough to cover the login ladder and a client restart, short enough that a leaked ticket is
+/// not durable. The world enforces it; the client never sees it.
+const TICKET_TTL_SECONDS: i64 = 15 * 60;
 
 /// `QueueName` for the ready envelope.
 ///

@@ -33,6 +33,14 @@
 //! written. That is fine for a ladder whose rungs are seconds apart; a dedicated writer thread is
 //! the next step if a per-tick send ever needs a tighter bound.
 //!
+//! WHAT AN OPERATOR CAN SEE, AND WHY IT IS OPT-IN
+//! ==============================================
+//! With no flag this binary prints one line per *lifecycle* decision and nothing per datagram, which
+//! leaves one question unanswerable: did the client send anything at all? `--diagnostics` installs a
+//! trace sink on the transport and prints one line per datagram in each direction, plus the
+//! classification of what arrived — see [`crate::diagnostics`], and plan §12 for why the hex dump is
+//! a flag rather than a default.
+//!
 //! WHERE THE CAPTURED BODIES COME FROM
 //! ==================================
 //! The ladder's two captured payloads are compiled in from the fixture that records their provenance
@@ -42,13 +50,15 @@
 //! fixture set, which would reach `WaitingForPlayerSpawn` and stop there with no error.
 
 pub mod config;
+pub mod diagnostics;
 pub mod entry;
 pub mod ladder;
 pub mod tick;
 pub mod tickets;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::thread;
 
 use azoth_dtls::{DtlsConfig, Identity, Transport, TransportEvent};
@@ -56,6 +66,7 @@ use azoth_wire::ladder::{LEVEL_INFO_CHANGED_TAIL, LEVEL_INFO_CHANGED_TYPE};
 use azoth_wire::spawn::SpawnRecord;
 
 use crate::config::Config;
+use crate::diagnostics::Diagnostics;
 use crate::entry::{Outbound, WorldEntry};
 use crate::tick::{Tick, TickEvent};
 
@@ -88,13 +99,18 @@ pub fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     };
     let transport = Transport::bind(&dtls_config, identity)?;
     eprintln!("[worldd] listening {}", transport.local_addr()?);
+    let (transport, diagnostics) = attach_diagnostics(&config, transport);
     let (to_tick, from_net) = mpsc::sync_channel::<TickEvent>(1024);
     let (to_net, from_tick) = mpsc::sync_channel::<Outbound>(4096);
     let mut tick = Tick::new(config.tick_hz, from_net, to_tick.clone());
     tick.attach_entry(entry, to_net);
+    // The world re-reads the ticket file every tick, because `regiond` mints a ticket *after* this
+    // process has started: the measured defect was a client that handshook and registered against a
+    // world holding zero tickets, so nothing ever answered it.
+    tick.attach_ticket_file(PathBuf::from(tickets::DEFAULT_PATH));
     eprintln!("[worldd] tick {} Hz", config.tick_hz);
 
-    let _net = thread::spawn(move || serve(transport, to_tick, from_tick));
+    let _net = thread::spawn(move || serve(transport, to_tick, from_tick, diagnostics));
 
     // `run` never returns: the world serves until the process is stopped. The socket thread is
     // detached deliberately — it exits when the tick's channel closes, which only happens on
@@ -107,6 +123,7 @@ fn serve(
     mut transport: Transport,
     to_tick: mpsc::SyncSender<TickEvent>,
     from_tick: mpsc::Receiver<Outbound>,
+    diagnostics: Option<Arc<Diagnostics>>,
 ) {
     loop {
         write_pending(&mut transport, &from_tick);
@@ -118,6 +135,11 @@ fn serve(
             }
         };
         for event in events {
+            // The lifecycle line goes out before the event is forwarded, so a log reads in the order
+            // the transport observed things.
+            if let Some(active) = &diagnostics {
+                active.event(&event);
+            }
             // A full channel means the ticker is behind. Dropping the event is the right failure:
             // the alternative is unbounded memory, and a stale handshake event is worth less than
             // the process staying alive.
@@ -127,6 +149,22 @@ fn serve(
         }
         write_pending(&mut transport, &from_tick);
     }
+}
+
+/// Install the trace sink `--diagnostics` asks for, returning what the event path needs.
+///
+/// The transport is returned unchanged when the flag is absent: no sink is installed, so nothing on
+/// the datagram path formats or allocates (plan §12, plan §18.8).
+fn attach_diagnostics(
+    config: &Config,
+    mut transport: Transport,
+) -> (Transport, Option<Arc<Diagnostics>>) {
+    let diagnostics = diagnostics::from_config(config);
+    if let Some(active) = &diagnostics {
+        active.install(&mut transport);
+        eprintln!("[worldd] diagnostics on: one line per datagram, first 16 bytes in hex");
+    }
+    (transport, diagnostics)
 }
 
 /// Write every datagram the tick has decided on, without blocking.

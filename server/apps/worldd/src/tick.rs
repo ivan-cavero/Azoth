@@ -2,32 +2,21 @@
 //!
 //! WHY THE TICK IS A SEPARATE THREAD FROM THE SOCKET
 //! ================================================
-//! The two have different, incompatible timing needs. The socket must block — a handshake is
-//! expensive crypto and pretending otherwise stalls whatever is waiting on it. The tick must never
-//! block — it has a 20 ms budget and overrunning it makes updates bunch up and players see
-//! rubber-banding. Putting them on one thread means one waits for the other; the measured cost is a
-//! tick that tracks the client's traffic instead of its own clock, which is exactly the defect the
-//! prototype documents (`Pearson(inbound datagrams, server replies) = 0.995`).
-//!
-//! WHY A FIXED TIMESTEP WITH AN ACCUMULATOR
-//! ========================================
-//! The simulation advances in ticks, not in wall-clock time. A tick that took 24 ms does not get a
-//! longer step; the accumulator notices and runs the next tick immediately, and the overrun is
-//! counted. That keeps the simulation deterministic and makes "the rate sagged" a number rather than
-//! a feeling.
+//! The socket must block — a handshake is expensive crypto and pretending otherwise stalls whatever
+//! waits on it. The tick must never block — it has a 20 ms budget and overrunning it makes updates
+//! bunch up and players see rubber-banding. On one thread one waits for the other, and the measured
+//! cost is a tick that tracks the client's traffic instead of its own clock: the prototype's
+//! `Pearson(inbound datagrams, server replies) = 0.995`.
 //!
 //! WHAT THIS MODULE OWNS
 //! ====================
-//! The clock, the overrun counter, and **the peer state** — which since this phase means the
-//! [`WorldEntry`] itself. The tick used to keep its own `PeerState` table and answer nothing; two
-//! peer tables would be two answers to "is this peer registered", so the entry is the only one. The
-//! tick still does not own the socket: it hands the datagrams it decides on to a writer channel.
-//!
-//! A datagram that cannot be handed to the writer is **dropped**, not queued: every rung is a
-//! reliable record and the session's resend table retransmits it, so a full channel costs one
-//! interval rather than unbounded memory — the same trade the inbound path makes.
+//! The clock, the overrun counter, and **the peer state** — since this phase, the [`WorldEntry`]
+//! itself: two peer tables would be two answers to "is this peer registered", so the entry is the
+//! only one. The tick does not own the socket; it hands the datagrams it decides on to a writer
+//! channel, and one it cannot hand over is **dropped** rather than queued (see [`Tick::deliver`]).
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::time::{Duration, Instant};
 
@@ -49,10 +38,10 @@ pub enum TickEvent {
     Dropped(SocketAddr),
 }
 
-/// A rolling window of tick durations.
+/// A rolling window of tick durations: mean, p50 and p99 over the last N ticks.
 ///
 /// A server that cannot state its p99 tick time cannot claim 50 Hz, so the window is part of the
-/// clock: it reports mean, p50, p99 and the overrun count over the last N ticks.
+/// clock rather than a reporting afterthought.
 #[derive(Debug, Clone)]
 pub struct TickWindow {
     samples: Vec<Duration>,
@@ -95,10 +84,9 @@ impl TickWindow {
 
     /// A percentile of the window, by nearest rank. `p` is in `0.0..=1.0`.
     ///
-    /// Nearest rank, not linear interpolation: `ceil(p * n) - 1` in the sorted array. The two differ
-    /// by one sample, and for a latency budget that one sample is the difference between "p99 is
-    /// 9.8 ms" and "p99 is 10.1 ms" — a claim about whether the tick fits. A first version used
-    /// `round(p * (n-1))`, which reported 51 µs as the median of 1..=100 µs; the test caught it.
+    /// Nearest rank (`ceil(p * n) - 1`), not linear interpolation: the two differ by one sample, and
+    /// for a latency budget that sample is the difference between "p99 is 9.8 ms" and "10.1 ms".
+    /// A first version used `round(p * (n-1))`, which reported 51 µs as the median of 1..=100 µs.
     #[must_use]
     pub fn percentile(&self, p: f64) -> Option<Duration> {
         if self.samples.is_empty() {
@@ -126,9 +114,11 @@ impl TickWindow {
 pub struct Tick {
     interval: Duration,
     events: Receiver<TickEvent>,
-    /// The peers, their sessions and their ladders. `None` until a caller attaches one, which is
+    /// The peers, their sessions and their ladders; `None` until a caller attaches one, which is
     /// what lets the clock be tested without a world.
     entry: Option<WorldEntry>,
+    /// The ticket file to re-read each tick, so a login after startup can still register.
+    ticket_path: Option<PathBuf>,
     /// Where decided datagrams go. `None` in a test that only inspects the clock.
     writer: Option<SyncSender<Outbound>>,
     window: TickWindow,
@@ -157,6 +147,7 @@ impl Tick {
             interval,
             events,
             entry: None,
+            ticket_path: None,
             writer: None,
             window: TickWindow::new(600), // 12 s at 50 Hz
             overruns: 0,
@@ -170,6 +161,11 @@ impl Tick {
     pub fn attach_entry(&mut self, entry: WorldEntry, writer: SyncSender<Outbound>) {
         self.entry = Some(entry);
         self.writer = Some(writer);
+    }
+
+    /// Re-read this ticket file each tick, so a ticket minted after startup still registers.
+    pub fn attach_ticket_file(&mut self, path: PathBuf) {
+        self.ticket_path = Some(path);
     }
 
     /// The entry the tick is driving, for logs and tests.
@@ -209,8 +205,7 @@ impl Tick {
     }
 
     /// Drain the network events into the entry, then let it advance.
-    ///
-    /// Non-blocking: `try_recv` until empty. This is what keeps the tick from waiting on the socket.
+    /// Non-blocking: `try_recv` until empty, which keeps the tick from waiting on the socket.
     pub fn drain_events(&mut self) {
         while let Ok(event) = self.events.try_recv() {
             let Some(entry) = self.entry.as_mut() else {
@@ -244,11 +239,15 @@ impl Tick {
         }
     }
 
-    /// Run one tick and record how long it took.
-    ///
-    /// Returns the duration, so a caller can assert on it without reaching into the window.
+    /// Run one tick and record how long it took, returning the duration so a caller can assert on
+    /// it without reaching into the window.
     pub fn step(&mut self) -> Duration {
         let began = Instant::now();
+        // A ticket minted after this world started still has to register, so the file is reloaded
+        // here: one `metadata` call per tick, and a read only when the region minted something.
+        if let (Some(path), Some(entry)) = (self.ticket_path.as_deref(), self.entry.as_mut()) {
+            entry.refresh_tickets(path);
+        }
         self.drain_events();
         // `tick` serves one peer per call, so it is called until it has nothing left: one tick must
         // reach every peer, or a busy world starves whoever is late in the rotation.
@@ -273,9 +272,9 @@ impl Tick {
 
     /// Run forever at the configured rate, with a time accumulator.
     ///
-    /// The accumulator is what makes the rate independent of how long a tick actually took: a slow
-    /// tick leaves debt that the next iteration pays immediately, and the debt is visible in
-    /// [`Self::overruns`] rather than silently absorbed.
+    /// The simulation advances in ticks, not wall-clock time: a slow tick leaves debt the next
+    /// iteration pays immediately, and the debt is visible in [`Self::overruns`] rather than
+    /// absorbed, so the rate does not depend on how long a tick took.
     pub fn run(&mut self) -> ! {
         let mut next = Instant::now() + self.interval;
         loop {

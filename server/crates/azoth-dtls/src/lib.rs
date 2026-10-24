@@ -74,6 +74,23 @@
 //! loss the client retries and [`Transport`] resets on the retried ClientHello. Replay
 //! protection, session tickets, heartbeats and the authentication deadline belong to
 //! `azoth-session`.
+//!
+//! WHY THE TRANSPORT REPORTS THROUGH A SINK AND NOT A LOG CALL
+//! ===========================================================
+//! [`Transport`] can show a caller every datagram it received, sent, or could not route, and it
+//! does that through a sink the caller installs ([`Transport::set_trace`]) instead of logging
+//! itself. Three reasons:
+//!
+//! * **A library does not own the process's stderr.** Whether the caller wants `log`, `tracing`, a
+//!   bounded ring buffer, a pcap or silence is the caller's decision, and a transport that picked
+//!   one would be wrong for every other caller.
+//! * **Formatting on the datagram path is a measured cost.** A 2,500-player world is ~150,000
+//!   datagrams/s (`§0.4`); a hex dump per datagram is not a log, it is a throughput bug, and it is
+//!   the shape of the prototype's 7.3 GB afternoon (§12, §18.8). A caller that installs nothing
+//!   pays one `Option` check per datagram.
+//! * **The event channel stays meaningful.** [`TransportEvent`] says what a *session* did;
+//!   [`TransportTrace`] says what the *socket* saw, including the datagrams that never became a
+//!   session. That is the difference between "nothing arrived" and "a handshake completed".
 
 pub mod cert;
 pub mod config;
@@ -85,7 +102,70 @@ use std::net::SocketAddr;
 pub use cert::Identity;
 pub use config::DtlsConfig;
 pub use peer::Peer;
-pub use socket::{Transport, TransportEvent};
+pub use socket::Transport;
+
+/// What [`Transport::pump`] observed while handling one datagram or one deadline expiry.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TransportEvent {
+    /// The handshake completed for this peer. It can now be written to.
+    Established(SocketAddr),
+    /// Decrypted application data arrived from this peer, one entry per DTLS record.
+    Data {
+        /// Who sent it.
+        peer: SocketAddr,
+        /// The plaintext of one record.
+        bytes: Vec<u8>,
+    },
+    /// The peer's handshake timed out, its session rejected a datagram, or a fresh ClientHello
+    /// replaced it. All three mean the same thing to the caller: anything held for this address
+    /// is stale.
+    Dropped(SocketAddr),
+}
+
+/// What the transport saw, for diagnostics. Off unless a caller installs a sink.
+///
+/// WHY A SINK AND NOT A LOG CALL
+/// =============================
+/// A library does not own the process's stderr and does not know whether its caller wants `log`,
+/// `tracing`, a ring buffer or silence, so it hands over the observation and lets the caller render
+/// it. That also keeps a formatting cost off the datagram path: a caller that installs nothing pays
+/// one `Option` check per datagram, which is the whole reason this is a sink and not an
+/// unconditional `eprintln!` (the crate docs have the 7.3 GB incident). The payloads are borrowed
+/// from the transport's own buffers, so a trace copies nothing and a sink must finish with it
+/// before returning.
+#[derive(Clone, Copy, Debug)]
+pub enum TransportTrace<'a> {
+    /// A raw datagram arrived, before any DTLS handling.
+    Received {
+        /// Who sent it.
+        from: SocketAddr,
+        /// The datagram exactly as it arrived.
+        bytes: &'a [u8],
+    },
+    /// A datagram is about to be written.
+    Sending {
+        /// Where it is going.
+        to: SocketAddr,
+        /// The datagram that will be written.
+        bytes: &'a [u8],
+    },
+    /// A datagram could not be routed to a peer.
+    Unroutable {
+        /// Who sent it.
+        from: SocketAddr,
+        /// The datagram that could not be routed.
+        bytes: &'a [u8],
+        /// Why, in one phrase.
+        reason: &'a str,
+    },
+}
+
+/// Where the transport reports what it saw.
+///
+/// `Send + Sync` because the transport is moved to the thread that owns the socket, and `Fn` rather
+/// than `FnMut` because a sink keeps its own interior mutability — which is what lets one sink be
+/// shared by the transport and by whatever else the caller reports to it.
+pub type TraceSink = Box<dyn Fn(TransportTrace<'_>) + Send + Sync>;
 
 /// Everything this crate can fail at.
 ///

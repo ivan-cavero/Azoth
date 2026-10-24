@@ -24,6 +24,9 @@ pub struct Config {
     /// The simulation rate. The capture measured the official server at 50 Hz and the client's own
     /// input cadence at 20 Hz, so these are not the same clock.
     pub tick_hz: f64,
+    /// Print one line per transport event to stderr. Off by default: the volume is a debug tool, not
+    /// an operating level (see the `diagnostics` module and plan §12).
+    pub diagnostics: bool,
 }
 
 impl Default for Config {
@@ -32,15 +35,16 @@ impl Default for Config {
             bind: "127.0.0.1:9000".parse().expect("a literal address parses"),
             cert_dir: PathBuf::from("private-client/runtime/certs"),
             tick_hz: 50.0,
+            diagnostics: false,
         }
     }
 }
 
 impl Config {
-    /// Parse `--bind`, `--cert-dir` and `--tick-hz`.
+    /// Parse `--bind`, `--cert-dir`, `--tick-hz` and `--diagnostics`.
     ///
-    /// Hand-rolled: three flags with defaults do not justify a CLI dependency, and writing the
-    /// errors for these three is more useful than a framework's generic message.
+    /// Hand-rolled: four flags with defaults do not justify a CLI dependency, and writing the errors
+    /// for these four is more useful than a framework's generic message.
     ///
     /// # Errors
     /// A message naming the flag when a value is missing or unparseable.
@@ -68,6 +72,7 @@ impl Config {
                     }
                     config.tick_hz = hz;
                 }
+                "--diagnostics" => config.diagnostics = true,
                 "--help" | "-h" => return Err(Self::usage()),
                 other => return Err(format!("unknown argument {other:?}\n\n{}", Self::usage())),
             }
@@ -78,7 +83,7 @@ impl Config {
     /// The usage text.
     #[must_use]
     pub fn usage() -> String {
-        "usage: worldd [--bind ADDR] [--cert-dir DIR] [--tick-hz HZ]".to_string()
+        "usage: worldd [--bind ADDR] [--cert-dir DIR] [--tick-hz HZ] [--diagnostics]".to_string()
     }
 
     /// The tick interval this configuration implies.
@@ -108,14 +113,39 @@ mod tests {
     #[test]
     fn parses_every_flag() {
         let config = Config::from_args(
-            ["--bind", "0.0.0.0:9100", "--cert-dir", "/tmp/c", "--tick-hz", "30"]
-                .into_iter()
-                .map(String::from),
+            [
+                "--bind",
+                "0.0.0.0:9100",
+                "--cert-dir",
+                "/tmp/c",
+                "--tick-hz",
+                "30",
+                "--diagnostics",
+            ]
+            .into_iter()
+            .map(String::from),
         )
         .expect("parses");
         assert_eq!(config.bind.port(), 9100);
         assert_eq!(config.cert_dir, PathBuf::from("/tmp/c"));
         assert!((config.tick_hz - 30.0).abs() < f64::EPSILON);
+        assert!(config.diagnostics, "the flag turns the lines on");
+    }
+
+    #[test]
+    fn diagnostics_are_off_unless_asked_for() {
+        // The 7.3 GB incident is why this is a flag and not a default: one line per datagram in each
+        // direction is a debug tool, and an operator who has not asked for it must not pay for it.
+        assert!(!Config::default().diagnostics);
+        assert!(!Config::from_args(std::iter::empty()).expect("parses").diagnostics);
+    }
+
+    #[test]
+    fn the_usage_names_every_flag() {
+        let usage = Config::usage();
+        for flag in ["--bind", "--cert-dir", "--tick-hz", "--diagnostics"] {
+            assert!(usage.contains(flag), "{flag} is missing from {usage}");
+        }
     }
 
     #[test]

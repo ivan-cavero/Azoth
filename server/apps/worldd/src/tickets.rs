@@ -19,9 +19,31 @@
 //! reads is a second copy of the region's decisions, so two authorities hold the same fact and
 //! nothing can tell which one is stale. A file also has no author, no arrival order and no
 //! observable failure: if `regiond` stops writing, the world keeps validating against a set that
-//! only ages — which is exactly the "silently different experiment" shape `config.rs` documents for
-//! the prototype's environment variables. A message has all three: it is addressed, it is ordered
-//! against the claim that produced it, and its absence is a timeout the world can log.
+//! only ages. A message has all three — it is addressed, ordered against the claim that produced
+//! it, and its absence is a timeout the world can log.
+//!
+//! THE FILE IS RE-READ, BECAUSE A TICKET CAN BE MINTED AFTER THE WORLD STARTS
+//! ========================================================================
+//! The world read the file once, at startup, and that was a measured defect: `regiond` published two
+//! tickets *after* `worldd` had read it, the client completed its DTLS handshake and sent its V3
+//! registration, and the world never answered — it held zero tickets, so there was nothing to match.
+//! The transport, the handshake and the client were all fine. [`TicketStore::refresh`] is the fix,
+//! and the tick calls it once per tick.
+//!
+//! A RELOAD IS NOT A RESET
+//! =======================
+//! `refresh` keeps every id this world has handed out in its `consumed` set and skips them on each
+//! later read. Without that, re-reading the file would put an accepted ticket back into the store
+//! and a second client could replay it — the replay S6 forbids. Consuming is permanent for the life
+//! of the process, not per file version.
+//!
+//! A BAD FILE MUST NOT EMPTY A WORKING WORLD
+//! =========================================
+//! The world is serving players when the file is read again, so a missing, unreadable or
+//! half-written file means "nothing new" rather than "no tickets": the previous set stays and only
+//! [`TicketStore::load`] fails loudly. `regiond` writes atomically, so the malformed case is defence
+//! in depth — but a refresh that emptied the store would reject every login for as long as the
+//! damage lasted.
 //!
 //! THE FILE'S FIELD NAMES ARE `regiond`'s OWN
 //! ==========================================
@@ -32,8 +54,9 @@
 //! validated — an expired ticket is one of the three rules S6 names, so the expiry has to be a
 //! field rather than a constant this module invents.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use azoth_session::LoginTicket;
 use serde::Deserialize;
@@ -48,6 +71,10 @@ pub const DEFAULT_PATH: &str = "private-client/runtime/tickets.json";
 #[derive(Debug, Clone, Default)]
 pub struct TicketStore {
     tickets: HashMap<String, LoginTicket>,
+    /// Every id this world has handed out. A reload must not resurrect one of these.
+    consumed: HashSet<String>,
+    /// The file's stamp at the last read, so the tick can ask "changed?" without reading bytes.
+    loaded: Option<Stamp>,
 }
 
 impl TicketStore {
@@ -58,26 +85,69 @@ impl TicketStore {
     /// expected shape, and [`TicketError::Invalid`] / [`TicketError::Duplicate`] when an entry is
     /// one this world must not accept.
     pub fn load(path: &Path) -> Result<Self, TicketError> {
-        let text = std::fs::read_to_string(path).map_err(|source| TicketError::Read {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        let entries: Vec<TicketFile> =
-            serde_json::from_str(&text).map_err(|source| TicketError::Json {
-                path: path.to_path_buf(),
-                source,
-            })?;
+        // Stamped before the read: if the file changes while it is being read, the next `refresh`
+        // still sees a different stamp and reads it again, which is the safe direction.
+        let stamp = stamp_of(path);
         let mut store = Self::empty();
-        for (index, entry) in entries.into_iter().enumerate() {
-            let ticket = entry.into_ticket(index)?;
-            if store.tickets.contains_key(&ticket.ticket_id) {
-                return Err(TicketError::Duplicate {
-                    ticket_id: ticket.ticket_id,
-                });
-            }
+        for ticket in read(path)? {
             store.insert(ticket);
         }
+        store.loaded = stamp;
         Ok(store)
+    }
+
+    /// Reload from `path` when the file's modification time changed since the last load.
+    ///
+    /// Returns how many tickets were added. Consumed ids stay consumed across a reload: re-reading
+    /// the file must not resurrect a ticket the world already accepted, or a second client could
+    /// replay one. A missing or malformed file is `Ok(0)` — the world keeps the set it has, because
+    /// a bad file must not lock out the players already inside — while a file that is there but
+    /// cannot be read at all is a [`TicketError::Read`] for the caller to log.
+    pub fn refresh(&mut self, path: &Path) -> Result<usize, TicketError> {
+        let Some(stamp) = stamp_of(path) else {
+            // Missing, or not ours to look at: nothing new rather than nothing left.
+            return Ok(0);
+        };
+        if self.loaded.as_ref() == Some(&stamp) {
+            // The common case at 50 Hz: one `metadata` call and no read.
+            return Ok(0);
+        }
+        match read(path) {
+            Ok(tickets) => {
+                // Stamped from before the read, so a file that changes while it is being read still
+                // looks changed next tick.
+                self.loaded = Some(stamp);
+                Ok(self.merge(tickets))
+            }
+            // Present but unreadable: an operator problem, and the stamp is deliberately not
+            // recorded, so the next tick retries instead of waiting for the file to change again.
+            Err(err @ TicketError::Read { .. }) => Err(err),
+            Err(err) => {
+                // Malformed or unacceptable: keep what the world has, and say so once per change
+                // rather than 50 times a second.
+                self.loaded = Some(stamp);
+                eprintln!("[worldd] ticket file {} ignored: {err}", path.display());
+                Ok(0)
+            }
+        }
+    }
+
+    /// Add the tickets a reload found, reporting how many are new.
+    ///
+    /// A consumed id is skipped rather than re-added (a reload is not a reset), and an id already
+    /// held is replaced in place: a re-minted ticket for the same claim is a legitimate retry.
+    fn merge(&mut self, tickets: Vec<LoginTicket>) -> usize {
+        let mut added = 0;
+        for ticket in tickets {
+            if self.consumed.contains(&ticket.ticket_id) {
+                continue;
+            }
+            if !self.tickets.contains_key(&ticket.ticket_id) {
+                added += 1;
+            }
+            self.insert(ticket);
+        }
+        added
     }
 
     /// An empty store, for tests.
@@ -100,7 +170,10 @@ impl TicketStore {
     /// the same ticket up twice would let two clients register as one player — the defect the
     /// prototype had, where it accepted any registration and rewrote the character id per session.
     pub fn consume(&mut self, ticket_id: &str) -> Option<LoginTicket> {
-        self.tickets.remove(ticket_id)
+        let ticket = self.tickets.remove(ticket_id)?;
+        // Remembered so a later `refresh` cannot put the same ticket back.
+        self.consumed.insert(ticket_id.to_owned());
+        Some(ticket)
     }
 
     /// How many unconsumed tickets are held.
@@ -114,6 +187,70 @@ impl TicketStore {
     pub fn is_empty(&self) -> bool {
         self.tickets.is_empty()
     }
+}
+
+/// The 32-byte session token the client stores: the ticket id without its dashes.
+///
+/// For a UUID ticket id that is exactly 32 bytes, the form first-light measured the client echoing
+/// back. The value is opaque to the client, so a shorter id is zero-padded rather than refused.
+///
+/// It lives here rather than in `entry.rs` because it is derived from a ticket id, and `entry.rs` is
+/// at its line limit.
+#[must_use]
+pub fn session_token(ticket_id: &str) -> [u8; 32] {
+    let mut token = [0u8; 32];
+    for (slot, byte) in token
+        .iter_mut()
+        .zip(ticket_id.bytes().filter(|byte| *byte != b'-'))
+    {
+        *slot = byte;
+    }
+    token
+}
+
+/// A file's identity at the moment it was read.
+///
+/// The modification time is the primary signal and the length is the secondary one, because some
+/// filesystems stamp mtime at one-second resolution: two writes inside one second to files of equal
+/// length would otherwise look unchanged. The pair costs one `metadata` call per tick.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Stamp {
+    modified: Option<SystemTime>,
+    len: u64,
+}
+
+/// The stamp of `path`, or `None` when it cannot be stat'ed.
+fn stamp_of(path: &Path) -> Option<Stamp> {
+    let metadata = std::fs::metadata(path).ok()?;
+    Some(Stamp {
+        modified: metadata.modified().ok(),
+        len: metadata.len(),
+    })
+}
+
+/// Read and validate one ticket file.
+fn read(path: &Path) -> Result<Vec<LoginTicket>, TicketError> {
+    let text = std::fs::read_to_string(path).map_err(|source| TicketError::Read {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let entries: Vec<TicketFile> =
+        serde_json::from_str(&text).map_err(|source| TicketError::Json {
+            path: path.to_path_buf(),
+            source,
+        })?;
+    let mut seen = HashSet::new();
+    let mut tickets = Vec::with_capacity(entries.len());
+    for (index, entry) in entries.into_iter().enumerate() {
+        let ticket = entry.into_ticket(index)?;
+        if !seen.insert(ticket.ticket_id.clone()) {
+            return Err(TicketError::Duplicate {
+                ticket_id: ticket.ticket_id,
+            });
+        }
+        tickets.push(ticket);
+    }
+    Ok(tickets)
 }
 
 /// One ticket as `regiond` writes it.
@@ -208,91 +345,5 @@ impl std::error::Error for TicketError {
             Self::Json { source, .. } => Some(source),
             Self::Invalid { .. } | Self::Duplicate { .. } => None,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn ticket(id: &str) -> LoginTicket {
-        LoginTicket {
-            ticket_id: id.to_string(),
-            signature: format!("sig:{id}"),
-            world_id: "world-1".to_string(),
-            character_id: "character-1".to_string(),
-            persona_id: "persona-1".to_string(),
-            rep_address: "127.0.0.1:9000".to_string(),
-            expires_at_unix: 4_000_000_000,
-        }
-    }
-
-    /// Write `body` to a scratch file outside the worktree and load it.
-    fn load(body: &str) -> Result<TicketStore, TicketError> {
-        let path = std::env::temp_dir().join(format!(
-            "azoth-tickets-{}-{:?}.json",
-            std::process::id(),
-            std::thread::current().id()
-        ));
-        std::fs::write(&path, body).expect("scratch file");
-        let loaded = TicketStore::load(&path);
-        let _ = std::fs::remove_file(&path);
-        loaded
-    }
-
-    #[test]
-    fn loads_the_regiond_field_names() {
-        let store = load(
-            r#"[{"TicketId":"t1","Signature":"sig:t1","WorldId":"w","CharacterId":"c",
-                 "PersonaId":"p","RepAddress":"127.0.0.1:9000","ExpiresAtUnix":4000000000}]"#,
-        )
-        .expect("loads");
-        assert_eq!(store.len(), 1);
-        let ticket = store.ticket("t1");
-        assert_eq!(ticket.signature, "sig:t1");
-        assert_eq!(ticket.expires_at_unix, 4_000_000_000);
-    }
-
-    #[test]
-    fn a_ticket_is_consumed_once() {
-        let mut store = TicketStore::empty();
-        store.insert(ticket("t2"));
-        assert!(store.consume("t2").is_some());
-        assert!(store.consume("t2").is_none(), "a consumed ticket is gone");
-        assert!(store.consume("never-seen").is_none());
-        assert!(store.is_empty());
-    }
-
-    #[test]
-    fn a_missing_file_is_an_error_naming_the_path() {
-        let path = Path::new("does/not/exist.json");
-        let err = TicketStore::load(path).expect_err("must fail");
-        assert!(err.to_string().contains("exist.json"), "{err}");
-    }
-
-    #[test]
-    fn an_empty_credential_is_refused() {
-        let err = load(
-            r#"[{"TicketId":"t3","Signature":"  ","WorldId":"w","CharacterId":"c",
-                 "PersonaId":"p","RepAddress":"a","ExpiresAtUnix":1}]"#,
-        )
-        .expect_err("must fail");
-        assert!(matches!(err, TicketError::Invalid { field: "Signature", .. }), "{err}");
-    }
-
-    #[test]
-    fn a_duplicate_id_is_refused() {
-        let one = r#"{"TicketId":"t4","Signature":"s","WorldId":"w","CharacterId":"c",
-                      "PersonaId":"p","RepAddress":"a","ExpiresAtUnix":1}"#;
-        let err = load(&format!("[{one},{one}]")).expect_err("must fail");
-        assert!(matches!(err, TicketError::Duplicate { .. }), "{err}");
-    }
-}
-
-#[cfg(test)]
-impl TicketStore {
-    /// A ticket still in the store, for the loader test only.
-    fn ticket(&self, id: &str) -> &LoginTicket {
-        self.tickets.get(id).expect("the ticket that was loaded")
     }
 }

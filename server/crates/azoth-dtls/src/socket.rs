@@ -3,41 +3,45 @@
 //! WHY ONE SOCKET
 //! ==============
 //! A socket per player is the obvious design and it is the wrong one: file descriptors, kernel
-//! receive buffers and per-datagram syscall cost all scale with the player count, and the
-//! reference implementations that reach millions of packets per second all demux from a small
-//! fixed set of sockets. The measured per-player load is ~20 datagrams/s ingress and ~62 egress
-//! (`docs/PLAN-backend-rust.md` §0.4), so one socket is orders of magnitude away from its limit
-//! at the 2,500-player gate.
+//! receive buffers and per-datagram syscall cost all scale with the player count, and the reference
+//! implementations that reach millions of packets per second demux from a small fixed set of
+//! sockets. The measured per-player load is ~20 datagrams/s ingress and ~62 egress
+//! (`docs/PLAN-backend-rust.md` §0.4), so one socket is orders of magnitude from its limit at the
+//! 2,500-player gate.
 //!
 //! THE FRESH-CLIENTHELLO RESET, AND WHY IT IS COOKIE-AWARE
 //! ====================================================
 //! A ClientHello that **starts a new handshake** from an address that already has a session drops
-//! that session first. This is not defensive tidiness; it is the fix for the project's
-//! longest-lived "flaky REP" symptom. The prototype records it (`rep.py`, the
-//! `dtls-session-reset` branch): the client reuses its source port after a previous session ends,
-//! so the second and later world attempts in one client run arrive from a port the server still
-//! holds a dead session for. Feeding a new handshake into the old DTLS state machine leaves it
-//! stuck — measured 2026-09-27: the client retried its ClientHello 12 times from
-//! `127.0.0.1:27000`, the server never replied and logged no error at all, and the client
+//! that session first. That is not defensive tidiness; it is the fix for the project's longest-lived
+//! "flaky REP" symptom. The prototype records it (`rep.py`, the `dtls-session-reset` branch): the
+//! client reuses its source port after a previous session ends, so a later world attempt arrives
+//! from a port the server still holds a dead session for, and feeding a new handshake into the old
+//! DTLS state machine leaves it stuck — measured 2026-09-27, the client retried its ClientHello 12
+//! times from `127.0.0.1:27000`, the server never replied and logged no error, and the client
 //! surfaced `@mm_csdkerr_connection_failed` after 15 s in `WaitingForREPConnection`.
 //!
 //! The reset cannot be "any ClientHello from a known address", because the client's own cookie
 //! exchange puts its 2nd ClientHello on the same 5-tuple as its 1st (§0.3) and that one must
-//! *continue* the exchange. So a datagram resets the session when
-//!
-//! * the session has already completed its handshake — any ClientHello afterwards is a restart, or
-//! * the ClientHello carries **no cookie** — the client is starting over from the first flight.
-//!
-//! A ClientHello that carries a cookie continues the session it belongs to. That single rule makes
-//! the port-reuse fix and the mandated cookie exchange compatible, and it is the reason the cookie
-//! is stateless and bound to the address rather than to the session object — see [`crate::peer`].
+//! *continue* the exchange. So a datagram resets the session only when the session has already
+//! completed its handshake (any ClientHello afterwards is a restart) or when the ClientHello carries
+//! **no cookie** (the client is starting over from the first flight). One carrying a cookie continues
+//! the session it belongs to: that single rule makes the port-reuse fix and the mandated cookie
+//! exchange compatible, and it is why the cookie is stateless and bound to the address rather than to
+//! the session object — see [`crate::peer`].
 //!
 //! WHAT `pump` DOES NOT DO
 //! =======================
-//! It does not tick, it does not call back, and it does not own a timer that the caller cannot
-//! inspect. It blocks on one datagram, routes it, and returns what happened. The handshake inside
-//! it is expensive crypto and must not run on the simulation tick (`§8.1`, `§18.2`); the shape
-//! makes that a placement decision the caller makes once, not a per-call risk.
+//! It does not tick, it does not call back, and it does not own a timer the caller cannot inspect.
+//! It blocks on one datagram, routes it, and returns what happened. The handshake inside it is
+//! expensive crypto and must not run on the simulation tick (`§8.1`, `§18.2`).
+//!
+//! WHAT AN EVENT CANNOT REPORT, AND WHY THERE IS A TRACE
+//! =====================================================
+//! [`TransportEvent`] says what a *session* did, so it is silent about every datagram that never
+//! became one — exactly the state a "the client cannot connect" report needs. A successful
+//! ClientHello produces no event (only a HelloVerifyRequest and a peer), and a datagram OpenSSL
+//! never sees produces none either. [`Transport::set_trace`] closes that gap; [`TransportTrace`]
+//! says why it is a sink and not a log call.
 
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -49,7 +53,7 @@ use openssl::ssl::SslContext;
 use crate::cert::Identity;
 use crate::config::DtlsConfig;
 use crate::peer::{self, Peer};
-use crate::DtlsError;
+use crate::{DtlsError, TraceSink, TransportEvent, TransportTrace};
 
 /// The DTLS record content type for a handshake record.
 const CONTENT_HANDSHAKE: u8 = 22;
@@ -60,9 +64,8 @@ const HANDSHAKE_CLIENT_HELLO: u8 = 1;
 /// Bytes before the first handshake message type: the 13-byte record header.
 const RECORD_HEADER: usize = 13;
 
-/// Offset of the handshake body inside a ClientHello datagram: record header plus the 12-byte
-/// handshake header (`type`, 3-byte length, `message_seq`, 3-byte fragment offset, 3-byte fragment
-/// length).
+/// Offset of the handshake body inside a ClientHello datagram: the 13-byte record header plus the
+/// 12-byte handshake header (`type`, 3-byte length, `message_seq`, fragment offset, fragment len).
 const CLIENT_HELLO_BODY: usize = RECORD_HEADER + 12;
 
 /// Offset of `fragment_offset` inside the datagram, relative to the handshake header.
@@ -73,27 +76,9 @@ const SESSION_ID_LEN: usize = CLIENT_HELLO_BODY + 34;
 
 /// The longest this crate will block on a datagram before it re-checks handshake deadlines.
 ///
-/// It is not a protocol value: it only bounds how late a timeout can be noticed, and it is capped
-/// so that a long [`DtlsConfig::handshake_timeout`] does not make a short one imprecise.
+/// Not a protocol value: it only bounds how late a timeout is noticed, and it is capped so a long
+/// [`DtlsConfig::handshake_timeout`] does not make a short one imprecise.
 const MAX_POLL_INTERVAL: Duration = Duration::from_millis(100);
-
-/// What [`Transport::pump`] observed while handling one datagram or one deadline expiry.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TransportEvent {
-    /// The handshake completed for this peer. It can now be written to.
-    Established(SocketAddr),
-    /// Decrypted application data arrived from this peer, one entry per DTLS record.
-    Data {
-        /// Who sent it.
-        peer: SocketAddr,
-        /// The plaintext of one record.
-        bytes: Vec<u8>,
-    },
-    /// The peer's handshake timed out, its session rejected a datagram, or a fresh ClientHello
-    /// replaced it. All three mean the same thing to the caller: anything held for this address
-    /// is stale.
-    Dropped(SocketAddr),
-}
 
 /// A session and the bookkeeping the transport keeps beside it.
 struct Session {
@@ -113,13 +98,14 @@ pub struct Transport {
     max_datagram: usize,
     handshake_timeout: Duration,
     poll_interval: Duration,
+    /// `None` until a caller installs one, which is what makes diagnostics free when off.
+    trace: Option<TraceSink>,
 }
 
 impl Transport {
-    /// Bind the socket and build the DTLS context from `identity`.
-    ///
-    /// Port `0` in [`DtlsConfig::bind`] asks the operating system to pick a port;
-    /// [`Transport::local_addr`] reports what was chosen.
+    /// Bind the socket and build the DTLS context from `identity`. Port `0` in
+    /// [`DtlsConfig::bind`] asks the operating system to pick one; [`Transport::local_addr`] reports
+    /// what was chosen.
     ///
     /// # Errors
     ///
@@ -141,7 +127,22 @@ impl Transport {
             max_datagram: config.max_datagram,
             handshake_timeout: config.handshake_timeout,
             poll_interval,
+            trace: None,
         })
+    }
+
+    /// Install a trace sink. Replaces any previous one; `None` turns tracing off.
+    ///
+    /// See [`TransportTrace`] for why this is a sink rather than a log call.
+    pub fn set_trace(&mut self, sink: Option<TraceSink>) {
+        self.trace = sink;
+    }
+
+    /// Report one observation to the installed sink, if there is one.
+    fn report(&self, observation: TransportTrace<'_>) {
+        if let Some(sink) = self.trace.as_ref() {
+            sink(observation);
+        }
     }
 
     /// The address the socket actually bound, which is how a caller learns a port chosen by the
@@ -162,8 +163,7 @@ impl Transport {
 
     /// Block for one datagram, route it to its peer, and report what happened.
     ///
-    /// Returns an empty vector when the wait produced no datagram, which is the normal case on a
-    /// quiet world; it is not an error and it is not a tick.
+    /// Returns an empty vector when the wait produced no datagram: not an error, and not a tick.
     ///
     /// A per-peer failure (OpenSSL rejecting a record) drops that peer and reports
     /// [`TransportEvent::Dropped`] rather than returning an error: one player's broken state
@@ -187,6 +187,11 @@ impl Transport {
         match received {
             Ok((len, addr)) => {
                 let datagram = self.recv_buf[..len].to_vec();
+                // Before any DTLS handling: the only line a successful ClientHello ever produces.
+                self.report(TransportTrace::Received {
+                    from: addr,
+                    bytes: &datagram,
+                });
                 self.route(addr, &datagram, &mut events)?;
             }
             // A read timeout is the designed way to re-check deadlines, not a failure.
@@ -211,8 +216,17 @@ impl Transport {
             .get_mut(&peer)
             .ok_or(DtlsError::UnknownPeer(peer))?;
         let datagram = session.peer.write_app(plaintext)?;
-        self.socket.send_to(&datagram, peer)?;
+        self.write(peer, &datagram)?;
         Ok(())
+    }
+
+    /// Write one datagram, reporting it to the trace sink first.
+    fn write(&mut self, addr: SocketAddr, datagram: &[u8]) -> std::io::Result<()> {
+        self.report(TransportTrace::Sending {
+            to: addr,
+            bytes: datagram,
+        });
+        self.socket.send_to(datagram, addr).map(|_| ())
     }
 
     /// Route one received datagram into its session, appending whatever it produced.
@@ -227,15 +241,22 @@ impl Transport {
         }
 
         if !self.peers.contains_key(&addr) {
-            let peer = Peer::with_max_datagram(&self.ctx, addr, self.max_datagram)?;
-            self.peers.insert(
-                addr,
-                Session {
-                    peer,
-                    deadline: Some(Instant::now() + self.handshake_timeout),
-                    announced: false,
-                },
-            );
+            match Peer::with_max_datagram(&self.ctx, addr, self.max_datagram) {
+                Ok(peer) => {
+                    let deadline = Some(Instant::now() + self.handshake_timeout);
+                    self.peers.insert(addr, Session { peer, deadline, announced: false });
+                }
+                Err(err) => {
+                    // The one case where a datagram has nowhere to go. Reported before the error
+                    // leaves `pump`, so the caller sees which address could not be served.
+                    self.report(TransportTrace::Unroutable {
+                        from: addr,
+                        bytes: datagram,
+                        reason: "no DTLS session could be allocated",
+                    });
+                    return Err(err);
+                }
+            }
         }
 
         let fed = self
@@ -289,7 +310,7 @@ impl Transport {
         for datagram in datagrams {
             // A send the OS refuses means the peer vanished between two packets (ICMP port
             // unreachable on Windows surfaces exactly here), so it is not a transport failure.
-            if self.socket.send_to(&datagram, addr).is_err() {
+            if self.write(addr, &datagram).is_err() {
                 break;
             }
         }
@@ -319,8 +340,8 @@ impl Transport {
     /// Whether this datagram begins a *new* handshake for an address we may already hold.
     ///
     /// See the module docs: an established session is always restarted, and a handshaking one only
-    /// when the ClientHello carries no cookie, because that is the client starting from its first
-    /// flight rather than answering our HelloVerifyRequest.
+    /// when the ClientHello carries no cookie — the client starting from its first flight rather
+    /// than answering our HelloVerifyRequest.
     fn starts_a_new_handshake(&self, addr: SocketAddr, datagram: &[u8]) -> bool {
         if !is_client_hello(datagram) {
             return false;
@@ -335,11 +356,11 @@ impl Transport {
 
 /// `true` for a received datagram that begins with a ClientHello.
 ///
-/// Record layout: `[type:1][version:2][epoch:2][seq:6][length:2]`, then the handshake message,
-/// whose first byte is its type (`1` = ClientHello). Only the type byte is inspected: the client
-/// retries this record with an increasing record sequence number, so nothing later in the header
-/// is stable enough to compare. A datagram whose first record is a ClientHello is one — the
-/// capture shows every datagram carries exactly one record (§0.3).
+/// Record layout: `[type:1][version:2][epoch:2][seq:6][length:2]`, then the handshake message, whose
+/// first byte is its type (`1` = ClientHello). Only that byte is inspected: the client retries this
+/// record with an increasing record sequence number, so nothing later in the header is stable enough
+/// to compare. A datagram whose first record is a ClientHello is one — the capture shows every
+/// datagram carries exactly one record (§0.3).
 fn is_client_hello(datagram: &[u8]) -> bool {
     datagram.len() > RECORD_HEADER
         && datagram[0] == CONTENT_HANDSHAKE
@@ -348,8 +369,8 @@ fn is_client_hello(datagram: &[u8]) -> bool {
 
 /// The `cookie_len` field of a ClientHello, or `None` when it cannot be read from this datagram.
 ///
-/// Returns `None` for a fragment beyond the first one (`fragment_offset != 0`), because the
-/// `cookie_len` byte is only at a known offset in a message that starts here.
+/// `None` for a fragment beyond the first one (`fragment_offset != 0`): the `cookie_len` byte is
+/// only at a known offset in a message that starts here.
 fn client_hello_cookie_len(datagram: &[u8]) -> Option<usize> {
     let fragment_offset_at = CLIENT_HELLO_BODY - 12 + FRAGMENT_OFFSET;
     let fragment_offset = datagram.get(fragment_offset_at..fragment_offset_at + 3)?;
@@ -365,9 +386,8 @@ fn client_hello_cookie_len(datagram: &[u8]) -> Option<usize> {
 ///
 /// `ConnectionReset` is in the list because of a measured Windows failure, not defensively: a
 /// `send_to` to a client that already closed is answered with ICMP port-unreachable, and the
-/// *next* `recv_from` then raises `WSAECONNRESET` (10054). The prototype treated that as fatal
-/// and killed the whole REP process — the client then sat in `WaitingForREPConnection` until it
-/// timed out.
+/// *next* `recv_from` then raises `WSAECONNRESET` (10054). The prototype treated that as fatal and
+/// killed the whole REP process; the client then timed out in `WaitingForREPConnection`.
 fn is_quiet(error: &std::io::Error) -> bool {
     matches!(
         error.kind(),

@@ -37,6 +37,7 @@
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::time::Instant;
 
 use azoth_session::{CloseReason, Session, SessionConfig, SessionEvent, SessionState};
@@ -45,7 +46,7 @@ use azoth_wire::v3::{self, RegistrationRequest};
 use azoth_wire::{container, envelope, record, varint};
 
 use crate::ladder::Ladder;
-use crate::tickets::TicketStore;
+use crate::tickets::{session_token, TicketStore};
 
 /// A datagram the entry wants written, addressed to one peer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -237,6 +238,17 @@ impl WorldEntry {
         EntryOutcome::Nothing
     }
 
+    /// Reload the ticket file, logging what arrived. Consumed ids stay consumed.
+    ///
+    /// The tick calls this every tick; the store stats the file and only reads it when it changed.
+    pub fn refresh_tickets(&mut self, path: &Path) {
+        match self.tickets.refresh(path) {
+            Ok(0) => {}
+            Ok(added) => eprintln!("[worldd] {added} ticket(s) now known"),
+            Err(err) => eprintln!("[worldd] ticket reload failed: {err}"),
+        }
+    }
+
     /// What the entry knows about a peer's session, for logs and tests.
     #[must_use]
     pub fn session_state(&self, peer: SocketAddr) -> Option<SessionState> {
@@ -346,7 +358,8 @@ impl WorldEntry {
         }
         if let Some(state) = self.peers.get_mut(&peer) {
             datagrams.extend(next_rung(state, now));
-        }        if datagrams.is_empty() {
+        }
+        if datagrams.is_empty() {
             return EntryOutcome::Nothing;
         }
         EntryOutcome::Send { peer, datagrams }
@@ -384,17 +397,3 @@ fn registration_body(payload: &[u8]) -> Option<RegistrationRequest> {
     v3::parse(&payload[after..]).ok()
 }
 
-/// The 32-byte session token the client stores: the ticket id without its dashes.
-///
-/// For a UUID ticket id that is exactly 32 bytes, the form first-light measured the client echoing
-/// back. The value is opaque to the client, so a shorter id is zero-padded rather than refused.
-fn session_token(ticket_id: &str) -> [u8; 32] {
-    let mut token = [0u8; 32];
-    for (slot, byte) in token
-        .iter_mut()
-        .zip(ticket_id.bytes().filter(|byte| *byte != b'-'))
-    {
-        *slot = byte;
-    }
-    token
-}
