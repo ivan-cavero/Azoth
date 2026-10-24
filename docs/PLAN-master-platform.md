@@ -1297,8 +1297,10 @@ Use this as the audit backlog before moving files:
 
 ### 19.2 Agentic factory (Pi + Gentle + Orca/T3)
 
-- [ ] Document binding: 2-slot topology (§14A.1)  
-- [ ] Orca Run recipe + `worker_done` / heartbeat / ask contract  
+- [x] `.agents/README.md` catalog + ontology/knowledge skills + boot/world prompts  
+- [x] Document binding: 2-slot topology (ADR 0001 / §14A.1)  
+- [x] Overnight runbook draft (`docs/runbooks/agent-overnight.md`)  
+- [ ] Orca Run recipe + `worker_done` / heartbeat / ask contract (live demo)  
 - [ ] Pi durable session + Gentle ODD for DeepSeek-flash workers  
 - [ ] Writer lock / worktree isolation enforced  
 - [ ] First overnight DAG + resume-after-kill demo  

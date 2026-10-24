@@ -15,6 +15,7 @@ North star: [`docs/PLAN-master-platform.md`](docs/PLAN-master-platform.md).
 | Ontology facts | [`research/atlas/ontology/`](research/atlas/ontology/) |
 | Legal / collab | [`docs/LEGAL.md`](docs/LEGAL.md), [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Boot-naming campaign | [`docs/runbooks/agentic-boot-campaign.md`](docs/runbooks/agentic-boot-campaign.md) |
+| Agent OS catalog | [`.agents/README.md`](.agents/README.md) |
 | Skills | [`.agents/skills/`](.agents/skills/) |
 | Prompts | [`.agents/prompts/README.md`](.agents/prompts/README.md) |
 

@@ -37,5 +37,6 @@ and `docs/PLAN-master-platform.md` §14A.
 
 1. Read orchestrator inbox / dashboard thread.
 2. Resolve decision gates (atlas promote, roadmap public `done`).
-3. Open or merge PR from the child worktree if CI green.
+3. **Pre-public:** push the working branch when the user wants sync (`git push`);
+   no PR theater until plan P22. After public open: PR + required checks.
 4. Update root `STATUS.md` frontier in ≤ a few bullets; diary → `docs/journal/`.
