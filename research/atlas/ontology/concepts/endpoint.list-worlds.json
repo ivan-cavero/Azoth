@@ -1,0 +1,16 @@
+{
+  "uid": "endpoint.list-worlds",
+  "kind": "endpoint",
+  "name": "ListWorlds",
+  "summary": "HTTPS POST when the player selects a region; fills the world list.",
+  "purpose": "World discovery before character/queue.",
+  "authority": "shared",
+  "wire": { "direction": "Bidi", "transport": "http" },
+  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "atlas", "ref": "research/atlas/endpoints.json#ListWorlds" }
+  ],
+  "owners": { "crate": "regiond", "module": "routes/game" }
+}

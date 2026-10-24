@@ -8,11 +8,16 @@ description: Reverse engineer the New World client for Azoth when answering ques
 Use this skill for static analysis, decompilation, client wire schemas, and
 asset format work in this repository.
 
+After the knowledge-OS reorg, the default coverage campaign is
+[`docs/runbooks/agentic-boot-campaign.md`](../../../docs/runbooks/agentic-boot-campaign.md)
+(prompt: `.agents/prompts/boot-naming-campaign.md`): name open → InGame before
+deep combat RE.
+
 ## Choose the smallest decisive method
 
 1. Confirm the exact client build and question.
-2. Check `research/atlas/client-functions.json`, `research/atlas/`, and the
-   focused reference under `research/docs/` before rediscovering a known fact.
+2. Check `research/atlas/ontology/`, `research/atlas/`, and the focused
+   reference under `research/docs/` before rediscovering a known fact.
 3. For native code, query the cached xref map first; use strings and AZ
    reflection metadata to identify candidates, then decompile only the relevant
    function or caller chain with `python az.py re decompile`.

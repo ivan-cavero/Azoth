@@ -1,0 +1,16 @@
+{
+  "uid": "endpoint.channel-config",
+  "kind": "endpoint",
+  "name": "ChannelConfig",
+  "summary": "Steam channel JSON that steers publicApis / cluster to our gateway.",
+  "purpose": "Redirect lever for private mode before any game HTTPS.",
+  "authority": "shared",
+  "wire": { "direction": "S2C", "transport": "http" },
+  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "atlas", "ref": "research/atlas/endpoints.json#ChannelConfig" }
+  ],
+  "owners": { "crate": "channeld", "module": null }
+}

@@ -1,8 +1,16 @@
 {
   "generated": "hand-seed-2026-10-24",
   "kinds": {
-    "command": ["cmd.ban", "cmd.grant", "cmd.kick"],
-    "flow": ["flow.presence", "flow.world-entry", "flow.world-entry.rung.spawn"],
+    "command": [
+      "cmd.ban",
+      "cmd.grant",
+      "cmd.kick"
+    ],
+    "flow": [
+      "flow.presence",
+      "flow.world-entry",
+      "flow.world-entry.rung.spawn"
+    ],
     "message": [
       "msg.add-actor",
       "msg.spawn-actors",
@@ -11,6 +19,14 @@
       "msg.fragment-update",
       "msg.update"
     ],
-    "system": ["sys.movement-authority"]
+    "system": [
+      "sys.movement-authority"
+    ],
+    "endpoint": [
+      "endpoint.channel-config",
+      "endpoint.get-login-info",
+      "endpoint.list-worlds",
+      "endpoint.queue-login"
+    ]
   }
 }

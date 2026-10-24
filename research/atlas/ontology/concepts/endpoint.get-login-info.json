@@ -1,0 +1,21 @@
+{
+  "uid": "endpoint.get-login-info",
+  "kind": "endpoint",
+  "name": "GetLoginInfo",
+  "summary": "HTTPS poll that fills login region/world lists after the login screen.",
+  "purpose": "Bootstrap UI state before character select.",
+  "authority": "shared",
+  "wire": {
+    "direction": "Bidi",
+    "transport": "http"
+  },
+  "relations": [
+    { "op": "part_of", "to": "flow.world-entry" }
+  ],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "atlas", "ref": "research/atlas/endpoints.json#GetLoginInfo" }
+  ],
+  "owners": { "crate": "regiond", "module": "routes/game" }
+}

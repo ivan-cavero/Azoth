@@ -1,0 +1,16 @@
+{
+  "uid": "endpoint.queue-login",
+  "kind": "endpoint",
+  "name": "QueueLogin",
+  "summary": "Issues the world ticket and RepAddress for DTLS entry.",
+  "purpose": "Handoff from HTTPS bootstrap to the world process.",
+  "authority": "shared",
+  "wire": { "direction": "Bidi", "transport": "http" },
+  "relations": [{ "op": "triggers", "to": "flow.world-entry" }],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "atlas", "ref": "research/atlas/endpoints.json#QueueLogin" }
+  ],
+  "owners": { "crate": "regiond", "module": "routes/game" }
+}

@@ -8,8 +8,11 @@ description: Design or implement Azoth's world server, protocol behavior, Rust p
 Use this skill for server-side behavior, protocol implementation, backend
 language ports, content support, or capacity work.
 
-- Read `STATUS.md`, `services/docs/WORLD.md`, the relevant protocol document,
-  and the matching facts in `research/atlas/` before changing behavior.
+- Daily loop: **`python az.py dev`** (native). Compose is CI/Linux only
+  (ADR 0009). Domain types in `azoth-model`; commands via `azoth-commands`;
+  privacy via `azoth-privacy`. Tests: ADR 0007 (scenarios, not decorative units).
+- Read `STATUS.md`, `docs/PLAN-backend-rust.md`, nested `server/AGENTS.md`,
+  and `research/atlas/ontology/` before changing behavior.
 - Keep the server faithful to the observed New World client contract. Add a
   route, packet, field, state transition, or game rule only when evidence or a
   concrete supported feature requires it.
