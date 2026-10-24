@@ -1,0 +1,17 @@
+[package]
+name = "azoth-session"
+description = "The session state machine: DTLS transport to authenticated game session, with deadlines, ACKs and retransmission."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# The V3 registration body is what authenticates a session, so the ticket check reads the parsed
+# request rather than raw bytes. `azoth-wire` is pure `std`, so this crate's tree stays free of
+# sockets, threads and async runtimes on purpose (plan §18).
+azoth-wire = { path = "../azoth-wire" }

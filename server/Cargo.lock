@@ -85,6 +85,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "azoth-session"
+version = "0.1.0"
+dependencies = [
+ "azoth-wire",
+]
+
+[[package]]
 name = "azoth-store"
 version = "0.1.0"
 dependencies = [
