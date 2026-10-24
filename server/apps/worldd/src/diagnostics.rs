@@ -31,13 +31,15 @@
 //!   datagram from an address with no session, which is the only way a ClientHello is ever visible:
 //!   it produces no [`TransportEvent`] at all.
 //! * `peer=<addr> note=connect_request payload=<hex> welcome=<hex> ack_first=<n> ack_last=<n>
-//!   datagrams_seen=<n> echo_seq=<n>` — the whole `SM_CONNECT_REQUEST` record and the acceptance
-//!   flight it produced. This is the line that decides the next step when a client will not leave
-//!   CONNECTING: the measured failure is a client that answers our flight by re-sending its request
-//!   five times and never sending V3, which is what a client that does not accept our `CT_ACKS` range
-//!   looks like — so the payload it asked with, the range we claimed and the sequence we echoed are
-//!   printed together, on one greppable line. The payload is dumped whole (5 to a few dozen bytes)
-//!   rather than cut to [`PREFIX`], because its length is part of the measurement.
+//!   datagrams_seen=<n> echo_seq=<n>` — the whole `SM_CONNECT_REQUEST` record, the welcome it
+//!   implies and the ACK range the next datagram will claim. The request is no longer *answered* (the
+//!   ACK rides on the next tick), so this line is now the only record of what a client that never
+//!   registers actually asked for. The payload is dumped whole (5 to a few dozen bytes) rather than
+//!   cut to [`PREFIX`], because its length is part of the measurement.
+//! * `peer=<addr> note=keepalive ack_first=<n> ack_last=<n> datagrams_seen=<n>` — one line per emitted
+//!   keepalive, so `grep note=keepalive` answers "is the clock running and what is it confirming".
+//!   It is the highest-volume line here by construction: one per peer per tick, 125,000/s at 2,500
+//!   peers and 50 Hz, which is why it is formatted only when a sink is installed ([`note_enabled`]).
 //!
 //! Only the first 16 bytes are shown for a datagram. That is enough to identify content type, version,
 //! epoch and record sequence — the fields that say *what kind of traffic this is* — and it is what
@@ -56,7 +58,6 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use azoth_dtls::{Transport, TransportEvent, TransportTrace};
-use azoth_wire::carrier::AcceptanceFlight;
 
 use crate::config::Config;
 
@@ -269,6 +270,16 @@ mod tests {
         let line = connect_request_line(&payload, &[0x11; 4], 1, 1, 1, 1);
         assert!(line.contains(&"11".repeat(40)), "the whole payload, not 16 bytes");
     }
+
+    /// One keepalive line carries the three numbers the datagram claims, and `grep note=keepalive`
+    /// finds every one of them once the sink has prefixed it.
+    #[test]
+    fn the_keepalive_line_carries_the_range_and_the_count_it_came_from() {
+        assert_eq!(
+            keepalive_line(10, 14, 5),
+            "keepalive ack_first=10 ack_last=14 datagrams_seen=5"
+        );
+    }
 }
 
 /// A process-wide note channel, so a deep code path can report why it did nothing.
@@ -288,6 +299,15 @@ fn note_to_stderr(peer: SocketAddr, line: &str) {
 /// Install the note sink. Called once, from [`from_config`], only when diagnostics are on.
 pub fn install_note_sink(sink: fn(std::net::SocketAddr, &str)) {
     let _ = NOTE_SINK.set(sink);
+}
+
+/// Whether a note sink is installed, so a hot path can skip formatting a line nobody will read.
+///
+/// The keepalive path calls this once per peer per tick (125,000/s at 2,500 peers and 50 Hz): a
+/// `format!` per call would be the whole cost of the clock, and `note` alone would still pay it.
+#[must_use]
+pub fn note_enabled() -> bool {
+    NOTE_SINK.get().is_some()
 }
 
 /// Report why a code path produced nothing. Silent when no sink is installed.
@@ -318,25 +338,50 @@ pub fn connect_request_line(
     )
 }
 
-/// Report the `SM_CONNECT_REQUEST` measurement and the flight it produced.
+/// Report the `SM_CONNECT_REQUEST` measurement and the range the next datagram will claim.
 ///
 /// WHY IT IS ONE CALL: the datagram path is hot and the line is only interesting while
-/// `--diagnostics` is on, so the entry hands over the four values it already has and this module owns
-/// the format — one place to change what the measurement says.
+/// `--diagnostics` is on, so the entry hands over the values it already has and this module owns the
+/// format — one place to change what the measurement says.
 pub fn note_connect_request(
     peer: SocketAddr,
     payload: &[u8],
-    flight: &AcceptanceFlight,
+    welcome: &[u8],
+    ack_first: u16,
+    ack_last: u16,
     datagrams_seen: u32,
     echo_sequence: u16,
 ) {
+    if !note_enabled() {
+        return;
+    }
     let line = connect_request_line(
         payload,
-        &flight.welcome,
-        flight.ack_first,
-        flight.ack_last,
+        welcome,
+        ack_first,
+        ack_last,
         datagrams_seen,
         echo_sequence,
     );
     note(peer, &line);
+}
+
+/// The keepalive line, rendered: `keepalive ack_first=<n> ack_last=<n> datagrams_seen=<n>`.
+///
+/// Pure so a test can pin the format, and greppable as `note=keepalive` once [`note_to_stderr`] has
+/// prefixed it. The three numbers are the whole claim the keepalive makes: which range it confirms
+/// and how much of it was actually received.
+#[must_use]
+pub fn keepalive_line(ack_first: u16, ack_last: u16, datagrams_seen: u32) -> String {
+    format!(
+        "keepalive ack_first={ack_first} ack_last={ack_last} datagrams_seen={datagrams_seen}"
+    )
+}
+
+/// Report one emitted keepalive: the ACK range and the count it came from.
+pub fn note_keepalive(peer: SocketAddr, ack_first: u16, ack_last: u16, datagrams_seen: u32) {
+    if !note_enabled() {
+        return;
+    }
+    note(peer, &keepalive_line(ack_first, ack_last, datagrams_seen));
 }

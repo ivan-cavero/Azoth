@@ -30,8 +30,9 @@
 //! The two threads talk in both directions over bounded channels: events go to the tick, and the
 //! datagrams the tick decides on go back to the thread that owns the socket. The return path is
 //! drained around every `pump`, so a datagram waits at most one poll interval (≤ 100 ms) to be
-//! written. That is fine for a ladder whose rungs are seconds apart; a dedicated writer thread is
-//! the next step if a per-tick send ever needs a tighter bound.
+//! written. That bound is why the tick is the *output clock* rather than a reply pump: a peer that
+//! owes no state still gets its keepalive every tick ([`crate::egress`]), and the socket thread is
+//! what turns 50 Hz of decisions into 50 Hz of writes.
 //!
 //! WHAT AN OPERATOR CAN SEE, AND WHY IT IS OPT-IN
 //! ==============================================
@@ -56,6 +57,10 @@ pub mod ladder;
 pub mod tick;
 pub mod tickets;
 
+// `egress` is declared by `entry` (see its module docs: the integration tests compile `entry.rs`
+// without it) and re-exported here so the obvious path works from anywhere in the binary.
+pub use entry::egress;
+
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -67,7 +72,8 @@ use azoth_wire::spawn::SpawnRecord;
 
 use crate::config::Config;
 use crate::diagnostics::Diagnostics;
-use crate::entry::{Outbound, WorldEntry};
+use crate::egress::Outbound;
+use crate::entry::WorldEntry;
 use crate::tick::{Tick, TickEvent};
 
 /// The captured spawn payload, `record_id 1` and 48 fragments.

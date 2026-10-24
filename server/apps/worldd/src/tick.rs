@@ -1,26 +1,29 @@
 //! The 50 Hz tick: the world's own clock, and the only thread that decides what to send.
 //!
-//! WHY THE TICK IS A SEPARATE THREAD FROM THE SOCKET
-//! ================================================
+//! WHY THE TICK IS A SEPARATE THREAD FROM THE SOCKET, AND WHY IT IS THE OUTPUT CLOCK
+//! ===============================================================================
 //! The socket must block — a handshake is expensive crypto and pretending otherwise stalls whatever
 //! waits on it. The tick must never block — it has a 20 ms budget and overrunning it makes updates
 //! bunch up and players see rubber-banding. On one thread one waits for the other, and the measured
 //! cost is a tick that tracks the client's traffic instead of its own clock: the prototype's
 //! `Pearson(inbound datagrams, server replies) = 0.995`.
 //!
-//! WHAT THIS MODULE OWNS
-//! ====================
-//! The clock, the overrun counter, and **the peer state** — since this phase, the [`WorldEntry`]
-//! itself: two peer tables would be two answers to "is this peer registered", so the entry is the
-//! only one. The tick does not own the socket; it hands the datagrams it decides on to a writer
-//! channel, and one it cannot hand over is **dropped** rather than queued (see [`Tick::deliver`]).
+//! So the tick owns the clock, the overrun counter, and **the peer state** — since this phase, the
+//! [`WorldEntry`] itself: two peer tables would be two answers to "is this peer registered". It does
+//! not own the socket; it hands the datagrams it decides on to a writer channel and drops one it
+//! cannot hand over (see [`Tick::deliver`]). Every tick asks the entry for one datagram per
+//! established peer ([`WorldEntry::egress_tick`]), so the world emits at its own rate instead of the
+//! client's: MEASURED against the official server, 61.8 datagrams/s out against 20.5/s in, at a
+//! 16.1 ms median gap (`crate::egress`). That is what breaks the 0.995 correlation above — a tick
+//! that only answers datagrams cannot confirm an input on a tick where nothing else was owed.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::time::{Duration, Instant};
 
-use crate::entry::{EntryOutcome, Outbound, WorldEntry};
+use crate::egress::Outbound;
+use crate::entry::{EntryOutcome, WorldEntry};
 
 /// What the network thread tells the tick.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,15 +36,13 @@ pub enum TickEvent {
         peer: SocketAddr,
         /// The plaintext of one record.
         bytes: Vec<u8>,
-    },
-    /// A peer went away: handshake timeout, protocol rejection, or a fresh handshake replaced it.
+    },    /// A peer went away: handshake timeout, protocol rejection, or a fresh handshake replaced it.
     Dropped(SocketAddr),
 }
 
 /// A rolling window of tick durations: mean, p50 and p99 over the last N ticks.
 ///
-/// A server that cannot state its p99 tick time cannot claim 50 Hz, so the window is part of the
-/// clock rather than a reporting afterthought.
+/// A server that cannot state its p99 tick time cannot claim 50 Hz, so the window is part of the clock.
 #[derive(Debug, Clone)]
 pub struct TickWindow {
     samples: Vec<Duration>,
@@ -84,9 +85,9 @@ impl TickWindow {
 
     /// A percentile of the window, by nearest rank. `p` is in `0.0..=1.0`.
     ///
-    /// Nearest rank (`ceil(p * n) - 1`), not linear interpolation: the two differ by one sample, and
-    /// for a latency budget that sample is the difference between "p99 is 9.8 ms" and "10.1 ms".
-    /// A first version used `round(p * (n-1))`, which reported 51 µs as the median of 1..=100 µs.
+    /// Nearest rank (`ceil(p * n) - 1`), not interpolation: the two differ by one sample, and for a
+    /// latency budget that sample is "p99 is 9.8 ms" versus "10.1 ms". A first version used
+    /// `round(p * (n-1))`, which reported 51 µs as the median of 1..=100 µs.
     #[must_use]
     pub fn percentile(&self, p: f64) -> Option<Duration> {
         if self.samples.is_empty() {
@@ -114,8 +115,7 @@ impl TickWindow {
 pub struct Tick {
     interval: Duration,
     events: Receiver<TickEvent>,
-    /// The peers, their sessions and their ladders; `None` until a caller attaches one, which is
-    /// what lets the clock be tested without a world.
+    /// The peers, their sessions and their ladders; `None` until a caller attaches one.
     entry: Option<WorldEntry>,
     /// The ticket file to re-read each tick, so a login after startup can still register.
     ticket_path: Option<PathBuf>,
@@ -204,8 +204,8 @@ impl Tick {
         self.started.elapsed()
     }
 
-    /// Drain the network events into the entry, then let it advance.
-    /// Non-blocking: `try_recv` until empty, which keeps the tick from waiting on the socket.
+    /// Drain the network events into the entry, without blocking: `try_recv` until empty keeps the
+    /// tick from waiting on the socket.
     pub fn drain_events(&mut self) {
         while let Ok(event) = self.events.try_recv() {
             let Some(entry) = self.entry.as_mut() else {
@@ -229,38 +229,38 @@ impl Tick {
         if let Some((peer, reason)) = rejected {
             eprintln!("[worldd] rejecting {peer}: {reason}");
         }
+        self.deliver_outbound(outbound);
+    }
+
+    /// Hand the clock's datagrams to the writer.
+    ///
+    /// A full channel drops a datagram: a rung is retransmitted by the session and the next tick sends
+    /// another keepalive, so waiting on the writer would cost the whole world's clock to save one.
+    fn deliver_outbound(&mut self, outbound: Vec<Outbound>) {
         let Some(writer) = self.writer.as_ref() else {
             return;
         };
         for datagram in outbound {
-            // A full channel drops the datagram: a rung is retransmitted by the session, and a lost
-            // Carrier flight is re-answered on the client's retry (`crate::entry`), never blocked.
             let _ = writer.try_send(datagram);
         }
     }
 
-    /// Run one tick and record how long it took, returning the duration so a caller can assert on
-    /// it without reaching into the window.
+    /// Run one tick and record how long it took, returning the duration so a caller can assert on it.
     pub fn step(&mut self) -> Duration {
         let began = Instant::now();
-        // A ticket minted after this world started still has to register, so the file is reloaded
-        // here: one `metadata` call per tick, and a read only when the region minted something.
+        // A ticket minted after this world started still has to register: one `metadata` call per
+        // tick, and a read only when the region minted something.
         if let (Some(path), Some(entry)) = (self.ticket_path.as_deref(), self.entry.as_mut()) {
             entry.refresh_tickets(path);
         }
         self.drain_events();
-        // `tick` serves one peer per call, so it is called until it has nothing left: one tick must
-        // reach every peer, or a busy world starves whoever is late in the rotation.
-        loop {
-            let outcome = match self.entry.as_mut() {
-                Some(entry) => entry.tick(),
-                None => break,
-            };
-            if outcome == EntryOutcome::Nothing {
-                break;
-            }
-            self.deliver(outcome);
-        }
+        // The output clock: every established peer gets at least one datagram this tick, whether or
+        // not anything arrived for it (`crate::egress`).
+        let outbound = match self.entry.as_mut() {
+            Some(entry) => entry.egress_tick(),
+            None => Vec::new(),
+        };
+        self.deliver_outbound(outbound);
         self.ticks += 1;
         let elapsed = began.elapsed();
         self.window.record(elapsed);
@@ -273,8 +273,7 @@ impl Tick {
     /// Run forever at the configured rate, with a time accumulator.
     ///
     /// The simulation advances in ticks, not wall-clock time: a slow tick leaves debt the next
-    /// iteration pays immediately, and the debt is visible in [`Self::overruns`] rather than
-    /// absorbed, so the rate does not depend on how long a tick took.
+    /// iteration pays immediately, and the debt is visible in [`Self::overruns`] rather than absorbed.
     pub fn run(&mut self) -> ! {
         let mut next = Instant::now() + self.interval;
         loop {
@@ -282,8 +281,8 @@ impl Tick {
             if now >= next {
                 self.step();
                 next += self.interval;
-                // If the loop fell more than one interval behind, resynchronise rather than
-                // spinning through a backlog of ticks nobody can see.
+                // Fell more than one interval behind: resynchronise rather than spin through a
+                // backlog of ticks nobody can see.
                 if next < Instant::now() {
                     next = Instant::now() + self.interval;
                 }
@@ -303,29 +302,23 @@ mod tests {
         format!("127.0.0.1:{port}").parse().expect("addr")
     }
 
-    fn channel() -> (SyncSender<TickEvent>, Receiver<TickEvent>) {
-        std::sync::mpsc::sync_channel(64)
-    }
-
     fn wired(interval: Duration) -> (SyncSender<TickEvent>, Tick, Receiver<Outbound>) {
-        let (tx, rx) = channel();
+        let (tx, rx) = std::sync::mpsc::sync_channel(64);
         let mut tick = Tick::with_channel(interval, rx, tx.clone());
         let (writer, outbound) = std::sync::mpsc::sync_channel(64);
-        tick.attach_entry(
-            WorldEntry::new(TicketStore::empty(), vec![0xAB; 106], vec![0xCD; 64]),
-            writer,
-        );
+        let entry = WorldEntry::new(TicketStore::empty(), vec![0xAB; 106], vec![0xCD; 64]);
+        tick.attach_entry(entry, writer);
         (tx, tick, outbound)
     }
 
     #[test]
     fn a_fifty_hertz_tick_is_twenty_milliseconds() {
-        let (tx, rx) = channel();
+        let (tx, rx) = std::sync::mpsc::sync_channel(64);
         let tick = Tick::new(50.0, rx, tx);
         assert_eq!(tick.interval(), Duration::from_millis(20));
     }
 
-    /// The events the network thread sends must reach the entry: the tick used to build a receiver
+    /// The events the network thread sends must reach the entry: the tick once built a receiver
     /// nobody could write to, so every event was silently discarded.
     #[test]
     fn an_established_event_reaches_the_entry() {
@@ -343,15 +336,11 @@ mod tests {
         for _ in 0..100 {
             tick.step();
         }
-        assert!(
-            began.elapsed() < Duration::from_secs(2),
-            "100 empty ticks must not block"
-        );
+        assert!(began.elapsed() < Duration::from_secs(2), "100 empty ticks must not block");
     }
 
     #[test]
     fn an_overrun_is_counted_when_a_tick_exceeds_its_budget() {
-        // A one-nanosecond budget makes any tick an overrun without depending on a sleep.
         let (_, mut tick, _outbound) = wired(Duration::from_nanos(1));
         tick.step();
         assert_eq!(tick.overruns(), 1, "any tick exceeds a 1 ns budget");
@@ -364,8 +353,7 @@ mod tests {
             window.record(Duration::from_micros(i));
         }
         assert_eq!(window.len(), 100);
-        // 100 samples of 1..=100 µs: the 50th value is 50 µs by nearest rank.
-        assert_eq!(window.percentile(0.5), Some(Duration::from_micros(50)));
+        assert_eq!(window.percentile(0.5), Some(Duration::from_micros(50)), "nearest rank");
         assert_eq!(window.percentile(1.0), Some(Duration::from_micros(100)));
         assert_eq!(window.percentile(0.0), Some(Duration::from_micros(1)));
     }
@@ -383,7 +371,6 @@ mod tests {
 
     #[test]
     fn an_empty_window_reports_nothing_rather_than_zero() {
-        // Zero would be indistinguishable from "every tick was instant".
         let window = TickWindow::new(10);
         assert_eq!(window.percentile(0.5), None);
         assert_eq!(window.mean(), None);
@@ -395,5 +382,19 @@ mod tests {
         window.record(Duration::from_millis(10));
         window.record(Duration::from_millis(20));
         assert_eq!(window.mean(), Some(Duration::from_millis(15)));
+    }
+
+    /// The tick is the output clock: a peer that owes no state still gets a datagram every tick, so
+    /// its input is confirmed within one tick even when nothing else is sent.
+    #[test]
+    fn a_tick_sends_the_keepalive() {
+        let (tx, mut tick, outbound) = wired(Duration::from_millis(20));
+        tx.send(TickEvent::Established(peer(1100))).expect("send");
+        tick.step();
+        let first: Vec<Outbound> = outbound.try_iter().collect();
+        assert_eq!(first.len(), 1, "one datagram for one peer");
+        assert_eq!(first[0].peer, peer(1100));
+        tick.step();
+        assert_eq!(outbound.try_iter().count(), 1, "a second tick, a second datagram");
     }
 }

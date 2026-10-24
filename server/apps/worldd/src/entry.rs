@@ -4,37 +4,41 @@
 //! ======================
 //! The tick tracked peers and answered nothing: a client could complete its DTLS handshake, send a
 //! registration and sit in `WaitingForREPConnection` until it timed out, with no error anywhere. This
-//! is the missing half — answer the Carrier, read the V3, validate the ticket, walk the ladder — kept
-//! out of [`crate::tick`] so the clock and the protocol decisions are read and tested separately.
+//! is the missing half — read the V3, validate the ticket, walk the ladder — kept out of
+//! [`crate::tick`] so the clock and the protocol decisions are read and tested separately.
 //!
 //! THE THREE DECISIONS, IN ORDER
 //! ============================
-//! 1. [`WorldEntry::established`] opens a session in [`SessionState::Transport`] and sends nothing.
-//! 2. [`WorldEntry::data`] answers a channel-3 `SM_CONNECT_REQUEST` with the acceptance flight; else it
-//!    looks for a V3 registration, validates the ticket it names, and answers with
-//!    `RegistrationResponseMsg` plus the ladder's first rung or rejects the peer. Anything else gets
-//!    `Nothing`: the prototype's `channel == 0 and size > 64` heuristic answered game data as a
-//!    registration — measured 2026-10-09, 15 of 17 same-sized records were game data and
-//!    `OnLocalNetworkConnectionWarning` climbed until the transport dropped.
-//! 3. Each datagram and each tick then advances the ladder by one datagram, and the response and the
-//!    first rung leave as **two datagrams in order** — batching two rungs crashed the client
-//!    (`azoth_wire::ladder`). [`WorldEntry::tick`] serves one peer per call.
+//! 1. [`WorldEntry::established`] opens a session in [`SessionState::Transport`] and sends nothing;
+//!    the first tick after it produces the keepalive ([`self::egress`]).
+//! 2. [`WorldEntry::data`] looks for a V3 registration, validates the ticket it names, and answers
+//!    with `RegistrationResponseMsg` plus the ladder's first rung or rejects the peer. A channel-3
+//!    `SM_CONNECT_REQUEST` is **observed and not answered**: its ACK rides on the next tick's
+//!    keepalive, which is the shape the official server has (61.8 datagrams/s, an ACK on each,
+//!    [`self::egress`]). Anything else gets `Nothing`: the prototype's `channel == 0 and size > 64`
+//!    heuristic answered game data as a registration — measured 2026-10-09, 15 of 17 same-sized
+//!    records were game data and `OnLocalNetworkConnectionWarning` climbed until the transport
+//!    dropped.
+//! 3. Each tick then advances the ladder by one datagram, and the response and the first rung leave
+//!    as **two datagrams in order** — batching two rungs crashed the client (`azoth_wire::ladder`).
 //!
-//! WHY THE FLIGHT ANSWERS THE REQUEST, AND WHAT IT ACKNOWLEDGES
-//! ===========================================================
-//! A flight sent at the handshake can only carry an empty welcome, and the client validates it: the
-//! version echoed is the `u32` the client wrote into its own `SM_CONNECT_REQUEST`
-//! (`rep.py::handle_app_data`: `if requests and not handshake_done`, then `payload[:-1][:4]`). So the
-//! trigger is that request, on channel 3, and the reply's envelope sequence echoes the one that carried
-//! it. EVERY REQUEST IS ANSWERED AND NO FLAG RECORDS THAT ONE WAS SENT: the client's Carrier resends
-//! until one of our datagrams is acknowledged (1 s lost-packet timeout).
-//! THE ACK RANGE IS A DIFFERENT NUMBER FROM THE ECHO: a degenerate range (`ack_first == ack_last`,
-//! only the datagram carrying the request) is not an acknowledgement the client accepts — MEASURED
-//! 2026-09-18 (`Game.log` 20:15:08→18) it retransmits its 1115-byte channel-0 record for ~10 s, then
-//! reports `@mm_csdkerr_disconnect (4)`. So each peer counts its inbound datagrams and
-//! [`azoth_wire::carrier::ack_window_first`] slides the range over the most recent
-//! `ACK_WINDOW_DEFAULT` of them — never wider, because a range half the 16-bit sequence space is the
-//! 2026-10-14 retransmit storm.
+//! TWO PUMPS, ONE PEER TABLE
+//! =========================
+//! [`WorldEntry::egress_tick`] is the clock the tick drives: every established peer gets at least one
+//! datagram per tick — a rung if the ladder owes one, the keepalive otherwise — plus whatever
+//! byte-identical replay the session has staged. [`WorldEntry::tick`] is the same state work without
+//! the clock, one peer per call: it answers "what state does this peer owe" rather than "what does
+//! this tick send", which is what `tests/entry.rs` drives.
+//!
+//! WHY THE PEER COUNTS ITS OWN INBOUND SEQUENCES
+//! ============================================
+//! The ACK range is not read from the session's own window, because `Session::on_datagram` refuses a
+//! sequence until the peer is past [`SessionState::Transport`]: the session never sees the
+//! `SM_CONNECT_REQUEST` that arrives first, and a range that omits it is the degenerate range the
+//! client rejects. MEASURED 2026-09-18 (`Game.log` 20:15:08→18): after the first
+//! `RegistrationResponse` the client retransmits its 1115-byte channel-0 record for ~10 s, then
+//! reports `@mm_csdkerr_disconnect (4)`. So each peer counts its datagrams and remembers the last
+//! sequence, and [`self::egress::ack_range`] slides a window over them.
 //!
 //! THE V3 BODY NEEDS NO FRAMING STRIPPED, AND THE OUTBOUND ONE DOES
 //! ==============================================================
@@ -47,27 +51,23 @@
 //! WHAT THIS PHASE DOES NOT DO: no inbound acknowledgement is parsed, so nothing is ever marked
 //! delivered — the resend table retransmits each rung up to `max_resend_tries` and then drops it.
 
+#[path = "egress.rs"]
+pub mod egress;
+
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::Path;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 
-use azoth_session::{CloseReason, Session, SessionConfig, SessionEvent, SessionState};
-use azoth_wire::carrier::{AcceptanceFlight, Reassembly, connect_request, registration_body};
+use azoth_session::{CloseReason, Session, SessionConfig, SessionState};
+use azoth_wire::carrier::{Reassembly, connect_request, connect_welcome, registration_body};
 use azoth_wire::v3::RegistrationRequest;
 use azoth_wire::{envelope, record};
 
+use self::egress::{Outbound, PeerView};
 use crate::ladder::Ladder;
 use crate::tickets::{session_token, TicketStore};
 
-/// A datagram the entry wants written, addressed to one peer.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Outbound {
-    /// Who to write it to.
-    pub peer: SocketAddr,
-    /// The plaintext to hand the transport.
-    pub datagram: Vec<u8>,
-}
 /// What the entry wants done next.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntryOutcome {
@@ -116,6 +116,10 @@ struct Peer {
     /// Inbound datagrams counted and the last envelope sequence seen: the ACK range's width and end.
     inbound_datagrams: u32,
     last_inbound_seq: u16,
+    /// The peer's outbound envelope counter. Every datagram written to this socket is numbered from
+    /// it — ladder rungs and keepalives alike — because two counters restarting at 1 would re-use
+    /// sequences the client has already seen ([`self::egress`]).
+    outbound_sequence: u16,
 }
 
 impl Peer {
@@ -128,6 +132,20 @@ impl Peer {
             inbound: Reassembly::default(),
             inbound_datagrams: 0,
             last_inbound_seq: 0,
+            outbound_sequence: 0,
+        }
+    }
+
+    /// Borrow this peer as the egress's view of it.
+    fn view(&mut self, peer: SocketAddr) -> PeerView<'_> {
+        PeerView {
+            peer,
+            session: &mut self.session,
+            ladder: self.ladder.as_mut(),
+            outbox: &mut self.outbox,
+            datagrams_seen: self.inbound_datagrams,
+            ack_last: self.last_inbound_seq,
+            outbound_sequence: &mut self.outbound_sequence,
         }
     }
 }
@@ -162,8 +180,9 @@ impl WorldEntry {
     /// A peer's DTLS handshake completed: open a session and send nothing.
     ///
     /// A fresh handshake from an address we already hold replaces what was there: the transport sends
-    /// `Dropped` first, and the client reuses its source port across attempts. The acceptance flight is
-    /// not sent here — it needs the client's version, which only arrives in its `SM_CONNECT_REQUEST`.
+    /// `Dropped` first, and the client reuses its source port across attempts. Nothing is sent here at
+    /// all: the first tick after this produces the keepalive, which is also the ACK for whatever the
+    /// client has already sent.
     pub fn established(&mut self, peer: SocketAddr) -> EntryOutcome {
         let now = Instant::now();
         if !self.peers.contains_key(&peer) {
@@ -173,7 +192,7 @@ impl WorldEntry {
         EntryOutcome::Nothing
     }
 
-    /// Decrypted application data arrived: answer the Carrier request first, then look for a V3.
+    /// Decrypted application data arrived: look for a V3 registration, and answer nothing else.
     pub fn data(&mut self, peer: SocketAddr, bytes: &[u8]) -> EntryOutcome {
         if !self.peers.contains_key(&peer) {
             // The transport announces a peer before it can deliver its data, so this is stale.
@@ -186,10 +205,11 @@ impl WorldEntry {
             self.observe(peer, inbound.sequence, now);
         }
         if let Some((sequence, payload)) = connect_request(bytes) {
-            return self.answer_request(peer, sequence, &payload);
-        }
-        if self.peers[&peer].ladder.is_some() {
-            return self.serve(peer, now);
+            self.note_request(peer, sequence, &payload);
+            // NO REPLY. The ACK for this request rides on the next tick's datagram, which is what the
+            // official server does (61.8 datagrams/s, an ACK on each) and what the sys-id census
+            // says: CONNECT_ACK never appears in real traffic at all (`self::egress`).
+            return EntryOutcome::Nothing;
         }
         match self.registration(peer, bytes) {
             Some(request) => self.register(peer, &request, now),
@@ -203,13 +223,17 @@ impl WorldEntry {
         self.rotation.retain(|held| *held != peer);
     }
 
-    /// Advance time: retransmissions, deadlines, and one ladder datagram per peer.
+    /// Advance time without the output clock: retransmissions, deadlines, and one ladder datagram.
+    ///
+    /// One peer advances per call, so the caller loops until `Nothing`. The production tick does not
+    /// use this — it drives [`WorldEntry::egress_tick`], which guarantees a datagram per peer — but
+    /// the state alone is what a test of the ladder wants to see.
     pub fn tick(&mut self) -> EntryOutcome {
         self.tick_at(Instant::now())
     }
 
     /// [`WorldEntry::tick`] against a caller-supplied clock, which is what makes a retransmission
-    /// testable without sleeping. One peer advances per call, so the caller loops until `Nothing`.
+    /// testable without sleeping.
     pub fn tick_at(&mut self, now: Instant) -> EntryOutcome {
         let mut turns = self.rotation.len();
         // `serve` can close the last peer, so the rotation may empty mid-loop.
@@ -297,16 +321,15 @@ impl WorldEntry {
         let (Ok(response), Ok(Some(first))) = encoded else {
             return self.reject(peer, "the world could not encode the ladder");
         };
-        let Some(state) = self.peers.get_mut(&peer) else { return EntryOutcome::Nothing };
-        let mut datagrams = Vec::with_capacity(2);
-        for out in [response, first] {
-            let (sequence, datagram) = (out.reliable_sequence, out.datagram);
-            if state.session.send_reliable(sequence, datagram.clone(), now).is_ok() {
-                state.outbox.insert(sequence, datagram.clone());
-            }
-            datagrams.push(datagram);
-        }
+        let Some(state) = self.peers.get_mut(&peer) else {
+            return EntryOutcome::Nothing;
+        };
         state.ladder = Some(ladder);
+        let mut view = state.view(peer);
+        let datagrams = [response, first]
+            .map(|out| view.send(out, now))
+            .to_vec();
+        drop(view);
         EntryOutcome::Send { peer, datagrams }
     }
 
@@ -330,47 +353,42 @@ impl WorldEntry {
         }
     }
 
-    /// Answer the client's `SM_CONNECT_REQUEST` with the Carrier acceptance flight.
+    /// Report the `SM_CONNECT_REQUEST` measurement: its payload, the welcome it implies, the ACK
+    /// range the next datagram will claim, and the sequence it arrived on.
     ///
-    /// The envelope sequence ECHOES the inbound one and is not a server counter: without the echo the
-    /// client retransmits as if our reply never arrived (first-light "Mixed Nuts", 2026-05-04). The ACK
-    /// range is a *different* number — every datagram received, slid to `ACK_WINDOW_DEFAULT` — because
-    /// a range of one is not an acknowledgement the client accepts (module docs, 2026-09-18).
-    fn answer_request(&mut self, peer: SocketAddr, sequence: u16, payload: &[u8]) -> EntryOutcome {
-        let Some(state) = self.peers.get(&peer) else { return EntryOutcome::Nothing };
-        let (last, seen) = (state.last_inbound_seq, state.inbound_datagrams);
-        let window = azoth_session::ACK_WINDOW_DEFAULT;
-        let flight = AcceptanceFlight::answering(server_clock_ms(), payload, last, seen, window);
-        crate::diagnostics::note_connect_request(peer, payload, &flight, seen, sequence);
-        let Ok(datagram) = flight.datagram(sequence) else {
-            // Unreachable: three fixed channel-3 records, far below the u16 size field.
-            return EntryOutcome::Nothing;
+    /// The line is kept although the request is no longer answered: it is the only record of what a
+    /// client that never registers actually asked for.
+    fn note_request(&mut self, peer: SocketAddr, sequence: u16, payload: &[u8]) {
+        let Some(state) = self.peers.get(&peer) else {
+            return;
         };
-        EntryOutcome::Send { peer, datagrams: vec![datagram] }
+        let (first, last) = egress::ack_range(state.last_inbound_seq, state.inbound_datagrams);
+        crate::diagnostics::note_connect_request(
+            peer,
+            payload,
+            &connect_welcome(payload),
+            first,
+            last,
+            state.inbound_datagrams,
+            sequence,
+        );
     }
 
-    /// Advance one peer's session and hand out its retransmissions plus one rung.
+    /// Advance one peer's session and hand out its replays plus one rung: the state pump.
     fn serve(&mut self, peer: SocketAddr, now: Instant) -> EntryOutcome {
-        let mut datagrams = Vec::new();
-        let mut closed = false;
-        if let Some(state) = self.peers.get_mut(&peer) {
-            for event in state.session.advance(now) {
-                match event {
-                    SessionEvent::Retransmit(sequences) => {
-                        let due = sequences.iter().filter_map(|seq| state.outbox.get(seq));
-                        datagrams.extend(due.cloned());
-                    }
-                    SessionEvent::Close(_) => closed = true,
-                    _ => {}
-                }
-            }
+        let Some(state) = self.peers.get_mut(&peer) else {
+            return EntryOutcome::Nothing;
+        };
+        let mut view = state.view(peer);
+        let mut datagrams = view.advance(now);
+        let closed = view.is_closed();
+        if !closed && let Some(rung) = view.rung(now) {
+            datagrams.push(rung);
         }
+        drop(view);
         if closed {
             self.dropped(peer);
             return EntryOutcome::Nothing;
-        }
-        if let Some(state) = self.peers.get_mut(&peer) {
-            datagrams.extend(next_rung(state, now));
         }
         if datagrams.is_empty() {
             return EntryOutcome::Nothing;
@@ -378,19 +396,3 @@ impl WorldEntry {
         EntryOutcome::Send { peer, datagrams }
     }
 }
-
-/// Queue and return one ladder datagram for a peer, if it has one left.
-fn next_rung(state: &mut Peer, now: Instant) -> Option<Vec<u8>> {
-    let out = state.ladder.as_mut()?.next().ok()??;
-    let (sequence, datagram) = (out.reliable_sequence, out.datagram);
-    if state.session.send_reliable(sequence, datagram.clone(), now).is_ok() {
-        state.outbox.insert(sequence, datagram.clone());
-    }
-    Some(datagram)
-}
-
-/// The server clock in milliseconds, truncated to the 32 bits `CLOCK_SYNC` carries.
-fn server_clock_ms() -> u32 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u32)
-}
-

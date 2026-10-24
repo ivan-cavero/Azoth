@@ -1,18 +1,20 @@
-//! The acceptance flight as `worldd` produces it: the answer to the client's `SM_CONNECT_REQUEST`.
+//! The Carrier layer as `worldd` produces it: the retired acceptance flight as an *encoder*, and the
+//! keepalive that replaced it as *behaviour*.
 //!
-//! WHY THIS DRIVES `WorldEntry` DIRECTLY
-//! ====================================
-//! The measured failure is not in the encoder — it is the *trigger*. A flight sent when the DTLS
-//! handshake completes leaves with an empty welcome, because the client's version has not arrived
-//! yet: the prototype only answers the request (`services/world/src/azoth_world/rep.py`,
-//! `handle_app_data`: `if requests and not handshake_done`), and the version it echoes is that
-//! request's payload minus its trailing sys-id byte. So the assertion that matters is about what a
-//! `data` carrying a channel-3 `SM_CONNECT_REQUEST` produces, which is what [`WorldEntry::data`]
-//! returns. A byte test on the encoder alone would have passed while the client still timed out.
+//! WHY NINE TESTS CHANGED AND NONE OF THE BYTES DID
+//! ===============================================
+//! The census is in `worldd::entry::egress`: across 1,338,802 lines of the Python prototype's own
+//! traffic (`services/world/rep_traffic.jsonl`) the channel-3 system ids are CT_ACKS 313,578,
+//! CONN_CONTROL 159, CONNECT_REQUEST 65, DISCONNECT 8 — and **CLOCK_SYNC 0, CONNECT_ACK 0**. The
+//! acceptance flight is those two zeros, so `worldd` no longer builds it: `established` sends nothing,
+//! `data` answers a `SM_CONNECT_REQUEST` with `Nothing`, and the ACK rides on the next tick's
+//! keepalive. The tests that asserted the flight came out of `established`/`data` were therefore
+//! rewritten to assert that, and the byte-level assertions they carried are kept below pinned to
+//! [`AcceptanceFlight`] itself — the encoder is still the only statement of what those captured bytes
+//! were, and `acks_payload` (which it shares with the keepalive) still has to be right.
 //!
 //! The modules are included by `#[path]` because `worldd` is a binary crate, exactly as
-//! `tests/entry.rs` does it: the real entry machine, the real ladder and the real ticket store are
-//! compiled in, so these assertions are about what the world actually serves.
+//! `tests/entry.rs` does it. `egress` is declared *inside* `entry.rs`, so it arrives with it.
 
 #[path = "../src/config.rs"]
 mod config;
@@ -28,15 +30,20 @@ mod tickets;
 use std::net::SocketAddr;
 use std::sync::Mutex;
 
-use azoth_wire::carrier::{SYS_CONNECT_ACK, SYS_CONNECT_REQUEST, SYS_CT_ACKS};
+use azoth_session::ACK_WINDOW_DEFAULT;
+use azoth_wire::carrier::{ACK_CONTINUOUS, AcceptanceFlight, SYS_CONNECT_ACK, SYS_CONNECT_REQUEST, SYS_CT_ACKS};
 use azoth_wire::record::MessageRecord;
 use azoth_wire::{envelope, record};
 
 use crate::entry::{EntryOutcome, WorldEntry};
 use crate::tickets::TicketStore;
 
-/// The ids of the flight, in order: CLOCK_SYNC, CONNECT_ACK, CT_ACKS.
+/// The ids of the retired flight, in order: CLOCK_SYNC, CONNECT_ACK, CT_ACKS.
 const FLIGHT_IDS: [u8; 3] = [4, 2, 6];
+
+/// The flag bytes the flight was sent with: `MF_DATA_CHANNEL`, `MF_RELIABLE | MF_DATA_CHANNEL`, and
+/// `MF_SEQUENTIAL_ID | MF_SEQUENTIAL_REL_ID` (both sequences inherited).
+const FLIGHT_FLAGS: [u8; 3] = [0x20, 0x21, 0x18];
 
 /// The diagnostics notes this test binary captured. A note sink is a `fn` pointer, so it cannot
 /// capture: the sink writes into this buffer and a test filters it by peer address.
@@ -55,7 +62,11 @@ fn notes_for(peer: SocketAddr) -> Vec<String> {
     let Ok(mut notes) = NOTES.lock() else {
         return Vec::new();
     };
-    let mine: Vec<String> = notes.iter().filter(|line| line.starts_with(&prefix)).cloned().collect();
+    let mine: Vec<String> = notes
+        .iter()
+        .filter(|line| line.starts_with(&prefix))
+        .cloned()
+        .collect();
     notes.retain(|line| !line.starts_with(&prefix));
     mine
 }
@@ -64,7 +75,7 @@ fn addr(port: u16) -> SocketAddr {
     format!("127.0.0.1:{port}").parse().expect("addr")
 }
 
-/// A world with no tickets: nothing here registers, so only the flight is exercised.
+/// A world with no tickets: nothing here registers, so only the Carrier layer is exercised.
 fn entry() -> WorldEntry {
     WorldEntry::new(TicketStore::empty(), vec![0xAB; 106], vec![0xCD; 64])
 }
@@ -77,12 +88,19 @@ fn records_of(datagram: &[u8]) -> Vec<MessageRecord> {
     parsed.records
 }
 
-/// The records of the datagram an outcome sends, which must be a `Send`.
-fn sent(outcome: EntryOutcome) -> (SocketAddr, Vec<Vec<u8>>) {
-    match outcome {
-        EntryOutcome::Send { peer, datagrams } => (peer, datagrams),
-        other => panic!("expected a send, got {other:?}"),
-    }
+/// The `(ack_first, ack_last)` range a datagram's `CT_ACKS` record carries: `0x40`, last, first, id.
+fn ack_range_of(datagram: &[u8]) -> (u16, u16) {
+    let records = records_of(datagram);
+    let payload = &records
+        .iter()
+        .find(|message| message.system_msg_id() == Some(6))
+        .expect("a CT_ACKS record")
+        .payload;
+    assert_eq!(payload.len(), 6, "flags, last, first, id");
+    assert_eq!(payload[0], ACK_CONTINUOUS);
+    let last = u16::from_be_bytes([payload[1], payload[2]]);
+    let first = u16::from_be_bytes([payload[3], payload[4]]);
+    (first, last)
 }
 
 /// A client datagram whose one record rides channel 3 with `payload` — the shape the client sends
@@ -108,16 +126,28 @@ fn connect_request(envelope_sequence: u16, version: &[u8]) -> Vec<u8> {
     system_datagram(envelope_sequence, &payload)
 }
 
-/// Any other inbound datagram: the client's own CT_ACKS. `data` answers it with silence, but the ACK
+/// Any other inbound datagram: the client's own CT_ACKS. It is answered with silence, but the ACK
 /// range must still count it — that is the whole point of the window.
 fn other_datagram(envelope_sequence: u16) -> Vec<u8> {
-    system_datagram(envelope_sequence, &[0x40, 0x00, 0x05, 0x00, 0x05, SYS_CT_ACKS])
+    system_datagram(
+        envelope_sequence,
+        &[0x40, 0x00, 0x05, 0x00, 0x05, SYS_CT_ACKS],
+    )
 }
 
-/// Assert that a datagram is the flight, and return its records.
-fn assert_flight(datagram: &[u8]) -> Vec<MessageRecord> {
-    let records = records_of(datagram);
-    assert_eq!(records.len(), 3, "the flight is three records");
+/// The flight an `SM_CONNECT_REQUEST` with `version` used to produce, built directly.
+fn flight(version: &[u8]) -> AcceptanceFlight {
+    let mut payload = version.to_vec();
+    payload.push(SYS_CONNECT_REQUEST);
+    AcceptanceFlight::answering(1_700_000_000, &payload, 14, 5, ACK_WINDOW_DEFAULT)
+}
+
+/// 1. The encoder still produces the captured shape: three records, channel 3, CLOCK_SYNC then
+///    CONNECT_ACK then CT_ACKS, each with the flag byte the client was sent.
+#[test]
+fn the_retired_flight_still_encodes_three_channel_three_records() {
+    let datagram = flight(&[0xAA, 0xBB, 0xCC, 0xDD]).datagram(3).expect("encodes");
+    let records = records_of(&datagram);
     let ids: Vec<Option<u8>> = records.iter().map(MessageRecord::system_msg_id).collect();
     assert_eq!(
         ids,
@@ -127,91 +157,50 @@ fn assert_flight(datagram: &[u8]) -> Vec<MessageRecord> {
     for message in &records {
         assert_eq!(message.channel, 3, "every flight record rides channel 3");
     }
-    records
+    let flags: Vec<u8> = records.iter().map(|message| message.flags).collect();
+    assert_eq!(flags, FLIGHT_FLAGS, "the measured flag bytes, unchanged");
 }
 
-/// The welcome bytes the flight's `CONNECT_ACK` echoes.
-fn welcome_of(datagram: &[u8]) -> Vec<u8> {
-    let records = assert_flight(datagram);
-    let mut payload = records[1].payload.clone();
-    assert_eq!(
-        payload.pop(),
-        Some(SYS_CONNECT_ACK),
-        "the CONNECT_ACK payload ends with its sys id"
-    );
-    payload
-}
-
-/// The `(ack_first, ack_last)` range the flight's `CT_ACKS` carries: `0x40`, last, first, id.
-fn ack_range_of(datagram: &[u8]) -> (u16, u16) {
-    let records = assert_flight(datagram);
-    let payload = &records[2].payload;
-    assert_eq!(payload.len(), 6, "flags, last, first, id");
-    let last = u16::from_be_bytes([payload[1], payload[2]]);
-    let first = u16::from_be_bytes([payload[3], payload[4]]);
-    (first, last)
-}
-
-/// 1. A channel-3 `SM_CONNECT_REQUEST` produces the flight, and the CONNECT_ACK echoes the client's
-///    own version — the four bytes before the trailing sys id.
+/// 2. The encoder echoes the envelope sequence it is given — the client's own, never a server counter.
 #[test]
-fn a_connect_request_is_answered_with_the_flight_echoing_its_version() {
-    let mut entry = entry();
-    let peer = addr(5001);
-    entry.established(peer);
-
-    let (who, datagrams) = sent(entry.data(peer, &connect_request(3, &[0xAA, 0xBB, 0xCC, 0xDD])));
-    assert_eq!(who, peer);
-    assert_eq!(datagrams.len(), 1, "the flight is one datagram");
-    assert_eq!(
-        welcome_of(&datagrams[0]),
-        vec![0xAA, 0xBB, 0xCC, 0xDD],
-        "the CONNECT_ACK echoes the version the request carried"
-    );
+fn the_retired_flight_echoes_the_envelope_sequence_it_is_given() {
+    let datagram = flight(&[0xAA, 0xBB, 0xCC, 0xDD]).datagram(0x1234).expect("encodes");
+    let (head, _) = envelope::parse(&datagram).expect("envelope");
+    assert_eq!(head.sequence, 0x1234);
 }
 
-/// 2. A request too short to carry a version gets the prototype's `00 00 00 05` fallback instead of
+/// 3. `CONNECT_ACK` echoes the request's version: the payload minus its trailing sys id.
+#[test]
+fn the_retired_flight_echoes_the_requests_version() {
+    let datagram = flight(&[0xAA, 0xBB, 0xCC, 0xDD, 0xEE]).datagram(1).expect("encodes");
+    let mut welcome = records_of(&datagram)[1].payload.clone();
+    assert_eq!(welcome.pop(), Some(SYS_CONNECT_ACK));
+    assert_eq!(welcome, vec![0xAA, 0xBB, 0xCC, 0xDD], "truncated to four bytes");
+}
+
+/// 4. A request too short to carry a version gets the prototype's `00 00 00 05` fallback rather than
 ///    an invented one.
 #[test]
-fn a_short_connect_request_gets_the_default_welcome() {
-    let mut entry = entry();
-    let peer = addr(5002);
-    entry.established(peer);
-
-    let (_, datagrams) = sent(entry.data(peer, &connect_request(3, &[0xAA, 0xBB])));
-    assert_eq!(
-        welcome_of(&datagrams[0]),
-        vec![0x00, 0x00, 0x00, 0x05],
-        "a payload under 5 bytes falls back to 00 00 00 05"
-    );
+fn a_short_request_gets_the_default_welcome() {
+    let datagram = flight(&[0xAA]).datagram(1).expect("encodes");
+    let mut welcome = records_of(&datagram)[1].payload.clone();
+    welcome.pop();
+    assert_eq!(welcome, vec![0x00, 0x00, 0x00, 0x05]);
 }
 
-/// 3. The reply's envelope sequence — and therefore the ACK range — is the inbound one, echoed. A
-///    server counter here is the measured trap: the client keeps retransmitting as if the reply never
-///    arrived.
+/// 5. The encoder acknowledges the range it is given, and `answering` derives that range from the
+///    peer's counters: five datagrams seen ending at 14 is `10..=14`.
 #[test]
-fn the_flight_echoes_the_envelope_sequence_of_the_request() {
-    let mut entry = entry();
-    let peer = addr(5003);
-    entry.established(peer);
-
-    let (_, datagrams) =
-        sent(entry.data(peer, &connect_request(0x1234, &[0xAA, 0xBB, 0xCC, 0xDD])));
-    let (head, _) = envelope::parse(&datagrams[0]).expect("envelope");
-    assert_eq!(head.sequence, 0x1234, "the reply echoes the inbound sequence");
-    assert_eq!(
-        ack_range_of(&datagrams[0]),
-        (0x1234, 0x1234),
-        "and acknowledges exactly the datagram that carried the request"
-    );
+fn the_retired_flight_acknowledges_the_range_its_counters_earned() {
+    let datagram = flight(&[0xAA, 0xBB, 0xCC, 0xDD]).datagram(14).expect("encodes");
+    assert_eq!(ack_range_of(&datagram), (10, 14));
 }
 
-/// 4. `established` alone produces nothing: the version is not known yet, so a flight sent here could
-///    only carry an empty welcome — the defect this trigger replaces.
+/// 6. `established` alone sends nothing at all: no flight, and no CLOCK_SYNC keepalive either.
 #[test]
-fn established_alone_sends_no_flight() {
+fn established_alone_sends_nothing() {
     let mut entry = entry();
-    let peer = addr(5004);
+    let peer = addr(5001);
 
     assert_eq!(
         entry.established(peer),
@@ -225,122 +214,69 @@ fn established_alone_sends_no_flight() {
     );
     assert_eq!(
         entry.tick_at(std::time::Instant::now()),
+        EntryOutcome::Nothing,
+        "the state pump has nothing for it"
+    );
+}
+
+/// 7. THE RETIRED FLIGHT: `data` with a `SM_CONNECT_REQUEST` produces `Nothing`. This is the assertion
+///    that replaced nine that expected the flight — the ACK is not a reply any more.
+#[test]
+fn a_connect_request_is_answered_with_nothing() {
+    let mut entry = entry();
+    let peer = addr(5002);
+    entry.established(peer);
+
+    let request = connect_request(3, &[0xAA, 0xBB, 0xCC, 0xDD]);
+    assert_eq!(entry.data(peer, &request), EntryOutcome::Nothing);
+    // A repeated request is equally quiet: the client's Carrier resends until it sees an ACK, and the
+    // ACK it needs comes from the clock, not from an answer to the retransmission.
+    assert_eq!(entry.data(peer, &request), EntryOutcome::Nothing);
+    assert_eq!(
+        entry.session_state(peer),
+        Some(azoth_session::SessionState::Transport),
+        "the request changes no state: it is only counted"
+    );
+}
+
+/// 8. What replaced it: the next tick's keepalive, carrying the ACK for the request that was just
+///    received. One record, channel 3, sys id 6, and the range names the request's sequence.
+#[test]
+fn the_tick_after_a_connect_request_sends_the_keepalive() {
+    let mut entry = entry();
+    let peer = addr(5003);
+    entry.established(peer);
+    assert_eq!(
+        entry.data(peer, &connect_request(7, &[0xAA, 0xBB, 0xCC, 0xDD])),
         EntryOutcome::Nothing
     );
-}
 
-/// 5. A repeated request is answered again. The client's Carrier resends the CONNECT_REQUEST until
-///    one of our datagrams is acknowledged, so the retransmission that follows a lost flight has to
-///    get an answer of its own.
-#[test]
-fn a_repeated_connect_request_is_answered_again() {
-    let mut entry = entry();
-    let peer = addr(5005);
-    entry.established(peer);
-    let request = connect_request(4, &[0xAA, 0xBB, 0xCC, 0xDD]);
-
-    let (_, first) = sent(entry.data(peer, &request));
-    assert_eq!(welcome_of(&first[0]), vec![0xAA, 0xBB, 0xCC, 0xDD]);
-
-    let (_, second) = sent(entry.data(peer, &request));
-    assert_eq!(second.len(), 1, "the retransmission gets its own flight");
-    assert_eq!(welcome_of(&second[0]), vec![0xAA, 0xBB, 0xCC, 0xDD]);
-}
-
-/// 6. Only `SM_CONNECT_REQUEST` triggers the flight: another channel-3 system message (here the
-///    client's own CT_ACKS) is not a request and must be answered with silence.
-#[test]
-fn another_channel_three_system_message_is_not_a_request() {
-    let mut entry = entry();
-    let peer = addr(5006);
-    entry.established(peer);
-
-    let ct_acks = system_datagram(5, &[0x40, 0x00, 0x05, 0x00, 0x05, SYS_CT_ACKS]);
-    assert_eq!(entry.data(peer, &ct_acks), EntryOutcome::Nothing);
-}
-
-/// 7. The flight acknowledges every datagram the peer sent, not only the one carrying the request.
-///    A degenerate range is the measured defect: the client re-sent its request five times and never
-///    sent V3, because a range of one is not an acknowledgement it accepts (2026-09-18).
-#[test]
-fn the_flight_acknowledges_every_datagram_the_peer_sent() {
-    let mut entry = entry();
-    let peer = addr(5007);
-    entry.established(peer);
-    for sequence in 10..14 {
-        assert_eq!(entry.data(peer, &other_datagram(sequence)), EntryOutcome::Nothing);
-    }
-
-    let (_, datagrams) = sent(entry.data(peer, &connect_request(14, &[0xAA, 0xBB, 0xCC, 0xDD])));
-    let (first, last) = ack_range_of(&datagrams[0]);
-    assert_eq!(last, 14, "the range ends at the sequence that carried the request");
-    assert_eq!(first, last - 4, "five datagrams received, five acknowledged");
-}
-
-/// 8. A peer that has sent exactly one datagram gets a range of one — the window is the count while
-///    the session is younger than it, so the first request is not answered with an empty range.
-#[test]
-fn a_single_datagram_produces_a_degenerate_range() {
-    let mut entry = entry();
-    let peer = addr(5008);
-    entry.established(peer);
-
-    let (_, datagrams) = sent(entry.data(peer, &connect_request(21, &[0xAA, 0xBB, 0xCC, 0xDD])));
-    assert_eq!(ack_range_of(&datagrams[0]), (21, 21));
-}
-
-/// 9. The echo rule is unchanged by the window: the reply's envelope sequence is still the request's
-///    own sequence, while the ACK range is the wider one.
-#[test]
-fn the_reply_still_echoes_the_requests_sequence_with_a_wider_range() {
-    let mut entry = entry();
-    let peer = addr(5009);
-    entry.established(peer);
-    for sequence in [0x1231, 0x1232, 0x1233] {
-        assert_eq!(entry.data(peer, &other_datagram(sequence)), EntryOutcome::Nothing);
-    }
-
-    let (_, datagrams) =
-        sent(entry.data(peer, &connect_request(0x1234, &[0xAA, 0xBB, 0xCC, 0xDD])));
-    let (head, _) = envelope::parse(&datagrams[0]).expect("envelope");
-    assert_eq!(head.sequence, 0x1234, "the reply echoes the inbound sequence");
+    let outbound = entry.egress_tick();
+    assert_eq!(outbound.len(), 1, "one datagram for one peer");
+    assert_eq!(outbound[0].peer, peer);
+    let records = records_of(&outbound[0].datagram);
+    assert_eq!(records.len(), 1, "the keepalive is the ACK and nothing else");
+    assert_eq!(records[0].channel, 3);
     assert_eq!(
-        ack_range_of(&datagrams[0]),
-        (0x1231, 0x1234),
-        "four datagrams received, four acknowledged"
+        records[0].system_msg_id(),
+        Some(SYS_CT_ACKS),
+        "CT_ACKS, not CLOCK_SYNC (sys 4) and not CONNECT_ACK (sys 2)"
     );
+    assert_eq!(ack_range_of(&outbound[0].datagram), (7, 7), "one datagram, one acknowledged");
 }
 
-/// 10. The welcome is still the request payload minus its trailing sys-id byte, truncated to the
-///     version field — the window changed what the flight acknowledges, not what it echoes.
+/// 9. With diagnostics on, the request is still measured: its payload, the welcome it implies, the
+///    ACK range the next datagram will claim, and the sequence it arrived on. The reply is gone; the
+///    measurement is not.
 #[test]
-fn the_welcome_is_still_the_payload_without_its_sys_id() {
-    let mut entry = entry();
-    let peer = addr(5010);
-    entry.established(peer);
-    assert_eq!(entry.data(peer, &other_datagram(30)), EntryOutcome::Nothing);
-
-    let request = connect_request(31, &[0xAA, 0xBB, 0xCC, 0xDD, 0xEE]);
-    let (_, datagrams) = sent(entry.data(peer, &request));
-    assert_eq!(
-        welcome_of(&datagrams[0]),
-        vec![0xAA, 0xBB, 0xCC, 0xDD],
-        "the payload minus its sys id, truncated to four bytes"
-    );
-}
-
-/// 11. With diagnostics on, one greppable line reports the whole `SM_CONNECT_REQUEST` payload, the
-///     welcome derived from it, the ACK range claimed, the datagram count and the echoed sequence.
-///     This is the measurement that decides the next step when a client will not leave CONNECTING.
-#[test]
-fn the_connect_request_payload_is_reported_with_the_range_and_the_echo() {
+fn the_connect_request_is_still_reported() {
     diagnostics::install_note_sink(capture_note);
     let mut entry = entry();
-    let peer = addr(5011);
+    let peer = addr(5004);
     entry.established(peer);
     assert_eq!(entry.data(peer, &other_datagram(40)), EntryOutcome::Nothing);
 
-    let _ = sent(entry.data(peer, &connect_request(41, &[0xAA, 0xBB, 0xCC, 0xDD])));
+    let _ = entry.data(peer, &connect_request(41, &[0xAA, 0xBB, 0xCC, 0xDD]));
     let notes = notes_for(peer);
     assert_eq!(notes.len(), 1, "one line per request, not per record: {notes:?}");
     assert_eq!(
