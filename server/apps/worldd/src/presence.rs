@@ -37,13 +37,11 @@ mod tests {
     #[test]
     fn spawn_actors_body_is_big_endian_actor_id() {
         let actor = ActorId(0x1122_3344_5566_7788);
+        let id = actor.0;
         let typed = encode_spawn_actors(actor).expect("encodes");
         // typed = [VLQ len][00 01][varint type][8-byte BE id]
         assert!(typed.len() > 8);
         let id_bytes = &typed[typed.len() - 8..];
-        assert_eq!(
-            SpawnActorsMsg::decode(id_bytes).expect("tail is body").id,
-            actor.0
-        );
+        assert_eq!(SpawnActorsMsg::decode(id_bytes).expect("tail is body").id, id);
     }
 }
