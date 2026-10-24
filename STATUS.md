@@ -10,30 +10,27 @@ Daily loop: **`az.py dev`** (ADR 0009). Branch: `refactor/knowledge-os` (push OK
 
 | Layer | State |
 | --- | --- |
-| Docs / ADRs / agents / scripts / RE tools | **Ready** |
-| Ontology seeds (HTTPS, ladder, presence ids) | **Ready** |
-| Authoritative play path (`worldd` on wire) | **Not ready** — still capture spawn + Python play loop |
-| Windows `worldd` link | **OK via `python az.py cargo`** (GNU+MSYS); bare cargo may mix WinLibs |
-
-Reorg ≠ playable. Agents can name/boot-campaign; gameplay still needs presence meanings + compose on wire + OpenSSL MSVC.
+| Docs / ADRs / agents / scripts / RE / CI | **Ready** |
+| Windows `worldd` via `az.py cargo` | **Ready** |
+| Presence wire emit (AddActor AOI fanout) | **Wired** (candidate guid head) |
+| Playable multiplayer / render | **Not ready** — meanings + client slice still open |
 
 ## Active blocker
 
-**Presence meanings + S2C on the wire.** Layouts + `worldd::presence` seed exist.
-Ladder still sends capture spawn bundle. Prove field semantics; emit
-`SpawnActors`/`AddActor` for AOI; Replicate component codecs.
+**Prove AddActor head == spawn ActorGuid live; SpawnActors u64 meaning.**
+`worldd` now fans out composed `msg.add-actor` after the entry ladder
+(zeros in undecoded fields). Do not treat that as “players see each other.”
 
 Build: **1.460.6033.6024067** —
 `30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033`.
 
 ## Next useful step
 
-1. Live/capture proof: AddActor `head16` / SpawnActors `u64` meanings.
-2. Put composed presence on an AOI path (keep capture spawn until InGame holds).
-3. `az doctor`: one OpenSSL path (MSVC + vcpkg); clear MinGW `OPENSSL_DIR` for MSVC rustc.
+1. Live session: two clients or probe — unmarshal errors on AddActor fanout?
+2. Decode `SpawnActorsMsg` u64 meaning; emit only with evidence.
+3. Keep capture spawn until InGame holds with presence on the wire.
 
 ## Do not
 
-- PR theater until public open; Compose for daily Windows client loop.
-- Reload journal raw; ship PAKs; claim Amazon affiliation.
-- Treat knowledge reorg as “server done.”
+- PR theater; Compose for daily Windows loop; journal novels; ship PAKs.
+- Claim presence render works (client remoteplayer slice still broken).

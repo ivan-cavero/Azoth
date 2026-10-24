@@ -13,7 +13,7 @@
   "wire": { "id": 449, "direction": "S2C", "transport": "rep" },
   "domain_types": ["ActorId"],
   "fields": [
-    { "name": "head16", "offset": "0x00", "size": 16, "note": "raw 16 bytes; actor-id-shaped, meaning unproven" },
+    { "name": "head16", "offset": "0x00", "size": 16, "note": "candidate ActorGuid: same 16 bytes as spawn-record actor id / ClientAddEntryMsg; not live-proven for wire 449" },
     { "name": "u8_at_0x10", "offset": "0x10", "size": 1 },
     { "name": "count_payload", "offset": "0x18", "size": "var", "note": "u8 count + payload (FUN_146a6ebe0)" },
     { "name": "u64_a", "offset": "0x28", "size": 8, "endian": "be" },

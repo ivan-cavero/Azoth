@@ -56,7 +56,7 @@
 //! must therefore be declared by `entry` itself; `main.rs` re-exports it as `crate::egress`, so the
 //! public path is the obvious one and there is exactly one copy of every type.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::time::Instant;
 
@@ -105,6 +105,8 @@ pub struct PeerView<'a> {
     pub ack_last: u16,
     /// This peer's outbound envelope counter: the only one on its socket.
     pub outbound_sequence: &'a mut u16,
+    /// Presence AOI datagrams waiting after the entry ladder (one per tick).
+    pub presence_out: &'a mut VecDeque<Outgoing>,
 }
 
 /// The ACK range a peer's inbound counters have earned: `(ack_first, ack_last)`.
@@ -159,6 +161,12 @@ impl PeerView<'_> {
     /// that needs many datagrams (the spawn is 43 chunks) is therefore drained across 43 ticks.
     pub fn rung(&mut self, now: Instant) -> Option<Vec<u8>> {
         let out = self.ladder.as_mut()?.next().ok()??;
+        Some(self.send(out, now))
+    }
+
+    /// The next queued presence datagram (AOI AddActor), or `None` if idle.
+    pub fn presence(&mut self, now: Instant) -> Option<Vec<u8>> {
+        let out = self.presence_out.pop_front()?;
         Some(self.send(out, now))
     }
 
@@ -239,15 +247,18 @@ impl Egress {
         let ack = peer.ack_range();
         let datagram = match peer.rung(now) {
             Some(rung) => piggyback(rung, ack).ok()?,
-            None => {
-                crate::diagnostics::note_keepalive(
-                    peer.peer,
-                    ack.0,
-                    ack.1,
-                    peer.datagrams_seen,
-                );
-                peer.keepalive().ok()?
-            }
+            None => match peer.presence(now) {
+                Some(presence) => piggyback(presence, ack).ok()?,
+                None => {
+                    crate::diagnostics::note_keepalive(
+                        peer.peer,
+                        ack.0,
+                        ack.1,
+                        peer.datagrams_seen,
+                    );
+                    peer.keepalive().ok()?
+                }
+            },
         };
         Some(Outbound {
             peer: peer.peer,

@@ -1452,8 +1452,7 @@ toolchain (MSVC+vcpkg or GNU+MinGW — never mixed).
 
 **Next execution (agentic):**
 
-1. Presence field meanings (live/capture) → emit composed S2C on AOI  
-2. Keep InGame on capture spawn until composed path is proven  
-3. One OpenSSL path on the contributor machine (`az doctor` green for `worldd`)  
-4. Lock rename (ADR 0005); then R7 Python kill when Rust parity holds  
+1. Live-prove `AddActor` fanout (already composed in `worldd::presence`)  
+2. Decode `SpawnActorsMsg` u64; keep capture spawn until InGame holds  
+3. Lock rename (ADR 0005); R7 Python kill when Rust parity holds  
 

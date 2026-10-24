@@ -65,8 +65,11 @@ use azoth_wire::v3::RegistrationRequest;
 use azoth_wire::{envelope, record};
 
 use self::egress::Outbound;
+use azoth_model::ActorGuid;
+
 use crate::ladder::Ladder;
 use crate::peer::Peer;
+use crate::presence::{self, guid_from_spawn_payload};
 use crate::tickets::{session_token, TicketStore};
 
 /// What the entry wants done next.
@@ -158,7 +161,11 @@ impl WorldEntry {
         if !self.peers.contains_key(&peer) {
             self.rotation.push(peer);
         }
-        self.peers.insert(peer, Peer::new(Session::new_at(peer, self.config.clone(), now)));
+        let guid = guid_from_spawn_payload(&self.spawn_payload).unwrap_or(ActorGuid([0; 16]));
+        self.peers.insert(
+            peer,
+            Peer::new(Session::new_at(peer, self.config.clone(), now), guid),
+        );
         EntryOutcome::Nothing
     }
 
@@ -360,12 +367,15 @@ impl WorldEntry {
         let closed = view.is_closed();
         if !closed && let Some(rung) = view.rung(now) {
             datagrams.push(rung);
+        } else if !closed && let Some(presence) = view.presence(now) {
+            datagrams.push(presence);
         }
         drop(view);
         if closed {
             self.dropped(peer);
             return EntryOutcome::Nothing;
         }
+        presence::maybe_queue_aoi(&mut self.peers, peer);
         if datagrams.is_empty() {
             return EntryOutcome::Nothing;
         }

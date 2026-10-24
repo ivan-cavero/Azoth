@@ -164,6 +164,7 @@ fn a_pending_rung_is_sent_with_the_ack_appended() {
     let mut ladder = Ladder::for_peer(peer, vec![0xAB; 106], vec![0xCD; 64]);
     let mut outbox = HashMap::new();
     let mut outbound_sequence = 0u16;
+    let mut presence_out = std::collections::VecDeque::new();
     let mut view = PeerView {
         peer,
         session: &mut session,
@@ -172,6 +173,7 @@ fn a_pending_rung_is_sent_with_the_ack_appended() {
         datagrams_seen: 3,
         ack_last: 0x0100,
         outbound_sequence: &mut outbound_sequence,
+        presence_out: &mut presence_out,
     };
 
     let outbound = Egress::for_peer(&mut view, now).expect("the rung is owed");

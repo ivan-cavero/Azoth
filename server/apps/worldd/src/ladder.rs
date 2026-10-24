@@ -189,6 +189,23 @@ impl Ladder {
         self.pack(record, "flow.world-entry.rung.v3-response")
     }
 
+    /// Pack an already-framed typed-record payload as one or more reliable datagrams.
+    ///
+    /// Used by presence AOI after the entry ladder has finished: same counters, same chunking
+    /// rules as the rungs. `inner` must already be `typed_record_payload` output.
+    ///
+    /// # Errors
+    /// Propagates a wire encode failure.
+    pub fn compose_typed(
+        &mut self,
+        inner: Vec<u8>,
+        ontology_uid: &'static str,
+    ) -> Result<Vec<Outgoing>, WireError> {
+        let start = self.queued.len();
+        self.pack_message(inner, ontology_uid)?;
+        Ok(self.queued.drain(start..).collect())
+    }
+
     /// The next datagram of the next rung, or `None` once the ladder is done.
     ///
     /// **One datagram per call**, which is the measured constraint twice over: batching two rungs

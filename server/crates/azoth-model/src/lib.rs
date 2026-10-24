@@ -93,13 +93,35 @@ impl Transform2 {
     }
 }
 
-/// Server-side actor identity once presence exists.
+/// Opaque handle used by `SpawnActorsMsg` (one BE `u64` on the wire).
 ///
-/// Ontology: `flow.presence` / `msg.spawn-actors` (layout: one BE `u64`).
-/// Whether this value is what `SpawnActorsMsg` carries on the wire is still
-/// unproven; the type exists so apps do not invent a parallel id.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// Ontology: `msg.spawn-actors`. **Meaning unproven** — do not equate with
+/// [`ActorGuid`] without a second measured signal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ActorId(pub u64);
+
+/// 16-byte actor identity as carried in the local spawn record and (candidate)
+/// as `AddActorMessage` head / `ClientAddEntryMsg` body.
+///
+/// Measured spawn template id: see `azoth-wire::spawn` / `spawn-template.json`
+/// (`1a954abc4b3185bfbe37c3d8592618e0` on build 1.460). Mapping that head onto
+/// wire 449 is still `candidate` until live unmarshal proves it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ActorGuid(pub [u8; 16]);
+
+impl ActorGuid {
+    /// Borrow the raw 16 bytes.
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8; 16] {
+        &self.0
+    }
+}
+
+impl From<[u8; 16]> for ActorGuid {
+    fn from(value: [u8; 16]) -> Self {
+        Self(value)
+    }
+}
 
 /// World id as tickets and placement speak it (string today; opaque).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
