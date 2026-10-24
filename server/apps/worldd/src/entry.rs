@@ -60,12 +60,13 @@ use std::path::Path;
 use std::time::Instant;
 
 use azoth_session::{CloseReason, Session, SessionConfig, SessionState};
-use azoth_wire::carrier::{Reassembly, connect_request, connect_welcome, registration_body};
+use azoth_wire::carrier::{connect_request, connect_welcome, registration_body};
 use azoth_wire::v3::RegistrationRequest;
 use azoth_wire::{envelope, record};
 
-use self::egress::{Outbound, PeerView};
+use self::egress::Outbound;
 use crate::ladder::Ladder;
+use crate::peer::Peer;
 use crate::tickets::{session_token, TicketStore};
 
 /// What the entry wants done next.
@@ -101,51 +102,6 @@ impl EntryOutcome {
             }
             Self::Nothing => (Vec::new(), None),
             Self::Reject { peer, reason } => (Vec::new(), Some((peer, reason))),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Peer {
-    session: Session,
-    ladder: Option<Ladder>,
-    /// The bytes queued under each reliable sequence, which is what a retransmission resends; the
-    /// session says *which* sequences are due and keeps no bytes of its own.
-    outbox: HashMap<u16, Vec<u8>>,
-    inbound: Reassembly,
-    /// Inbound datagrams counted and the last envelope sequence seen: the ACK range's width and end.
-    inbound_datagrams: u32,
-    last_inbound_seq: u16,
-    /// The peer's outbound envelope counter. Every datagram written to this socket is numbered from
-    /// it — ladder rungs and keepalives alike — because two counters restarting at 1 would re-use
-    /// sequences the client has already seen ([`self::egress`]).
-    outbound_sequence: u16,
-}
-
-impl Peer {
-    /// A peer with an open session, nothing queued, and no datagram counted yet.
-    fn new(session: Session) -> Self {
-        Self {
-            session,
-            ladder: None,
-            outbox: HashMap::new(),
-            inbound: Reassembly::default(),
-            inbound_datagrams: 0,
-            last_inbound_seq: 0,
-            outbound_sequence: 0,
-        }
-    }
-
-    /// Borrow this peer as the egress's view of it.
-    fn view(&mut self, peer: SocketAddr) -> PeerView<'_> {
-        PeerView {
-            peer,
-            session: &mut self.session,
-            ladder: self.ladder.as_mut(),
-            outbox: &mut self.outbox,
-            datagrams_seen: self.inbound_datagrams,
-            ack_last: self.last_inbound_seq,
-            outbound_sequence: &mut self.outbound_sequence,
         }
     }
 }

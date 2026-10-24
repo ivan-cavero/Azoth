@@ -55,6 +55,7 @@ pub mod diagnostics;
 pub mod entry;
 pub mod ladder;
 pub mod ops;
+pub mod peer;
 pub mod presence;
 pub mod tick;
 pub mod tickets;

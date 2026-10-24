@@ -75,9 +75,18 @@ def apply(env: dict[str, str]) -> list[str]:
     if os.name != "nt":
         return notes
 
-    host = rustc_host()
-    if not host:
-        return notes
+    # `server/rust-toolchain.toml` pins `channel = "stable"` (OS-neutral for CI).
+    # Inside `server/`, that resolves to the rustup *default host* (often MSVC).
+    # Detecting host via bare `rustc -vV` from the repo root can still report GNU
+    # while `cargo` in server/ uses MSVC — so key off link.exe, not host alone.
+    if not shutil.which("link.exe", path=env.get("PATH", "")):
+        env["RUSTUP_TOOLCHAIN"] = "stable-x86_64-pc-windows-gnu"
+        notes.append("no link.exe → RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu")
+        host = "x86_64-pc-windows-gnu"
+    else:
+        host = rustc_host()
+        if not host:
+            return notes
 
     if "gnu" in host:
         msys = _msys_mingw_root()
@@ -94,21 +103,14 @@ def apply(env: dict[str, str]) -> list[str]:
         env.pop("PKG_CONFIG_PATH", None)
         cleaned = _strip_foreign_mingw(env.get("PATH", os.environ.get("PATH", "")))
         env["PATH"] = str(msys / "bin") + os.pathsep + cleaned
-        # Force the linker rustc invokes (cc crate / rustc windows-gnu).
         gcc = str(msys / "bin" / "gcc.exe")
         env["CC"] = gcc
         env["CXX"] = str(msys / "bin" / "g++.exe")
-        # rustc windows-gnu invokes this for the final link (overrides PATH order).
         env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = gcc
         notes.append(f"GNU stack: OPENSSL_DIR={msys}; linker={gcc}")
         return notes
 
     if "msvc" in host:
-        if not shutil.which("link.exe", path=env.get("PATH")):
-            notes.append(
-                "MSVC rustc without link.exe — install VS Build Tools (C++) "
-                "or: rustup default stable-x86_64-pc-windows-gnu"
-            )
         openssl_dir = env.get("OPENSSL_DIR") or os.environ.get("OPENSSL_DIR", "")
         if openssl_dir and "mingw" in openssl_dir.replace("\\", "/").casefold():
             notes.append(

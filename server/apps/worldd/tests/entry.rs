@@ -23,6 +23,8 @@ mod diagnostics;
 mod entry;
 #[path = "../src/ladder.rs"]
 mod ladder;
+#[path = "../src/peer.rs"]
+mod peer;
 #[path = "../src/presence.rs"]
 mod presence;
 #[path = "../src/tickets.rs"]
