@@ -224,10 +224,40 @@ Implementation with tests: `services/world/src/azoth_world/javelin/varint.py`.
 ```
 
 Parsed against all 79 server->client `0x08` bodies in the capture: **78 round-trip
-exactly** (the exception is seq `0x25`, the first message of its datagram, which
-carries a datagram-level preamble). `SEQ` spans **1..53** across the capture,
-which matches the live high-water the client logged
-(`m_lastUnreliableReplicationSeq 53`).
+exactly**. `SEQ` spans **1..53** across the capture, which matches the live
+high-water the client logged (`m_lastUnreliableReplicationSeq 53`).
+
+### The one exception, measured (2026-10-23)
+
+Seq `0x25` is the first message of its datagram and does **not** decode as a bundle
+at any offset — the typed marker `00 01 08` is not intact anywhere in the block.
+Its first 17 bytes are
+
+```
+03 87 94 2a 66 1f 85 43 1d 45 8b 40 d2 1f 3b 26 0d
+```
+
+and byte 16 is `0x0d` where the marker's leading `0x00` belongs. So the block is
+**not** "a bundle after a preamble": the preamble appears to overwrite the marker's
+first byte, and a marker search cannot find this bundle at all.
+
+**Proven against its sibling.** Block `0x2a` is the same bundle with an intact
+marker at offset 0, and `0x25[17:] == 0x2a[1:]` **byte for byte**. `0x2a` is
+46,407 bytes = 14 bytes of header + the 46,393-byte payload, and the payload is
+byte-identical in both blocks.
+
+Two consequences for anyone implementing the send path:
+
+* **use the `0x2a` shape** — `bundle::encode(seq, payload)` — not the `0x25` bytes.
+  The `0x25` framing is unmodeled and cannot be reproduced from a parser.
+* the corpus cannot distinguish "17-byte datagram preamble" from "16-byte preamble
+  plus a first-marker byte that arrived as `0x0d`". Both readings are recorded; the
+  measured fact is the 17 and the byte-for-byte equality with `0x2a`.
+
+**And the payload is redacted.** 1,802 bytes across 161 spans are zeros where
+identifiers were (first span at payload offset 11,062). The actor id at 29,731 and
+the position at 38,332/38,336 are outside every span, so the two fields a server
+writes are sound — but "verbatim capture" is the wrong description for the rest.
 
 **The payload is not opaque — this was a correction (2026-10-10).** The earlier
 model read the prologue's bytes as `[kind][record_id][fragment_count]` and then

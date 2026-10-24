@@ -33,7 +33,7 @@ Build under test: `1.460.6033.6024067` /
 | ID | Specs | State |
 | --- | --- | --- |
 | T1 | S1, S2 | done — `azoth-wire::ladder`, 7 parity tests against the captured fixture |
-| T2 | S3, S7 | pending — extract the spawn payload as a template with provenance |
+| T2 | S3, S7 | done — `azoth-wire::spawn` + fixtures; the brief was wrong about the framing |
 | T3 | S4 | done — `azoth-wire::player_record` with a byte round trip |
 | T4 | S5, S6 | pending — `worldd` |
 | T5 | S1–S6 | pending — the client-in-the-loop acceptance |
@@ -88,3 +88,31 @@ cannot be composed; it is served from a template.
 The unexplained tail was first written as 38 bytes, by arithmetic done in prose. A test that adds up
 the fields with the actual string lengths says 26. The constant is corrected and the mistake is
 recorded here because "arithmetic in a comment" is how a layout claim rots.
+
+### L5 — T2: the spawn template, and three corrections to my own brief
+
+**The framing.** I told the worker the bundle starts after a 20-byte prefix. It does not: the
+prefix is **17 bytes**, and the typed marker is **not intact anywhere** in block `0x25` — byte 16 is
+`0x0d` where the marker's leading `00` belongs. So the bundle cannot be found by marker search at
+all. The proof is the sibling block `0x2a`: the same bundle with an intact marker at offset 0, and
+`0x25[17:] == 0x2a[1:]` byte for byte, asserted by the exporter rather than assumed.
+
+Consequence for the send path: use `bundle::encode(seq, payload)` — the `0x2a` shape — and never the
+`0x25` bytes. Recorded in `research/docs/JAVELIN-PROTOCOL.md` §2e.
+
+**No spawn fragment census exists.** `research/derived/state-bundle-fragments.json` is the
+9-fragment *ongoing* census only. The 48 spawn boundaries are recorded as `null` rather than
+invented, which is the rule this repository applies to every unmeasured layout.
+
+**The payload is redacted.** 1,802 bytes across 161 spans are zeros where identifiers were. The
+actor id and the position are outside every span, so the two fields the module writes are sound —
+but the fixture now *declares* the redaction instead of letting a reader assume "verbatim capture".
+
+**What held:** payload 46,393 B, record 1, 48 fragments, replication seq 1, the actor id at 29,731
+preceded by the `00 00 00 02` anchor, and the position at 38,332/38,336 as
+`(9343.6416, 2786.7327)` big-endian f32.
+
+**A process note worth keeping.** Three of my four briefs this session contained a wrong premise
+that the worker corrected by measuring. That is the system working — a brief is a hypothesis, and
+the corpus is the authority — but it is also a reminder that "I read this in the prototype" is not
+evidence when the prototype is a replayer with dead code in it.
