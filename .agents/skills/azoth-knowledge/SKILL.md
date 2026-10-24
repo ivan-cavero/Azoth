@@ -9,10 +9,11 @@ Use when editing `STATUS.md`, `docs/`, ADRs, runbooks, or agent catalogs.
 
 ## Hard budgets
 
-- `STATUS.md` ≤ ~80 lines (`python scripts/check-docs.py`).
+- `STATUS.md` ≤ ~80 lines (`python az.py run check-docs`).
 - Diaries → `docs/journal/raw/` — **never** `Read` whole raw dumps; grep with head limit.
 - Public roadmap = `site/src/data/roadmap-v2.ts` only (v1 archived).
 - Product vision = `docs/PLAN-master-platform.md`; tick/wire = `PLAN-backend-rust.md`.
+- Scripts: `scripts/<kind>/` + `catalog.json`; `python az.py run list`.
 
 ## ADR rule
 
@@ -27,6 +28,7 @@ when adding prompts/skills.
 ## After edits
 
 ```text
-python scripts/check-docs.py
-python scripts/check-paths.py
+python az.py run check-docs
+python az.py run check-paths
+python az.py run check-scripts
 ```

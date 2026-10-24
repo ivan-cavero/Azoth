@@ -20,10 +20,10 @@
   python az.py re corpus ...      # full build-specific pseudocode pass
   python az.py re campaign ...    # incremental phase-scoped decompilation
   python az.py probe <name>       # run a client reverse-engineering probe
-  python az.py run <script> ...   # run a focused scripts/ tool
+  python az.py run list|<stem> …  # helpers under scripts/<kind>/ (catalog.json)
 
 Runtime files, PIDs and logs live under .azoth/ (gitignored). See
-docs/runbooks/contributor-loop.md.
+docs/runbooks/contributor-loop.md and scripts/README.md.
 """
 
 from __future__ import annotations
@@ -46,6 +46,48 @@ LOGS = ROOT / ".azoth" / "logs"
 PRIVATE = ROOT / "private-client"
 TMP = ROOT / ".azoth" / "tmp"
 PS = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass"]
+_SCRIPT_CATALOG: dict[str, dict] | None = None
+
+
+def script_catalog() -> dict[str, dict]:
+    """Load scripts/catalog.json (stem → {path, kind, file})."""
+    global _SCRIPT_CATALOG
+    if _SCRIPT_CATALOG is not None:
+        return _SCRIPT_CATALOG
+    path = SCRIPTS / "catalog.json"
+    if not path.is_file():
+        _SCRIPT_CATALOG = {}
+        return _SCRIPT_CATALOG
+    data = json.loads(path.read_text(encoding="utf-8"))
+    _SCRIPT_CATALOG = dict(data.get("scripts") or {})
+    return _SCRIPT_CATALOG
+
+
+def resolve_script(name: str) -> Path | None:
+    """Resolve a helper by catalog stem, basename, or relative path under scripts/."""
+    raw = name.strip().replace("\\", "/")
+    stem = Path(raw).stem
+    catalog = script_catalog()
+    if stem in catalog:
+        candidate = SCRIPTS / catalog[stem]["path"]
+        if candidate.is_file():
+            return candidate
+    direct = SCRIPTS / raw
+    if direct.is_file():
+        return direct
+    if not raw.endswith(".py") and not raw.endswith(".ps1"):
+        for ext in (".py", ".ps1"):
+            hit = SCRIPTS / f"{raw}{ext}"
+            if hit.is_file():
+                return hit
+    matches = [
+        p
+        for p in SCRIPTS.rglob(Path(raw).name if "/" in raw or "\\" in raw else (raw if raw.endswith((".py", ".ps1")) else f"{raw}.py"))
+        if p.is_file() and p.name != "catalog.json"
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return None
 
 
 def launcher_shell() -> str:
@@ -549,12 +591,20 @@ def _mode(args: list[str]) -> int:
 
 
 def _run_script(args: list[str]) -> int:
-    if not args:
-        print("usage: python az.py run <script-name> [args]")
-        return 2
-    script = SCRIPTS / args[0]
-    if not script.is_file():
-        print(f"script not found: {script}")
+    if not args or args[0] in {"list", "--help", "-h"}:
+        print("usage: python az.py run <script-stem|path> [args]")
+        print("catalog: scripts/catalog.json  (by kind under scripts/<kind>/)")
+        by_kind: dict[str, list[str]] = {}
+        for stem, meta in sorted(script_catalog().items()):
+            by_kind.setdefault(str(meta.get("kind", "?")), []).append(stem)
+        for kind in sorted(by_kind):
+            print(f"  [{kind}]")
+            for stem in by_kind[kind]:
+                print(f"    {stem}")
+        return 0
+    script = resolve_script(args[0])
+    if script is None:
+        print(f"script not found: {args[0]} (try `python az.py run list`)")
         return 2
     return subprocess.call([app_python(), str(script), *args[1:]], cwd=ROOT, env=local_env())
 
@@ -637,21 +687,27 @@ def main() -> int:
             return 2
         return _migrate_appdata()
     if head == "setup":
+        bootstrap = resolve_script("bootstrap")
+        assert bootstrap is not None
         return subprocess.call(
-            [sys.executable, str(SCRIPTS / "bootstrap.py"), *rest],
+            [sys.executable, str(bootstrap), *rest],
             cwd=ROOT,
             env=local_env(),
         )
     if head == "doctor":
+        doctor = resolve_script("doctor")
+        assert doctor is not None
         return subprocess.call(
-            [sys.executable, str(SCRIPTS / "doctor.py"), *rest],
+            [sys.executable, str(doctor), *rest],
             cwd=ROOT,
             env=local_env(),
         )
     if head == "test":
         if rest[:2] == ["e2e", "entry"]:
+            stub = resolve_script("e2e-entry-stub")
+            assert stub is not None
             return subprocess.call(
-                [sys.executable, str(SCRIPTS / "e2e-entry-stub.py"), *rest[2:]],
+                [sys.executable, str(stub), *rest[2:]],
                 cwd=ROOT,
                 env=local_env(),
             )
@@ -709,10 +765,14 @@ def main() -> int:
     if head == "mode":
         return _mode(rest)
     if head == "doc":
-        return subprocess.call([app_python(), str(SCRIPTS / "gen_openapi.py")], cwd=ROOT, env=local_env())
+        gen = resolve_script("gen_openapi")
+        assert gen is not None
+        return subprocess.call([app_python(), str(gen)], cwd=ROOT, env=local_env())
     if head == "shape":
+        shape = resolve_script("try-world-shape")
+        assert shape is not None
         return subprocess.call(
-            [app_python(), str(SCRIPTS / "try-world-shape.py"), *rest],
+            [app_python(), str(shape), *rest],
             cwd=ROOT,
             env=local_env(),
         )
@@ -723,8 +783,10 @@ def main() -> int:
     if head == "re":
         return _reverse_tool(rest)
     if head in {"click", "post", "shot", "key"}:
-        script = {"click": "click-window.py", "post": "post-input.py", "shot": "shot.py", "key": "send-input.py"}[head]
-        return subprocess.call([app_python(), str(SCRIPTS / script), *rest], cwd=ROOT, env=local_env())
+        stem = {"click": "click-window", "post": "post-input", "shot": "shot", "key": "send-input"}[head]
+        script = resolve_script(stem)
+        assert script is not None
+        return subprocess.call([app_python(), str(script), *rest], cwd=ROOT, env=local_env())
     print(__doc__)
     return 2
 

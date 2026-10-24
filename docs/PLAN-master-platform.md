@@ -1285,6 +1285,7 @@ Use this as the audit backlog before moving files:
 - [x] `scripts/check-paths.py`  
 - [x] ADR 0009 native `az.dev` vs Compose  
 - [x] Agentic boot-naming campaign runbook + prompt  
+- [x] **Scripts tree by kind** + `catalog.json` + `az.py run` resolver (no flat dump)  
 
 ### 19.1b Domain Rust (feel like a real MMO)
 

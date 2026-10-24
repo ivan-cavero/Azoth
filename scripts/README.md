@@ -1,48 +1,51 @@
-# Operator tools
+# Scripts
 
-Use `python az.py ...` for setup, services, the private client, and tools used
-repeatedly. A focused helper without its own command runs as
-`python az.py run <script.py> [args]`.
+Operator and research helpers. **Do not add new tools as a flat pile** — put
+them under a kind folder and register them in `catalog.json`.
 
-## Common commands
+## Run
 
-- `python az.py setup` — install the locked local toolchain and dependencies.
-- `python az.py migrate` — move existing per-user game and research state into
-  ignored paths in this checkout; active game/decompiler files are deferred.
-- `python az.py dev [start|stop|restart|status]` — manage Caddy, gateway, and
-  world as background processes.
-- `python az.py game [start|stop|restart|status]` — manage the private game.
-- `python az.py shape <body.json>` — run one login response fixture against the
-  live client. The harness restores the old override and counts only requests
-  from that run.
-- `python az.py doc` — refresh OpenAPI from captured gateway traffic.
-- `python az.py shot`, `click`, `key`, `post` — screenshot or send UI input.
+```text
+python az.py run list                 # catalog by kind
+python az.py run <stem> [args]        # e.g. private-run, measure-walk, doctor
+python az.py setup | doctor | shot …  # first-class commands (also catalogued)
+```
 
-## Focused helpers
+Stems resolve via `scripts/catalog.json`. Prefer `az.py run` over hard-coded
+paths in docs and agents.
 
-| Task | Helper |
+## Layout
+
+| Folder | Owns |
 | --- | --- |
-| Drive a full private run unattended | `private-run.py` |
-| Trust Caddy's local CA (gate 2) | `trust-caddy-ca.py` |
-| Apply/restore the DTLS disk patch (gate 4) | `patch-dtls-disk.py` |
-| Capture and summarize a world attempt | `capture-world-run.py`, `ack-window.py`, `ack-coverage.py`, `trace-session.py` |
-| Decode client channel-0 traffic | `decode-ch0.py` |
-| Inventory what the client asks the server | `inbound-inventory.py` (`--check`) |
-| Verify the request→response map against the capture | `request-response-map.py` (`--check`) |
-| Audit our ACK ranges and the client's retransmit factor | `ack-audit.py` (`--check`) |
-| Send one test message to a running private world | `world-inject.py` |
-| Start a fresh instrumented client attempt | `run-instrumented-attempt.py` |
-| Compare two game captures | `bmp-diff.py` |
-| Hold a key or verify game focus | `hold-key.py`, `focus-window.py` |
-| Send text or a raw virtual key | `send-input.py`, `post-input.py` |
-| Shrink a screenshot for inspection | `shrink-image.py` |
-| Apply a build-bound manual patch | `patch-actor-guard.py`, `patch-dtls-disk.py`, `patch-portray-predicate.py`, `patch-teardown-guard.py` |
+| `toolchain/` | `bootstrap`, `doctor` (clone-anywhere) |
+| `check/` | Doc/path CI gates |
+| `test/` | Offline e2e stubs |
+| `export/` | Capture → fixture exporters for Rust |
+| `measure/` | Logs, ACK, walk, inventory grammar, parity checks |
+| `patch/` | Disk patches for private client copies |
+| `gui/` | Screenshots, keys, OCR, window focus |
+| `session/` | Private runs, smokes, multi-client attempts |
+| `wire/` | Decode / inject REP helpers |
+| `re/` | Descriptor/codec helpers (heavy RE stays in `reverse/tools/`) |
+| `ops/` | Caddy CA trust, OpenAPI gen |
 
-The login harness uses `ocr-image.ps1` internally. Do not use the removed
-`ocr-window.py` capture chain; `capture-window.py` no longer exists. Client
-Frida probes have their own catalog at `python az.py probe list`, and startup
-patch helpers live in `services/launcher/runtime-tools/`.
+## Adding a script
+
+1. Choose a kind folder (or propose a new one in an ADR if none fits).
+2. Add `scripts/<kind>/<name>.py` with a module docstring (first line = summary).
+3. Register in `catalog.json` under `scripts.<stem>`.
+4. Prefer a caller via `az.py` / skill / runbook — no orphan experiments.
+5. `python az.py run list` should show it.
+
+Regenerate catalog from disk after bulk moves:
+
+```text
+python scripts/toolchain/_reorg_layout.py   # layout map + catalog rewrite
+```
+
+## Retention
 
 Keep a helper only while it has a caller, a measured operator use, or unique
-reproduction value. Put reusable workflows behind `az.py`; do not add wrappers
-for one-off experiments.
+reproduction value. Frida probes live under `reverse/probes/`; launcher patches
+under `services/launcher/runtime-tools/`.

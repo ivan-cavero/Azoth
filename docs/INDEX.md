@@ -28,7 +28,8 @@ for the work at hand. Taxonomy: [`PLAN-master-platform.md`](PLAN-master-platform
 | Legal / preservation / collab | [LEGAL.md](LEGAL.md), [`../NOTICE`](../NOTICE), [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Rename / binary names | [ADR 0005](adr/0005-project-rename.md), [ADR 0006](adr/0006-binary-naming.md) |
 | DTLS / OpenSSL choice | [ADR 0004](adr/0004-dtls-crypto-stack.md), [Rust plan §0.3](PLAN-backend-rust.md) |
-| Doc budget check | `python scripts/check-docs.py` (via project Python) |
+| Doc / scripts catalog checks | `python az.py run check-docs` · `check-paths` · `check-scripts` |
+| Script helpers | [`scripts/README.md`](../scripts/README.md) · `python az.py run list` |
 | Historical archives | [`archive/`](archive/), [`sessions/`](sessions/) |
 
 Implementation facts belong next to code or in `research/atlas/`. This folder

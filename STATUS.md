@@ -16,9 +16,9 @@ Build: **1.460.6033.6024067** —
 
 ## Ready for agents
 
-Reorg + ontology seeds + skills/prompts catalog. Next campaign:
-[`docs/runbooks/agentic-boot-campaign.md`](docs/runbooks/agentic-boot-campaign.md)
-(prompt `boot-naming-campaign.md`, skill `azoth-ontology`).
+Reorg + ontology seeds + skills/prompts + **scripts by kind**
+(`python az.py run list`). Next campaign:
+[`docs/runbooks/agentic-boot-campaign.md`](docs/runbooks/agentic-boot-campaign.md).
 
 ## Next useful step
 

@@ -1,0 +1,324 @@
+{
+  "format": 1,
+  "entry": "python az.py run <name>",
+  "kinds": [
+    "check",
+    "export",
+    "gui",
+    "measure",
+    "ops",
+    "patch",
+    "re",
+    "session",
+    "test",
+    "toolchain",
+    "wire"
+  ],
+  "scripts": {
+    "ack-audit": {
+      "path": "measure/ack-audit.py",
+      "kind": "measure",
+      "file": "ack-audit.py"
+    },
+    "ack-coverage": {
+      "path": "measure/ack-coverage.py",
+      "kind": "measure",
+      "file": "ack-coverage.py"
+    },
+    "ack-window": {
+      "path": "measure/ack-window.py",
+      "kind": "measure",
+      "file": "ack-window.py"
+    },
+    "alc-position": {
+      "path": "measure/alc-position.py",
+      "kind": "measure",
+      "file": "alc-position.py"
+    },
+    "bmp-diff": {
+      "path": "gui/bmp-diff.py",
+      "kind": "gui",
+      "file": "bmp-diff.py"
+    },
+    "bootstrap": {
+      "path": "toolchain/bootstrap.py",
+      "kind": "toolchain",
+      "file": "bootstrap.py"
+    },
+    "capture-world-run": {
+      "path": "session/capture-world-run.py",
+      "kind": "session",
+      "file": "capture-world-run.py"
+    },
+    "check-docs": {
+      "path": "check/check-docs.py",
+      "kind": "check",
+      "file": "check-docs.py"
+    },
+    "check-paths": {
+      "path": "check/check-paths.py",
+      "kind": "check",
+      "file": "check-paths.py"
+    },
+    "click-window": {
+      "path": "gui/click-window.py",
+      "kind": "gui",
+      "file": "click-window.py"
+    },
+    "corpus-contains": {
+      "path": "re/corpus-contains.py",
+      "kind": "re",
+      "file": "corpus-contains.py"
+    },
+    "corpus-fn": {
+      "path": "re/corpus-fn.py",
+      "kind": "re",
+      "file": "corpus-fn.py"
+    },
+    "decode-ch0": {
+      "path": "wire/decode-ch0.py",
+      "kind": "wire",
+      "file": "decode-ch0.py"
+    },
+    "decode-ch1-635": {
+      "path": "wire/decode-ch1-635.py",
+      "kind": "wire",
+      "file": "decode-ch1-635.py"
+    },
+    "doctor": {
+      "path": "toolchain/doctor.py",
+      "kind": "toolchain",
+      "file": "doctor.py"
+    },
+    "e2e-entry-stub": {
+      "path": "test/e2e-entry-stub.py",
+      "kind": "test",
+      "file": "e2e-entry-stub.py"
+    },
+    "export-channel-fixture": {
+      "path": "export/export-channel-fixture.py",
+      "kind": "export",
+      "file": "export-channel-fixture.py"
+    },
+    "export-ladder-fixtures": {
+      "path": "export/export-ladder-fixtures.py",
+      "kind": "export",
+      "file": "export-ladder-fixtures.py"
+    },
+    "export-spawn-template": {
+      "path": "export/export-spawn-template.py",
+      "kind": "export",
+      "file": "export-spawn-template.py"
+    },
+    "export-wire-fixtures": {
+      "path": "export/export-wire-fixtures.py",
+      "kind": "export",
+      "file": "export-wire-fixtures.py"
+    },
+    "find-codec-facet": {
+      "path": "re/find-codec-facet.py",
+      "kind": "re",
+      "file": "find-codec-facet.py"
+    },
+    "focus-window": {
+      "path": "gui/focus-window.py",
+      "kind": "gui",
+      "file": "focus-window.py"
+    },
+    "gen_openapi": {
+      "path": "ops/gen_openapi.py",
+      "kind": "ops",
+      "file": "gen_openapi.py"
+    },
+    "hold-key": {
+      "path": "gui/hold-key.py",
+      "kind": "gui",
+      "file": "hold-key.py"
+    },
+    "icon-timeline": {
+      "path": "measure/icon-timeline.py",
+      "kind": "measure",
+      "file": "icon-timeline.py"
+    },
+    "inbound-inventory": {
+      "path": "measure/inbound-inventory.py",
+      "kind": "measure",
+      "file": "inbound-inventory.py"
+    },
+    "logwire": {
+      "path": "wire/logwire.py",
+      "kind": "wire",
+      "file": "logwire.py"
+    },
+    "map-descriptors": {
+      "path": "re/map-descriptors.py",
+      "kind": "re",
+      "file": "map-descriptors.py"
+    },
+    "measure-angle-frame": {
+      "path": "measure/measure-angle-frame.py",
+      "kind": "measure",
+      "file": "measure-angle-frame.py"
+    },
+    "measure-cable": {
+      "path": "measure/measure-cable.py",
+      "kind": "measure",
+      "file": "measure-cable.py"
+    },
+    "measure-episodes": {
+      "path": "measure/measure-episodes.py",
+      "kind": "measure",
+      "file": "measure-episodes.py"
+    },
+    "measure-inventory-grammar": {
+      "path": "measure/measure-inventory-grammar.py",
+      "kind": "measure",
+      "file": "measure-inventory-grammar.py"
+    },
+    "measure-position-field": {
+      "path": "measure/measure-position-field.py",
+      "kind": "measure",
+      "file": "measure-position-field.py"
+    },
+    "measure-run": {
+      "path": "measure/measure-run.py",
+      "kind": "measure",
+      "file": "measure-run.py"
+    },
+    "measure-walk": {
+      "path": "measure/measure-walk.py",
+      "kind": "measure",
+      "file": "measure-walk.py"
+    },
+    "measure-world-log": {
+      "path": "measure/measure-world-log.py",
+      "kind": "measure",
+      "file": "measure-world-log.py"
+    },
+    "night-run": {
+      "path": "session/night-run.py",
+      "kind": "session",
+      "file": "night-run.py"
+    },
+    "ocr-image": {
+      "path": "gui/ocr-image.ps1",
+      "kind": "gui",
+      "file": "ocr-image.ps1"
+    },
+    "patch-actor-guard": {
+      "path": "patch/patch-actor-guard.py",
+      "kind": "patch",
+      "file": "patch-actor-guard.py"
+    },
+    "patch-dtls-disk": {
+      "path": "patch/patch-dtls-disk.py",
+      "kind": "patch",
+      "file": "patch-dtls-disk.py"
+    },
+    "patch-portray-predicate": {
+      "path": "patch/patch-portray-predicate.py",
+      "kind": "patch",
+      "file": "patch-portray-predicate.py"
+    },
+    "patch-teardown-guard": {
+      "path": "patch/patch-teardown-guard.py",
+      "kind": "patch",
+      "file": "patch-teardown-guard.py"
+    },
+    "post-input": {
+      "path": "gui/post-input.py",
+      "kind": "gui",
+      "file": "post-input.py"
+    },
+    "prejoin-smoke": {
+      "path": "session/prejoin-smoke.py",
+      "kind": "session",
+      "file": "prejoin-smoke.py"
+    },
+    "private-run": {
+      "path": "session/private-run.py",
+      "kind": "session",
+      "file": "private-run.py"
+    },
+    "request-response-map": {
+      "path": "measure/request-response-map.py",
+      "kind": "measure",
+      "file": "request-response-map.py"
+    },
+    "run-instrumented-attempt": {
+      "path": "session/run-instrumented-attempt.py",
+      "kind": "session",
+      "file": "run-instrumented-attempt.py"
+    },
+    "run-second-client": {
+      "path": "session/run-second-client.py",
+      "kind": "session",
+      "file": "run-second-client.py"
+    },
+    "send-input": {
+      "path": "gui/send-input.py",
+      "kind": "gui",
+      "file": "send-input.py"
+    },
+    "shot": {
+      "path": "gui/shot.py",
+      "kind": "gui",
+      "file": "shot.py"
+    },
+    "shrink-image": {
+      "path": "gui/shrink-image.py",
+      "kind": "gui",
+      "file": "shrink-image.py"
+    },
+    "trace-session": {
+      "path": "session/trace-session.py",
+      "kind": "session",
+      "file": "trace-session.py"
+    },
+    "trust-caddy-ca": {
+      "path": "ops/trust-caddy-ca.py",
+      "kind": "ops",
+      "file": "trust-caddy-ca.py"
+    },
+    "try-world-shape": {
+      "path": "session/try-world-shape.py",
+      "kind": "session",
+      "file": "try-world-shape.py"
+    },
+    "watch-indicator": {
+      "path": "gui/watch-indicator.py",
+      "kind": "gui",
+      "file": "watch-indicator.py"
+    },
+    "watch-session": {
+      "path": "session/watch-session.py",
+      "kind": "session",
+      "file": "watch-session.py"
+    },
+    "winwindow": {
+      "path": "gui/winwindow.py",
+      "kind": "gui",
+      "file": "winwindow.py"
+    },
+    "wire-parity": {
+      "path": "measure/wire-parity.py",
+      "kind": "measure",
+      "file": "wire-parity.py"
+    },
+    "world-inject": {
+      "path": "wire/world-inject.py",
+      "kind": "wire",
+      "file": "world-inject.py"
+    },
+    "fix-test-escapes": {
+      "path": "session/fix-test-escapes.py",
+      "kind": "session",
+      "file": "fix-test-escapes.py"
+    },
+    "check-scripts": {
+      "path": "check/check-scripts.py",
+      "kind": "check",
+      "file": "check-scripts.py"
+    }
+  }
+}

@@ -27,7 +27,8 @@ North star: [`docs/PLAN-master-platform.md`](docs/PLAN-master-platform.md).
 - Never Frida/RPM/debugger while EAC state is uncertain. Azoth launches without EAC; still verify.
 - Steam install is read-only. Private runtime under `private-client/`; tools under `.azoth/`.
 - `python az.py` / `.\az.ps1` owns lifecycle. No machine-specific user paths in git.
-- Keep `STATUS.md` ≤ **80 lines** (`python scripts/check-docs.py`). Diaries → `docs/journal/`.
+- Keep `STATUS.md` ≤ **80 lines** (`python az.py run check-docs`). Diaries → `docs/journal/`.
+- New helpers go under `scripts/<kind>/` + `scripts/catalog.json` — never a flat dump.
 - **Never** `Read` whole files under `docs/journal/raw/` — grep with a head limit.
 - **Never** re-serve `site/src/data/archive/roadmap-v1-inventory.ts` on the landing page.
 - Code you add must be **called** and map to an ontology purpose; no dead crates or decorative types.
