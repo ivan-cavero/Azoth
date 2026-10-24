@@ -30,10 +30,18 @@
 //! * `peer=<addr> event=<new|established|dropped>` — the session lifecycle. `new` is the first
 //!   datagram from an address with no session, which is the only way a ClientHello is ever visible:
 //!   it produces no [`TransportEvent`] at all.
+//! * `peer=<addr> note=connect_request payload=<hex> welcome=<hex> ack_first=<n> ack_last=<n>
+//!   datagrams_seen=<n> echo_seq=<n>` — the whole `SM_CONNECT_REQUEST` record and the acceptance
+//!   flight it produced. This is the line that decides the next step when a client will not leave
+//!   CONNECTING: the measured failure is a client that answers our flight by re-sending its request
+//!   five times and never sending V3, which is what a client that does not accept our `CT_ACKS` range
+//!   looks like — so the payload it asked with, the range we claimed and the sequence we echoed are
+//!   printed together, on one greppable line. The payload is dumped whole (5 to a few dozen bytes)
+//!   rather than cut to [`PREFIX`], because its length is part of the measurement.
 //!
-//! Only the first 16 bytes are shown. That is enough to identify content type, version, epoch and
-//! record sequence — the fields that say *what kind of traffic this is* — and it is what keeps a
-//! line short enough to grep and to read on a terminal.
+//! Only the first 16 bytes are shown for a datagram. That is enough to identify content type, version,
+//! epoch and record sequence — the fields that say *what kind of traffic this is* — and it is what
+//! keeps a line short enough to grep and to read on a terminal.
 //!
 //! WHY THE ADDRESS BOOKKEEPING LIVES HERE AND NOT IN THE TRANSPORT
 //! ==============================================================
@@ -48,6 +56,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use azoth_dtls::{Transport, TransportEvent, TransportTrace};
+use azoth_wire::carrier::AcceptanceFlight;
 
 use crate::config::Config;
 
@@ -64,9 +73,16 @@ const DTLS_CONTENT_TYPES: std::ops::RangeInclusive<u8> = 20..=23;
 ///
 /// `None` is what keeps the cost at zero: no sink is installed, so the transport pays one `Option`
 /// check per datagram and this module never allocates.
+///
+/// The flag is also the condition for the note channel, so it is installed here: without it a code
+/// path that produced nothing has no way to say why, and a stuck login looks like silence.
 #[must_use]
 pub fn from_config(config: &Config) -> Option<Arc<Diagnostics>> {
-    config.diagnostics.then(|| Arc::new(Diagnostics::to_stderr()))
+    if !config.diagnostics {
+        return None;
+    }
+    install_note_sink(note_to_stderr);
+    Some(Arc::new(Diagnostics::to_stderr()))
 }
 
 /// The line writer, shared by the transport thread and the event path.
@@ -183,13 +199,18 @@ fn classify(bytes: &[u8]) -> String {
     }
 }
 
-/// The first [`PREFIX`] bytes as lowercase hex, which is what makes two lines comparable by eye.
-fn hex_prefix(bytes: &[u8]) -> String {
-    let mut out = String::with_capacity(PREFIX * 2);
-    for byte in bytes.iter().take(PREFIX) {
+/// Every byte as lowercase hex, for a payload small enough to print whole.
+fn hex(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
         let _ = write!(out, "{byte:02x}");
     }
     out
+}
+
+/// The first [`PREFIX`] bytes as lowercase hex, which is what makes two lines comparable by eye.
+fn hex_prefix(bytes: &[u8]) -> String {
+    hex(&bytes[..bytes.len().min(PREFIX)])
 }
 
 #[cfg(test)]
@@ -227,6 +248,27 @@ mod tests {
         assert_eq!(hex_prefix(&long), "ab".repeat(PREFIX));
         assert_eq!(hex_prefix(&[]), "");
     }
+
+    /// The measurement line is one greppable line naming the payload, the welcome derived from it,
+    /// the ACK range claimed and the sequence echoed — every field a next step depends on.
+    #[test]
+    fn the_connect_request_line_carries_the_payload_the_range_and_the_echo() {
+        let payload = [0xAA, 0xBB, 0xCC, 0xDD, 0x01];
+        assert_eq!(
+            connect_request_line(&payload, &[0xAA, 0xBB, 0xCC, 0xDD], 10, 14, 5, 14),
+            "connect_request payload=aabbccdd01 welcome=aabbccdd \
+             ack_first=10 ack_last=14 datagrams_seen=5 echo_seq=14"
+        );
+    }
+
+    /// The payload is dumped whole, not cut to [`PREFIX`], because its length is part of the
+    /// measurement.
+    #[test]
+    fn a_payload_longer_than_a_datagram_prefix_is_not_truncated() {
+        let payload = [0x11u8; 40];
+        let line = connect_request_line(&payload, &[0x11; 4], 1, 1, 1, 1);
+        assert!(line.contains(&"11".repeat(40)), "the whole payload, not 16 bytes");
+    }
 }
 
 /// A process-wide note channel, so a deep code path can report why it did nothing.
@@ -237,7 +279,13 @@ mod tests {
 /// is one atomic load.
 static NOTE_SINK: std::sync::OnceLock<fn(std::net::SocketAddr, &str)> = std::sync::OnceLock::new();
 
-/// Install the note sink. Called once, from `main`, only when diagnostics are on.
+/// The note sink's line: the same `[worldd] diagnostics` prefix the trace lines use, so one `grep`
+/// finds both.
+fn note_to_stderr(peer: SocketAddr, line: &str) {
+    eprintln!("[worldd] diagnostics peer={peer} note={line}");
+}
+
+/// Install the note sink. Called once, from [`from_config`], only when diagnostics are on.
 pub fn install_note_sink(sink: fn(std::net::SocketAddr, &str)) {
     let _ = NOTE_SINK.set(sink);
 }
@@ -247,4 +295,48 @@ pub fn note(peer: std::net::SocketAddr, reason: &str) {
     if let Some(sink) = NOTE_SINK.get() {
         sink(peer, reason);
     }
+}
+
+/// The `SM_CONNECT_REQUEST` measurement, rendered as one line.
+///
+/// Pure so a test can pin the format: the caller is a datagram path that must not format anything
+/// unless a sink is installed. See the module docs for why these six fields travel together.
+#[must_use]
+pub fn connect_request_line(
+    payload: &[u8],
+    welcome: &[u8],
+    ack_first: u16,
+    ack_last: u16,
+    datagrams_seen: u32,
+    echo_sequence: u16,
+) -> String {
+    format!(
+        "connect_request payload={} welcome={} ack_first={ack_first} ack_last={ack_last} \
+         datagrams_seen={datagrams_seen} echo_seq={echo_sequence}",
+        hex(payload),
+        hex(welcome),
+    )
+}
+
+/// Report the `SM_CONNECT_REQUEST` measurement and the flight it produced.
+///
+/// WHY IT IS ONE CALL: the datagram path is hot and the line is only interesting while
+/// `--diagnostics` is on, so the entry hands over the four values it already has and this module owns
+/// the format — one place to change what the measurement says.
+pub fn note_connect_request(
+    peer: SocketAddr,
+    payload: &[u8],
+    flight: &AcceptanceFlight,
+    datagrams_seen: u32,
+    echo_sequence: u16,
+) {
+    let line = connect_request_line(
+        payload,
+        &flight.welcome,
+        flight.ack_first,
+        flight.ack_last,
+        datagrams_seen,
+        echo_sequence,
+    );
+    note(peer, &line);
 }

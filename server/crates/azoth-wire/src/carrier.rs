@@ -22,56 +22,62 @@
 //! CT_ACKS       6   no        0x18   —    —        0x40, u16 BE ack_last, u16 BE ack_first, then 6
 //! ```
 //! `0x20` is `MF_DATA_CHANNEL` alone, `0x21` adds `MF_RELIABLE`, and `0x18` is
-//! `MF_SEQUENTIAL_ID | MF_SEQUENTIAL_REL_ID`: CT_ACKS inherits both sequences from CONNECT_ACK on
-//! the same channel instead of writing them.
+//! `MF_SEQUENTIAL_ID | MF_SEQUENTIAL_REL_ID`: CT_ACKS inherits both sequences from CONNECT_ACK.
 //!
 //! THE SYS ID IS THE LAST PAYLOAD BYTE OF EVERY CHANNEL-3 RECORD
 //! ============================================================
 //! Not the first: a channel-3 payload is *data then id*, which is why
-//! [`MessageRecord::system_msg_id`] reads the last byte and why every payload here pushes its id
-//! last. Moving it to the front makes the client read the id as data.
+//! [`MessageRecord::system_msg_id`] reads the last byte and every payload here pushes its id last.
+//!
+//! THE ACK RANGE NAMES EVERY DATAGRAM RECEIVED, AND STOPS GROWING
+//! ============================================================
+//! `ack_first` is not the echoed sequence: a degenerate range (`ack_first == ack_last`, only the
+//! datagram that carried the request) is **not** an acknowledgement the client accepts. MEASURED
+//! 2026-09-18 (`Game.log` 20:15:08→18; `rep.py::ct_acks_datagram`): after the first
+//! `RegistrationResponse` the client retransmits its 1115-byte channel-0 record for ~10 s, then
+//! reports `@mm_csdkerr_disconnect (4)`. The opposite mistake is worse: a range half the 16-bit space
+//! cannot be disambiguated by a wrap-aware reader, and the client answers by retransmitting everything
+//! (2026-10-14, `rep.py::ACK_WINDOW`: 32,768 crossed at 08:42:44, then 140,174 records carrying 660
+//! distinct sequences), so [`ack_window_first`] slides a range of at most `window`.
 //!
 //! THREE MEASURED TRAPS
 //! ====================
-//! 1. **The envelope sequence ECHOES the client's inbound sequence.** It is not a server counter.
-//!    Without the echo the client keeps retransmitting as if our reply never arrived (first-light
-//!    "Mixed Nuts", 2026-05-04). That is why [`AcceptanceFlight::datagram`] takes the sequence as a
-//!    parameter instead of numbering datagrams itself.
+//! 1. **The envelope sequence ECHOES the client's inbound sequence.** It is not a server counter:
+//!    without the echo the client keeps retransmitting as if our reply never arrived (first-light
+//!    "Mixed Nuts", 2026-05-04), which is why [`AcceptanceFlight::datagram`] takes it as a parameter.
 //! 2. **A reliable record with a mirrored relSeq blocks the client's reliable queue forever.** An
 //!    earlier ACK that copied the client's own `0xFFFF` left the client in CONNECTING even though it
 //!    had stopped resending (live capture 2026-09-16 20:23). So CLOCK_SYNC is **unreliable** with
-//!    relSeq `0xFFFF` — the value an unreliable record carries before anything reliable has been
-//!    received — and CONNECT_ACK is **reliable** with relSeq `0`.
+//!    relSeq `0xFFFF` — the value an unreliable record carries before anything reliable arrives —
+//!    and CONNECT_ACK is **reliable** with relSeq `0`.
 //! 3. **The CONNECT_ACK payload is the client's version echoed verbatim**, then the sys id byte
 //!    (`DefaultHandshake` semantics: `OnInitiate` writes the version into the ACK buffer and
 //!    `OnReceiveRequest` echoes it). A datagram-ACK-shaped payload (`40 0002 0002`) was tried on
 //!    2026-09-17 and did **not** advance the client; the version echo made it stop resending and
-//!    acknowledge our datagram (2026-09-16). A caller that has not seen the client's request must
-//!    not send the flight at all rather than invent a version string — see below.
+//!    acknowledge our datagram (2026-09-16). A caller that has not seen the request must not send
+//!    the flight at all rather than invent a version string.
 //!
 //! THE TRIGGER IS THE CLIENT'S REQUEST, NOT THE HANDSHAKE
 //! =====================================================
-//! The version to echo only exists once the client has spoken, so the flight is the answer to its
-//! first `SM_CONNECT_REQUEST` (sys id 1, channel 3), not to the DTLS handshake. The prototype is
-//! explicit (`rep.py::handle_app_data`: `if requests and not handshake_done`), and it takes the
-//! version from that request — `welcome = first.payload[:-1][:4]` — with a `00 00 00 05` fallback
-//! when the payload is shorter than five bytes. [`connect_welcome`] is that rule, so the server has
-//! one implementation of it instead of one per call site.
+//! The version to echo only exists once the client has spoken, so the flight answers its first
+//! `SM_CONNECT_REQUEST` (sys id 1, channel 3), not the DTLS handshake. The prototype is explicit
+//! (`rep.py::handle_app_data`: `if requests and not handshake_done`) and takes the version from that
+//! request — `welcome = first.payload[:-1][:4]` — with a `00 00 00 05` fallback under five bytes.
+//! [`connect_welcome`] is that rule, so the server has one implementation instead of one per caller.
+//!
 //! WHY THESE BYTES ARE WRITTEN BY HAND
 //! ==================================
 //! [`crate::marshal`] derives each flag byte from the record's own fields plus the datagram's
 //! cross-record state, and for this flight that derivation differs from the measured bytes in two
 //! places: it omits CONNECT_ACK's sequence (`0x09` where the client was sent `0x21`) and it never
 //! emits `MF_SEQUENTIAL_REL_ID` for an unreliable record (so CT_ACKS would lose its `0x10` and write
-//! a relSeq instead). The flight is a captured byte pattern rather than a derived one, so it is
-//! written literally and the test parses it back with [`crate::record::parse`].
+//! a relSeq instead). The flight is a captured byte pattern, parsed back by the tests.
 //!
 //! WHAT A RECORD PAYLOAD CARRIES
 //! =============================
-//! The rest of this module is the pre-game half of the record layer: [`Reassembly`] joins the
-//! chunks a message is cut into, and [`registration_body`] finds the V3 registration in any of the
-//! three framings that can carry it. Both are pure framing — no world state — which is why they live
-//! here and not in the server that calls them.
+//! The rest of this module is pure framing, which is why it lives here and not in the server that
+//! calls it: [`Reassembly`] joins the chunks a message is cut into, and [`registration_body`] finds
+//! the V3 registration in any of the three framings that can carry it.
 
 use crate::envelope::Envelope;
 use crate::error::WireError;
@@ -111,9 +117,8 @@ const DEFAULT_WELCOME: [u8; 4] = [0x00, 0x00, 0x00, 0x05];
 /// The version a `SM_CONNECT_REQUEST` payload carries, which `CONNECT_ACK` echoes verbatim.
 ///
 /// The payload is *data then id*, so the version is the bytes before the trailing sys-id byte,
-/// truncated to the four bytes of the `u32` the client wrote. A payload under five bytes has no
-/// version to echo and falls back to `00 00 00 05` — the prototype's own fallback, not an invented
-/// one (`rep.py::handle_app_data`).
+/// truncated to the `u32` the client wrote. A payload under five bytes has no version to echo and
+/// falls back to `00 00 00 05` — the prototype's own fallback (`rep.py::handle_app_data`).
 #[must_use]
 pub fn connect_welcome(payload: &[u8]) -> Vec<u8> {
     if payload.len() < 5 {
@@ -122,13 +127,28 @@ pub fn connect_welcome(payload: &[u8]) -> Vec<u8> {
     payload[..payload.len() - 1].iter().copied().take(4).collect()
 }
 
-/// The flight's trigger inside one client datagram: `(inbound envelope sequence, welcome)`.
+/// The first envelope sequence of the continuous ACK range.
 ///
-/// Both values come off the client's own datagram and neither is invented: the sequence is echoed in
-/// the reply's envelope and ACK range, and the welcome is what `CONNECT_ACK` echoes back. `None`
-/// when the datagram is not a Carrier envelope, does not parse as records, or carries no channel-3
-/// `SM_CONNECT_REQUEST` — an empty payload has no sys id, which is the prototype's own
-/// `and rec.payload` condition.
+/// Sliding, not pinned: while the session is younger than `window` this is the session's first
+/// sequence (the strongest true claim), and after that it advances so the range never exceeds
+/// `window`. The subtraction is in 16-bit wrap space, so it survives the 65,536 wrap.
+///
+/// The width is `max(1, min(datagrams_seen, window))`: a session that has counted nothing still names
+/// its own datagram rather than an empty range. `window` is `azoth_session::ACK_WINDOW_DEFAULT`
+/// (16,384 — half the largest unambiguous range, ~13 minutes at the measured ~21 datagrams/s).
+#[must_use]
+pub fn ack_window_first(ack_last: u16, datagrams_seen: u32, window: u16) -> u16 {
+    let width = u32::from(window).min(datagrams_seen).max(1);
+    ack_last.wrapping_sub((width - 1) as u16)
+}
+
+/// The flight's trigger inside one client datagram: `(inbound envelope sequence, request payload)`.
+///
+/// Neither value is invented: the sequence is echoed in the reply's envelope, and the payload is the
+/// channel-3 `SM_CONNECT_REQUEST` record's own bytes — *data then id* — which is what
+/// [`connect_welcome`] trims and what the server's diagnostics dump whole. `None` when the datagram
+/// is not a Carrier envelope, does not parse as records, or carries no channel-3
+/// `SM_CONNECT_REQUEST` — an empty payload has no sys id, the prototype's own `and rec.payload`.
 #[must_use]
 pub fn connect_request(bytes: &[u8]) -> Option<(u16, Vec<u8>)> {
     let (envelope, body) = crate::envelope::parse(bytes).ok()?;
@@ -136,7 +156,7 @@ pub fn connect_request(bytes: &[u8]) -> Option<(u16, Vec<u8>)> {
     let request = parsed.records.iter().find(|message| {
         message.is_system() && message.system_msg_id() == Some(SYS_CONNECT_REQUEST)
     })?;
-    Some((envelope.sequence, connect_welcome(&request.payload)))
+    Some((envelope.sequence, request.payload.clone()))
 }
 
 /// The Carrier connection-acceptance flight: what makes a client leave CONNECTING and send V3.
@@ -153,14 +173,36 @@ pub struct AcceptanceFlight {
 }
 
 impl AcceptanceFlight {
+    /// The flight answering one inbound datagram, from its payload and the peer's inbound counters.
+    ///
+    /// The only constructor the server uses, so that no caller can pin the range: `ack_first` comes
+    /// from [`ack_window_first`], and `ack_last` / `datagrams_seen` are the peer's own counters. The
+    /// envelope sequence is not a parameter because the flight does not own it — [`Self::datagram`]
+    /// takes the echoed one separately.
+    #[must_use]
+    pub fn answering(
+        clock_ms: u32,
+        payload: &[u8],
+        ack_last: u16,
+        datagrams_seen: u32,
+        window: u16,
+    ) -> Self {
+        Self {
+            clock_ms,
+            welcome: connect_welcome(payload),
+            ack_first: ack_window_first(ack_last, datagrams_seen, window),
+            ack_last,
+        }
+    }
+
     /// Build the flight as one datagram.
     ///
     /// `envelope_sequence` MUST be the client's inbound envelope sequence, echoed — not a server
-    /// counter. See the module docs.
+    /// counter (see the module docs).
     ///
     /// # Errors
-    /// [`WireError::OutOfRange`] if a record's payload cannot be expressed in the `u16` size field,
-    /// which needs a welcome above 65,522 bytes.
+    /// [`WireError::OutOfRange`] if a record's payload does not fit the `u16` size field, which needs
+    /// a welcome above 65,522 bytes.
     pub fn datagram(&self, envelope_sequence: u16) -> Result<Vec<u8>, WireError> {
         let mut clock = Vec::with_capacity(5);
         clock.extend_from_slice(&self.clock_ms.to_be_bytes());
@@ -192,7 +234,7 @@ impl AcceptanceFlight {
 /// the channel byte on the wire, and a clear `MF_SEQUENTIAL_ID` / `MF_SEQUENTIAL_REL_ID` puts that
 /// sequence on the wire. Deriving this from the flag byte rather than from a separate argument is
 /// deliberate — the first version wrote the channel unconditionally, and CT_ACKS's `0x18` omits it,
-/// so the reader treated the extra byte as the next record's flag and lost the stream.
+/// so the reader lost the stream.
 fn push_record(
     out: &mut Vec<u8>,
     flag_byte: u8,
@@ -222,8 +264,8 @@ fn push_record(
 /// Inbound chunk reassembly for one message stream.
 ///
 /// The client chunks its own registration (`numChunks 3` measured), so a body only exists once its
-/// last chunk arrives; every chunk carries the **total**, which is what lets a complete message be
-/// recognised without a timer. Out-of-order delivery loses the message rather than corrupting it.
+/// last chunk arrives; every chunk carries the **total**, which recognises a complete message without
+/// a timer. Out-of-order delivery loses the message rather than corrupting it.
 #[derive(Debug, Default)]
 pub struct Reassembly {
     expected: u16,
@@ -288,8 +330,7 @@ mod tests {
         }
     }
 
-    /// The moved reassembler, pinned where it now lives: a body exists only once the last chunk of
-    /// the message has arrived.
+    /// The moved reassembler, pinned where it now lives: a body exists only once the last chunk arrives.
     #[test]
     fn a_chunked_message_exists_only_once_its_last_chunk_arrives() {
         let mut reassembly = Reassembly::default();
@@ -301,8 +342,8 @@ mod tests {
         );
     }
 
-    /// A repeated chunk restarts the message instead of concatenating it twice, which is what makes
-    /// an out-of-order or duplicated delivery lose the message rather than corrupt it.
+    /// A repeated chunk restarts the message instead of doubling it, which loses the message rather
+    /// than corrupting it.
     #[test]
     fn a_repeated_chunk_restarts_instead_of_doubling_the_message() {
         let mut reassembly = Reassembly::default();
@@ -325,10 +366,28 @@ mod tests {
             vec![0xAA, 0xBB, 0xCC, 0xDD]
         );
         // Shorter than the version field plus its id: nothing to echo.
-        assert_eq!(
-            connect_welcome(&[0xAA, SYS_CONNECT_REQUEST]),
-            vec![0x00, 0x00, 0x00, 0x05]
-        );
+        assert_eq!(connect_welcome(&[0xAA, SYS_CONNECT_REQUEST]), vec![0x00, 0x00, 0x00, 0x05]);
+    }
+
+    /// The measured window rule: one datagram acknowledges itself, N acknowledge all N, a low
+    /// `ack_last` borrows through the wrap, a count past the window clamps, and `0` behaves as `1`.
+    #[test]
+    fn the_range_covers_everything_received_and_never_exceeds_the_window() {        for (ack_last, seen, window, expected) in [
+            (7, 1, 16_384, 7),
+            (7, 5, 16_384, 3),
+            (0x1234, 5, 16_384, 0x1230),
+            (2, 5, 16_384, 0xFFFE),
+            (0, 2, 16_384, 0xFFFF),
+            (0x8000, 40_000, 16_384, 0x4001),
+            (100, 40_000, 1, 100),
+            (9, 0, 16_384, 9),
+        ] {
+            assert_eq!(
+                ack_window_first(ack_last, seen, window),
+                expected,
+                "ack_last {ack_last:#06x}, {seen} seen, window {window}"
+            );
+        }
     }
 
     /// An unchunked record is its own body, which is every record that is not a V3 registration.

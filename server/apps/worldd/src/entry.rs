@@ -10,41 +10,40 @@
 //! THE THREE DECISIONS, IN ORDER
 //! ============================
 //! 1. [`WorldEntry::established`] opens a session in [`SessionState::Transport`] and sends nothing.
-//! 2. [`WorldEntry::data`] answers a channel-3 `SM_CONNECT_REQUEST` with the Carrier acceptance flight
-//!    (next section); otherwise it looks for a V3 registration, consumes, binds and validates the
-//!    ticket it names, and either answers with `RegistrationResponseMsg` plus the ladder's first rung
-//!    or rejects the peer. Anything else gets `Nothing`: the prototype's size heuristic
-//!    (`channel == 0 and size > 64`) answered game data as if it were a registration — measured
-//!    2026-10-09, 15 of 17 same-sized records were game data and `OnLocalNetworkConnectionWarning`
-//!    climbed until the transport dropped.
-//! 3. After that, each datagram and each tick advances the ladder by exactly one datagram, and the
-//!    response and the first rung leave as **two datagrams in order** — batching two rungs in one
-//!    burst crashed the client (`azoth_wire::ladder`). [`WorldEntry::tick`] serves one peer per call,
-//!    because [`EntryOutcome`] names one destination.
+//! 2. [`WorldEntry::data`] answers a channel-3 `SM_CONNECT_REQUEST` with the acceptance flight; else it
+//!    looks for a V3 registration, validates the ticket it names, and answers with
+//!    `RegistrationResponseMsg` plus the ladder's first rung or rejects the peer. Anything else gets
+//!    `Nothing`: the prototype's `channel == 0 and size > 64` heuristic answered game data as a
+//!    registration — measured 2026-10-09, 15 of 17 same-sized records were game data and
+//!    `OnLocalNetworkConnectionWarning` climbed until the transport dropped.
+//! 3. Each datagram and each tick then advances the ladder by one datagram, and the response and the
+//!    first rung leave as **two datagrams in order** — batching two rungs crashed the client
+//!    (`azoth_wire::ladder`). [`WorldEntry::tick`] serves one peer per call.
 //!
-//! WHY THE FLIGHT ANSWERS THE REQUEST, NOT THE HANDSHAKE
-//! ====================================================
-//! A flight sent when the DTLS handshake completes can only carry an empty welcome, and the client
-//! validates it: the version echoed is the `u32` the client wrote into its own `SM_CONNECT_REQUEST`
-//! (`rep.py::handle_app_data`: `if requests and not handshake_done`, then `payload[:-1][:4]`). So
-//! the trigger is that request — the client's first application record, on channel 3 — and the reply
-//! echoes the envelope sequence that carried it, which that function passes as `client_env_seq` for
-//! both the reply's envelope and the ACK range.
-//! EVERY REQUEST IS ANSWERED AND NO FLAG RECORDS THAT ONE WAS SENT: `handshake_done` is not
-//! once-only, since its caller flips it only when the requests **stop** — the client's Carrier
-//! resends the request until one of our datagrams is acknowledged (1 s lost-packet timeout), so an
-//! unanswered request is a retransmission that must get an answer.
+//! WHY THE FLIGHT ANSWERS THE REQUEST, AND WHAT IT ACKNOWLEDGES
+//! ===========================================================
+//! A flight sent at the handshake can only carry an empty welcome, and the client validates it: the
+//! version echoed is the `u32` the client wrote into its own `SM_CONNECT_REQUEST`
+//! (`rep.py::handle_app_data`: `if requests and not handshake_done`, then `payload[:-1][:4]`). So the
+//! trigger is that request, on channel 3, and the reply's envelope sequence echoes the one that carried
+//! it. EVERY REQUEST IS ANSWERED AND NO FLAG RECORDS THAT ONE WAS SENT: the client's Carrier resends
+//! until one of our datagrams is acknowledged (1 s lost-packet timeout).
+//! THE ACK RANGE IS A DIFFERENT NUMBER FROM THE ECHO: a degenerate range (`ack_first == ack_last`,
+//! only the datagram carrying the request) is not an acknowledgement the client accepts — MEASURED
+//! 2026-09-18 (`Game.log` 20:15:08→18) it retransmits its 1115-byte channel-0 record for ~10 s, then
+//! reports `@mm_csdkerr_disconnect (4)`. So each peer counts its inbound datagrams and
+//! [`azoth_wire::carrier::ack_window_first`] slides the range over the most recent
+//! `ACK_WINDOW_DEFAULT` of them — never wider, because a range half the 16-bit sequence space is the
+//! 2026-10-14 retransmit storm.
 //!
 //! THE V3 BODY NEEDS NO FRAMING STRIPPED, AND THE OUTBOUND ONE DOES
 //! ==============================================================
 //! Measured on a live 1.460 session (`.azoth/logs/world.log.gz`, 2026-10-22): the registration arrives
 //! as channel-0 records with `MF_CHUNKS` (`numChunks 3`, 1115-byte chunks), and the reassembled payload
-//! starts with the retry form's 32-byte prelude — tagged record type `4` with value `6033` sits at
-//! offset 32, exactly where `azoth_wire::v3::parse` reads it. So the request body carries **no** VLQ
-//! prefix and **no** typed marker; the prefix belongs to the reply only
-//! (`RegistrationResponse::encode_record`), without which the client dies with
-//! `registration_unmarshal_error` (measured 2026-09-20). The client's self-validating container and a
-//! VLQ-prefixed body are accepted too, because the strict first-attempt form is not in that log.
+//! starts with the retry form's 32-byte prelude — tagged record type `4` with value `6033` at offset
+//! 32, exactly where `azoth_wire::v3::parse` reads it. So the request body carries **no** VLQ prefix
+//! and **no** typed marker; the prefix belongs to the reply only, without which the client dies with
+//! `registration_unmarshal_error` (measured 2026-09-20). The container and VLQ forms are accepted too.
 //! WHAT THIS PHASE DOES NOT DO: no inbound acknowledgement is parsed, so nothing is ever marked
 //! delivered — the resend table retransmits each rung up to `max_resend_tries` and then drops it.
 
@@ -96,13 +95,10 @@ impl EntryOutcome {
     #[must_use]
     pub fn split(self) -> (Vec<Outbound>, Option<(SocketAddr, &'static str)>) {
         match self {
-            Self::Send { peer, datagrams } => (
-                datagrams
-                    .into_iter()
-                    .map(|datagram| Outbound { peer, datagram })
-                    .collect(),
-                None,
-            ),
+            Self::Send { peer, datagrams } => {
+                let out = datagrams.into_iter().map(|datagram| Outbound { peer, datagram });
+                (out.collect(), None)
+            }
             Self::Nothing => (Vec::new(), None),
             Self::Reject { peer, reason } => (Vec::new(), Some((peer, reason))),
         }
@@ -117,12 +113,22 @@ struct Peer {
     /// session says *which* sequences are due and keeps no bytes of its own.
     outbox: HashMap<u16, Vec<u8>>,
     inbound: Reassembly,
+    /// Inbound datagrams counted and the last envelope sequence seen: the ACK range's width and end.
+    inbound_datagrams: u32,
+    last_inbound_seq: u16,
 }
 
 impl Peer {
-    /// A peer with an open session and nothing queued.
+    /// A peer with an open session, nothing queued, and no datagram counted yet.
     fn new(session: Session) -> Self {
-        Self { session, ladder: None, outbox: HashMap::new(), inbound: Reassembly::default() }
+        Self {
+            session,
+            ladder: None,
+            outbox: HashMap::new(),
+            inbound: Reassembly::default(),
+            inbound_datagrams: 0,
+            last_inbound_seq: 0,
+        }
     }
 }
 
@@ -155,10 +161,9 @@ impl WorldEntry {
 
     /// A peer's DTLS handshake completed: open a session and send nothing.
     ///
-    /// A fresh handshake from an address we already hold replaces what was there: the transport
-    /// sends `Dropped` first, and the client reuses its source port across attempts. The acceptance
-    /// flight is not sent here — it needs the client's version, which only arrives in its
-    /// `SM_CONNECT_REQUEST`, so the answer belongs to [`WorldEntry::data`].
+    /// A fresh handshake from an address we already hold replaces what was there: the transport sends
+    /// `Dropped` first, and the client reuses its source port across attempts. The acceptance flight is
+    /// not sent here — it needs the client's version, which only arrives in its `SM_CONNECT_REQUEST`.
     pub fn established(&mut self, peer: SocketAddr) -> EntryOutcome {
         let now = Instant::now();
         if !self.peers.contains_key(&peer) {
@@ -174,12 +179,16 @@ impl WorldEntry {
             // The transport announces a peer before it can deliver its data, so this is stale.
             return EntryOutcome::Nothing;
         }
-        if let Some((sequence, welcome)) = connect_request(bytes) {
-            return acceptance_flight(peer, welcome, sequence);
-        }
         let now = Instant::now();
+        // Every inbound datagram counts, the one carrying the request included: only a Carrier
+        // envelope has a sequence to name.
+        if let Ok((inbound, _)) = envelope::parse(bytes) {
+            self.observe(peer, inbound.sequence, now);
+        }
+        if let Some((sequence, payload)) = connect_request(bytes) {
+            return self.answer_request(peer, sequence, &payload);
+        }
         if self.peers[&peer].ladder.is_some() {
-            self.touch(peer, bytes, now);
             return self.serve(peer, now);
         }
         match self.registration(peer, bytes) {
@@ -217,7 +226,7 @@ impl WorldEntry {
     }
 
     /// Reload the ticket file, logging what arrived. Consumed ids stay consumed, and the tick calls
-    /// this every tick: the store stats the file and only reads it when it changed.
+    /// this every tick: the store stats the file and reads it only when it changed.
     pub fn refresh_tickets(&mut self, path: &Path) {
         match self.tickets.refresh(path) {
             Ok(0) => {}
@@ -234,19 +243,18 @@ impl WorldEntry {
 
     /// The V3 request inside a datagram, if it carries one.
     fn registration(&mut self, peer: SocketAddr, bytes: &[u8]) -> Option<RegistrationRequest> {
-        // WHY THIS TRACES: a registration that fails to parse produces no reply and no error, which
-        // is indistinguishable from "the client sent nothing". Every early return below says which
-        // step failed, so a stuck login names its cause instead of looking like silence.
+        // WHY THIS TRACES: a registration that fails to parse produces no reply and no error, which is
+        // indistinguishable from "the client sent nothing". Every early return names the failed step.
         let Ok((_, body)) = envelope::parse(bytes) else {
-            self.note(peer, "not a Carrier envelope");
+            crate::diagnostics::note(peer, "not a Carrier envelope");
             return None;
         };
         let Ok(parsed) = record::parse(body) else {
-            self.note(peer, "Carrier body did not parse as records");
+            crate::diagnostics::note(peer, "Carrier body did not parse as records");
             return None;
         };
         if parsed.records.is_empty() {
-            self.note(peer, "a Carrier envelope with no records");
+            crate::diagnostics::note(peer, "a Carrier envelope with no records");
             return None;
         }
         let state = self.peers.get_mut(&peer)?;
@@ -261,12 +269,6 @@ impl WorldEntry {
             }
         }
         None
-    }
-
-    /// Record why a registration attempt produced nothing: stderr only when `--diagnostics` installed
-    /// a sink, so a normal run is silent.
-    fn note(&self, peer: SocketAddr, reason: &str) {
-        crate::diagnostics::note(peer, reason);
     }
 
     /// Bind the ticket the request names, validate it, and start the ladder.
@@ -295,9 +297,7 @@ impl WorldEntry {
         let (Ok(response), Ok(Some(first))) = encoded else {
             return self.reject(peer, "the world could not encode the ladder");
         };
-        let Some(state) = self.peers.get_mut(&peer) else {
-            return EntryOutcome::Nothing;
-        };
+        let Some(state) = self.peers.get_mut(&peer) else { return EntryOutcome::Nothing };
         let mut datagrams = Vec::with_capacity(2);
         for out in [response, first] {
             let (sequence, datagram) = (out.reliable_sequence, out.datagram);
@@ -319,15 +319,34 @@ impl WorldEntry {
         EntryOutcome::Reject { peer, reason }
     }
 
-    /// Acknowledge an inbound datagram's envelope sequence, if it has one.
-    fn touch(&mut self, peer: SocketAddr, bytes: &[u8], now: Instant) {
-        let Ok((envelope, _)) = envelope::parse(bytes) else {
-            return;
-        };
+    /// Record one inbound datagram: the ACK range's counters, plus the session's own acknowledgement
+    /// once the peer is past `Transport` — before that the session refuses the sequence.
+    fn observe(&mut self, peer: SocketAddr, sequence: u16, now: Instant) {
         if let Some(state) = self.peers.get_mut(&peer) {
+            state.inbound_datagrams = state.inbound_datagrams.saturating_add(1);
+            state.last_inbound_seq = sequence;
             // A refused sequence belongs to a session that just closed, which the drop covers.
-            let _ = state.session.on_datagram(envelope.sequence, now);
+            let _ = state.session.on_datagram(sequence, now);
         }
+    }
+
+    /// Answer the client's `SM_CONNECT_REQUEST` with the Carrier acceptance flight.
+    ///
+    /// The envelope sequence ECHOES the inbound one and is not a server counter: without the echo the
+    /// client retransmits as if our reply never arrived (first-light "Mixed Nuts", 2026-05-04). The ACK
+    /// range is a *different* number — every datagram received, slid to `ACK_WINDOW_DEFAULT` — because
+    /// a range of one is not an acknowledgement the client accepts (module docs, 2026-09-18).
+    fn answer_request(&mut self, peer: SocketAddr, sequence: u16, payload: &[u8]) -> EntryOutcome {
+        let Some(state) = self.peers.get(&peer) else { return EntryOutcome::Nothing };
+        let (last, seen) = (state.last_inbound_seq, state.inbound_datagrams);
+        let window = azoth_session::ACK_WINDOW_DEFAULT;
+        let flight = AcceptanceFlight::answering(server_clock_ms(), payload, last, seen, window);
+        crate::diagnostics::note_connect_request(peer, payload, &flight, seen, sequence);
+        let Ok(datagram) = flight.datagram(sequence) else {
+            // Unreachable: three fixed channel-3 records, far below the u16 size field.
+            return EntryOutcome::Nothing;
+        };
+        EntryOutcome::Send { peer, datagrams: vec![datagram] }
     }
 
     /// Advance one peer's session and hand out its retransmissions plus one rung.
@@ -337,12 +356,10 @@ impl WorldEntry {
         if let Some(state) = self.peers.get_mut(&peer) {
             for event in state.session.advance(now) {
                 match event {
-                    SessionEvent::Retransmit(sequences) => datagrams.extend(
-                        sequences
-                            .iter()
-                            .filter_map(|sequence| state.outbox.get(sequence))
-                            .cloned(),
-                    ),
+                    SessionEvent::Retransmit(sequences) => {
+                        let due = sequences.iter().filter_map(|seq| state.outbox.get(seq));
+                        datagrams.extend(due.cloned());
+                    }
                     SessionEvent::Close(_) => closed = true,
                     _ => {}
                 }
@@ -370,25 +387,6 @@ fn next_rung(state: &mut Peer, now: Instant) -> Option<Vec<u8>> {
         state.outbox.insert(sequence, datagram.clone());
     }
     Some(datagram)
-}
-
-/// The Carrier acceptance flight, answering the request that carried `welcome` at `sequence`.
-///
-/// The envelope sequence ECHOES the inbound one and is not a server counter: without the echo the
-/// client retransmits as if our reply never arrived (first-light "Mixed Nuts", 2026-05-04), which is
-/// why the ACK range names that same sequence.
-fn acceptance_flight(peer: SocketAddr, welcome: Vec<u8>, sequence: u16) -> EntryOutcome {
-    let flight = AcceptanceFlight {
-        clock_ms: server_clock_ms(),
-        welcome,
-        ack_first: sequence,
-        ack_last: sequence,
-    };
-    let Ok(datagram) = flight.datagram(sequence) else {
-        // Unreachable: three fixed channel-3 records, far below the u16 size field.
-        return EntryOutcome::Nothing;
-    };
-    EntryOutcome::Send { peer, datagrams: vec![datagram] }
 }
 
 /// The server clock in milliseconds, truncated to the 32 bits `CLOCK_SYNC` carries.

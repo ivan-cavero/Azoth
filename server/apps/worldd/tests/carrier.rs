@@ -26,6 +26,7 @@ mod ladder;
 mod tickets;
 
 use std::net::SocketAddr;
+use std::sync::Mutex;
 
 use azoth_wire::carrier::{SYS_CONNECT_ACK, SYS_CONNECT_REQUEST, SYS_CT_ACKS};
 use azoth_wire::record::MessageRecord;
@@ -36,6 +37,28 @@ use crate::tickets::TicketStore;
 
 /// The ids of the flight, in order: CLOCK_SYNC, CONNECT_ACK, CT_ACKS.
 const FLIGHT_IDS: [u8; 3] = [4, 2, 6];
+
+/// The diagnostics notes this test binary captured. A note sink is a `fn` pointer, so it cannot
+/// capture: the sink writes into this buffer and a test filters it by peer address.
+static NOTES: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// The sink `worldd` installs under `--diagnostics`: keep the line instead of printing it.
+fn capture_note(peer: SocketAddr, line: &str) {
+    if let Ok(mut notes) = NOTES.lock() {
+        notes.push(format!("peer={peer} {line}"));
+    }
+}
+
+/// The note lines captured for `peer`, draining them so a later test cannot read them again.
+fn notes_for(peer: SocketAddr) -> Vec<String> {
+    let prefix = format!("peer={peer} ");
+    let Ok(mut notes) = NOTES.lock() else {
+        return Vec::new();
+    };
+    let mine: Vec<String> = notes.iter().filter(|line| line.starts_with(&prefix)).cloned().collect();
+    notes.retain(|line| !line.starts_with(&prefix));
+    mine
+}
 
 fn addr(port: u16) -> SocketAddr {
     format!("127.0.0.1:{port}").parse().expect("addr")
@@ -83,6 +106,12 @@ fn connect_request(envelope_sequence: u16, version: &[u8]) -> Vec<u8> {
     let mut payload = version.to_vec();
     payload.push(SYS_CONNECT_REQUEST);
     system_datagram(envelope_sequence, &payload)
+}
+
+/// Any other inbound datagram: the client's own CT_ACKS. `data` answers it with silence, but the ACK
+/// range must still count it — that is the whole point of the window.
+fn other_datagram(envelope_sequence: u16) -> Vec<u8> {
+    system_datagram(envelope_sequence, &[0x40, 0x00, 0x05, 0x00, 0x05, SYS_CT_ACKS])
 }
 
 /// Assert that a datagram is the flight, and return its records.
@@ -228,4 +257,97 @@ fn another_channel_three_system_message_is_not_a_request() {
 
     let ct_acks = system_datagram(5, &[0x40, 0x00, 0x05, 0x00, 0x05, SYS_CT_ACKS]);
     assert_eq!(entry.data(peer, &ct_acks), EntryOutcome::Nothing);
+}
+
+/// 7. The flight acknowledges every datagram the peer sent, not only the one carrying the request.
+///    A degenerate range is the measured defect: the client re-sent its request five times and never
+///    sent V3, because a range of one is not an acknowledgement it accepts (2026-09-18).
+#[test]
+fn the_flight_acknowledges_every_datagram_the_peer_sent() {
+    let mut entry = entry();
+    let peer = addr(5007);
+    entry.established(peer);
+    for sequence in 10..14 {
+        assert_eq!(entry.data(peer, &other_datagram(sequence)), EntryOutcome::Nothing);
+    }
+
+    let (_, datagrams) = sent(entry.data(peer, &connect_request(14, &[0xAA, 0xBB, 0xCC, 0xDD])));
+    let (first, last) = ack_range_of(&datagrams[0]);
+    assert_eq!(last, 14, "the range ends at the sequence that carried the request");
+    assert_eq!(first, last - 4, "five datagrams received, five acknowledged");
+}
+
+/// 8. A peer that has sent exactly one datagram gets a range of one — the window is the count while
+///    the session is younger than it, so the first request is not answered with an empty range.
+#[test]
+fn a_single_datagram_produces_a_degenerate_range() {
+    let mut entry = entry();
+    let peer = addr(5008);
+    entry.established(peer);
+
+    let (_, datagrams) = sent(entry.data(peer, &connect_request(21, &[0xAA, 0xBB, 0xCC, 0xDD])));
+    assert_eq!(ack_range_of(&datagrams[0]), (21, 21));
+}
+
+/// 9. The echo rule is unchanged by the window: the reply's envelope sequence is still the request's
+///    own sequence, while the ACK range is the wider one.
+#[test]
+fn the_reply_still_echoes_the_requests_sequence_with_a_wider_range() {
+    let mut entry = entry();
+    let peer = addr(5009);
+    entry.established(peer);
+    for sequence in [0x1231, 0x1232, 0x1233] {
+        assert_eq!(entry.data(peer, &other_datagram(sequence)), EntryOutcome::Nothing);
+    }
+
+    let (_, datagrams) =
+        sent(entry.data(peer, &connect_request(0x1234, &[0xAA, 0xBB, 0xCC, 0xDD])));
+    let (head, _) = envelope::parse(&datagrams[0]).expect("envelope");
+    assert_eq!(head.sequence, 0x1234, "the reply echoes the inbound sequence");
+    assert_eq!(
+        ack_range_of(&datagrams[0]),
+        (0x1231, 0x1234),
+        "four datagrams received, four acknowledged"
+    );
+}
+
+/// 10. The welcome is still the request payload minus its trailing sys-id byte, truncated to the
+///     version field — the window changed what the flight acknowledges, not what it echoes.
+#[test]
+fn the_welcome_is_still_the_payload_without_its_sys_id() {
+    let mut entry = entry();
+    let peer = addr(5010);
+    entry.established(peer);
+    assert_eq!(entry.data(peer, &other_datagram(30)), EntryOutcome::Nothing);
+
+    let request = connect_request(31, &[0xAA, 0xBB, 0xCC, 0xDD, 0xEE]);
+    let (_, datagrams) = sent(entry.data(peer, &request));
+    assert_eq!(
+        welcome_of(&datagrams[0]),
+        vec![0xAA, 0xBB, 0xCC, 0xDD],
+        "the payload minus its sys id, truncated to four bytes"
+    );
+}
+
+/// 11. With diagnostics on, one greppable line reports the whole `SM_CONNECT_REQUEST` payload, the
+///     welcome derived from it, the ACK range claimed, the datagram count and the echoed sequence.
+///     This is the measurement that decides the next step when a client will not leave CONNECTING.
+#[test]
+fn the_connect_request_payload_is_reported_with_the_range_and_the_echo() {
+    diagnostics::install_note_sink(capture_note);
+    let mut entry = entry();
+    let peer = addr(5011);
+    entry.established(peer);
+    assert_eq!(entry.data(peer, &other_datagram(40)), EntryOutcome::Nothing);
+
+    let _ = sent(entry.data(peer, &connect_request(41, &[0xAA, 0xBB, 0xCC, 0xDD])));
+    let notes = notes_for(peer);
+    assert_eq!(notes.len(), 1, "one line per request, not per record: {notes:?}");
+    assert_eq!(
+        notes[0],
+        format!(
+            "peer={peer} connect_request payload=aabbccdd01 welcome=aabbccdd ack_first=40 \
+             ack_last=41 datagrams_seen=2 echo_seq=41"
+        )
+    );
 }
