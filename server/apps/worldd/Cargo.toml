@@ -1,0 +1,16 @@
+[package]
+name = "worldd"
+description = "The world server: one UDP socket, a 50 Hz tick, and the ladder that puts a player in the game."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+azoth-dtls = { path = "../../crates/azoth-dtls" }
+azoth-session = { path = "../../crates/azoth-session" }
+azoth-wire = { path = "../../crates/azoth-wire" }

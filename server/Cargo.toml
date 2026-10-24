@@ -9,6 +9,7 @@ members = [
     "crates/azoth-store",
     "apps/channeld",
     "apps/regiond",
+    "apps/worldd",
     "xtask",
 ]
 

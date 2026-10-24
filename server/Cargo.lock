@@ -764,6 +764,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "worldd"
+version = "0.1.0"
+dependencies = [
+ "azoth-dtls",
+ "azoth-session",
+ "azoth-wire",
+]
+
+[[package]]
 name = "xtask"
 version = "0.1.0"
 
