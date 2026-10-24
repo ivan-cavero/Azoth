@@ -21,6 +21,7 @@
   python az.py re campaign ...    # incremental phase-scoped decompilation
   python az.py probe <name>       # run a client reverse-engineering probe
   python az.py run list|<stem> …  # helpers under scripts/<kind>/ (catalog.json)
+  python az.py cargo <args…>      # cargo with coherent OpenSSL/MinGW env (Windows)
 
 Runtime files, PIDs and logs live under .azoth/ (gitignored). See
 docs/runbooks/contributor-loop.md and scripts/README.md.
@@ -111,6 +112,21 @@ def app_python() -> str:
     return str(candidate) if candidate.is_file() else sys.executable
 
 
+def _apply_rust_openssl_env(env: dict[str, str]) -> None:
+    """One MinGW tree for GNU rustc (MSYS OpenSSL + gcc); see ADR 0004."""
+    helper = SCRIPTS / "toolchain" / "rust_openssl_env.py"
+    if not helper.is_file():
+        return
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("azoth_rust_openssl_env", helper)
+    if spec is None or spec.loader is None:
+        return
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.apply(env)
+
+
 def local_env(overrides: dict[str, str] | None = None) -> dict[str, str]:
     """Keep subprocess scratch data with the checkout instead of user temp."""
     TMP.mkdir(parents=True, exist_ok=True)
@@ -118,9 +134,26 @@ def local_env(overrides: dict[str, str] | None = None) -> dict[str, str]:
     env["TEMP"] = str(TMP)
     env["TMP"] = str(TMP)
     env["PIP_CACHE_DIR"] = str(ROOT / ".azoth" / "cache" / "pip")
+    _apply_rust_openssl_env(env)
     if overrides:
         env.update(overrides)
     return env
+
+
+def _cargo(args: list[str]) -> int:
+    """Run cargo under local_env so Windows GNU+OpenSSL does not mix MinGW trees."""
+    if not args:
+        print("usage: python az.py cargo <cargo-args…>")
+        print("example: python az.py cargo test -p azoth-dtls")
+        return 2
+    cargo = shutil.which("cargo")
+    if not cargo:
+        print("cargo not found (rustup)")
+        return 1
+    env = local_env()
+    server = ROOT / "server"
+    cwd = server if server.is_dir() else ROOT
+    return subprocess.call([cargo, *args], cwd=cwd, env=env)
 
 
 def _appdata_migration_plan() -> list[tuple[Path, Path]]:
@@ -788,6 +821,8 @@ def main() -> int:
         return _run_probe(rest)
     if head == "re":
         return _reverse_tool(rest)
+    if head == "cargo":
+        return _cargo(rest)
     if head in {"click", "post", "shot", "key"}:
         stem = {"click": "click-window", "post": "post-input", "shot": "shot", "key": "send-input"}[head]
         script = resolve_script(stem)

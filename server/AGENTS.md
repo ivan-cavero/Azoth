@@ -31,10 +31,13 @@ Rust authoritative runtime. Root [`AGENTS.md`](../AGENTS.md) still applies.
 
 Pick **one** toolchain and stick to it for the machine:
 
-- **MSVC + vcpkg** (preferred for MSVC `rustc`): install `openssl:x64-windows`,
-  set `VCPKG_ROOT`, let `openssl-sys` find it; or set `OPENSSL_DIR`.
-- **MSYS2 MinGW**: only if `rustc` itself is the GNU/MinGW target — do **not**
-  mix MinGW `libssl` into an MSVC-built `worldd` (link errors / exit 101).
+- **Preferred here:** `rustup default stable-x86_64-pc-windows-gnu` + MSYS2
+  `C:\msys64\mingw64` OpenSSL. Always:
+  `python az.py cargo test -p azoth-dtls` (strips WinLibs from PATH; sets
+  `OPENSSL_DIR` + GNU linker). Bare `cargo` often fails by mixing WinLibs gcc
+  with MSYS crt/libs — that is not “OpenSSL broken.”
+- **MSVC + vcpkg:** needs `link.exe` (VS Build Tools) + `openssl:x64-windows`.
+  Do **not** point `OPENSSL_DIR` at MinGW.
 
 Avoid `openssl/vendored` for daily `cargo test` on Windows (very slow). Docker
 release images may static-link once. Measure PPS before chasing OpenSSL

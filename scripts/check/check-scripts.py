@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts"
-SKIP_NAMES = {"_reorg_layout.py", "_fix_roots.py"}
+SKIP_NAMES = {"_reorg_layout.py", "_fix_roots.py", "rust_openssl_env.py"}
 
 
 def main() -> int:

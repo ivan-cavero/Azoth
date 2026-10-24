@@ -35,19 +35,20 @@ changes. Content hot-reload is a later milestone.
 ## 2. Tests that matter
 
 ```text
-cd server
-cargo test -p azoth-wire -p azoth-session -p azoth-model -p azoth-commands -p azoth-privacy
-# Prefer scenario names: expired_ticket_after_auth_does_not_kick
+python az.py cargo test -p azoth-wire -p azoth-session -p azoth-model
+python az.py cargo test -p azoth-dtls          # needs coherent OpenSSL
 python az.py doctor
 python az.py test e2e entry
 ```
 
+Prefer `python az.py cargo …` on Windows over bare `cargo`: it forces **one**
+MinGW tree (MSYS2 OpenSSL + gcc) so WinLibs-on-PATH cannot break the link.
 Do not add tests that only assert a getter. See ADR 0007.
 
-**OpenSSL (Windows):** `rustc -vV` host must match OpenSSL. MSVC rustc →
-`vcpkg install openssl:x64-windows` + `VCPKG_ROOT` (clear `OPENSSL_DIR` if it
-points at MinGW). GNU rustc → MinGW OpenSSL only. Mixing → `worldd` link fails
-(ADR 0004). Domain crates without `azoth-dtls` still test without OpenSSL.
+**OpenSSL (Windows):** OpenSSL can be installed and still fail if **two** MinGW
+distros mix (WinLibs gcc + MSYS libs). Prefer:
+`rustup default stable-x86_64-pc-windows-gnu` + MSYS2 `mingw64` OpenSSL, via
+`az.py cargo`. MSVC path needs `link.exe` (VS Build Tools) + vcpkg — ADR 0004.
 
 ## 3. Reverse engineering (optional)
 

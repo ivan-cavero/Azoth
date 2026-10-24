@@ -13,7 +13,7 @@ Daily loop: **`az.py dev`** (ADR 0009). Branch: `refactor/knowledge-os` (push OK
 | Docs / ADRs / agents / scripts / RE tools | **Ready** |
 | Ontology seeds (HTTPS, ladder, presence ids) | **Ready** |
 | Authoritative play path (`worldd` on wire) | **Not ready** — still capture spawn + Python play loop |
-| Windows `worldd` link | **Needs one stack:** MSVC+`link.exe`+vcpkg **or** GNU+MinGW OpenSSL |
+| Windows `worldd` link | **OK via `python az.py cargo`** (GNU+MSYS); bare cargo may mix WinLibs |
 
 Reorg ≠ playable. Agents can name/boot-campaign; gameplay still needs presence meanings + compose on wire + OpenSSL MSVC.
 

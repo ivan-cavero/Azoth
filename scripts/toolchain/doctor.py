@@ -98,24 +98,52 @@ def check_rust() -> bool:
 def check_openssl() -> bool:
     """Enough signal to build azoth-dtls; not a full compile."""
     if sys.platform == "win32":
-        vcpkg = os.environ.get("VCPKG_ROOT") or os.environ.get("VCPKG_INSTALLATION_ROOT")
-        openssl_dir = os.environ.get("OPENSSL_DIR") or os.environ.get("OPENSSL_LIB_DIR")
-        rustc_host = ""
-        code, out = _run(["rustc", "-vV"])
-        if code == 0:
-            for line in out.splitlines():
-                if line.startswith("host:"):
-                    rustc_host = line.split(":", 1)[1].strip()
-        msvc_rustc = "msvc" in rustc_host
-        if openssl_dir and Path(openssl_dir).exists():
-            mingwish = "mingw" in openssl_dir.replace("\\", "/").casefold()
-            if mingwish and msvc_rustc:
+        # Apply the same PATH/OPENSSL_DIR fixes az.py uses for cargo.
+        env = os.environ.copy()
+        try:
+            import rust_openssl_env as roe  # type: ignore
+        except ImportError:
+            import importlib.util
+
+            helper = Path(__file__).resolve().parent / "rust_openssl_env.py"
+            spec = importlib.util.spec_from_file_location("rust_openssl_env", helper)
+            assert spec and spec.loader
+            roe = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(roe)
+        notes = roe.apply(env)
+        for note in notes:
+            if "without link.exe" in note or "must not use MinGW" in note:
+                _bad("Rust / OpenSSL stack", note)
+                return False
+            if "no MSYS2" in note:
+                _bad("Rust / OpenSSL stack", note)
+                return False
+            _ok("Rust / OpenSSL stack", note)
+
+        rustc_host = roe.rustc_host()
+        if "gnu" in rustc_host:
+            gcc = roe.which_gcc(env)
+            if not gcc:
+                _bad("gcc for GNU rustc", "MSYS2 mingw64 gcc on PATH")
+                return False
+            if "brechtsanders" in gcc.casefold() or "winlibs" in gcc.casefold():
                 _bad(
-                    "OpenSSL / rustc mismatch",
-                    f"OPENSSL_* points at MinGW ({openssl_dir}) but rustc is {rustc_host}. "
-                    "Use vcpkg openssl for MSVC, or a GNU rustc toolchain — never mix.",
+                    "mixed MinGW",
+                    f"gcc resolves to WinLibs ({gcc}); MSYS2 must win. "
+                    "Use `python az.py cargo …` or put C:\\msys64\\mingw64\\bin first.",
                 )
                 return False
+            _ok("gcc", gcc)
+            openssl_dir = env.get("OPENSSL_DIR", "")
+            if openssl_dir and (Path(openssl_dir) / "include" / "openssl" / "ssl.h").is_file():
+                _ok("OpenSSL (MSYS)", openssl_dir)
+                return True
+            _bad("OpenSSL headers", "expected include/openssl/ssl.h under OPENSSL_DIR")
+            return False
+
+        vcpkg = env.get("VCPKG_ROOT") or env.get("VCPKG_INSTALLATION_ROOT")
+        openssl_dir = env.get("OPENSSL_DIR") or env.get("OPENSSL_LIB_DIR")
+        if openssl_dir and Path(openssl_dir).exists():
             _ok("OpenSSL hint", f"OPENSSL_* → {openssl_dir}")
             return True
         if vcpkg and Path(vcpkg).is_dir():
@@ -125,21 +153,9 @@ def check_openssl() -> bool:
                 "ensure `vcpkg install openssl:x64-windows` (MSVC rustc) — see ADR 0004",
             )
             return True
-        if shutil.which("pkg-config"):
-            code, out = _run(["pkg-config", "--modversion", "openssl"])
-            if code == 0:
-                if msvc_rustc:
-                    _warn(
-                        "OpenSSL via pkg-config",
-                        "MSVC rustc often needs vcpkg, not MinGW pkg-config",
-                    )
-                else:
-                    _ok("OpenSSL (pkg-config)", out)
-                    return True
         _bad(
             "OpenSSL for Windows Rust link",
-            "MSVC: install vcpkg openssl and set VCPKG_ROOT; "
-            "do not mix MinGW libssl with MSVC rustc. Docs: docs/adr/0004-dtls-crypto-stack.md",
+            "MSVC: vcpkg openssl + VCPKG_ROOT; GNU: MSYS2 mingw64. ADR 0004.",
         )
         return False
 
