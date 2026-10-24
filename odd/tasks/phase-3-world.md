@@ -142,3 +142,84 @@ So the loop is: we answer, the client does not accept the answer, it retries, we
 **The next measurement is narrow:** log the exact `CONNECT_REQUEST` payload we receive (we currently classify only its content type), and compare it against the prototype's `welcome` derivation on the same bytes. That single line tells us whether we are echoing the version the client wrote.
 
 **What is NOT the problem, and is now proven:** the DTLS handshake, the one-socket demux, the peer lifecycle, and the fact that the client reaches us at all. Four separate defects were found and fixed to get here, each invisible before the diagnostics existed.
+
+### L7 — HANDOFF: where Phase 3 stands, and the exact next measurement
+
+Stopped by the owner after nine client runs. Everything below is committed and pushed.
+
+**What is proven working, with the evidence:**
+
+| Piece | Evidence |
+| --- | --- |
+| `channeld` serves every Phase 1 route | byte-identical to the Python gateway; client renders the title screen |
+| `regiond` login end to end | `OnCampfireLoginComplete`, character select renders |
+| `regiond` publishes tickets | test asserts the published ticket matches the client's, by `TicketId` and `CharacterId` |
+| `worldd` DTLS transport | a real client completes the handshake: ClientHello → HVR → cookie → ServerHello → Certificate → Finished → `established` |
+| One socket, many peers | two peers tracked independently, asserted |
+| `worldd` sees inbound datagrams | `--diagnostics` shows source, length, DTLS classification, first 16 bytes |
+| `worldd` reloads tickets minted after start | `1 ticket(s) now known` on the live binary |
+| Tick-driven egress | 750 keepalives over one session, one per peer per tick |
+| The keepalive's shape | 55 bytes, the same size the official server sends (88 occurrences in one session) |
+
+**What is NOT working, and it is one thing:**
+
+The client ends at **`@mm_csdkerr_connection_failed` (code 5)** and never sends its V3
+registration.
+
+**What the client's own error table tells us** (`FUN_14027a760`, decoded from the corpus):
+
+```
+5  @mm_csdkerr_connection_failed            <- ours
+6  @mm_csdkerr_transport_version_mismatch
+7  @mm_csdkerr_transport_security_error
+8  @mm_csdkerr_registration_failed
+9  @mm_csdkerr_registration_failed_retry
+10 @mm_csdkerr_registration_unmarshal_error
+```
+
+The client **separates transport errors from registration errors**. We get 5, so the failure is
+**before** registration: the client never reaches the point of sending V3. It is not rejecting our
+registration; it never offers one.
+
+**The measurements that were taken and what each ruled out:**
+
+| Measurement | Result | What it ruled out |
+| --- | --- | --- |
+| Official-server packet gaps (pcap, DTLS payload only) | c→s 20.5 pkt/s @ p50 48.1 ms; s→c 61.8 pkt/s @ p50 16.1 ms | that the server is event-driven; it is an output clock |
+| Prototype sys-id census (465 MB, 1,338,802 lines) | sys 6: 313,578 · sys 7: 159 · sys 3: 8 · **sys 4: 0 · sys 2: 0** | that the acceptance flight is real: it is dead code |
+| Official-server datagram sizes after the handshake | 61, **55**, 152, 76, 190, **55**, 219, 177, … then large | that our 55-byte keepalive is the wrong shape — it matches |
+| Our keepalive count | 750 in one session | that the ACK is not flowing — it is |
+| Client error code | 5, transport | that we are failing at registration |
+| Corpus search for the system-message dispatcher | **not found**; the ClientSDK builds its keys from immediates and the corpus has almost no resolved strings | that static analysis can answer this |
+
+**Five defects were found and fixed to get this far, each invisible before instrumentation:**
+
+1. `worldd` loaded its ticket file once and nothing reloaded it.
+2. `worldd` had no inbound logging at all — a successful handshake and "nothing arrived" logged identically.
+3. The acceptance flight was missing entirely.
+4. It was sent at `Established` with an empty `welcome`, where the version is genuinely unknown.
+5. The CT_ACKS range was degenerate `(seq, seq)` instead of a window over everything received.
+
+**The open question, stated as a measurement:**
+
+> **What does the client require before it will send its V3 registration?**
+
+Three hypotheses remain, and none is proven:
+
+| # | Hypothesis | The measurement that settles it |
+| --- | --- | --- |
+| H1 | The `server_version` string in the RegistrationResponse must be the client's own build. We send 1.400's; the client is 1.460. The corpus proves a `transport_version_mismatch` error exists, so *something* compares versions. | Change `DEFAULT_SERVER_VERSION` to `[RETAIL].Javelin.1.460.6033.6024067`, run one client session, and read whether the error code changes from 5. **Attempted once; the client did not launch, so it is neither proven nor refuted.** |
+| H2 | The keepalive is 55 bytes but the official server's *first* datagram is 61 bytes, then 55, then 152 — a sequence we do not reproduce. | Compare the official's first six server datagrams against ours byte-for-byte where they are not encrypted, and reproduce the *sequence*, not just the sizes. |
+| H3 | The client needs a `CONNECT_ACK` (sys 2) that the census missed — the census read the *prototype's* log, where the branch may simply never have run, and the official capture cannot show it because it is encrypted. | Enable the client's own transport logging (there are cvars for it in the binary) and read what it says it is waiting for. This converts guessing into reading. |
+
+**Recommended next step: H3.** The other two are guesses about what to send; H3 reads what the
+client expects. It is also the only one that scales — if the carrier handshake needs three more
+iterations, reading beats guessing each time.
+
+**Do not re-run H1 blind.** The attempt was made, the client did not start, and the constant was
+reverted to the committed value rather than left changed on a hypothesis.
+
+**What this phase needs before it can close:** the client reaches `InGame` with 26 `Slice:` lines and
+the player possessed, against the Rust world, with no replay pump. Everything below that — the ladder,
+the spawn, the state stream — is implemented and unit-tested, and has never been exercised end to end
+because the handshake does not complete.
