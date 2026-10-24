@@ -44,8 +44,18 @@ Lee los PIDs de `.azoth/state/` y comprueba con `tasklist` si cada servicio
 re-fetches that JSON every 60 seconds, so no rebuild is needed for data-only
 updates.
 
-- Keep planning and current status in root `STATUS.md`, `HANDOFF.md`, and
-  `docs/ROADMAP.md`. This JSON is the public display copy.
+The long-term public site, **roadmap v2** (replace replay-era groups with eras
+E0–E5), work-graph vs public display, agentic stack (Pi/Gentle/Orca/T3), and
+open-GitHub automation are specified in
+[`docs/PLAN-master-platform.md`](../docs/PLAN-master-platform.md) §14 / §14A /
+§14B. Agent monitoring dashboards are ops-private, never mixed into this
+landing’s public JSON. Until v2 ships, `roadmap-full.ts` remains the served
+v1 source. Draft eras live in `src/data/roadmap-v2.ts` (not wired to
+`gen-roadmap.mjs` yet).
+
+- Keep planning and current status in root `STATUS.md` and
+  `docs/ROADMAP.md` / `docs/PLAN-master-platform.md`. This JSON is the public
+  display copy.
 - Update the roadmap when a milestone closes, evidence changes, a new finding
   changes the plan, or sequencing changes. Do not use it as a daily task list.
 - Each group must have a visible, informative `goal`; every item must have a

@@ -1,19 +1,11 @@
-// Canonical public roadmap data for the Azoth project.
+// ARCHIVED — NOT SERVED (ADR 0002).
+// Inventory of client surfaces / old phase plan from the replay-prototype era.
+// Public display is site/src/data/roadmap-v2.ts only.
+// Agents: do not load this whole file into context; grep for a facet id if needed.
 //
-// Sources (every item cites at least one):
-//   client: research/atlas/az-type-registry.json — 4,818 types the shipped client
-//           registers; *ServerFacet_* methods mark the exact surface the server
-//           must implement. Facet-family map: research/docs/sim-blueprint/facet-map.json
-//   pak:    the client PAK index (.azoth/cache/pak-index/pakindex.db) — 44 shipped
-//           subworlds, 1.4M files.
-//   wiki:   public game documentation (newworld.fandom.com, 87 pages cached in
-//           research/docs/sim-blueprint/raw-wiki-1.json; extracted facts in
-//           wiki-facts.json).
-//
-// Build order = dependency order. Groups are phases; within a group items are
-// listed in the order we would implement them. `dependsOn` references item ids
-// across groups. Effort is a planning aid, not a delivery commitment. The
-// generated public/roadmap.json is the display copy served by the landing page.
+// Historical sources cited by items below:
+//   client: research/atlas/az-type-registry.json
+//   pak / wiki: see item evidence fields
 
 export type ItemState =
   | "done"
