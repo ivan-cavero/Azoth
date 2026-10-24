@@ -95,7 +95,9 @@ impl Transform2 {
 
 /// Server-side actor identity once presence exists.
 ///
-/// Ontology: `flow.presence` / `msg.add-actor`. Opaque until layouts land.
+/// Ontology: `flow.presence` / `msg.spawn-actors` (layout: one BE `u64`).
+/// Whether this value is what `SpawnActorsMsg` carries on the wire is still
+/// unproven; the type exists so apps do not invent a parallel id.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ActorId(pub u64);
 

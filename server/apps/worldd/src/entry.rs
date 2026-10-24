@@ -155,6 +155,8 @@ pub struct WorldEntry {
     tickets: TicketStore,
     level_info_body: Vec<u8>,
     spawn_payload: Vec<u8>,
+    /// Composed `SpawnActorsMsg` typed payload (seed for AOI; not on the entry ladder yet).
+    presence_spawn_actors: Vec<u8>,
     config: SessionConfig,
     peers: HashMap<SocketAddr, Peer>,
     /// Insertion order, and where the next [`WorldEntry::tick`] starts walking it.
@@ -164,17 +166,29 @@ pub struct WorldEntry {
 
 impl WorldEntry {
     /// Build the entry from the ladder's two captured bodies, so a test can drive the ladder itself.
+    ///
+    /// Also composes a [`crate::presence`] `SpawnActorsMsg` seed (`ActorId(1)`) so AOI work
+    /// has a called encode path without inventing a second codec.
     #[must_use]
     pub fn new(tickets: TicketStore, level_info_body: Vec<u8>, spawn_payload: Vec<u8>) -> Self {
+        let presence_spawn_actors = crate::presence::encode_spawn_actors(azoth_model::ActorId(1))
+            .expect("SpawnActorsMsg encode is infallible for a fixed body");
         Self {
             tickets,
             level_info_body,
             spawn_payload,
+            presence_spawn_actors,
             config: SessionConfig::default(),
             peers: HashMap::new(),
             rotation: Vec::new(),
             cursor: 0,
         }
+    }
+
+    /// Typed-record payload for a composed `SpawnActorsMsg` (ontology `msg.spawn-actors`).
+    #[must_use]
+    pub fn presence_spawn_actors_seed(&self) -> &[u8] {
+        &self.presence_spawn_actors
     }
 
     /// A peer's DTLS handshake completed: open a session and send nothing.

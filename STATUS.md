@@ -8,10 +8,10 @@ Daily loop: **`az.py dev`** (ADR 0009). Branch: `refactor/knowledge-os` (push OK
 
 ## Active blocker
 
-**Presence field meanings + worldd compose.** Fixed layouts live in
-`azoth-wire::presence` + ontology (`layout` for 449/574/422/106).
-Still open: prove field semantics; emit composed AddActor/Spawn from
-`worldd` (not capture templates); Replicate component codecs.
+**Presence meanings + put composed S2C on the wire.** Layouts +
+`worldd::presence` seed (`SpawnActorsMsg` from `ActorId`) exist.
+Still open: prove field semantics; send presence on AOI (ladder still
+uses capture spawn bundle); Replicate component codecs.
 
 Build: **1.460.6033.6024067** —
 `30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033`.
