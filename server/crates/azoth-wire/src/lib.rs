@@ -20,6 +20,12 @@
 //! format survives a client build and a field map does not
 //! (`docs/PLAN-backend-rust.md` §0.2).
 //!
+//! The one deliberate exception is [`spawn`]: the spawn record is a *captured
+//! template*, not a format, so its dimensions and the two offsets it is used at
+//! travel with it. Keeping them apart would leave a caller holding a captured
+//! byte string and no statement of what it is, which is exactly the ambiguity
+//! `odd/tasks/phase-3-world.md` S7 asks this boundary to remove.
+//!
 //! EVIDENCE
 //! ========
 //! Every layout below is derived from measured client behaviour, recorded in
@@ -43,6 +49,7 @@ pub mod marshal;
 pub mod player_record;
 pub mod presence;
 pub mod record;
+pub mod spawn;
 pub mod v3;
 pub mod varint;
 pub mod vlq32;
