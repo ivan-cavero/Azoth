@@ -4,6 +4,13 @@ This is the working design for the private New World emulator. The atlas and
 protocol references remain the authority for observed client behavior; this
 document sets repository boundaries and the order in which to build them.
 
+For the **absolute platform vision** — playable spine, security/privacy,
+ontology OS, full repo reorganization, Docker/Kubernetes scaling, launcher,
+admin/command bus, and phase map — see
+[`PLAN-master-platform.md`](PLAN-master-platform.md). For crate-level Rust
+mechanics see [`PLAN-backend-rust.md`](PLAN-backend-rust.md). This file stays
+short; those plans win on product and runtime detail respectively.
+
 ## Keep the client contract, simplify the server internals
 
 The goal is to reproduce what the shipped client can observe: endpoint paths,
@@ -37,7 +44,7 @@ flowchart LR
 | --- | --- |
 | `services/gateway/` | HTTP bootstrap and account/session endpoints currently required by the client |
 | `services/world/` | Current Python prototype for DTLS, REP, replication, and world rules |
-| `server/` | Future Rust workspace; create it when the first behavior is ready to port |
+| `server/` | Rust workspace (`channeld`, `regiond`, `worldd`, crates); authoritative runtime target |
 | `research/atlas/` | Observed wire contracts, schemas, errors, client functions, and debug levers |
 | `research/docs/` | Focused protocol and investigation references |
 | `reverse/tools/` and `reverse/probes/` | Static analysis and explicit live-client research |

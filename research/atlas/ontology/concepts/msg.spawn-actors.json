@@ -1,0 +1,27 @@
+{
+  "uid": "msg.spawn-actors",
+  "kind": "message",
+  "name": "SpawnActorsMsg",
+  "aliases": ["wire:574"],
+  "summary": "Batch spawn of actors for an observer.",
+  "purpose": "Efficient presence introduction when multiple actors enter interest.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["AOI enter batch", "zone load"],
+    "if_absent": "missing peers or NPC population on enter"
+  },
+  "wire": { "id": 574, "direction": "S2C", "transport": "rep" },
+  "domain_types": ["ActorId"],
+  "fields": [],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "measured_on", "to": "atlas.presence-codecs" }
+  ],
+  "confidence": "bytes",
+  "status": "verified",
+  "evidence": [
+    { "type": "atlas", "ref": "research/atlas/presence-codecs.json" }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "azoth-wire", "module": "presence" }
+}

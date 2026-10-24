@@ -1,0 +1,15 @@
+{
+  "generated": "hand-seed-2026-10-24",
+  "uids": [
+    "flow.presence",
+    "flow.world-entry",
+    "flow.world-entry.rung.spawn",
+    "msg.add-actor",
+    "msg.fragment-update",
+    "msg.replicate",
+    "msg.replicate-client",
+    "msg.spawn-actors",
+    "msg.update",
+    "sys.movement-authority"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "uid": "msg.fragment-update",
+  "kind": "message",
+  "name": "FragmentUpdateMsg",
+  "aliases": ["wire:422"],
+  "summary": "Fragment-level state update for records the client already holds.",
+  "purpose": "Patch presence/state without full respawn.",
+  "authority": "server",
+  "lifecycle": {
+    "updated_when": ["partial record dirty"],
+    "if_absent": "full records resent or state stuck"
+  },
+  "wire": { "id": 422, "direction": "S2C", "transport": "rep" },
+  "fields": [],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "measured_on", "to": "atlas.presence-codecs" }
+  ],
+  "confidence": "bytes",
+  "status": "verified",
+  "evidence": [
+    { "type": "atlas", "ref": "research/atlas/presence-codecs.json" }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "azoth-wire", "module": "presence" }
+}

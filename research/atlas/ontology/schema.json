@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://azoth.local/atlas/ontology/concept.schema.json",
+  "title": "AzothOntologyConcept",
+  "type": "object",
+  "required": [
+    "uid",
+    "kind",
+    "name",
+    "summary",
+    "confidence",
+    "status",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "uid": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*$",
+      "description": "Stable id, e.g. msg.add-actor"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "message",
+        "field",
+        "system",
+        "entity",
+        "flow",
+        "endpoint",
+        "content",
+        "command",
+        "lever",
+        "codec"
+      ]
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "summary": { "type": "string", "minLength": 1 },
+    "purpose": { "type": "string" },
+    "authority": {
+      "type": "string",
+      "enum": ["server", "client", "shared", "unknown"]
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "created_when": { "type": "array", "items": { "type": "string" } },
+        "updated_when": { "type": "array", "items": { "type": "string" } },
+        "destroyed_when": { "type": "array", "items": { "type": "string" } },
+        "if_absent": { "type": "string" }
+      }
+    },
+    "wire": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": ["integer", "string"] },
+        "direction": {
+          "type": "string",
+          "enum": ["C2S", "S2C", "Bidi", "unknown"]
+        },
+        "transport": {
+          "type": "string",
+          "enum": ["rep", "http", "dtls", "other", "unknown"]
+        }
+      }
+    },
+    "domain_types": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "fields": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["op", "to"],
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "part_of",
+              "triggers",
+              "produces",
+              "consumes",
+              "encoded_by",
+              "implemented_by",
+              "supersedes",
+              "measured_on"
+            ]
+          },
+          "to": { "type": "string" }
+        }
+      }
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["bytes", "layout", "semantics", "authoritative"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["unknown", "candidate", "verified", "implemented", "retired"]
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "ref"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "atlas",
+              "capture",
+              "decompile",
+              "live",
+              "ab",
+              "log",
+              "doc",
+              "guessed"
+            ]
+          },
+          "ref": { "type": "string" }
+        }
+      }
+    },
+    "build": {
+      "type": "string",
+      "description": "Full executable SHA-256 when binary-dependent"
+    },
+    "owners": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "crate": { "type": ["string", "null"] },
+        "module": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

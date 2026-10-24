@@ -1,0 +1,23 @@
+{
+  "uid": "flow.world-entry.rung.spawn",
+  "kind": "flow",
+  "name": "Ladder rung: spawn record",
+  "summary": "Sends record_id 1 (48 fragments) so the client reaches InGame and the player appears.",
+  "purpose": "Possession/spawn; today still a measured capture seed, not a composed domain snapshot.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["after LevelInfoChanged"],
+    "if_absent": "stuck in WaitingForPlayerSpawn / no avatar"
+  },
+  "relations": [
+    { "op": "part_of", "to": "flow.world-entry" }
+  ],
+  "confidence": "bytes",
+  "status": "implemented",
+  "evidence": [
+    { "type": "doc", "ref": "server/apps/worldd/src/ladder.rs" },
+    { "type": "atlas", "ref": "crates/azoth-wire spawn fixtures" }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "worldd", "module": "ladder" }
+}

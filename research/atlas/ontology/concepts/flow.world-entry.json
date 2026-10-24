@@ -1,0 +1,21 @@
+{
+  "uid": "flow.world-entry",
+  "kind": "flow",
+  "name": "World entry ladder",
+  "summary": "HTTPS bootstrap + DTLS + REP ladder from character select to InGame.",
+  "purpose": "Admission path every playable feature depends on.",
+  "authority": "shared",
+  "lifecycle": {
+    "created_when": ["character selected", "ticket redeemed"],
+    "if_absent": "client never reaches InGame / red cable / disconnect"
+  },
+  "relations": [],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "doc", "ref": "docs/PLAN-backend-rust.md" },
+    { "type": "atlas", "ref": "research/atlas/client-map/world-entry.md" }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": "apps/worldd" }
+}

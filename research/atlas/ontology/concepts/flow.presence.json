@@ -1,0 +1,28 @@
+{
+  "uid": "flow.presence",
+  "kind": "flow",
+  "name": "Actor presence replication",
+  "summary": "Server originates actor visibility so observers see peers and NPCs.",
+  "purpose": "Turns the world from a single-player capture replay into multiplayer.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["observer session active", "entity in AOI"],
+    "if_absent": "two clients InGame but invisible to each other"
+  },
+  "relations": [
+    { "op": "produces", "to": "msg.add-actor" },
+    { "op": "produces", "to": "msg.spawn-actors" },
+    { "op": "produces", "to": "msg.replicate" },
+    { "op": "produces", "to": "msg.replicate-client" },
+    { "op": "produces", "to": "msg.fragment-update" },
+    { "op": "produces", "to": "msg.update" }
+  ],
+  "confidence": "semantics",
+  "status": "verified",
+  "evidence": [
+    { "type": "atlas", "ref": "research/atlas/presence-codecs.json" },
+    { "type": "doc", "ref": "docs/journal/2026-10-status-archive.md" }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "azoth-replica", "module": null }
+}

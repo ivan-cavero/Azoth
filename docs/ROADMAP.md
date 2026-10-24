@@ -1,11 +1,31 @@
 # Roadmap
 
 [`STATUS.md`](../STATUS.md) owns the current blocker and next experiment.
-[`ARCHITECTURE.md`](ARCHITECTURE.md) owns repository boundaries, the Rust
-direction, content rules, decompilation standards, and capacity gates. This file
-orders the work without repeating those references.
+[`ARCHITECTURE.md`](ARCHITECTURE.md) owns short repository boundaries and
+capacity philosophy. [`PLAN-master-platform.md`](PLAN-master-platform.md) owns
+the absolute platform/refactor/security/playable-spine vision and phase map.
+[`PLAN-backend-rust.md`](PLAN-backend-rust.md) owns Rust crate and tick
+mechanics. This file orders near-term work without repeating those references.
 
 ## Work order
+
+### 0. Knowledge OS + doc reorg — **active on `refactor/knowledge-os`**
+
+Per [`PLAN-master-platform.md`](PLAN-master-platform.md) P0 / P0r:
+
+- [x] Branch from `feat/azoth-wire-parity`
+- [x] Compact `STATUS.md`; archive diary → `docs/journal/2026-10-status-archive.md`
+- [x] Doc taxonomy: `docs/adr/`, `docs/journal/`, `docs/runbooks/`
+- [x] Nested `AGENTS.md` + short root `AGENTS.md`
+- [x] Ontology schema + presence / entry / movement seeds
+- [x] Cut over public roadmap to v2; v1 → `site/src/data/archive/` (not served)
+- [x] STATUS dump → `docs/journal/raw/` with do-not-load rules + `scripts/check-docs.py`
+- [x] `azoth-model` + ladder `ontology_uid` (domain meaning starts in the hot path)
+- [x] `docs/SECURITY.md` draft (P1 design)
+- [ ] Compose more ladder/presence concepts; raise confidence past `bytes` with live layouts
+- [ ] Replace spawn capture seed with composed domain snapshot when fragment map is verified
+
+Do not block the Rust entry/presence port; this branch is the parallel knowledge track.
 
 ### 1. Make daily work predictable — in progress
 

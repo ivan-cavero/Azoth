@@ -1,0 +1,15 @@
+{
+  "generated": "hand-seed-2026-10-24",
+  "kinds": {
+    "flow": ["flow.presence", "flow.world-entry"],
+    "message": [
+      "msg.add-actor",
+      "msg.spawn-actors",
+      "msg.replicate",
+      "msg.replicate-client",
+      "msg.fragment-update",
+      "msg.update"
+    ],
+    "system": ["sys.movement-authority"]
+  }
+}

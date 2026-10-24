@@ -1,14 +1,21 @@
-# Azoth
+# Azoth (working title — rename pending)
 
-Azoth is a private New World server project. It prepares an ignored local copy
+Unofficial private New World server for play after Amazon takes official
+servers offline on **2027-01-31**. Not affiliated with Amazon Games. The name
+“Azoth” collides with another community project; see
+[`docs/adr/0005-project-rename.md`](docs/adr/0005-project-rename.md) and
+[`docs/LEGAL.md`](docs/LEGAL.md).
+
+This repository prepares an ignored local copy
 of the installed client and provides the gateway, world server, and local
 routing needed to connect it.
 
 ## Start here
 
-- [Current status](STATUS.md) — the active blocker and the next useful step.
+- [Current status](STATUS.md) — short frontier only (diaries in `docs/journal/`).
 - [Roadmap](docs/ROADMAP.md) — the order of work and the repository cleanup plan.
 - [Architecture](docs/ARCHITECTURE.md) — Rust, content, decompilation, and capacity boundaries.
+- [Master platform plan](docs/PLAN-master-platform.md) — ontology, admin/ops, public APIs, launcher, bots, and phase order (planning only).
 - [Agent rules](AGENTS.md) — evidence, runtime, code, and documentation rules.
 - [Docs index](docs/INDEX.md) — operating, service, and research references.
 

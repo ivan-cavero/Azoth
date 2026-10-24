@@ -1,0 +1,23 @@
+{
+  "uid": "sys.movement-authority",
+  "kind": "system",
+  "name": "Movement authority",
+  "summary": "Server owns player position; client claims are observed and validated.",
+  "purpose": "Prevent client teleport/speed cheats; enable correction and desync policy.",
+  "authority": "server",
+  "lifecycle": {
+    "updated_when": ["channel-1 input ~20 Hz", "correction ladder"],
+    "if_absent": "frozen position or client-authored movement only"
+  },
+  "relations": [
+    { "op": "part_of", "to": "flow.world-entry" }
+  ],
+  "confidence": "semantics",
+  "status": "verified",
+  "evidence": [
+    { "type": "doc", "ref": "docs/journal/2026-10-status-archive.md" },
+    { "type": "atlas", "ref": "research/atlas/client-map/in-world.md" }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "azoth-sim", "module": null }
+}

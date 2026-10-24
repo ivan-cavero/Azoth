@@ -1,0 +1,27 @@
+{
+  "uid": "msg.replicate",
+  "kind": "message",
+  "name": "Replicate",
+  "aliases": ["wire:391"],
+  "summary": "Polymorphic component replication to observers.",
+  "purpose": "Carry ongoing authoritative component state for remote actors.",
+  "authority": "server",
+  "lifecycle": {
+    "updated_when": ["component dirty in AOI"],
+    "if_absent": "stale or frozen remote entities"
+  },
+  "wire": { "id": 391, "direction": "S2C", "transport": "rep" },
+  "domain_types": [],
+  "fields": [],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "measured_on", "to": "atlas.presence-codecs" }
+  ],
+  "confidence": "bytes",
+  "status": "verified",
+  "evidence": [
+    { "type": "atlas", "ref": "research/atlas/presence-codecs.json" }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "azoth-replica", "module": null }
+}

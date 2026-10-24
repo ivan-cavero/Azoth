@@ -6,6 +6,7 @@ not a substitute.
 
 | File | Owns |
 | --- | --- |
+| `ontology/` | Purpose, lifecycle, confidence, relations — scalable concept files ([README](ontology/README.md)) |
 | `endpoints.json` | Observed REST operation, method, path, query, and auth facts |
 | `models.json` | Exact request/response keys, types, requiredness, and evidence |
 | `errors.json` | Observed errors and confirmed causes |

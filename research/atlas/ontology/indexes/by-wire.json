@@ -1,0 +1,11 @@
+{
+  "generated": "hand-seed-2026-10-24",
+  "wires": {
+    "106": "msg.update",
+    "391": "msg.replicate",
+    "407": "msg.replicate-client",
+    "422": "msg.fragment-update",
+    "449": "msg.add-actor",
+    "574": "msg.spawn-actors"
+  }
+}

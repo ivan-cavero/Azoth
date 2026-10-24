@@ -1,0 +1,18 @@
+NOTICE
+======
+
+This project is an independent, unofficial fan effort to keep New World:
+Aeternum playable on privately operated servers after Amazon Games takes the
+official service offline (announced offline date: 2027-01-31).
+
+It is not affiliated with, endorsed by, or sponsored by Amazon.com, Inc.,
+Amazon Games, or the New World franchise. New World, Aeternum, and related
+marks are property of their respective owners.
+
+This repository does not distribute New World client assets or Amazon server
+binaries. Operators and players must supply a lawfully obtained game client.
+
+The historical working title “Azoth” collides with another community project
+(https://projectazoth.com/). A rename is planned; do not confuse the two.
+
+See docs/LEGAL.md for the full posture. This notice is not legal advice.

@@ -115,6 +115,10 @@ after zeroing `random` and `cookie`.
 | supported_groups | x25519, secp256r1, x448, secp521r1, secp384r1 |
 | Absent | renegotiation_info `0xff01`, use_srtp `14`, SNI `0`, supported_versions `43`, ALPN `16`, key_share `51`, heartbeat `0x0015` |
 
+Product / swap policy for the crypto crate (OpenSSL now, measure before
+alternatives, Windows link hygiene): [`docs/adr/0004-dtls-crypto-stack.md`](adr/0004-dtls-crypto-stack.md)
+and master plan §0B. Mechanics below stay authoritative for the wire.
+
 Three design consequences, and they are not negotiable:
 
 1. **There is exactly one usable cipher suite.** The server must negotiate
