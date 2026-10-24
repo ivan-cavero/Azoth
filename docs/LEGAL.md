@@ -29,8 +29,9 @@ Amazon, Amazon Games, or New World.
    Discord bots, or “easy install” packs that include PAKs.
 4. **Label the project unofficial** on any public surface (site, launcher,
    README hero). Never use Amazon logos or imply official status.
-5. **Default non-commercial** until an entity, counsel, and written policy
-   say otherwise. Ops cost recovery must be designed, not improvised.
+5. **Funding is designed, not improvised** — see §Funding below and
+   [ADR 0008](adr/0008-funding-ladder.md). No pay-to-win; no Amazon assets for
+   sale. Pure donations (no in-game perk) are the first allowed money path.
 6. **Secrets and raw captures stay private** (`research/sessions/`, ignored
    paths). Public evidence is curated and scrubbed.
 7. **Respect other community projects.** This repo’s historical working name
@@ -65,6 +66,30 @@ The cleanest long-term outcome is a **publisher-sanctioned** community server
 or code hand-off. Attempts to open that conversation should be logged in
 `docs/journal/` (dates, who was contacted, outcome) — never spun as “Amazon
 approved us” without a written grant.
+
+## Funding
+
+Servers, inference tokens, and maintainer time cost real money. We intend to
+fund the project **transparently** and **without selling gameplay power** or
+Amazon-owned content.
+
+| Tier | Allowed under *our* policy | Status |
+| --- | --- | --- |
+| **F0** | Gifts / Open Collective / Patreon with **no** in-game perk | Design |
+| **F1** | Merch, credits, Discord badge | After rename + entity |
+| **F2** | **Original** cosmetics we author (not ripped NW assets) | After content pipeline + counsel |
+| **F3** | Cosmetic convenience (e.g. queue flair), never combat power | After ops mature |
+| **F4** | Hosting a world for a guild (SaaS) | After Linux/Docker stable |
+| **Never** | Gold, gear, XP boosts, Amazon PAKs, EAC bypass products | Forbidden |
+
+Industry comparisons (Facepunch / Bohemia) show publishers that *explicitly*
+allow community servers often permit cosmetics and forbid pay-to-win. Amazon
+has not published an equivalent New World grant — **residual legal risk
+remains**. Form an entity, talk to counsel before F1+, and be ready to shut
+paid tiers down if demanded.
+
+If someone “donates” and receives power or rare items, that is a **sale**, not
+a donation — and it violates this policy.
 
 ## Related
 

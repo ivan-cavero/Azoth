@@ -14,6 +14,9 @@ for the work at hand. Taxonomy: [`PLAN-master-platform.md`](PLAN-master-platform
 | ADRs | [`adr/`](adr/) |
 | Status diaries | [`journal/`](journal/) |
 | Operator / overnight agents | [`runbooks/`](runbooks/) |
+| New contributor loop | [`runbooks/contributor-loop.md`](runbooks/contributor-loop.md) |
+| Testing doctrine | [ADR 0007](adr/0007-testing-doctrine.md) |
+| Funding ladder | [ADR 0008](adr/0008-funding-ladder.md), [LEGAL §Funding](LEGAL.md) |
 | Gateway or world (Python prototype) | [Gateway](../services/docs/GATEWAY.md), [World](../services/world/README.md) |
 | Reverse engineer the client | [Reverse tools](../reverse/README.md), [Research index](../research/docs/INDEX.md), [ontology](../research/atlas/ontology/) |
 | Public landing / roadmap display | [site/README](../site/README.md) — **v2 live**; v1 inventory archived |

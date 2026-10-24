@@ -143,13 +143,9 @@ def _install_archive(tool: str, spec: dict[str, str], target_root: Path, marker:
     return destination
 
 
-def install_toolchain(lock: dict) -> None:
-    ghidra = lock["tools"]["ghidra"]
-    jdk = lock["tools"]["jdk"]
+def install_caddy(lock: dict) -> None:
+    """Caddy only — enough for local HTTPS edge on the core profile."""
     caddy = lock["tools"]["caddy"]
-    _install_archive("ghidra", ghidra, TOOLS / "ghidra", "analyzeHeadless.bat")
-    _install_archive("jdk", jdk, TOOLS / "jdk", "javac.exe")
-
     target = ROOT / "deploy" / "bin" / "caddy.exe"
     marker = TOOLS / "caddy-installed.json"
     installed = {}
@@ -172,6 +168,20 @@ def install_toolchain(lock: dict) -> None:
             target.write_bytes(bundle.read(item))
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text(json.dumps(caddy, indent=2) + "\n", encoding="utf-8")
+
+
+def install_re_toolchain(lock: dict) -> None:
+    """Ghidra + JDK — large; only for `setup --re` / `--all`."""
+    ghidra = lock["tools"]["ghidra"]
+    jdk = lock["tools"]["jdk"]
+    _install_archive("ghidra", ghidra, TOOLS / "ghidra", "analyzeHeadless.bat")
+    _install_archive("jdk", jdk, TOOLS / "jdk", "javac.exe")
+
+
+def install_toolchain(lock: dict, *, with_re: bool) -> None:
+    install_caddy(lock)
+    if with_re:
+        install_re_toolchain(lock)
 
 
 def install_python_runtime(lock: dict) -> Path:
@@ -235,22 +245,77 @@ def install_python_packages(lock: dict) -> None:
     print("Python dependencies installed in .azoth/venv")
 
 
+def purge_local() -> None:
+    """Remove project-local toolchain caches. Does not touch Steam or private-client."""
+    for path in (DOWNLOADS, TOOLS, LOCAL / "venv", LOCAL / "python", LOCAL / "toolchain-state.json"):
+        if path.is_file():
+            path.unlink()
+            print(f"removed {path.relative_to(ROOT)}")
+        elif path.is_dir():
+            shutil.rmtree(path)
+            print(f"removed {path.relative_to(ROOT)}/")
+    caddy = ROOT / "deploy" / "bin" / "caddy.exe"
+    if caddy.is_file():
+        caddy.unlink()
+        print(f"removed {caddy.relative_to(ROOT)}")
+    print("purge done — Steam install and private-client/ were not touched")
+
+
+def _profile(argv: list[str]) -> tuple[str, bool, bool]:
+    """Return (name, with_re, purge_only). Default profile is core (no Ghidra)."""
+    if "--purge" in argv:
+        return "purge", False, True
+    if "--all" in argv or ("--core" in argv and "--re" in argv):
+        return "all", True, False
+    if "--re" in argv:
+        return "re", True, False
+    # --core or bare setup
+    return "core", False, False
+
+
 def main() -> int:
+    argv = sys.argv[1:]
+    if "--help" in argv or "-h" in argv:
+        print(
+            "usage: python scripts/bootstrap.py [--core|--re|--all|--purge] [--update]\n"
+            "  --core   Python + venv + Caddy (default; server/web contributors)\n"
+            "  --re     also Ghidra + JDK (reverse engineering)\n"
+            "  --all    core + re\n"
+            "  --purge  delete .azoth toolchain caches + deploy/bin/caddy.exe\n"
+            "  --update refresh toolchain.lock.json from upstream first"
+        )
+        return 0
     if sys.platform != "win32":
-        print("The local Azoth runtime bootstrap currently targets Windows.", file=sys.stderr)
+        print(
+            "Windows bootstrap only today. Linux server builds use system packages "
+            "+ Docker (see docs/PLAN-master-platform.md §0D). "
+            "Run `python az.py doctor` for a checklist.",
+            file=sys.stderr,
+        )
         return 2
     if sys.version_info < (3, 11):
         print("Run `./az.ps1 setup` to install the locked project-local Python runtime.", file=sys.stderr)
         return 2
-    update = "--update" in sys.argv[1:]
+
+    profile, with_re, purge_only = _profile(argv)
+    if purge_only:
+        purge_local()
+        return 0
+
+    update = "--update" in argv
     lock = refresh_lock() if update else json.loads(LOCK.read_text(encoding="utf-8"))
     try:
-        install_toolchain(lock)
+        print(f"setup profile: {profile}")
+        install_toolchain(lock, with_re=with_re)
         install_python_packages(lock)
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
         print(f"bootstrap failed: {exc}", file=sys.stderr)
         return 1
-    print("Azoth local toolchain is ready. Ghidra workspaces stay under reverse/builds/<sha256>/.")
+    if with_re:
+        print("RE toolchain ready. Ghidra workspaces stay under reverse/builds/<sha256>/.")
+    else:
+        print("Core toolchain ready. Add RE tools later with: python az.py setup --re")
+    print("Verify with: python az.py doctor")
     return 0
 
 

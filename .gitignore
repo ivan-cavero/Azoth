@@ -1,10 +1,11 @@
-# --- runtime / local state ---
+# --- project-local runtime (wipe with: python az.py setup --purge) ---
 .azoth/
 *.log
 *.log.*
 hosts.*
 captures/
 /sessions/
+
 # --- capture & RE artifacts (regenerable or local-only) ---
 *.pcap
 *.pcapng
@@ -12,47 +13,61 @@ captures/
 *.raw
 *.bin
 /reverse/builds/
-# Keep local workspaces made by older checkouts ignored.
+/reverse/sessions/
 /research/derived/decomp/
 !research/derived/*.json
+# research/sessions/ rules live in research/.gitignore (REPORT.md exceptions)
+# --- service local state (never commit live traffic or certs) ---
 services/gateway/mock_discovery/
 services/gateway/traffic.jsonl
 services/gateway/traffic-payloads/
 services/world/rep_traffic.jsonl
 services/world/certs/
+services/world/replay/*
+!services/world/replay/messages-redacted.txt
 deploy/certs/
 deploy/caddy_data/
 deploy/bin/
-# --- editor / OS ---
+
+# --- private client copies (never commit patched game files / PAKs) ---
+private-client/
+!launcher/steam_stub/steam_api64.dll
+
+# --- editor / OS / agent scratch ---
 __pycache__/
 *.pyc
 .ruff_cache/
+.pytest_cache/
+.mypy_cache/
 .atl/
 .pi/
-# --- screenshots (discardable, shrunk by scripts/shrink-image.py) ---
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
+.DS_Store
 *.small.jpg
-# --- private client copies (never commit patched game files) ---
-private-client/
-# --- keep tracked exceptions ---
-!launcher/steam_stub/steam_api64.dll
-# --- world replay captures (raw dumps stay local) ---
-services/world/replay/*
-# the redacted capture is the regression fixture for the world tests
-!services/world/replay/messages-redacted.txt
 
-# --- landing site build artifacts (source is tracked; dist is generated in CI) ---
+# --- web / dashboards ---
 site/node_modules/
 site/dist/
 site/.astro/
 site/src/data/repo-facts.gen.json
+**/node_modules/
+**/dist/
+playwright-report/
+test-results/
+coverage/
 
-# --- live probe captures (raw, local-only; research/sessions has its own rule) ---
-/reverse/sessions/
-
-# --- Rust workspace build output (regenerable; ~125 MB after a debug build) ---
+# --- Rust ---
 server/target/
-
-# --- Rust wire fixtures (curated, small, and the parity tests read them) ---
-# `*.bin` above is for raw captures; this one is a 7 KB record payload exported from the
-# fragment census and read by azoth-wire's tests. It is not a capture.
+**/target/
 !server/crates/azoth-wire/tests/fixtures/*.bin
+
+# --- env secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+!**/testdata/*.pem

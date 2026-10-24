@@ -22,14 +22,19 @@ before you open a PR or share captures.
 
 ## How to work
 
-1. Prefer a focused branch; keep PRs reviewable.
-2. Update the atlas / ontology when you learn a wire fact — chat is not durable.
-3. Keep `STATUS.md` ≤ ~80 lines; put diaries under `docs/journal/raw/`.
-4. For Rust: put meaning in `azoth-model` (and future sim/replica); put bytes in
+Follow [`docs/runbooks/contributor-loop.md`](docs/runbooks/contributor-loop.md).
+
+1. `python az.py setup --core` then `python az.py doctor` (add `--re` only if
+   you need Ghidra). Purge leftovers with `python az.py setup --purge`.
+2. Prefer a focused branch; keep PRs reviewable.
+3. Update the atlas / ontology when you learn a wire fact — chat is not durable.
+4. Keep `STATUS.md` ≤ ~80 lines; put diaries under `docs/journal/raw/`.
+5. For Rust: put meaning in `azoth-model` (and future sim/replica); put bytes in
    `azoth-wire`; keep DTLS inside the DTLS crate.
-5. Run what you can locally (`scripts/check-docs.py`, crate tests). Full
-   `worldd` tests need a documented OpenSSL toolchain on Windows — see
-   `server/AGENTS.md`.
+6. Tests must encode a **real failure mode or player-visible outcome** (ADR
+   0007). No decorative getter tests.
+7. Funding ideas must follow [`docs/LEGAL.md`](docs/LEGAL.md) §Funding — no
+   pay-to-win, no Amazon assets for sale.
 
 ## Captures
 

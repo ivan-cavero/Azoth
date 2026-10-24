@@ -181,6 +181,125 @@ A/B alternate DTLS only against the real client.
 
 ---
 
+## 0D. Contributor DX — `az` setup, logs, hot reload, Linux
+
+Anyone who clones should be able to **develop, decompile (optional), raise the
+stack, watch logs, iterate, and run real tests** without tribal knowledge.
+`az setup` stays the entry point, but it must stop being a kitchen-sink that
+always pulls Ghidra+JDK.
+
+### Setup profiles (product rule)
+
+| Profile | Installs | Who |
+| --- | --- | --- |
+| **`core`** (default) | Project Python + venv deps + Caddy | Server/web contributors |
+| **`re`** | core + Ghidra + JDK | Reverse engineers |
+| **`openssl`** | Documented OpenSSL for the host (vcpkg/apt/msys — **not** random PATH pollution) | Anyone building `azoth-dtls` |
+| **`all`** | core + re + openssl helper | Maintainers |
+
+Rules:
+
+1. Everything lives under **`.azoth/`** (or Docker volumes) — wipe = gone.
+2. **No system leftovers** by default: no global PATH edits, no Start Menu
+   shortcuts, no Admin installers unless the user opts in.
+3. `az doctor` prints a checklist (Python, Caddy, Rust, OpenSSL link, Docker)
+   with exact fix commands; `az setup --purge` deletes `.azoth` caches.
+4. **Windows + Linux first-class** for server binaries; Windows remains the
+   private-client host. Docker images are the Linux truth for CI/prod.
+5. Hot reload: gateway route registry already mtime-reloads; Rust world uses
+   `cargo watch` / `cargo run` restart for now; content JSON hot-reload is a
+   later ops feature — document the real loop in
+   [`docs/runbooks/contributor-loop.md`](runbooks/contributor-loop.md).
+6. Logs: one place — `.azoth/logs/` + `az status` / `az logs <svc>` (add if
+   missing). No hunting AppData.
+7. `.gitignore` only ignores regenerable / secret / huge local state — never
+   source of truth. Audit periodically (P0dx).
+
+### OpenSSL install policy (ties to §0B / ADR 0004)
+
+| Host | Preferred | Removable |
+| --- | --- | --- |
+| Windows MSVC | `vcpkg install openssl:x64-windows` under a **project or user vcpkg** dir documented by `az doctor` | delete vcpkg tree + unset `VCPKG_ROOT` |
+| Windows GNU | only if rustc is GNU; MSYS2 `mingw-w64-x86_64-openssl` | pacman uninstall |
+| Linux | `libssl-dev` / distro openssl-devel | apt/dnf remove |
+| Docker | build stage installs headers; runtime uses distroless/slim with `.so` or static | image rebuild |
+
+Never recommend “vendored OpenSSL every day on Windows.”
+
+---
+
+## 0E. Testing doctrine — real scenarios, not decorative units
+
+**Hate signal we agree with:** a test that only asserts a getter or a happy-path
+pure function while the real failure modes (expired ticket, bad cipher, chunk
+loss, unauthorized API, empty AOI) are untested is **noise**. Prefer fewer,
+meaner tests. Full doctrine: [ADR 0007](adr/0007-testing-doctrine.md).
+
+### Layers (all languages)
+
+| Layer | What it proves | Tools |
+| --- | --- | --- |
+| **Contract / property** | Parsers, codecs, invariants, round-trips; shrink failures | Rust `proptest`; JS property tests sparingly |
+| **Scenario integration** | Multi-module behaviour with fakes: ticket expiry after auth must not kick; ladder order; privacy deny | Rust `tests/`; nextest; Vitest for API clients |
+| **Harness / e2e** | Real processes: `channel`+`region`+`world` (+ optional private client headless/scripted) | `az test e2e …`; Playwright for web; recorded fixtures |
+| **Benchmarks** | Tick p99, DTLS PPS, AOI cost — **with hardware record** | Criterion; separate CI job, not every PR |
+| **Load** | CCU gates | Dedicated harness; publish JSON for site |
+
+Rules:
+
+1. Name tests `situation_expected_outcome` (readable in CI).
+2. Default `cargo test` / Vitest: **no live network, no Steam, no real NW
+   client**. Mark `#[ignore]` / `e2e` for those.
+3. Every playable pillar ships an **e2e scenario** before “done.”
+4. Web/dashboards: Vitest for pure logic; **Playwright** for critical user
+   paths (login, privacy toggle, ban flow) — assert visible behaviour, not CSS
+   class names ([Vitest component guidance](https://vitest.dev/guide/browser/component-testing.html)).
+5. Coverage ratchets on **domain crates** only; do not farm % with trivial tests.
+6. CI: `fmt` + `clippy -D warnings` + `cargo nextest` + doc check; e2e nightly
+   or on label.
+
+### What we delete
+
+- Tests that mirror implementation line-by-line.
+- Snapshots of unstable timestamps without redaction.
+- “It compiles” tests with no assert on a failure mode.
+
+---
+
+## 0F. Funding — pay for servers, tokens, and labour (legally)
+
+Servers, LLM tokens, and maintainer time are not free. We need a **funding
+ladder** that starts honest and stays reversible if Amazon objects. Detail:
+[ADR 0008](adr/0008-funding-ladder.md), [`LEGAL.md`](LEGAL.md) §Funding.
+
+**Not legal advice.** Industry pattern (Facepunch / Bohemia-style where
+allowed): cosmetics and access fees OK when publisher permits; **pay-to-win
+and “donations” that are really sales with power** are the lawsuit magnets
+(see e.g. emulator cases that mixed revenue with unauthorized servers).
+
+| Tier | What we sell / accept | When | Risk notes |
+| --- | --- | --- | --- |
+| **F0** | Pure donations / Open Collective / Patreon **with no in-game perk** | As soon as public community exists | Lowest; still need entity + tax |
+| **F1** | Merch, stickers, name-in-credits, Discord badge | After brand rename | No game power |
+| **F2** | **Original cosmetics** we author (not Amazon assets): cloaks, titles, UI flair the client can show via our content packs | After content pipeline + counsel | Must be clearly ours; no ripped NW skins |
+| **F3** | Optional supporter server slot / queue priority (cosmetic convenience) | After ops mature | Never combat power |
+| **F4** | Hosting SaaS (“we run a world for your guild”) | After Docker/Linux stable | Separate ToS; still unofficial |
+| **Blocked** | Selling Amazon PAKs, gold, gear, XP boosts, EAC bypasses | Never | |
+
+Principles:
+
+1. **Entity first** (nonprofit or company) before money moves at scale.
+2. Ledger + transparency report for community funds.
+3. Store SKUs are **first-party content**, never ripped assets.
+4. Funding UI on the landing is opt-in and labelled unofficial.
+5. If rights-holder demands stop: F2–F4 pause; F0 may remain as pure gift
+   depending on counsel.
+
+Playable spine still beats a store. Funding design runs **in parallel** so we
+do not invent pay-to-win debt later.
+
+---
+
 ## 1. Non‑negotiable principles
 
 1. **Playable vertical before platform candy** — beat **2027-01-31** with a
@@ -1100,6 +1219,9 @@ Dependencies flow downward; parallel tracks marked.
 | **P0** | Knowledge OS + STATUS compact + ontology schema + **doc taxonomy lock** | yes beside port | checks green; 20 concepts; INDEX taxonomy live |
 | **P0r** | **Public roadmap v2** (archive v1; eras E0–E5; gen from gates) | yes | landing serves v2; no replay-framed active items |
 | **P0L** | **Legal + collab + rename track** | yes | LEGAL/NOTICE/CONTRIBUTING; ADRs 0003–0006; rename shortlist locked |
+| **P0$** | **Funding ladder design** (F0–F4; no pay-to-win) | yes | ADR 0008 + LEGAL §Funding; entity checklist |
+| **P0dx** | **`az` DX**: setup profiles, doctor, logs, gitignore audit, contributor loop | yes | `setup --core` default; `az doctor`; Linux server path documented |
+| **P0t** | **Testing doctrine + first real scenario harness** | yes | ADR 0007; nextest; one e2e entry scenario; Criterion stub |
 | **P0c** | **Crypto/link hygiene** (`azoth-dtls` + one Windows OpenSSL path) | yes | documented toolchain; no MinGW/MSVC mix; harness stub |
 | **P0b** | **Agent factory MVP** on Orca/T3+Pi+Gentle (1 overnight DAG + resume) | yes | kill worker → resume; `worker_done` contract; dashboard/thread visible |
 | **P1** | Security & privacy **design** locked | yes | `cmd.*` + privacy concepts + SECURITY.md |
@@ -1151,6 +1273,11 @@ Use this as the audit backlog before moving files:
 - [x] LEGAL / NOTICE / CONTRIBUTING drafts (P0L)  
 - [x] Rename + binary-name ADRs (0005, 0006)  
 - [x] DTLS/OpenSSL ADR (0004)  
+- [x] Testing + funding ADRs (0007, 0008)  
+- [x] `az setup` profiles (`core`/`re`/`all`) + `az doctor` + purge  
+- [x] `.gitignore` audit (secrets, targets, playwright, .env)  
+- [x] Contributor loop runbook (dev / RE / e2e / logs)  
+- [ ] Linux Dockerfile for world+region+channel  
 
 ### 19.1b Domain Rust (feel like a real MMO)
 
@@ -1189,17 +1316,34 @@ Use this as the audit backlog before moving files:
 
 ### 19.4 Security & privacy
 
-- [ ] Threat model doc in `docs/SECURITY.md` (when executing P1)  
+- [x] Threat model doc in `docs/SECURITY.md` (draft)  
 - [ ] Privacy matrix in ontology  
 - [ ] Secret scan + path scan in CI  
 - [ ] Admin audit schema  
 
+### 19.4b Testing & benches
+
+- [ ] nextest in CI  
+- [ ] Scenario tests for ticket/ladder failure modes  
+- [ ] `az test e2e entry` harness  
+- [ ] Criterion benches for wire + tick hot paths  
+- [ ] Playwright smoke for landing critical paths  
+- [ ] Ban trivial unit-test PRs that add no failure-mode coverage  
+
 ### 19.5 Deploy
 
 - [ ] One config schema  
-- [ ] Dockerfile per app  
+- [ ] Dockerfile per app (Linux OpenSSL)  
 - [ ] compose local  
 - [ ] k8s/Agones sketches (no need to run until P16)  
+
+### 19.5b Funding
+
+- [ ] Entity + payment provider shortlist  
+- [ ] F0 donation page (no perks)  
+- [ ] F1 merch / credits  
+- [ ] F2 original cosmetic pipeline (never Amazon assets)  
+- [ ] Transparency report template  
 
 ### 19.6 Playable
 
@@ -1213,12 +1357,14 @@ Use this as the audit backlog before moving files:
 - [ ] Endpoint cutover inventory  
 - [ ] GM UI hook strategy  
 - [ ] Landing stages S1–S5 wired to privacy API + published harness JSON  
+- [ ] Supporter / store pages behind funding policy  
 
 ### 19.8 RE
 
 - [ ] AI compact pipeline spec  
 - [ ] Presence live layout campaign  
 - [ ] Build-hash discipline automated  
+- [ ] `az setup --re` only path for Ghidra (not default)  
 
 ---
 

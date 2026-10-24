@@ -26,3 +26,5 @@ Accepted ADRs on this branch:
 | [0004](0004-dtls-crypto-stack.md) | DTLS crypto: OpenSSL now; isolate; measure before swap |
 | [0005](0005-project-rename.md) | Leave the “Azoth” brand (name TBD) |
 | [0006](0006-binary-naming.md) | Public binaries `world` / `region` / `channel` / `ops` |
+| [0007](0007-testing-doctrine.md) | Scenario/e2e tests over decorative units |
+| [0008](0008-funding-ladder.md) | Funding ladder F0–F4; no pay-to-win |

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """One command surface for the local Azoth stack.
 
-  python az.py setup              # install the locked local toolchain
+  python az.py setup [--core|--re|--all|--purge]  # local toolchain (core = default)
+  python az.py doctor             # checklist: Python, Caddy, Rust, OpenSSL
   python az.py migrate            # move existing AppData state into this checkout
   python az.py dev                # gateway, world and Caddy in the background
   python az.py dev stop           # stop the server stack
@@ -19,7 +20,8 @@
   python az.py probe <name>       # run a client reverse-engineering probe
   python az.py run <script> ...   # run a focused scripts/ tool
 
-Runtime files, PIDs and logs live under ignored project-local directories.
+Runtime files, PIDs and logs live under .azoth/ (gitignored). See
+docs/runbooks/contributor-loop.md.
 """
 
 from __future__ import annotations
@@ -635,6 +637,12 @@ def main() -> int:
     if head == "setup":
         return subprocess.call(
             [sys.executable, str(SCRIPTS / "bootstrap.py"), *rest],
+            cwd=ROOT,
+            env=local_env(),
+        )
+    if head == "doctor":
+        return subprocess.call(
+            [sys.executable, str(SCRIPTS / "doctor.py"), *rest],
             cwd=ROOT,
             env=local_env(),
         )

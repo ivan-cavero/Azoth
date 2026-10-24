@@ -32,7 +32,8 @@ Build: **1.460.6033.6024067** —
 1. Presence unmarshal → ontology `layout`.
 2. Retire spawn capture seed via composed domain snapshot.
 3. Lock rename shortlist ([ADR 0005](docs/adr/0005-project-rename.md)).
-4. Document one Windows OpenSSL toolchain ([ADR 0004](docs/adr/0004-dtls-crypto-stack.md)).
+4. Finish OpenSSL doctor path + Linux Dockerfile sketch (P0c/P0dx).
+5. First real e2e scenario harness (ticket/ladder failure modes) — ADR 0007.
 
 ## Do not
 
