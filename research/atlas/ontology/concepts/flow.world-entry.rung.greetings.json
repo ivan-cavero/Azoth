@@ -1,0 +1,15 @@
+{
+  "uid": "flow.world-entry.rung.greetings",
+  "kind": "flow",
+  "name": "Ladder: Greetings",
+  "summary": "GridMate Cmd_Greetings handshake after V3 registration acceptance.",
+  "purpose": "Advance WaitingForREPConnection toward actor connection.",
+  "authority": "server",
+  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "doc", "ref": "server/apps/worldd/src/ladder.rs" }
+  ],
+  "owners": { "crate": "worldd", "module": "ladder" }
+}

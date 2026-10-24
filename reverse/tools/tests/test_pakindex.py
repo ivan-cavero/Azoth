@@ -14,7 +14,10 @@ import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+for _kind in ("", "corpus", "pe", "type", "pak", "wire", "eac", "ops"):
+    _p = str(ROOT if _kind == "" else ROOT / _kind)
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 import pakindex  # noqa: E402
 

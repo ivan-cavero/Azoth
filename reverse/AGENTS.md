@@ -7,6 +7,7 @@ Skill: [`.agents/skills/azoth-re/SKILL.md`](../.agents/skills/azoth-re/SKILL.md)
 
 - Isolate all generated output under `builds/<full-sha256>/` (gitignored).
 - Prefer xref → strings/reflection → targeted decompile (`az.py re …`).
+- Tools live under `reverse/tools/<kind>/`; workflows in `catalog.json`.
 - Pseudocode is not verified source. Confirmed names → `research/atlas/client-functions.json`.
 - AI annotations stay under `builds/<sha>/ai/` until promoted.
 - Never attach Frida/debugger if EAC state is uncertain.

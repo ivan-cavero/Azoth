@@ -30,10 +30,13 @@ import unittest
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+for _kind in ("", "corpus", "pe", "type", "pak", "wire", "eac", "ops"):
+    _p = str(ROOT if _kind == "" else ROOT / _kind)
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 _SPEC = importlib.util.spec_from_file_location(
-    "scan_wire_names", ROOT / "scan-wire-names.py"
+    "scan_wire_names", ROOT / "type" / "scan-wire-names.py"
 )
 wire = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = wire
@@ -261,7 +264,7 @@ class CommittedArtifactTest(unittest.TestCase):
     """The committed table must describe the build the tool is pinned to."""
 
     def setUp(self) -> None:
-        path = ROOT.parents[1] / "research" / "derived" / "wire-type-names.json"
+        path = ROOT.parents[2] / "research" / "derived" / "wire-type-names.json"
         self.artifact = json.loads(path.read_text(encoding="utf-8"))
 
     def test_the_pin_matches_the_committed_artifact(self) -> None:
@@ -276,7 +279,7 @@ class CommittedArtifactTest(unittest.TestCase):
 
     def test_the_committed_artifact_covers_the_whole_type_table(self) -> None:
         typeindex = json.loads(
-            (ROOT.parents[1] / "private-client" / "runtime" / "typeindex.json")
+            (ROOT.parents[2] / "private-client" / "runtime" / "typeindex.json")
             .read_text(encoding="utf-8")
         )["typeIndex"]
         self.assertEqual(self.artifact["wire_types"], len(typeindex))

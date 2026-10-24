@@ -1,0 +1,16 @@
+{
+  "uid": "flow.world-entry.rung.v3",
+  "kind": "flow",
+  "name": "Ladder: V3 registration response",
+  "summary": "RegistrationResponseMsg after validated LoginTicket; opens the ladder.",
+  "purpose": "Ticket redeem → WaitingForActorGameConnection.",
+  "authority": "server",
+  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "doc", "ref": "server/apps/worldd/src/entry.rs" },
+    { "type": "atlas", "ref": "research/atlas/ontology/concepts/flow.world-entry.json" }
+  ],
+  "owners": { "crate": "worldd", "module": "entry" }
+}

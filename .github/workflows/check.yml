@@ -1,0 +1,34 @@
+name: check
+
+on:
+  push:
+    branches: [refactor/knowledge-os, main, master]
+  pull_request:
+
+jobs:
+  docs-and-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Doc / path / script catalog gates
+        run: |
+          python scripts/check/check-docs.py
+          python scripts/check/check-paths.py
+          python scripts/check/check-scripts.py
+
+  rust-domain:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Domain crate tests (no OpenSSL worldd)
+        run: |
+          cargo test --offline -p azoth-model -p azoth-session -p azoth-commands -p azoth-privacy -p azoth-wire
+      - name: xtask workspace gates
+        run: cargo run -p xtask --quiet

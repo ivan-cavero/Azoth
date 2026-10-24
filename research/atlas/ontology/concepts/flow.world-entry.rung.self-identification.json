@@ -1,0 +1,16 @@
+{
+  "uid": "flow.world-entry.rung.self-identification",
+  "kind": "flow",
+  "name": "Ladder: SelfIdentification",
+  "summary": "PlayerManagerSelfIdentificationMsg (21 zero bytes) before spawn point wait.",
+  "purpose": "Client identity handshake on the REP ladder.",
+  "authority": "server",
+  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "doc", "ref": "server/apps/worldd/src/ladder.rs" },
+    { "type": "live", "ref": "first-light RE validated live" }
+  ],
+  "owners": { "crate": "worldd", "module": "ladder" }
+}

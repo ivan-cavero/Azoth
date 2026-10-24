@@ -1438,6 +1438,8 @@ Use this as the audit backlog before moving files:
 | `deploy/local` + Linux Dockerfiles + `platform/` skeletons | **Done** |
 | Archive noise (`odd` → archive); no migration-map doc | **Done** |
 | Daily loop = native `az.dev` (ADR 0009) | **Done** |
+| `scripts/` by kind + `az.py run`; `reverse/tools/` by kind + `az.py re` | **Done** |
+| CI gates (docs/scripts + Rust domain) | **Done** |
 | Agentic boot-naming campaign ready | **Ready to run** |
 | R7 retire Python play path | **Open** (needs parity) |
 | Playable spine / presence / capacity | **Open** (gameplay) |

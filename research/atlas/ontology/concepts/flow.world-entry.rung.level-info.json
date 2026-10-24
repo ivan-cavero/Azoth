@@ -1,0 +1,17 @@
+{
+  "uid": "flow.world-entry.rung.level-info",
+  "kind": "flow",
+  "name": "Ladder: LevelInfoChanged",
+  "summary": "Captured LevelInfoChangedMsg body (wire 0x663) that loads the map.",
+  "purpose": "Move client to WaitingForPlayerSpawn; still a capture seed until composed.",
+  "authority": "server",
+  "wire": { "id": "0x663", "direction": "S2C", "transport": "rep" },
+  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
+  "confidence": "bytes",
+  "status": "implemented",
+  "evidence": [
+    { "type": "capture", "ref": "azoth-wire ladder LevelInfoChanged body" },
+    { "type": "doc", "ref": "server/apps/worldd/src/ladder.rs" }
+  ],
+  "owners": { "crate": "azoth-wire", "module": "ladder" }
+}

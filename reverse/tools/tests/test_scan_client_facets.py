@@ -26,12 +26,15 @@ import unittest
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+for _kind in ("", "corpus", "pe", "type", "pak", "wire", "eac", "ops"):
+    _p = str(ROOT if _kind == "" else ROOT / _kind)
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from catalog import PE  # noqa: E402
 
 _SPEC = importlib.util.spec_from_file_location(
-    "scan_client_facets", ROOT / "scan-client-facets.py"
+    "scan_client_facets", ROOT / "type" / "scan-client-facets.py"
 )
 facets = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = facets

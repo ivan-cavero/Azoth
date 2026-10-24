@@ -634,20 +634,25 @@ def _run_probe(args: list[str]) -> int:
     return subprocess.call([app_python(), str(probe), *args[1:]], cwd=ROOT, env=local_env())
 
 
+def reverse_catalog() -> dict[str, dict]:
+    """Load reverse/tools/catalog.json workflows (name → {path, kind})."""
+    path = ROOT / "reverse" / "tools" / "catalog.json"
+    if not path.is_file():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return dict(data.get("workflows") or {})
+
+
 def _reverse_tool(args: list[str]) -> int:
-    commands = {
-        "decompile": ROOT / "reverse" / "tools" / "decomp.py",
-        "corpus": ROOT / "reverse" / "tools" / "corpus.py",
-        "campaign": ROOT / "reverse" / "tools" / "campaign.py",
-        "pe": ROOT / "reverse" / "tools" / "peutil.py",
-        "strings": ROOT / "reverse" / "tools" / "strings.py",
-        "xref": ROOT / "reverse" / "tools" / "xrefmap.py",
-        "naming": ROOT / "reverse" / "tools" / "namer.py",
-        "types": ROOT / "reverse" / "tools" / "rtti.py",
-        "pak-index": ROOT / "reverse" / "tools" / "pakindex.py",
-        "pak-read": ROOT / "reverse" / "tools" / "pakread.py",
-        "ingest-log": ROOT / "research" / "tools" / "capture" / "nw_capture.py",
+    tools = ROOT / "reverse" / "tools"
+    workflows = reverse_catalog()
+    # Extra non-tools workflow kept for capture ingest.
+    commands: dict[str, Path] = {
+        name: tools / meta["path"]
+        for name, meta in workflows.items()
+        if (tools / meta["path"]).is_file()
     }
+    commands["ingest-log"] = ROOT / "research" / "tools" / "capture" / "nw_capture.py"
     descriptions = {
         "decompile": "decompile a selected function or caller chain",
         "corpus": "account for and decompile every function range in one client build",
@@ -663,7 +668,8 @@ def _reverse_tool(args: list[str]) -> int:
     }
     if not args or args[0] in {"list", "--help", "-h"}:
         print("usage: python az.py re <workflow> [args]")
-        for name, description in descriptions.items():
+        for name in sorted(commands):
+            description = descriptions.get(name, workflows.get(name, {}).get("kind", ""))
             print(f"  {name:12} {description}")
         return 0
     name, *rest = args

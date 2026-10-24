@@ -16,8 +16,8 @@ Build: **1.460.6033.6024067** —
 
 ## Ready for agents
 
-Reorg + ontology seeds + skills/prompts + **scripts by kind**
-(`python az.py run list`). Next campaign:
+Reorg done (docs/ADRs/ontology seeds/skills + scripts & RE tools by kind).
+Next campaign:
 [`docs/runbooks/agentic-boot-campaign.md`](docs/runbooks/agentic-boot-campaign.md).
 
 ## Next useful step

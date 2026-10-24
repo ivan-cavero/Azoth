@@ -9,7 +9,11 @@
     "flow": [
       "flow.presence",
       "flow.world-entry",
-      "flow.world-entry.rung.spawn"
+      "flow.world-entry.rung.greetings",
+      "flow.world-entry.rung.level-info",
+      "flow.world-entry.rung.self-identification",
+      "flow.world-entry.rung.spawn",
+      "flow.world-entry.rung.v3"
     ],
     "message": [
       "msg.add-actor",

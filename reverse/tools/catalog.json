@@ -1,0 +1,221 @@
+{
+  "format": 1,
+  "entry": "python az.py re <workflow>",
+  "note": "Heavy RE CLIs. Prefer az.py re over raw paths. Folder layout under reverse/tools/<kind>/.",
+  "workflows": {
+    "decompile": {
+      "path": "corpus/decomp.py",
+      "kind": "corpus"
+    },
+    "corpus": {
+      "path": "corpus/corpus.py",
+      "kind": "corpus"
+    },
+    "campaign": {
+      "path": "corpus/campaign.py",
+      "kind": "corpus"
+    },
+    "pe": {
+      "path": "pe/peutil.py",
+      "kind": "pe"
+    },
+    "strings": {
+      "path": "pe/strings.py",
+      "kind": "pe"
+    },
+    "xref": {
+      "path": "pe/xrefmap.py",
+      "kind": "pe"
+    },
+    "naming": {
+      "path": "type/namer.py",
+      "kind": "type"
+    },
+    "types": {
+      "path": "type/rtti.py",
+      "kind": "type"
+    },
+    "pak-index": {
+      "path": "pak/pakindex.py",
+      "kind": "pak"
+    },
+    "pak-read": {
+      "path": "pak/pakread.py",
+      "kind": "pak"
+    }
+  },
+  "files": {
+    "campaign": {
+      "path": "corpus/campaign.py",
+      "kind": "corpus"
+    },
+    "catalog": {
+      "path": "corpus/catalog.py",
+      "kind": "corpus"
+    },
+    "corpus": {
+      "path": "corpus/corpus.py",
+      "kind": "corpus"
+    },
+    "decomp": {
+      "path": "corpus/decomp.py",
+      "kind": "corpus"
+    },
+    "disk": {
+      "path": "corpus/disk.py",
+      "kind": "corpus"
+    },
+    "eac": {
+      "path": "eac/eac.py",
+      "kind": "eac"
+    },
+    "datasheet": {
+      "path": "pak/datasheet.py",
+      "kind": "pak"
+    },
+    "pakindex": {
+      "path": "pak/pakindex.py",
+      "kind": "pak"
+    },
+    "pakread": {
+      "path": "pak/pakread.py",
+      "kind": "pak"
+    },
+    "pakwrite": {
+      "path": "pak/pakwrite.py",
+      "kind": "pak"
+    },
+    "analyze": {
+      "path": "pe/analyze.py",
+      "kind": "pe"
+    },
+    "bytepat": {
+      "path": "pe/bytepat.py",
+      "kind": "pe"
+    },
+    "callers": {
+      "path": "pe/callers.py",
+      "kind": "pe"
+    },
+    "disasm": {
+      "path": "pe/disasm.py",
+      "kind": "pe"
+    },
+    "find-disp-writes": {
+      "path": "pe/find-disp-writes.py",
+      "kind": "pe"
+    },
+    "find-id-writer": {
+      "path": "pe/find-id-writer.py",
+      "kind": "pe"
+    },
+    "find-player-setter": {
+      "path": "pe/find-player-setter.py",
+      "kind": "pe"
+    },
+    "find-rip-lea": {
+      "path": "pe/find-rip-lea.py",
+      "kind": "pe"
+    },
+    "findcalls": {
+      "path": "pe/findcalls.py",
+      "kind": "pe"
+    },
+    "findstr": {
+      "path": "pe/findstr.py",
+      "kind": "pe"
+    },
+    "findwrites": {
+      "path": "pe/findwrites.py",
+      "kind": "pe"
+    },
+    "fsmmap": {
+      "path": "pe/fsmmap.py",
+      "kind": "pe"
+    },
+    "gamesec": {
+      "path": "pe/gamesec.py",
+      "kind": "pe"
+    },
+    "log": {
+      "path": "pe/log.py",
+      "kind": "pe"
+    },
+    "memory": {
+      "path": "pe/memory.py",
+      "kind": "pe"
+    },
+    "mgr-storage-refs": {
+      "path": "pe/mgr-storage-refs.py",
+      "kind": "pe"
+    },
+    "midref": {
+      "path": "pe/midref.py",
+      "kind": "pe"
+    },
+    "peutil": {
+      "path": "pe/peutil.py",
+      "kind": "pe"
+    },
+    "ripxref": {
+      "path": "pe/ripxref.py",
+      "kind": "pe"
+    },
+    "strings": {
+      "path": "pe/strings.py",
+      "kind": "pe"
+    },
+    "xrefmap": {
+      "path": "pe/xrefmap.py",
+      "kind": "pe"
+    },
+    "dump-type-table": {
+      "path": "type/dump-type-table.py",
+      "kind": "type"
+    },
+    "endpoints": {
+      "path": "type/endpoints.py",
+      "kind": "type"
+    },
+    "namer": {
+      "path": "type/namer.py",
+      "kind": "type"
+    },
+    "rtti": {
+      "path": "type/rtti.py",
+      "kind": "type"
+    },
+    "scan-az-types": {
+      "path": "type/scan-az-types.py",
+      "kind": "type"
+    },
+    "scan-client-facets": {
+      "path": "type/scan-client-facets.py",
+      "kind": "type"
+    },
+    "scan-message-registry": {
+      "path": "type/scan-message-registry.py",
+      "kind": "type"
+    },
+    "scan-trait-registry": {
+      "path": "type/scan-trait-registry.py",
+      "kind": "type"
+    },
+    "scan-wire-names": {
+      "path": "type/scan-wire-names.py",
+      "kind": "type"
+    },
+    "net": {
+      "path": "wire/net.py",
+      "kind": "wire"
+    },
+    "validate": {
+      "path": "wire/validate.py",
+      "kind": "wire"
+    },
+    "common": {
+      "path": "common.py",
+      "kind": "shared"
+    }
+  }
+}
