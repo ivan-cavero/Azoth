@@ -85,6 +85,7 @@ fn fixture(tag: &str) -> Fixture {
         port: 0,
         data_dir: seed_data_dir(),
         database_path: dir.path().join("identity.db"),
+        ticket_out: dir.path().join("tickets.json"),
     };
     let identity = Arc::new(Identity::load(&config).expect("seeds the identity database"));
     Fixture {
@@ -96,7 +97,7 @@ fn fixture(tag: &str) -> Fixture {
 
 impl Fixture {
     fn state(&self) -> AppState {
-        AppState::new(Arc::clone(&self.identity))
+        AppState::new(Arc::clone(&self.identity), self.config.ticket_out.clone())
     }
 }
 
@@ -232,6 +233,23 @@ async fn five_the_queue_issues_a_ticket_with_a_signature() {
     let signature = ticket["Signature"].as_str().expect("Signature");
     assert!(!signature.is_empty(), "an empty Signature never fires the handoff gate");
     let rep = ticket["RepAddress"].as_str().expect("RepAddress");
+
+    // AND IT IS PUBLISHED. The world validates a registration against this file, so a ticket the
+    // client holds but the world never heard of is a login that fails at the REP handshake with no
+    // server-side explanation. This is the phase-3 stand-in for a region-to-world message.
+    let published: Vec<serde_json::Value> = serde_json::from_str(
+        &std::fs::read_to_string(&fixture.config.ticket_out).expect("the ticket file exists"),
+    )
+    .expect("the ticket file is a JSON array");
+    assert_eq!(published.len(), 1, "one login, one published ticket");
+    assert_eq!(
+        published[0]["TicketId"], ticket["TicketId"],
+        "the published ticket is the one the client received"
+    );
+    assert_eq!(
+        published[0]["CharacterId"], ticket["CharacterId"],
+        "the character the world will bind to"
+    );
     assert!(!rep.is_empty(), "the client learns the world's UDP address here");
     let character = fixture
         .identity

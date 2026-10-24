@@ -97,9 +97,17 @@ pub fn worlds_list(identity: &Identity) -> Value {
 ///
 /// # Errors
 /// [`RouteError`] when the character has no world the registry can place.
-pub fn queue(identity: &Identity, refresh: bool) -> Result<Value, RouteError> {
+pub fn queue(
+    identity: &Identity,
+    refresh: bool,
+    ticket_out: &std::path::Path,
+) -> Result<Value, RouteError> {
     let (world, region) = placement(identity)?;
     let ticket = ticket(identity, world)?;
+    // Publish it for the world to validate. A failure to publish is NOT fatal to the login: the
+    // client gets its ticket either way, and a world that cannot find it will refuse the
+    // registration, which is a visible failure rather than a silent one.
+    publish_ticket(ticket_out, &ticket);
     if !refresh {
         return Ok(json!({ "LoginQueueResponse": ticket }));
     }
@@ -326,6 +334,41 @@ fn ticket(identity: &Identity, world: &WorldPlacement) -> Result<Value, RouteErr
 /// token. The region's `loginGateway` endpoint is the one its clients use, so its `awsRegion` is the
 /// honest value; `us-east-1` is the prototype's constant and the fallback when a region does not
 /// declare one.
+/// Append a minted ticket to the world's ticket file, atomically.
+///
+/// **This is the phase-3 stand-in for a region-to-world message.** The durable design has the
+/// region tell the world about a claim directly; a file is what one machine can do today. It is
+/// rewritten whole (temp file, then rename) so a reader never sees a half-written array, and the
+/// array is capped so it cannot grow without bound across a long-running region.
+fn publish_ticket(path: &std::path::Path, ticket: &Value) {
+    const MAX_TICKETS: usize = 64;
+
+    let mut tickets: Vec<Value> = std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<Vec<Value>>(&text).ok())
+        .unwrap_or_default();
+    tickets.push(ticket.clone());
+    if tickets.len() > MAX_TICKETS {
+        let excess = tickets.len() - MAX_TICKETS;
+        tickets.drain(0..excess);
+    }
+
+    let Some(parent) = path.parent() else { return };
+    if std::fs::create_dir_all(parent).is_err() {
+        return;
+    }
+    let temp = path.with_extension("json.tmp");
+    let Ok(encoded) = serde_json::to_vec_pretty(&tickets) else {
+        return;
+    };
+    if std::fs::write(&temp, encoded).is_err() {
+        return;
+    }
+    // A rename over an existing file is atomic on both NTFS and POSIX, which is why the reader can
+    // never observe a partial array.
+    let _ = std::fs::rename(&temp, path);
+}
+
 fn queue_name(region: Option<&Region>) -> String {
     region
         .and_then(|region| {

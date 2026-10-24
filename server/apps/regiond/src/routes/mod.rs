@@ -114,13 +114,18 @@ pub fn router(state: Arc<AppState>) -> Router {
 pub struct AppState {
     /// The seeded identity: account, persona and character.
     pub identity: Arc<Identity>,
+    /// Where minted tickets are published for the world to validate.
+    pub ticket_out: std::path::PathBuf,
 }
 
 impl AppState {
     /// Build the state around a loaded identity.
     #[must_use]
-    pub fn new(identity: Arc<Identity>) -> Self {
-        Self { identity }
+    pub fn new(identity: Arc<Identity>, ticket_out: std::path::PathBuf) -> Self {
+        Self {
+            identity,
+            ticket_out,
+        }
     }
 }
 
@@ -154,7 +159,7 @@ async fn handle(State(state): State<Arc<AppState>>, request: Request<Body>) -> A
         }
         RouteKind::LoginQueue => from_result(
             RouteKind::LoginQueue,
-            game::queue(identity, is_queue_refresh(&path)),
+            game::queue(identity, is_queue_refresh(&path), &state.ticket_out),
             request_id.as_deref(),
             counter,
         ),

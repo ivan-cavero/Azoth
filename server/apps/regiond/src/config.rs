@@ -47,7 +47,9 @@ pub const DEFAULT_DATA_DIR: &str = "services/gateway/src/azoth_gateway/data";
 ///
 /// `private-client/runtime/` is git-ignored, so a login written during a session never reaches the
 /// repository — the same rule that keeps raw captures and certificates out of Git.
-pub const DEFAULT_DATABASE_PATH: &str = "private-client/runtime/identity.db";
+pub const DEFAULT_TICKET_OUT: &str = "private-client/runtime/tickets.json";
+
+const DEFAULT_DATABASE_PATH: &str = "private-client/runtime/identity.db";
 
 /// The region's runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +62,13 @@ pub struct Config {
     pub data_dir: PathBuf,
     /// The identity database file. Created on first start; its directory must already exist.
     pub database_path: PathBuf,
+    /// Where to publish the login tickets this region mints, for the world to validate.
+    ///
+    /// **This file is the phase-3 stand-in for a region-to-world message.** The durable design has
+    /// the region tell the world about a claim directly (plan §7.2/§7.3); a file is what a single
+    /// machine can do today without inventing a control channel first. It is written atomically
+    /// (temp file then rename) so a world reading it never sees a half-written array.
+    pub ticket_out: PathBuf,
 }
 
 impl Default for Config {
@@ -70,6 +79,7 @@ impl Default for Config {
             // Repo-relative defaults, resolved from the working directory at runtime.
             data_dir: PathBuf::from(DEFAULT_DATA_DIR),
             database_path: PathBuf::from(DEFAULT_DATABASE_PATH),
+            ticket_out: PathBuf::from(DEFAULT_TICKET_OUT),
         }
     }
 }
@@ -97,6 +107,10 @@ impl Config {
                 }
                 "--data-dir" => {
                     config.data_dir = PathBuf::from(iter.next().ok_or("--data-dir needs a value")?)
+                }
+                "--ticket-out" => {
+                    config.ticket_out =
+                        PathBuf::from(iter.next().ok_or("--ticket-out needs a value")?)
                 }
                 "--database" => {
                     config.database_path =

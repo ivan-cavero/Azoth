@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // looks identical to one that is working.
     eprintln!("[regiond] {}", identity.summary());
 
-    let app = routes::router(Arc::new(AppState::new(Arc::new(identity))));
+    let app = routes::router(Arc::new(AppState::new(Arc::new(identity), config.ticket_out.clone())));
     let addr: SocketAddr = format!("{}:{}", config.host, config.port).parse()?;
     let listener = listener_with_nodelay(addr).await?;
     eprintln!("[regiond] listening {addr}");
