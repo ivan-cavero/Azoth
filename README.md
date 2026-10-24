@@ -66,21 +66,17 @@ Python installations can invoke the same interface through `python az.py`.
 
 | Path | Owns |
 | --- | --- |
-| `az.ps1`, `az.py` | Bootstrap entry point and local command supervisor |
-| `services/gateway/` | HTTP APIs the client needs before joining a world |
-| `services/world/` | Javelin/REP protocol and DTLS server |
-| `services/launcher/` | Separate private game runtime and launch flow |
-| `private-client/` | Ignored runtime copy, private profile, patched executable, and game log |
-| `.azoth/` | Ignored tool installs, venv, process state, and operator logs |
-| `deploy/` | Caddy, local certificates, and host routing |
-| `research/atlas/` | Curated protocol facts and confirmed client function map |
-| `research/tools/capture/` | Game log and official-session capture tools |
-| `reverse/tools/` | Static analysis, Ghidra, PAK, and format tools |
-| `reverse/probes/client/` | Named, on-demand live client probes |
-| `reverse/builds/` | Ignored local Ghidra projects and pseudocode, one client build per SHA-256 |
-| `scripts/` | Local operator commands and focused runtime experiments |
-| `docs/` | Current project guidance and historical archives |
+| `az.ps1`, `az.py` | Bootstrap + local supervisor (`dev`, `re`, `run`, `doctor`) |
+| `server/` | **Authoritative** runtime: `channeld` / `regiond` / `worldd` + crates |
+| `services/` | Python **prototype** play path until R7 parity (`services/README.md`) |
+| `platform/` | Launcher + web product skeletons |
+| `research/atlas/` | Durable facts + ontology |
+| `reverse/` | RE tools (`az.py re`), probes, per-SHA corpora (gitignored builds) |
+| `scripts/<kind>/` | Operator helpers (`az.py run list`) |
+| `deploy/` | Caddy, certs, Compose (Linux/CI only — ADR 0009) |
+| `site/` | Public landing / roadmap v2 |
+| `private-client/`, `.azoth/` | Gitignored runtime + tool state |
+| `docs/` | Plans, ADRs, runbooks (frontier = `STATUS.md`) |
 
-Durable facts belong in the atlas or the relevant service/protocol reference.
-Generated decompilation workspaces and raw session captures stay local. The
-future Rust and content boundaries are recorded in the [roadmap](docs/ROADMAP.md).
+Knowledge reorg is done; playable authoritative path is **not**. See `STATUS.md`.
+Durable facts → atlas/ontology. Pseudocode corpora stay local under `reverse/builds/`.

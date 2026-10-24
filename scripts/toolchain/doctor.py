@@ -72,11 +72,27 @@ def check_re() -> None:
 
 def check_rust() -> bool:
     code, out = _run(["cargo", "--version"])
+    if code != 0:
+        _bad("cargo / Rust", "https://rustup.rs — needed for server/")
+        return False
+    _ok("cargo", out.splitlines()[0] if out else "cargo")
+    rustc_host = ""
+    code, out = _run(["rustc", "-vV"])
     if code == 0:
-        _ok("cargo", out.splitlines()[0] if out else "cargo")
-        return True
-    _bad("cargo / Rust", "https://rustup.rs — needed for server/")
-    return False
+        for line in out.splitlines():
+            if line.startswith("host:"):
+                rustc_host = line.split(":", 1)[1].strip()
+                _ok("rustc host", rustc_host)
+                break
+    if "msvc" in rustc_host and not shutil.which("link.exe"):
+        _bad(
+            "MSVC linker",
+            "rustc is *-windows-msvc but link.exe is missing — install "
+            "Visual Studio Build Tools (C++ workload), or `rustup default "
+            "stable-x86_64-pc-windows-gnu` and use MinGW OpenSSL only",
+        )
+        return False
+    return True
 
 
 def check_openssl() -> bool:

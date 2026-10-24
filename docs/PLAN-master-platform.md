@@ -1444,9 +1444,16 @@ Use this as the audit backlog before moving files:
 | R7 retire Python play path | **Open** (needs parity) |
 | Playable spine / presence / capacity | **Open** (gameplay) |
 
+**Honest split:** knowledge/DX reorg is **done**. That is not the same as a
+playable authoritative stack. Daily `az.py dev` still leans on the Python
+gateway/world prototype; Rust `worldd` has ladder + wire presence codecs but
+entry spawn is still a capture template, and Windows OpenSSL must be one
+toolchain (MSVC+vcpkg or GNU+MinGW — never mixed).
+
 **Next execution (agentic):**
 
-1. Run boot-naming campaign (ontology coverage from open → InGame)  
-2. Presence layouts → compose spawn; enter world via `az.py dev`  
-3. MSVC + vcpkg OpenSSL (`az doctor`)  
-4. Lock rename (ADR 0005)  
+1. Presence field meanings (live/capture) → emit composed S2C on AOI  
+2. Keep InGame on capture spawn until composed path is proven  
+3. One OpenSSL path on the contributor machine (`az doctor` green for `worldd`)  
+4. Lock rename (ADR 0005); then R7 Python kill when Rust parity holds  
+

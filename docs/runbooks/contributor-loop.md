@@ -36,13 +36,18 @@ changes. Content hot-reload is a later milestone.
 
 ```text
 cd server
-cargo test -p azoth-wire -p azoth-session -p azoth-model
+cargo test -p azoth-wire -p azoth-session -p azoth-model -p azoth-commands -p azoth-privacy
 # Prefer scenario names: expired_ticket_after_auth_does_not_kick
 python az.py doctor
-# e2e (when harness lands): python az.py test e2e entry
+python az.py test e2e entry
 ```
 
 Do not add tests that only assert a getter. See ADR 0007.
+
+**OpenSSL (Windows):** `rustc -vV` host must match OpenSSL. MSVC rustc →
+`vcpkg install openssl:x64-windows` + `VCPKG_ROOT` (clear `OPENSSL_DIR` if it
+points at MinGW). GNU rustc → MinGW OpenSSL only. Mixing → `worldd` link fails
+(ADR 0004). Domain crates without `azoth-dtls` still test without OpenSSL.
 
 ## 3. Reverse engineering (optional)
 
