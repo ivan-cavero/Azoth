@@ -116,3 +116,29 @@ preceded by the `00 00 00 02` anchor, and the position at 38,332/38,336 as
 that the worker corrected by measuring. That is the system working — a brief is a hypothesis, and
 the corpus is the authority — but it is also a reminder that "I read this in the prototype" is not
 evidence when the prototype is a replayer with dead code in it.
+
+### L6 — the Carrier flight: sent, and the client still will not register
+
+The acceptance flight is implemented and **goes out** — the diagnostics show our 76-byte datagram five times, and the client retries its `CONNECT_REQUEST` five times in response, so the request/answer loop is live and the client is receiving something.
+
+The client still ends at `@mm_csdkerr_connection_failed` and never sends its V3 registration.
+
+**What the evidence says, and what it does not:**
+
+| Observation | Reading |
+| --- | --- |
+| our flight is sent, 5 times | the trigger and the encoder work |
+| the client re-sends `CONNECT_REQUEST` 5 times | it is **not** accepting our flight as an ACK |
+| the client sends 10 records of **397 bytes** | that is *not* the V3 shape: the prototype's V3 arrives as **chunked** records of 1115 bytes |
+| no `note=` lines | `registration()` never parsed anything, because no record reached it with a V3 body |
+
+So the loop is: we answer, the client does not accept the answer, it retries, we answer again. That is exactly the "V3 retry storm" the prototype's own comment names — and the prototype fixed it with the **CT_ACKS piggyback**, which we do send.
+
+**Two candidate causes, and they are distinguishable by one measurement:**
+
+1. **The CT_ACKS range is wrong.** We echo `(ack_first, ack_last) = (sequence, sequence)` — the request's own envelope sequence. The prototype computes `ack_window_first(ack_last, datagrams_seen, ACK_WINDOW)`, i.e. a *window* over everything received, not a degenerate one-datagram range. If the client requires the range to cover its earlier datagrams, our reply does not acknowledge them and it keeps retrying.
+2. **The `welcome` bytes are wrong.** We take the request payload minus its sys-id byte, truncated to 4. The prototype does the same, so this is less likely — but the prototype's fallback is `\x00\x00\x00\x05` and ours may be taking a different 4 bytes from a longer payload.
+
+**The next measurement is narrow:** log the exact `CONNECT_REQUEST` payload we receive (we currently classify only its content type), and compare it against the prototype's `welcome` derivation on the same bytes. That single line tells us whether we are echoing the version the client wrote.
+
+**What is NOT the problem, and is now proven:** the DTLS handshake, the one-socket demux, the peer lifecycle, and the fact that the client reaches us at all. Four separate defects were found and fixed to get here, each invisible before the diagnostics existed.
