@@ -228,3 +228,23 @@ mod tests {
         assert_eq!(hex_prefix(&[]), "");
     }
 }
+
+/// A process-wide note channel, so a deep code path can report why it did nothing.
+///
+/// WHY A GLOBAL: the diagnostics sink lives in `main`, and threading a handle down into
+/// `WorldEntry::registration` would change every signature for a path that exists to explain
+/// failures. It is set once at startup and read-only afterwards; when nothing is installed the cost
+/// is one atomic load.
+static NOTE_SINK: std::sync::OnceLock<fn(std::net::SocketAddr, &str)> = std::sync::OnceLock::new();
+
+/// Install the note sink. Called once, from `main`, only when diagnostics are on.
+pub fn install_note_sink(sink: fn(std::net::SocketAddr, &str)) {
+    let _ = NOTE_SINK.set(sink);
+}
+
+/// Report why a code path produced nothing. Silent when no sink is installed.
+pub fn note(peer: std::net::SocketAddr, reason: &str) {
+    if let Some(sink) = NOTE_SINK.get() {
+        sink(peer, reason);
+    }
+}

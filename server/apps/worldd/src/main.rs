@@ -155,6 +155,11 @@ fn serve(
 ///
 /// The transport is returned unchanged when the flag is absent: no sink is installed, so nothing on
 /// the datagram path formats or allocates (plan §12, plan §18.8).
+/// The note sink's body: one line, same prefix as the transport trace.
+fn note_line(peer: std::net::SocketAddr, reason: &str) {
+    eprintln!("[worldd] diagnostics peer={peer} note={reason}");
+}
+
 fn attach_diagnostics(
     config: &Config,
     mut transport: Transport,

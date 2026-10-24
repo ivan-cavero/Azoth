@@ -233,8 +233,8 @@ impl Tick {
             return;
         };
         for datagram in outbound {
-            // A full channel drops the datagram; it is a reliable rung and the session will
-            // retransmit it, so the alternative — blocking the tick — is strictly worse.
+            // A full channel drops the datagram: a rung is retransmitted by the session, and a lost
+            // Carrier flight is re-answered on the client's retry (`crate::entry`), never blocked.
             let _ = writer.try_send(datagram);
         }
     }

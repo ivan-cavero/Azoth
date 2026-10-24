@@ -13,7 +13,9 @@
 //! =======================
 //! This crate owns *formats*: the prefix varint, VLQ32, the Carrier envelope,
 //! the MessageRecord framing, the type-0x08 state-bundle grammar, the fragment
-//! grammar, the LZ4 block, and V3 registration.
+//! grammar, the LZ4 block, and V3 registration. [`carrier`] adds the one format
+//! that is not derived but captured — the connection-acceptance flight — because
+//! a client will not send V3 until it has received those exact bytes.
 //!
 //! It does **not** own *field maps*. Which offset inside a fragment is the
 //! player's x coordinate is build-scoped and lives with the caller, because a
@@ -39,6 +41,7 @@
 #![forbid(unsafe_code)]
 
 pub mod bundle;
+pub mod carrier;
 pub mod container;
 pub mod envelope;
 pub mod error;

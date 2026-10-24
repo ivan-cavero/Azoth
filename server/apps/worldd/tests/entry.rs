@@ -13,6 +13,12 @@
 //! Only the spawn payload is loaded from its fixture, because the chunk count asserted below is the
 //! measured one.
 
+// `entry.rs` reaches `crate::diagnostics::note` to explain a registration that produced nothing, so
+// the test binary has to compile that module too. Same pattern as `tests/diagnostics.rs`.
+#[path = "../src/config.rs"]
+mod config;
+#[path = "../src/diagnostics.rs"]
+mod diagnostics;
 #[path = "../src/entry.rs"]
 mod entry;
 #[path = "../src/ladder.rs"]
