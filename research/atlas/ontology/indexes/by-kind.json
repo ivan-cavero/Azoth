@@ -24,9 +24,14 @@
     ],
     "endpoint": [
       "endpoint.channel-config",
+      "endpoint.cms-motd",
+      "endpoint.entitlements",
       "endpoint.get-login-info",
       "endpoint.list-worlds",
-      "endpoint.queue-login"
+      "endpoint.omni-credentials",
+      "endpoint.omni-tokens",
+      "endpoint.queue-login",
+      "endpoint.remote-config"
     ]
   }
 }

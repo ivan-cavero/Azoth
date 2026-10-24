@@ -1,0 +1,30 @@
+{
+  "uid": "endpoint.remote-config",
+  "kind": "endpoint",
+  "name": "RemoteConfig",
+  "summary": "Public gameplay configuration set fetch.",
+  "purpose": "HTTPS boot chain surface before REP.",
+  "authority": "shared",
+  "wire": {
+    "direction": "Bidi",
+    "transport": "http"
+  },
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/endpoints.json#RemoteConfig"
+    }
+  ],
+  "owners": {
+    "crate": "regiond",
+    "module": null
+  }
+}

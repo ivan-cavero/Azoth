@@ -1,0 +1,30 @@
+{
+  "uid": "endpoint.cms-motd",
+  "kind": "endpoint",
+  "name": "CmsMotd",
+  "summary": "MOTD / world announcement JSON with mandatory ETag.",
+  "purpose": "HTTPS boot chain surface before REP.",
+  "authority": "shared",
+  "wire": {
+    "direction": "Bidi",
+    "transport": "http"
+  },
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/endpoints.json#CmsMotd"
+    }
+  ],
+  "owners": {
+    "crate": "channeld",
+    "module": null
+  }
+}

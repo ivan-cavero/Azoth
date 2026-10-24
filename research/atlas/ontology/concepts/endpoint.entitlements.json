@@ -1,0 +1,30 @@
+{
+  "uid": "endpoint.entitlements",
+  "kind": "endpoint",
+  "name": "Entitlements",
+  "summary": "Steam entitlements for the persona.",
+  "purpose": "HTTPS boot chain surface before REP.",
+  "authority": "shared",
+  "wire": {
+    "direction": "Bidi",
+    "transport": "http"
+  },
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/endpoints.json#Entitlements"
+    }
+  ],
+  "owners": {
+    "crate": "regiond",
+    "module": null
+  }
+}

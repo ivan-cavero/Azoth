@@ -54,6 +54,8 @@ def main() -> None:
         ROOT / "docs/adr/0009-native-dev-vs-compose.md",
         ROOT / "deploy/local/compose.yml",
         ROOT / "platform/README.md",
+        ROOT / ".agents/README.md",
+        ROOT / ".agents/skills/azoth-ontology/SKILL.md",
     ):
         if not required.is_file():
             fail(f"missing reorg artifact: {required.relative_to(ROOT)}")
