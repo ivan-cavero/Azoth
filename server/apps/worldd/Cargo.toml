@@ -14,3 +14,8 @@ workspace = true
 azoth-dtls = { path = "../../crates/azoth-dtls" }
 azoth-session = { path = "../../crates/azoth-session" }
 azoth-wire = { path = "../../crates/azoth-wire" }
+# The ladder's captured `LevelInfoChanged` body is stored as hex in the fixture that records its
+# provenance, so the app layer needs a JSON reader to load it. Both are already in the tree for
+# `regiond`.
+serde = { workspace = true }
+serde_json = { workspace = true }

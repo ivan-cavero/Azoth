@@ -770,6 +770,8 @@ dependencies = [
  "azoth-dtls",
  "azoth-session",
  "azoth-wire",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

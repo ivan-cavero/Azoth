@@ -24,7 +24,8 @@
     12272.0,
     10250.0
    ],
-   "tail_bytes_unexplained": 38
+   "tail_bytes_unexplained": 26,
+   "tail_note": "The body is 106 bytes; two length-prefixed strings plus 16 B of f32, two u32 and four flag bytes account for 80, leaving 26. A first version of this fixture said 38 (arithmetic done in prose); the crate constant and a test say 26."
   },
   "note": "The prototype's level_info_changed_body composes 92 bytes and is never called; the real message is 106. This fixture is the real one."
  }
