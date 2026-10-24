@@ -308,6 +308,8 @@ impl WorldEntry {
         let Some(ticket) = self.tickets.consume(&ticket_id) else {
             return self.reject(peer, "unknown or already consumed ticket");
         };
+        // Domain id from the ticket (authority), not from opaque V3 bytes.
+        let character = ticket.character();
         let validated = self.peers.get_mut(&peer).is_some_and(|state| {
             state.session.bind_ticket(ticket).is_ok()
                 && state.session.register(request, now).is_ok()
@@ -321,6 +323,10 @@ impl WorldEntry {
         let (Ok(response), Ok(Some(first))) = encoded else {
             return self.reject(peer, "the world could not encode the ladder");
         };
+        eprintln!(
+            "[worldd] entry peer={peer} character={character} first_rung={}",
+            first.ontology_uid
+        );
         let Some(state) = self.peers.get_mut(&peer) else {
             return EntryOutcome::Nothing;
         };

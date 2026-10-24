@@ -1,0 +1,13 @@
+[package]
+name = "azoth-model"
+description = "Domain types for the authoritative world: identities and transforms without wire codecs."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

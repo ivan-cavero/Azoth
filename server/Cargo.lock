@@ -76,6 +76,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "azoth-model"
+version = "0.1.0"
+
+[[package]]
 name = "azoth-region"
 version = "0.1.0"
 dependencies = [
@@ -88,6 +92,7 @@ dependencies = [
 name = "azoth-session"
 version = "0.1.0"
 dependencies = [
+ "azoth-model",
  "azoth-wire",
 ]
 

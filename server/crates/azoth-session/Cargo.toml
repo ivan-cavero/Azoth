@@ -11,6 +11,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+# Domain ids (character/persona) without pulling HTTP or DTLS into the session machine.
+azoth-model = { path = "../azoth-model" }
 # The V3 registration body is what authenticates a session, so the ticket check reads the parsed
 # request rather than raw bytes. `azoth-wire` is pure `std`, so this crate's tree stays free of
 # sockets, threads and async runtimes on purpose (plan §18).

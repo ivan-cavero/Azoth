@@ -89,6 +89,23 @@ pub enum Step {
     },
 }
 
+impl Step {
+    /// Ontology concept this rung advances (`research/atlas/ontology/concepts/`).
+    ///
+    /// Bytes without a named purpose are how the prototype stayed a replayer. Every
+    /// send path should be able to answer this; when a rung is still a capture seed,
+    /// the concept still names *why* the client needs it.
+    #[must_use]
+    pub const fn ontology_uid(&self) -> &'static str {
+        match self {
+            Self::Greetings => "flow.world-entry.rung.greetings",
+            Self::SelfIdentification => "flow.world-entry.rung.self-identification",
+            Self::LevelInfoChanged { .. } => "flow.world-entry.rung.level-info",
+            Self::Spawn { .. } => "flow.world-entry.rung.spawn",
+        }
+    }
+}
+
 /// One datagram to write, with the reliable sequence it was queued under.
 ///
 /// The sequence is carried out because the caller hands the bytes to the session's resend table,
@@ -99,6 +116,8 @@ pub struct Outgoing {
     pub reliable_sequence: u16,
     /// The datagram to write, Carrier envelope included.
     pub datagram: Vec<u8>,
+    /// Why this datagram exists (ontology uid); see [`Step::ontology_uid`].
+    pub ontology_uid: &'static str,
 }
 
 /// The ladder for one peer: the steps still to send, and the counters that order them.
@@ -167,7 +186,7 @@ impl Ladder {
     pub fn registration(&mut self, session_token: [u8; 32]) -> Result<Outgoing, WireError> {
         let payload = RegistrationResponse::success(session_token).encode_record()?;
         let record = self.reliable_record(payload, 1);
-        self.pack(record)
+        self.pack(record, "flow.world-entry.rung.v3-response")
     }
 
     /// The next datagram of the next rung, or `None` once the ladder is done.
@@ -191,20 +210,21 @@ impl Ladder {
 
     /// Turn one step into one or more queued datagrams.
     fn encode_step(&mut self, step: Step) -> Result<(), WireError> {
+        let ontology_uid = step.ontology_uid();
         match step {
             // `Cmd_Greetings` is a Carrier message, not a typed one: no VLQ prefix, no marker.
             Step::Greetings => {
                 let record = self.reliable_record(greetings_payload(), 1);
-                self.queue(record)
+                self.queue(record, ontology_uid)
             }
             Step::SelfIdentification => {
                 let inner =
                     typed_record_payload(SELF_IDENTIFICATION_TYPE, &self_identification_body())?;
-                self.pack_message(inner)
+                self.pack_message(inner, ontology_uid)
             }
             Step::LevelInfoChanged { body } => {
                 let inner = typed_record_payload(LEVEL_INFO_CHANGED_TYPE, &body)?;
-                self.pack_message(inner)
+                self.pack_message(inner, ontology_uid)
             }
             Step::Spawn { payload } => {
                 // The spawn travels as a state bundle: the record payload inside the bundle's
@@ -214,7 +234,7 @@ impl Ladder {
                 let body = bundle::encode(u64::from(self.next_envelope), &payload)?;
                 let mut inner = varint::encode(body.len() as u64)?;
                 inner.extend_from_slice(&body);
-                self.pack_message(inner)
+                self.pack_message(inner, ontology_uid)
             }
         }
     }
@@ -234,19 +254,24 @@ impl Ladder {
     }
 
     /// Build one record's datagram on the ladder's own counters.
-    fn pack(&mut self, record: MessageRecord) -> Result<Outgoing, WireError> {
+    fn pack(
+        &mut self,
+        record: MessageRecord,
+        ontology_uid: &'static str,
+    ) -> Result<Outgoing, WireError> {
         let reliable_sequence = record.reliable_sequence;
         let envelope = self.take_envelope();
         let datagram = datagram(envelope, &[record])?;
         Ok(Outgoing {
             reliable_sequence,
             datagram,
+            ontology_uid,
         })
     }
 
     /// Queue one record as one datagram.
-    fn queue(&mut self, record: MessageRecord) -> Result<(), WireError> {
-        let out = self.pack(record)?;
+    fn queue(&mut self, record: MessageRecord, ontology_uid: &'static str) -> Result<(), WireError> {
+        let out = self.pack(record, ontology_uid)?;
         self.queued.push_back(out);
         Ok(())
     }
@@ -257,10 +282,10 @@ impl Ladder {
     /// (`REPLAY_CHUNK_COUNT_TOTAL`) and the only form this writer can express, since `marshal`
     /// derives `MF_CHUNKS` from `num_chunks > 1` and a countdown would drop the flag on the last
     /// chunk — the one the client needs it for.
-    fn pack_message(&mut self, inner: Vec<u8>) -> Result<(), WireError> {
+    fn pack_message(&mut self, inner: Vec<u8>, ontology_uid: &'static str) -> Result<(), WireError> {
         if inner.len() <= SINGLE_DATAGRAM_LIMIT {
             let record = self.reliable_record(inner, 1);
-            return self.queue(record);
+            return self.queue(record, ontology_uid);
         }
         // A payload above the single-datagram limit is always cut into at least two chunks: one
         // chunk carrying `numChunks 1` is the same oversized single datagram that is measured never
@@ -280,7 +305,7 @@ impl Ladder {
         for piece in pieces.drain(..) {
             let mut record = self.reliable_record(piece, num_chunks);
             record.flags |= flags::CHUNKS;
-            self.queue(record)?;
+            self.queue(record, ontology_uid)?;
         }
         Ok(())
     }
@@ -392,7 +417,26 @@ mod tests {
         assert_eq!(message.payload[0] as usize, 88, "VLQ32 length of the body");
         assert_eq!(&message.payload[1..3], &[0x00, 0x01], "the typed marker");
         assert_eq!(message.payload[3], 0x03, "RegistrationResponseMsg");
+        assert_eq!(response.ontology_uid, "flow.world-entry.rung.v3-response");
         let greeting = ladder.next().expect("encodes").expect("rung");
         assert_eq!(greeting.reliable_sequence, 2, "the greeting shares the counters");
+        assert_eq!(greeting.ontology_uid, "flow.world-entry.rung.greetings");
+    }
+
+    #[test]
+    fn every_ladder_step_names_an_ontology_concept() {
+        let steps = [
+            Step::Greetings,
+            Step::SelfIdentification,
+            Step::LevelInfoChanged { body: vec![0] },
+            Step::Spawn { payload: vec![0] },
+        ];
+        for step in steps {
+            assert!(
+                step.ontology_uid().starts_with("flow.world-entry."),
+                "{}",
+                step.ontology_uid()
+            );
+        }
     }
 }

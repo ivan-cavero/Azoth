@@ -38,6 +38,7 @@
 
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use azoth_model::{CharacterId, PersonaId};
 use azoth_wire::v3::{RegistrationRequest, RequestFormat};
 
 use crate::SessionError;
@@ -69,6 +70,18 @@ pub struct LoginTicket {
 }
 
 impl LoginTicket {
+    /// Character this ticket admits, as a domain id (ontology: `flow.world-entry`).
+    #[must_use]
+    pub fn character(&self) -> CharacterId {
+        CharacterId(self.character_id.clone())
+    }
+
+    /// Persona owning that character.
+    #[must_use]
+    pub fn persona(&self) -> PersonaId {
+        PersonaId(self.persona_id.clone())
+    }
+
     /// Whether the ticket has expired at `unix_now`.
     ///
     /// The comparison is inclusive: a ticket is not valid during the second it expires in.
@@ -201,6 +214,16 @@ impl SessionBinding {
             persona_id: ticket.persona_id,
             rep_address: ticket.rep_address,
         }
+    }
+
+    /// Domain view of who this session is (ontology: `flow.world-entry`).
+    #[must_use]
+    pub fn player(&self) -> azoth_model::PlayerIdentity {
+        azoth_model::PlayerIdentity::new(
+            self.character_id.as_str(),
+            self.persona_id.as_str(),
+            self.world_id.as_str(),
+        )
     }
 
     /// The character the session is bound to.

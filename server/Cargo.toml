@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "crates/azoth-model",
     "crates/azoth-wire",
     "crates/azoth-region",
     "crates/azoth-http",
