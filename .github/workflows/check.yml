@@ -27,8 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Domain crate tests (no OpenSSL worldd)
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server
+      - name: Domain crate tests (no OpenSSL / worldd)
         run: |
-          cargo test --offline -p azoth-model -p azoth-session -p azoth-commands -p azoth-privacy -p azoth-wire
+          cargo test -p azoth-model -p azoth-session -p azoth-commands -p azoth-privacy -p azoth-wire
       - name: xtask workspace gates
         run: cargo run -p xtask --quiet
