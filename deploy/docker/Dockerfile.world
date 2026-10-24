@@ -1,0 +1,21 @@
+# Linux world binary (public name: world). From repo root:
+#   docker build -f deploy/docker/Dockerfile.world -t azoth-world .
+# OpenSSL from distro — ADR 0004.
+
+FROM rust:1.94-bookworm AS build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY server/ ./
+RUN cargo build --release -p worldd
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libssl3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --no-create-home world
+COPY --from=build /src/target/release/worldd /usr/local/bin/world
+USER world
+EXPOSE 36000/udp
+ENTRYPOINT ["/usr/local/bin/world"]

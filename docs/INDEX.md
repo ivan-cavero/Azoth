@@ -10,6 +10,10 @@ for the work at hand. Taxonomy: [`PLAN-master-platform.md`](PLAN-master-platform
 | **Platform / reorg / agents / security vision** | [Master platform plan](PLAN-master-platform.md) |
 | Rust crates, tick, DTLS, capacity mechanics | [Rust backend plan](PLAN-backend-rust.md) |
 | Short architecture boundaries | [Architecture](ARCHITECTURE.md) |
+| Daily loop vs Compose | [ADR 0009](adr/0009-native-dev-vs-compose.md) |
+| Local compose (CI/Linux) | [deploy/local](../deploy/local/README.md) |
+| Platform skeletons | [platform/](../platform/README.md) |
+| Boot-naming campaign | [runbooks/agentic-boot-campaign.md](runbooks/agentic-boot-campaign.md) |
 | Near-term sequencing | [Roadmap](ROADMAP.md) |
 | ADRs | [`adr/`](adr/) |
 | Status diaries | [`journal/`](journal/) |

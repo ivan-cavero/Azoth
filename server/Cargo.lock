@@ -61,6 +61,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "azoth-commands"
+version = "0.1.0"
+dependencies = [
+ "azoth-model",
+ "serde",
+]
+
+[[package]]
 name = "azoth-dtls"
 version = "0.1.0"
 dependencies = [
@@ -78,6 +86,16 @@ dependencies = [
 [[package]]
 name = "azoth-model"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "azoth-privacy"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "azoth-region"
@@ -500,6 +518,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "azoth-http",
+ "azoth-privacy",
  "azoth-region",
  "azoth-store",
  "serde_json",
@@ -772,7 +791,9 @@ dependencies = [
 name = "worldd"
 version = "0.1.0"
 dependencies = [
+ "azoth-commands",
  "azoth-dtls",
+ "azoth-model",
  "azoth-session",
  "azoth-wire",
  "serde",

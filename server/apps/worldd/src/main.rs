@@ -19,7 +19,7 @@
 //! tuned by roughly forty `AZOTH_*` environment variables. This binary has **no replay pump and no
 //! environment variables at all**. If the client reaches `InGame` against it, the world is
 //! originating its own state rather than replaying someone else's — which is the Phase 3 acceptance
-//! (`odd/tasks/phase-3-world.md` S5).
+//! (`docs/archive/odd-tasks/phase-3-world.md` S5).
 //!
 //! THE TICK AND THE HANDSHAKE ARE SEPARATE, BY CONSTRUCTION
 //! ======================================================
@@ -54,6 +54,7 @@ pub mod config;
 pub mod diagnostics;
 pub mod entry;
 pub mod ladder;
+pub mod ops;
 pub mod tick;
 pub mod tickets;
 

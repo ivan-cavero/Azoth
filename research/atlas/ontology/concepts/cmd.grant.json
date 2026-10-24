@@ -1,0 +1,15 @@
+{
+  "uid": "cmd.grant",
+  "kind": "command",
+  "name": "Grant content",
+  "summary": "Grant content or currency to a character (economy role).",
+  "purpose": "Economy mutation; ledger apply later.",
+  "authority": "server",
+  "relations": [],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "doc", "ref": "server/crates/azoth-commands/src/lib.rs" }
+  ],
+  "owners": { "crate": "azoth-commands", "module": "apps/worldd/ops" }
+}

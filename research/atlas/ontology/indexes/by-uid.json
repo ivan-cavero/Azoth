@@ -1,6 +1,9 @@
 {
   "generated": "hand-seed-2026-10-24",
   "uids": [
+    "cmd.ban",
+    "cmd.grant",
+    "cmd.kick",
     "flow.presence",
     "flow.world-entry",
     "flow.world-entry.rung.spawn",

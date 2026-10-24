@@ -43,7 +43,7 @@ port order.
 | The remote-actor render blocker is structural and unchanged by the build move | `STATUS.md` 2026-10-22 (close) |
 | The launcher patch suite, re-derived per build hash | `STATUS.md` 2026-10-22 |
 | **The 1.460 Ghidra corpus exists** (1.1 GB, 423,609 ranges) | `reverse/builds/30fe6461…/corpus/`; `research/atlas/builds.json` still says otherwise and is stale |
-| **The channel-1 container, locator and field layout** | `odd/tasks/remeasure-1460.md` L3: 229,304 records, len+crc valid on all, 222,389 with exactly one marker |
+| **The channel-1 container, locator and field layout** | `docs/archive/odd-tasks/remeasure-1460.md` L3: 229,304 records, len+crc valid on all, 222,389 with exactly one marker |
 | **The yaw frame `forward = (−sin, cos)`** | same, L4: W/A/D give offsets 90/180/0 at fixed camera yaw; S is predicted only |
 | **Walk speed 5.39 u/s** (not 3.83) | same, L4: nine episodes, three directions, 5.21–5.59 |
 | **The five-position sliding buffer, newest-first** | same, L4: 343 records with 5 pairs; `buf(n+1)[1] ~ buf(n)[0]` at 0.0073 u on 341/342 |
@@ -54,7 +54,7 @@ port order.
 
 ### 0.2 What was **not** measured on 1.460 before Phase 0, and the status after it
 
-Phase 0 ran on 2026-10-22 and its results are in `odd/tasks/remeasure-1460.md`. The table
+Phase 0 ran on 2026-10-22 and its results are in `docs/archive/odd-tasks/remeasure-1460.md`. The table
 below is the live state of the debt; a row is only safe to port from when it says
 **verified**.
 
@@ -75,7 +75,7 @@ unchanged.
 | Spawn record: 46,393 B, 48 fragments, replay seq `0x2a..0x6c` | `services/world/replay/messages-redacted.txt` | replayed and accepted; **fragment boundaries unverified** |
 | Position at payload offset **38332/38336**; **fragment #35**, `key=16 type=11` | `rep.py`, `position_fragment_from_spawn` | **unverified** — but the write is value-anchored, so the port needs the anchor value, not the offset |
 | Entity template: record 70, 2 fragments, 162 B, position at 6 and 74 | `entities.py` | **unverified** |
-| Inventory response `0x16a0`: 427 entries, entry marker `00 01 82 5a`, start 68 B before it | `inventory.py` | **verified** — the corpus block is 99,819 B with 428 markers / 427 gaps, and `marker−68` lands on the NUL-padded container name. Only the `u32`-vs-`u8` type-name length at `marker+4` needed correcting (`odd/tasks/remeasure-1460.md` L5 §3) |
+| Inventory response `0x16a0`: 427 entries, entry marker `00 01 82 5a`, start 68 B before it | `inventory.py` | **verified** — the corpus block is 99,819 B with 428 markers / 427 gaps, and `marker−68` lands on the NUL-padded container name. Only the `u32`-vs-`u8` type-name length at `marker+4` needed correcting (`docs/archive/odd-tasks/remeasure-1460.md` L5 §3) |
 | `MEASURED_USED_SLOTS` 1..94 occupied, 95..255 NULL | `entities.py` | slot 95 re-confirmed NULL in the 1.460 lever run (`STATUS.md` 2026-10-22 close) |
 | Entity transform `+0x14c/+0x15c/+0x16c` stride `0x10` | `STATUS.md` 2026-10-20 | **not measured** — `frida-actor-transform` timed out twice (3 GB scan, 15 min) |
 | The reference frame offset `wire = accessor + (−2.2002, +3.3777)` | `movement.py` | **not a dependency** — documented per-session; calibrated at runtime |
@@ -1627,7 +1627,7 @@ client result — not "the code is written".
 | --- | --- |
 | Work | (a) re-measure on `30fe6461…` every field map listed in §0.2, using the existing probes; (b) build `azoth-wire` with byte-for-byte parity against the Python encoders over the whole captured corpus; (c) build the differential harness (`python az.py` oracle + Rust comparator) |
 | Acceptance | every field map in §0.2 is either **re-measured with a recorded id** or **removed from the plan's dependencies**; the parity report shows **0 mismatches** across all 177 replay messages + the full channel-1 corpus; the differential harness fails loudly on a one-byte change (prove it by mutating a fixture) |
-| State after 2026-10-22 | **(a) mostly done, (b) and (c) not started.** The re-measurement ran all three batches and is recorded in `odd/tasks/remeasure-1460.md`: the channel-1 container, locator, field layout, walk speed, sliding buffer, state-stream cadence and spawn position are **verified**, and the yaw frame is verified on three of four directions; the entity transform is **unavailable** (probe timed out twice); the inventory entry codec is **undecoded**. The parity harness is untouched and is the remaining work |
+| State after 2026-10-22 | **(a) mostly done, (b) and (c) not started.** The re-measurement ran all three batches and is recorded in `docs/archive/odd-tasks/remeasure-1460.md`: the channel-1 container, locator, field layout, walk speed, sliding buffer, state-stream cadence and spawn position are **verified**, and the yaw frame is verified on three of four directions; the entity transform is **unavailable** (probe timed out twice); the inventory entry codec is **undecoded**. The parity harness is untouched and is the remaining work |
 | Why first | a single wrong offset produces "accepted, zero errors, no effect" — the failure signature this project has paid for repeatedly. Nothing may be built on an unverified offset |
 
 ### Phase 1 — `channeld`: the HTTP entry, byte-identical

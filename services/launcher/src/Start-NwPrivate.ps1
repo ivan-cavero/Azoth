@@ -297,7 +297,7 @@ $env:EOS_USE_ANTICHEATCLIENTNULL = '1'
 # launcher runs under another user's token those variables already point at that user's
 # folders, and overwriting them here put the second client back on the first user's
 # profile — measured 2026-10-22: the process ran as Azoth2 and still wrote the shared
-# C:\Users\barbara\AppData\Local\AGS\New World\Game.log.
+# %LOCALAPPDATA%\AGS\New World\Game.log of the checkout owner.
 #
 # Override only when running as the SAME user who owns this checkout, which is the
 # historical single-client path and must stay byte-identical.

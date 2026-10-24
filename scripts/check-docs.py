@@ -47,6 +47,17 @@ def main() -> None:
     if not raw_readme.is_file():
         fail("docs/journal/raw/README.md missing (agents need the do-not-load rule)")
 
+    for required in (
+        ROOT / "docs/LEGAL.md",
+        ROOT / "docs/runbooks/contributor-loop.md",
+        ROOT / "docs/runbooks/agentic-boot-campaign.md",
+        ROOT / "docs/adr/0009-native-dev-vs-compose.md",
+        ROOT / "deploy/local/compose.yml",
+        ROOT / "platform/README.md",
+    ):
+        if not required.is_file():
+            fail(f"missing reorg artifact: {required.relative_to(ROOT)}")
+
     print(
         f"check-docs: ok (STATUS.md {len(lines)}/{STATUS_MAX_LINES} lines; roadmap v2 wired)"
     )

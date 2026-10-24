@@ -12,7 +12,7 @@ session (scripts/measure-angle-frame.py found only 6 displacements in 195,152 sa
     1.460 walks at a different speed, a ported threshold rejects legitimate movement.
 
 Method: split the log per peer (a log can hold several clients, and pooling them produces a
-fake two-state "flip" -- measured, see odd/tasks/remeasure-1460.md), order each peer's
+fake two-state "flip" -- measured, see docs/archive/odd-tasks/remeasure-1460.md), order each peer's
 samples, and only then look at displacement. Speed comes from displacement over the sample's
 own timestamp, not from an assumed 20 Hz, so a stalled stream cannot inflate it.
 

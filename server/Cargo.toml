@@ -8,6 +8,8 @@ members = [
     "crates/azoth-dtls",
     "crates/azoth-session",
     "crates/azoth-store",
+    "crates/azoth-commands",
+    "crates/azoth-privacy",
     "apps/channeld",
     "apps/regiond",
     "apps/worldd",
@@ -46,7 +48,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal
 # discouraged, so every access has to go through `spawn_blocking` or a persistence thread.
 rusqlite = { version = "0.37", features = ["bundled"] }
 # The DTLS transport. `openssl` is the only library in the tree that can negotiate
-# `0xC030` as a DTLS 1.2 server (odd/tasks/dtls-spike.md L2/L5); `dtls` lacks the suite
+# `0xC030` as a DTLS 1.2 server (docs/archive/odd-tasks/dtls-spike.md L2/L5); `dtls` lacks the suite
 # and `rustls` has no DTLS at all. The `vendored` feature is deliberately NOT enabled:
 # the crate's bundled source is incomplete and `Configure` refuses, so the build uses
 # MSYS2's packaged OpenSSL 3.6.5 (see `rust-toolchain.toml`).

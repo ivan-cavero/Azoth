@@ -206,14 +206,16 @@ Rules:
    with exact fix commands; `az setup --purge` deletes `.azoth` caches.
 4. **Windows + Linux first-class** for server binaries; Windows remains the
    private-client host. Docker images are the Linux truth for CI/prod.
-5. Hot reload: gateway route registry already mtime-reloads; Rust world uses
-   `cargo watch` / `cargo run` restart for now; content JSON hot-reload is a
-   later ops feature — document the real loop in
-   [`docs/runbooks/contributor-loop.md`](runbooks/contributor-loop.md).
-6. Logs: one place — `.azoth/logs/` + `az status` / `az logs <svc>` (add if
-   missing). No hunting AppData.
-7. `.gitignore` only ignores regenerable / secret / huge local state — never
-   source of truth. Audit periodically (P0dx).
+5. **Daily loop = native `az.py dev`** (Windows host processes). Compose is
+   for Linux/CI/prod smoke only — [ADR 0009](adr/0009-native-dev-vs-compose.md).
+   Do not develop the private-client path inside Docker on Windows.
+6. Hot reload: gateway routes mtime-reload; restart Rust world after code
+   changes. Loop: [`docs/runbooks/contributor-loop.md`](runbooks/contributor-loop.md).
+7. Logs: `.azoth/logs/` + `az status`. No hunting AppData.
+8. `.gitignore` only ignores regenerable / secret / huge local state.
+9. First agentic RE after reorg:
+   [`runbooks/agentic-boot-campaign.md`](runbooks/agentic-boot-campaign.md)
+   (name everything from boot → InGame).
 
 ### OpenSSL install policy (ties to §0B / ADR 0004)
 
@@ -472,7 +474,7 @@ A fresh Windows (and later Linux CI) checkout must:
 2. Discover Steam install **read-only** OR accept `AZOTH_GAME_INSTALL`.
 3. `az.py migrate` once on old machines; refuse overwrite conflicts.
 4. `az.py mode private` + `az.py dev` (+ optional `docker compose`) starts
-   stack with **zero** hardcoded `C:\Users\…` in tracked files.
+   stack with **zero** hardcoded user-profile paths in tracked files.
 5. Logs/PIDs under `.azoth/state` and `.azoth/logs`.
 6. Client runtime under `private-client/` (or documented `ProgramData` junction
    policy — one documented choice, not both ad hoc).
@@ -1277,11 +1279,17 @@ Use this as the audit backlog before moving files:
 - [x] `az setup` profiles (`core`/`re`/`all`) + `az doctor` + purge  
 - [x] `.gitignore` audit (secrets, targets, playwright, .env)  
 - [x] Contributor loop runbook (dev / RE / e2e / logs)  
-- [ ] Linux Dockerfile for world+region+channel  
+- [x] Linux Dockerfile for world+region+channel + `deploy/local/compose.yml`  
+- [x] Archive noisy docs (`docs/archive/…`); delete migration-map indirection  
+- [x] `platform/` launcher+web skeletons  
+- [x] `scripts/check-paths.py`  
+- [x] ADR 0009 native `az.dev` vs Compose  
+- [x] Agentic boot-naming campaign runbook + prompt  
 
 ### 19.1b Domain Rust (feel like a real MMO)
 
 - [x] `azoth-model` stub + ladder `ontology_uid`  
+- [x] `azoth-commands` + `azoth-privacy` called from worldd/regiond  
 - [ ] Presence layouts → ontology `layout`  
 - [ ] Compose spawn from domain snapshot (retire capture seed)  
 - [ ] `azoth-sim` / `azoth-replica` crates when presence needs AOI  
@@ -1323,9 +1331,9 @@ Use this as the audit backlog before moving files:
 
 ### 19.4b Testing & benches
 
-- [ ] nextest in CI  
-- [ ] Scenario tests for ticket/ladder failure modes  
-- [ ] `az test e2e entry` harness  
+- [x] nextest.toml present (`cargo nextest run`)  
+- [x] Scenario tests for ticket/RBAC/privacy failure modes  
+- [x] `az test e2e entry` offline stub  
 - [ ] Criterion benches for wire + tick hot paths  
 - [ ] Playwright smoke for landing critical paths  
 - [ ] Ban trivial unit-test PRs that add no failure-mode coverage  
@@ -1333,8 +1341,8 @@ Use this as the audit backlog before moving files:
 ### 19.5 Deploy
 
 - [ ] One config schema  
-- [ ] Dockerfile per app (Linux OpenSSL)  
-- [ ] compose local  
+- [x] Dockerfile per app (Linux OpenSSL)  
+- [x] compose local  
 - [ ] k8s/Agones sketches (no need to run until P16)  
 
 ### 19.5b Funding
@@ -1417,13 +1425,23 @@ Use this as the audit backlog before moving files:
 - Public display roadmap → `site/src/data/roadmap-v2.ts` (v1 archived).  
 - Legal / collab → `LEGAL.md`, `NOTICE`, `CONTRIBUTING.md`.  
 - Crypto mechanics → `PLAN-backend-rust.md` §0.3 + ADR 0004.  
+### Reorg completeness (as of branch `refactor/knowledge-os`)
 
-**Next planning/execution follow-ups (authorized on this branch):**
+| Slice | State |
+| --- | --- |
+| Knowledge OS / docs / ADRs / ontology seeds | **Done** |
+| DX (`setup` profiles, doctor, contributor loop, gitignore) | **Done** |
+| Domain crates model/commands/privacy + ladder ontology | **Wired** |
+| `deploy/local` + Linux Dockerfiles + `platform/` skeletons | **Done** |
+| Archive noise (`odd` → archive); no migration-map doc | **Done** |
+| Daily loop = native `az.dev` (ADR 0009) | **Done** |
+| Agentic boot-naming campaign ready | **Ready to run** |
+| R7 retire Python play path | **Open** (needs parity) |
+| Playable spine / presence / capacity | **Open** (gameplay) |
 
-1. Lock rename shortlist (ADR 0005) — pick one name, one cutover PR  
-2. Public binary aliases `world` / `region` / `channel` (ADR 0006)  
-3. Document Windows OpenSSL path in `server/AGENTS.md` + deploy README  
-4. Presence live unmarshal → ontology layouts (STATUS blocker)  
-5. `deploy/local/compose.yml` sketch  
-6. Agent factory overnight DAG (P0b)  
-7. History scrub checklist before P22 GitHub open  
+**Next execution (agentic):**
+
+1. Run boot-naming campaign (ontology coverage from open → InGame)  
+2. Presence layouts → compose spawn; enter world via `az.py dev`  
+3. MSVC + vcpkg OpenSSL (`az doctor`)  
+4. Lock rename (ADR 0005)  

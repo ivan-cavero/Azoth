@@ -28,3 +28,4 @@ Accepted ADRs on this branch:
 | [0006](0006-binary-naming.md) | Public binaries `world` / `region` / `channel` / `ops` |
 | [0007](0007-testing-doctrine.md) | Scenario/e2e tests over decorative units |
 | [0008](0008-funding-ladder.md) | Funding ladder F0–F4; no pay-to-win |
+| [0009](0009-native-dev-vs-compose.md) | Daily loop = `az.dev`; Compose = Linux/CI/prod |

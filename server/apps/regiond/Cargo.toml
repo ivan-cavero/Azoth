@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 azoth-http = { path = "../../crates/azoth-http" }
+azoth-privacy = { path = "../../crates/azoth-privacy" }
 azoth-region = { path = "../../crates/azoth-region" }
 azoth-store = { path = "../../crates/azoth-store" }
 serde_json = { workspace = true }

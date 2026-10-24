@@ -11,7 +11,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+azoth-commands = { path = "../../crates/azoth-commands" }
 azoth-dtls = { path = "../../crates/azoth-dtls" }
+azoth-model = { path = "../../crates/azoth-model" }
 azoth-session = { path = "../../crates/azoth-session" }
 azoth-wire = { path = "../../crates/azoth-wire" }
 # The ladder's captured `LevelInfoChanged` body is stored as hex in the fixture that records its

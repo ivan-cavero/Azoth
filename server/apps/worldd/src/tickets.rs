@@ -2,7 +2,7 @@
 //!
 //! WHY THE WORLD HOLDS THEM AT ALL
 //! ===============================
-//! A session enters the world only with a validated ticket (`odd/tasks/phase-3-world.md` S6): the
+//! A session enters the world only with a validated ticket (`docs/archive/odd-tasks/phase-3-world.md` S6): the
 //! V3 `client_signature` is `sig:<ticket_id>`, the ticket has not expired, and it has not been
 //! consumed before. The world cannot derive that from the registration body — the body names a
 //! ticket id and nothing more — so the world has to hold the ticket the region minted and match the

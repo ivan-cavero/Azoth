@@ -17,6 +17,7 @@ actions that the task did not request.
 | [Protocol analysis](protocol-analysis.md) | Establishing exact client/server messages and state transitions | Atlas-backed wire facts and a traceable flow description |
 | [Server feature development](server-developer.md) | Implementing a client-visible feature such as world entry, movement, or combat | A minimal server behavior with protocol-backed acceptance criteria |
 | [Live client analysis](live-analysis.md) | A specifically requested experiment using a private client process, memory, or hooks | A reproducible, time-correlated trace and independently checked finding |
+| [Boot naming campaign](boot-naming-campaign.md) | Name every critical-path surface from process open → InGame into ontology | Ontology + atlas coverage toward the campaign gate |
 
 Use the autonomous driver as the session-level prompt. It selects one focused
 role prompt below when the task calls for it; do not stack role prompts that

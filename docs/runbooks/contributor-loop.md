@@ -17,18 +17,20 @@ python az.py doctor         # checklist: tools, Rust, OpenSSL
 caches. Server binaries also target **Linux** (Docker later); private client
 stays Windows.
 
-## 1. Run the stack
+## 1. Run the stack (native — ADR 0009)
 
 ```text
-python az.py dev            # gateway + world + caddy
+python az.py dev            # gateway + world + caddy on the host
 python az.py status
 # logs: .azoth/logs/
-python az.py game           # private client (needs Steam install + setup)
+python az.py game           # private client (Steam install + setup)
 ```
 
-Hot reload today: gateway JSON/routes reload on mtime; restart Rust world after
-code changes (`python az.py world restart` or cargo run). Content hot-reload
-is a later milestone.
+**Do not use Compose for this loop on Windows.** Compose is Linux/CI/prod
+(`deploy/local/compose.yml`) only.
+
+Hot reload: gateway JSON/routes reload on mtime; restart Rust world after code
+changes. Content hot-reload is a later milestone.
 
 ## 2. Tests that matter
 

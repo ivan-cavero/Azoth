@@ -14,11 +14,13 @@
 
 #![forbid(unsafe_code)]
 
+use serde::{Deserialize, Serialize};
+
 /// Stable character identity as the region/world ticket understands it.
 ///
 /// Ontology: part of `flow.world-entry`. The ticket is authority for this id on
 /// the strict V3 path (`azoth-session::LoginTicket`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CharacterId(pub String);
 
 impl CharacterId {
@@ -48,7 +50,7 @@ impl std::fmt::Display for CharacterId {
 }
 
 /// Persona the character belongs to (account-facing identity facet).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PersonaId(pub String);
 
 impl PersonaId {
@@ -98,7 +100,7 @@ impl Transform2 {
 pub struct ActorId(pub u64);
 
 /// World id as tickets and placement speak it (string today; opaque).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct WorldId(pub String);
 
 impl WorldId {

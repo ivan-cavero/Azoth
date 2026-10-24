@@ -13,11 +13,22 @@ routing needed to connect it.
 ## Start here
 
 - [Current status](STATUS.md) — short frontier only (diaries in `docs/journal/`).
-- [Roadmap](docs/ROADMAP.md) — the order of work and the repository cleanup plan.
-- [Architecture](docs/ARCHITECTURE.md) — Rust, content, decompilation, and capacity boundaries.
-- [Master platform plan](docs/PLAN-master-platform.md) — ontology, admin/ops, public APIs, launcher, bots, and phase order (planning only).
-- [Agent rules](AGENTS.md) — evidence, runtime, code, and documentation rules.
-- [Docs index](docs/INDEX.md) — operating, service, and research references.
+- [Contributor loop](docs/runbooks/contributor-loop.md) — setup, doctor, **native `az.dev`**.
+- [Architecture](docs/ARCHITECTURE.md) — what owns what on disk.
+- [Master platform plan](docs/PLAN-master-platform.md) — north star.
+- [Boot-naming campaign](docs/runbooks/agentic-boot-campaign.md) — next agentic RE.
+- [Legal](docs/LEGAL.md) — preservation + funding.
+- [Docs index](docs/INDEX.md).
+
+```text
+.\az.ps1 setup                 # core: Python + Caddy
+python az.py doctor
+python az.py dev               # daily loop (ADR 0009) — NOT compose
+python az.py test e2e entry
+# Linux/CI only:
+# docker compose -f deploy/local/compose.yml up --build
+```
+
 
 ## Run locally
 

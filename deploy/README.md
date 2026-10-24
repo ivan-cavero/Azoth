@@ -13,4 +13,13 @@ read-only. Changing host routing requires elevation. Read
 
 `python az.py dev` runs Caddy on loopback with the gateway and world server.
 Its CA, certificates, and state live in ignored `.azoth/caddy/`; the binary is
-installed by `python az.py setup`. There is no Docker Compose stack.
+installed by `python az.py setup`.
+
+## Linux compose (server path)
+
+```bash
+docker compose -f deploy/local/compose.yml up --build
+```
+
+See [`local/README.md`](local/README.md) and Dockerfiles under `docker/`.
+Public binary names inside images: `world`, `region`, `channel` (ADR 0006).

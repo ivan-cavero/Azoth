@@ -1,0 +1,15 @@
+#   docker build -f deploy/docker/Dockerfile.region -t azoth-region .
+
+FROM rust:1.94-bookworm AS build
+WORKDIR /src
+COPY server/ ./
+RUN cargo build --release -p regiond
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10002 --no-create-home region
+COPY --from=build /src/target/release/regiond /usr/local/bin/region
+USER region
+EXPOSE 8080/tcp
+ENTRYPOINT ["/usr/local/bin/region"]

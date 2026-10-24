@@ -34,7 +34,7 @@ channel = "stable-x86_64-pc-windows-gnu"
 # The client offers exactly ONE cipher suite -- 0xC030, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 --
 # so a DTLS library that cannot negotiate it cannot serve this build at all. `dtls` 0.17.2
 # implements eleven suites and that one is not among them; `rustls` has no DTLS primitives.
-# `openssl` does, and the spike in odd/tasks/dtls-spike.md shows it accepting the suite as a
+# `openssl` does, and the spike in docs/archive/odd-tasks/dtls-spike.md shows it accepting the suite as a
 # DTLS 1.2 server.
 #
 # Use the PACKAGED OpenSSL. Do not enable the `vendored` feature: the crate's bundled openssl-src

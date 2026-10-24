@@ -1,0 +1,15 @@
+#   docker build -f deploy/docker/Dockerfile.channel -t azoth-channel .
+
+FROM rust:1.94-bookworm AS build
+WORKDIR /src
+COPY server/ ./
+RUN cargo build --release -p channeld
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10003 --no-create-home channel
+COPY --from=build /src/target/release/channeld /usr/local/bin/channel
+USER channel
+EXPOSE 8081/tcp
+ENTRYPOINT ["/usr/local/bin/channel"]

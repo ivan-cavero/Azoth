@@ -10,7 +10,7 @@
 //! | **ongoing** ([`crate::player_record`]) | 9 | 7,154 B | **no** — `key=16` has no position at all |
 //!
 //! The spawn variant is the record that moves the client from `WaitingForPlayerSpawn` to `InGame`
-//! (`odd/tasks/phase-3-world.md` S3). Because the ongoing variant carries no position, **this record
+//! (`docs/archive/odd-tasks/phase-3-world.md` S3). Because the ongoing variant carries no position, **this record
 //! is the server's only lever on where a player starts**: nothing in the 1 Hz state stream can
 //! correct it afterwards. That asymmetry is why this module exists separately instead of being a
 //! case inside `player_record`.
@@ -22,7 +22,7 @@
 //! and plan §8.6 is the plan's own statement that these layouts are not decoded — so there is no way
 //! to write one from fields; a composer here would be a guess wearing a struct.
 //!
-//! Serving captured bytes is sanctioned rather than tolerated: `odd/tasks/phase-3-world.md` S7
+//! Serving captured bytes is sanctioned rather than tolerated: `docs/archive/odd-tasks/phase-3-world.md` S7
 //! requires captured payloads to live as templates **with their capture id and a test that they
 //! still parse**, and forbids the captured byte string itself from living in a library crate. This
 //! module keeps that rule: no payload bytes are embedded here — the payload is a test fixture, and

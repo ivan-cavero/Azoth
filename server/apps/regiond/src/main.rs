@@ -25,6 +25,7 @@
 
 pub mod config;
 pub mod identity;
+pub mod privacy_gate;
 pub mod routes;
 
 use std::net::SocketAddr;

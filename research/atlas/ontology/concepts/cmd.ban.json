@@ -1,0 +1,15 @@
+{
+  "uid": "cmd.ban",
+  "kind": "command",
+  "name": "Ban character/account",
+  "summary": "Ban intent resolved from a character id (admin+); store apply pending.",
+  "purpose": "Ops mutation intent with audit.",
+  "authority": "server",
+  "relations": [],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "doc", "ref": "server/crates/azoth-commands/src/lib.rs" }
+  ],
+  "owners": { "crate": "azoth-commands", "module": "apps/worldd/ops" }
+}

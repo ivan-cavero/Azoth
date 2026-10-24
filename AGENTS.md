@@ -14,6 +14,7 @@ North star: [`docs/PLAN-master-platform.md`](docs/PLAN-master-platform.md).
 | Thin architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Ontology facts | [`research/atlas/ontology/`](research/atlas/ontology/) |
 | Legal / collab | [`docs/LEGAL.md`](docs/LEGAL.md), [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Boot-naming campaign | [`docs/runbooks/agentic-boot-campaign.md`](docs/runbooks/agentic-boot-campaign.md) |
 | Skills | [`.agents/skills/`](.agents/skills/) |
 | Prompts | [`.agents/prompts/README.md`](.agents/prompts/README.md) |
 
@@ -34,6 +35,7 @@ North star: [`docs/PLAN-master-platform.md`](docs/PLAN-master-platform.md).
 - Domain code must not invent wire offsets; codecs live in `azoth-wire` / ontology field maps.
 - No New World PAKs/assets in git; do not claim Amazon affiliation; brand rename pending (ADR 0005).
 - OpenSSL stays inside `azoth-dtls` (ADR 0004); public binary name is `world` (ADR 0006).
+- Daily loop is native `az.py dev` (ADR 0009); Compose is Linux/CI only.
 
 ## Nested instructions
 

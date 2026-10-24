@@ -1,7 +1,8 @@
 {
   "generated": "hand-seed-2026-10-24",
   "kinds": {
-    "flow": ["flow.presence", "flow.world-entry"],
+    "command": ["cmd.ban", "cmd.grant", "cmd.kick"],
+    "flow": ["flow.presence", "flow.world-entry", "flow.world-entry.rung.spawn"],
     "message": [
       "msg.add-actor",
       "msg.spawn-actors",

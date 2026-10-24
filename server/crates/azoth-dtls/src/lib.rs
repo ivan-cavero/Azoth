@@ -15,7 +15,7 @@
 //!   captures. There is no fallback: a server that cannot negotiate `0xC030` cannot serve this
 //!   build at all. That single fact eliminated `dtls`/`webrtc-dtls` (they implement eleven
 //!   suites and `AES_256_GCM_SHA384` is not among them) and `rustls` (no DTLS primitives),
-//!   and it is why this crate sits on `openssl` (`odd/tasks/dtls-spike.md` L2, L3).
+//!   and it is why this crate sits on `openssl` (`docs/archive/odd-tasks/dtls-spike.md` L2, L3).
 //! * **DTLS 1.2**, `client_version = 0xFEFD`.
 //! * **The certificate must be RSA**, because the suite is `ECDHE_**RSA**`. The certificate
 //!   itself is cosmetic — a self-signed `CN=New World` pair is accepted because the client's

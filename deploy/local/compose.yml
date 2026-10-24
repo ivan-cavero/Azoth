@@ -1,0 +1,32 @@
+# One-box Rust stack (Linux containers). From repo root:
+#   docker compose -f deploy/local/compose.yml up --build
+#
+# Windows private client still talks via host Caddy / az.py mode private.
+# This compose is the clone-anywhere *server* path (master plan R6 / P12).
+
+name: azoth-local
+
+services:
+  channel:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.channel
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  region:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.region
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  world:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.world
+    ports:
+      - "36000:36000/udp"
+    restart: unless-stopped

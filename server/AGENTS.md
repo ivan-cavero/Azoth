@@ -12,6 +12,8 @@ Rust authoritative runtime. Root [`AGENTS.md`](../AGENTS.md) still applies.
 | `crates/azoth-wire` | Codecs only |
 | `crates/azoth-session` / `azoth-dtls` | Transport lifecycle |
 | `crates/azoth-model` | Domain identities / transforms (no I/O) |
+| `crates/azoth-commands` | Typed ops commands + RBAC (`worldd::ops`) |
+| `crates/azoth-privacy` | Default-deny profile visibility (`regiond::privacy_gate`) |
 | Future `azoth-sim` / `azoth-replica` | Sim + AOI (see PLAN-backend-rust) |
 
 ## Rules

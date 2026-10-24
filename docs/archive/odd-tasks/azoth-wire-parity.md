@@ -2,9 +2,9 @@
 
 Phase 0 closure of `docs/PLAN-backend-rust.md`. Two halves:
 
-* **Code** â€” the first crate of the Rust workspace, `azoth-wire`, ported from the
+* **Code** — the first crate of the Rust workspace, `azoth-wire`, ported from the
   Python codecs and proven byte-for-byte against them over the captured corpus.
-* **Measurement** â€” the three 1.460 rows that Phase 0 left open (entity
+* **Measurement** — the three 1.460 rows that Phase 0 left open (entity
   transform, sprint ceiling, buffer slot order) plus continued decoding.
 
 Build in scope: `1.460.6033.6024067` /
@@ -12,21 +12,21 @@ Build in scope: `1.460.6033.6024067` /
 
 ## Specs
 
-- **S1.** "1. La paridad de azoth-wire" â€” the codecs are ported to Rust and their
+- **S1.** "1. La paridad de azoth-wire" — the codecs are ported to Rust and their
   output is byte-identical to the Python encoders over the whole captured corpus.
-- **S2.** "Arreglar el probe de transform" â€” the entity transform measurement
+- **S2.** "Arreglar el probe de transform" — the entity transform measurement
   works, or its unavailability is demonstrated with a concrete reason.
-- **S3.** "Re-medir con sprint" â€” the sprint speed ceiling is measured, and the
+- **S3.** "Re-medir con sprint" — the sprint speed ceiling is measured, and the
   five-position buffer's slot order is resolved.
 - **S4.** "luego continua toda la noche investigando cosas, haciendo decoding,
-  con frida, etc lo que necesites" â€” continue the decoding work beyond the named
+  con frida, etc lo que necesites" — continue the decoding work beyond the named
   items, within the repository's evidence rules.
-- **S5.** "ves monitoreando el disco importante no pasarte" â€” check free disk
+- **S5.** "ves monitoreando el disco importante no pasarte" — check free disk
   before and after every disk-heavy step; compress raw logs rather than keep them
   raw; never let a log grow unbounded.
-- **S6.** "cuando acabes todo pushea commitea y apaga el ordenador" â€” at the end:
+- **S6.** "cuando acabes todo pushea commitea y apaga el ordenador" — at the end:
   commit, push, then shut the machine down. Nothing is left running.
-- **S7.** "consiguiendo tener todo para la 1.460" â€” every fact recorded is
+- **S7.** "consiguiendo tener todo para la 1.460" — every fact recorded is
   build-scoped to the SHA-256 above; a fact from another build is not evidence.
 - **S8.** Repository rules: no EAC, no memory reads while its state is uncertain,
   Steam install read-only, no raw captures committed, docs and code in English.
@@ -38,35 +38,35 @@ Build in scope: `1.460.6033.6024067` /
 
 | ID | Specs | Route | State |
 | --- | --- | --- | --- |
-| T1 | S9 | inline | in progress â€” branch `feat/azoth-wire-parity`, workspace skeleton |
-| T2 | S1, S9 | inline | pending â€” codecs |
-| T3 | S1 | inline | pending â€” differential harness, 0 mismatches |
-| T4 | S2 | inline + live client | pending â€” transform probe |
-| T5 | S3 | inline + live client | pending â€” sprint |
-| T6 | S4 | inline | pending â€” decoding |
-| T7 | S5, S6 | inline | pending â€” disk check, commit, push, shutdown |
+| T1 | S9 | inline | in progress — branch `feat/azoth-wire-parity`, workspace skeleton |
+| T2 | S1, S9 | inline | pending — codecs |
+| T3 | S1 | inline | pending — differential harness, 0 mismatches |
+| T4 | S2 | inline + live client | pending — transform probe |
+| T5 | S3 | inline + live client | pending — sprint |
+| T6 | S4 | inline | pending — decoding |
+| T7 | S5, S6 | inline | pending — disk check, commit, push, shutdown |
 
 ## Log
 
-### L1 â€” the user's request, verbatim
+### L1 — the user's request, verbatim
 
 > Vale peus a ver yo me voy a ir a dormri quiero que estes toda la noche de forma
-> autonoma, consiguiendo tener todo paral la 1.460 y asi maÃ±ana empezsa el
+> autonoma, consiguiendo tener todo paral la 1.460 y asi mañana empezsa el
 > servidor de rust ,1. La paridad de azoth-wire, Arreglar el probe de transform y
 > Re-medir con sprin y leugo conctinua toda la noche investigando cosas, haciendo
 > decoding, con frida, etc lo que necesites y ves monitoreando el disco importante
 > no pasarte, cuando acabes todo pushea commitea y apaga el ordenador
 
-### L2 â€” slice boundaries, and why the first commit is large
+### L2 — slice boundaries, and why the first commit is large
 
 `c5754f2` is 4,533 authored lines in one commit, past the ~400-line review slice.
 That is deliberate and recorded here rather than split artificially:
 
 * **It is documentation and measurement, not behaviour.** The bulk is
   `docs/PLAN-backend-rust.md` (1,950 lines, written before this session) and
-  `odd/tasks/remeasure-1460.md` (491 lines). Splitting a single coherent evidence
+  `docs/archive/odd-tasks/remeasure-1460.md` (491 lines). Splitting a single coherent evidence
   document across commits would make it harder to review, not easier: the plan's
-  Â§0.2 status table only makes sense next to the measurement log that produced it.
+  §0.2 status table only makes sense next to the measurement log that produced it.
 * **It is the specification the later code commits are reviewed against.** Landing
   it first means the crate commit can cite it instead of restating it.
 
@@ -78,7 +78,7 @@ Delivery strategy: `feature-branch-chain` on `feat/azoth-wire-parity`. No push o
 merge is implied by a commit; both remain the user's decision, and the user asked
 for a push at the end of the session (S6).
 
-### L3 â€” T4: the transform probe works now, and the answer is not an offset
+### L3 — T4: the transform probe works now, and the answer is not an offset
 
 **The fix, and the measurement that caused it.** The probe ran 13 patterns over ~1,059 memory
 ranges, i.e. **13,767 `Memory.scan` calls** and ~39 GB of scanning, with a `setImmediate`
@@ -96,8 +96,8 @@ Two changes, both in `reverse/probes/client/frida-actor-transform.py`:
 **Result: the positive control passes.** One pattern, 3,000 MB, **6 min 21 s**, and the local
 player's actor id `1a954abc4b3185bfbe37c3d8592618e0` was found **4 times**.
 
-**And `withPair = 0` on all four hits â€” the transform is not next to the actor id.** Dumping a
-Â±64/+128 byte window around each hit shows what they actually are: the actor id inside **wire
+**And `withPair = 0` on all four hits — the transform is not next to the actor id.** Dumping a
+±64/+128 byte window around each hit shows what they actually are: the actor id inside **wire
 buffers**, not inside an entity object. The fourth hit is unambiguous:
 
 ```text
@@ -117,9 +117,9 @@ assumed"). Searching by actor id cannot find a transform, because the id is not 
 **Therefore the transform offsets stay measured-but-not-re-verified**, and the honest statement
 is narrower than the plan's original row: `+0x14c/+0x15c/+0x16c` (stride `0x10`) was established
 on 1.400 by decompiling `FUN_140fddfa0` and reading the holder's vtable slot 0 (type
-`484AE67D-â€¦` = `Transform`) â€” a **method** that does not depend on the actor id and would work on
+`484AE67D-…` = `Transform`) — a **method** that does not depend on the actor id and would work on
 1.460. What has *not* been done is running that method on this build. That is a follow-up with a
-known technique, not an open question, and it does not block Phase 1â€“3.
+known technique, not an open question, and it does not block Phase 1–3.
 
 **An operational mistake worth recording.** After the probe, a throwaway script of mine attached
 to the client to dump the hit windows and exited **without detaching**. The client process was
@@ -128,9 +128,9 @@ own docstring warns about, and the shared probes avoid it deliberately (`_paths.
 An ad-hoc Frida script is not exempt from that rule. The session it killed was the one that had
 not yet run the sprint measurement, so the sprint needs its own run.
 
-### L4 â€” T5: the buffer slot order is answered; sprint is not
+### L4 — T5: the buffer slot order is answered; sprint is not
 
-**The five-position buffer's slot order â€” ANSWERED: NEWEST FIRST.**
+**The five-position buffer's slot order — ANSWERED: NEWEST FIRST.**
 
 The 1.400 note said "a sliding buffer of the last five movement samples, newest first at
 20 Hz" and never proved the order. The earlier attempt in this campaign tested the wrong pair
@@ -144,10 +144,10 @@ and 351, from a live walk):
 | Test | mean distance | pairs within 0.6 u |
 | --- | --- | --- |
 | `buffer(n+1)[1] ~ buffer(n)[0]` (newest-first) | **0.0073 u** | **341 / 342** |
-| `buffer(n+1)[4] ~ buffer(n)[0]` (oldest-first) | 0.1847 u | â€” |
+| `buffer(n+1)[4] ~ buffer(n)[0]` (oldest-first) | 0.1847 u | — |
 
 0.0073 u is 25x tighter than the alternative, and 341 of 342 transitions agree. **The buffer is
-newest-first**, so `marker + 12` is the CURRENT position and not the oldest of five â€” which is
+newest-first**, so `marker + 12` is the CURRENT position and not the oldest of five — which is
 what makes the existing locator correct rather than accidentally close.
 
 **The earlier "inconclusive" was an interpretation error, not a measurement error.** It compared
@@ -156,25 +156,25 @@ wrong because the first was closer. Under newest-first that is exactly what shou
 `buffer(n+1)[0]` is one sample after `buffer(n)[0]` and two after `buffer(n)[1]`. The test now in
 the record compares the pair that actually identifies the order.
 
-**Sprint â€” NOT MEASURED, and the reason is stated rather than papered over.**
+**Sprint — NOT MEASURED, and the reason is stated rather than papered over.**
 
 Three attempts:
 
 | Attempt | Input | Result |
 | --- | --- | --- |
-| 1 | hold `W` (`0x11`) 3 s | walked, but the client died before analysis (an ad-hoc Frida script of mine failed to detach â€” see L3) |
+| 1 | hold `W` (`0x11`) 3 s | walked, but the client died before analysis (an ad-hoc Frida script of mine failed to detach — see L3) |
 | 2 | hold `Shift` (`0x2A`) + `W` 3 s | **path 0.00 u, 0 moving intervals** |
 | 3 | hold `W` 7 s | 4.18 u total, then **0.00 u/s from second 2 onward** |
 
-Attempt 2 moved nothing at all, so Shift+W is **not** the sprint binding â€” or the character was
+Attempt 2 moved nothing at all, so Shift+W is **not** the sprint binding — or the character was
 already blocked. Attempt 3 shows movement for two seconds and then nothing for seven, which is
 consistent with the character running into geometry rather than with a sprint ramp.
 
 So the sprint ceiling is **not measured**, and no number is quoted for it. What *is* measured
 across this campaign's runs: a walk peak of **2.76 u/s** in the cleanest 3 s segment (16.54 u of
-straight-line path, 59 of 59 moving intervals at offset +90Â°) and **5.39 u/s** in the earlier
+straight-line path, 59 of 59 moving intervals at offset +90°) and **5.39 u/s** in the earlier
 nine-episode set. Those two differ by 2x, which means the walk speed itself is not yet a settled
-constant â€” it may depend on terrain, encumbrance, or whether the character is on a road.
+constant — it may depend on terrain, encumbrance, or whether the character is on a road.
 
 **Consequence for the validator.** `docs/PLAN-backend-rust.md` Q9 asks for the sprint and mount
 bounds so the movement validator's threshold is not tuned on a walk. It stays open. The safe
@@ -185,14 +185,14 @@ on 2.76-vs-5.39 u/s evidence would reject legitimate movement.
 
 **Two operational facts for the next session:**
 
-* `az.py shot` reported "New World window not found" while the client was alive â€” the screenshot
+* `az.py shot` reported "New World window not found" while the client was alive — the screenshot
   path needs the window title, and the harness had already lost it. A state check is cheaper than
   a screenshot anyway (the computer-use skill says so), and it answered the question here.
 * A 7-second key hold is not the same experiment as a 3-second one: the second half of attempt 3
   produced no displacement, so a longer hold can be a *worse* measurement. Keep holds short and
   repeat them.
 
-### L5 â€” T6: the presence decode is a STATIC task after all
+### L5 — T6: the presence decode is a STATIC task after all
 
 `research/atlas/presence-codecs.json` recorded that the static route which decoded the movement
 family on 1.400 is gone on 1.460: the name and GUID strings have zero static referrers, both
@@ -201,7 +201,7 @@ callers. Its conclusion was that the descriptor tables are assembled at runtime 
 presence layouts need live instrumentation.
 
 **That conclusion was about an address, not about the route.** It was also written when
-`reverse/builds/30fe6461â€¦/corpus/` did not exist â€” `builds.json` still says no corpus exists,
+`reverse/builds/30fe6461…/corpus/` did not exist — `builds.json` still says no corpus exists,
 which is stale (L1).
 
 With the corpus (423,609 ranges, 421,742 decompiled OK) the route is reachable:
@@ -232,13 +232,13 @@ invokes virtually.
              "AddActorMessage\0"                            (+0x30)
 ```
 
-and `0x1485800e0` â€” the address the atlas cited â€” is where the **name string** begins, followed by
-`96C829CE-DFBC-4763-959C-32A6B22D81EF` and `bc291efaâ€¦`. So the atlas had the descriptor's *payload*
+and `0x1485800e0` — the address the atlas cited — is where the **name string** begins, followed by
+`96C829CE-DFBC-4763-959C-32A6B22D81EF` and `bc291efa…`. So the atlas had the descriptor's *payload*
 address, not the descriptor. Its getter is `FUN_140273730`, caching into `DAT_14a56ce7b`.
 
 **What this changes.** The presence decode is no longer blocked on a live session: the next step is
 to read the three codec-area pointers (`0x146a57540`, `0x146a57550`, `0x146a575e0`) and the
-constructor at `+0x38`, looking for the 1.400 shape â€” "a codec facet at descriptor+0x48 whose +0x20
+constructor at `+0x38`, looking for the 1.400 shape — "a codec facet at descriptor+0x48 whose +0x20
 is MARSHAL and +0x28 is UNMARSHAL". `FUN_146a57550` is already in the corpus and looks like a
 registration function: it calls `FUN_1461aaa00`, one letter away from the builder.
 
@@ -247,20 +247,20 @@ the address correction, so the next session does not repeat the dead end.
 
 **What I did not finish, stated plainly.** I mapped the route and identified the descriptor, but I
 did not read the codec facet out of it. That is where the six layouts actually live, and it is the
-next session's first task â€” now with a script (`scripts/map-descriptors.py`) and an address instead
+next session's first task — now with a script (`scripts/map-descriptors.py`) and an address instead
 of a live-attach prerequisite.
 
-### L6 â€” T5 (sprint), second attempt: still not measured, and why I stopped pushing
+### L6 — T5 (sprint), second attempt: still not measured, and why I stopped pushing
 
 A second live session ran the sprint test cleanly, with no probe attached:
 
 | Attempt | Input | Result |
 | --- | --- | --- |
-| walk | `W` (`0x11`) 3 s | **16.54 u** path, 2.76 u/s, **59 of 59** moving intervals at offset **+90Â°** |
+| walk | `W` (`0x11`) 3 s | **16.54 u** path, 2.76 u/s, **59 of 59** moving intervals at offset **+90°** |
 | sprint | `Shift` (`0x2A`) + `W` 3 s | **0.00 u**, 0 moving intervals |
 
 The walk segment is the cleanest single measurement of this whole campaign: 59 moving intervals
-and **every one** at +90Â° from the camera yaw, which is the yaw frame confirmed a third time on a
+and **every one** at +90° from the camera yaw, which is the yaw frame confirmed a third time on a
 third session.
 
 The sprint attempt moved nothing at all. Two candidate explanations, and I could not distinguish
@@ -268,14 +268,14 @@ them tonight:
 
 1. **`Shift+W` is not the sprint binding.** New World may treat running as the default and
    `Shift` as a walk modifier, or sprint may be bound elsewhere. The repository has no sprint
-   binding recorded â€” `research/atlas/levers.md` and the client-map notes do not mention one â€”
+   binding recorded — `research/atlas/levers.md` and the client-map notes do not mention one —
    so this is an assumption I made, not a fact I looked up.
 2. **The character was blocked.** The preceding 7-second hold produced movement for two seconds
    and then nothing, which is consistent with running into geometry.
 
 Either way, `Q9` stays **open**, and the plan now says what that means in practice: the movement
 validator must not use a hard speed constant. It validates against the server's own previous
-position with a per-session calibrated reference â€” the structure `movement.py` already has â€”
+position with a per-session calibrated reference — the structure `movement.py` already has —
 because the walk speed itself measured 2.76 u/s here and 5.39 u/s in an earlier set, and a
 constant chosen from either would be wrong for the other.
 
@@ -290,15 +290,15 @@ integrity-checked with `gunzip -t`. Tonight's Frida agent directory (44 MB) was 
 older ones from previous sessions were left alone because they are not this feature's artifacts.
 Free disk after cleanup: **~85 GB of 222 GB**.
 
-## Session 2 â€” the presence codec is decoded
+## Session 2 — the presence codec is decoded
 
-### L7 â€” AddActorMessage's layout, from the corpus, with no live session
+### L7 — AddActorMessage's layout, from the corpus, with no live session
 
 The previous session recorded the descriptor route and left the codec facet as the next task. It
 is done, and it went further than planned: **`AddActorMessage`'s wire layout is decoded.**
 
 **The facet exists on 1.460, and it is the 1.400 shape.** `AddActorMessage`'s real descriptor
-getter is `FUN_146ac20a0` â€” found by grepping the corpus for the type name inlined as
+getter is `FUN_146ac20a0` — found by grepping the corpus for the type name inlined as
 little-endian immediates (`0x726f746341646441` = `"AddActor"`, `0x7373654d` = `"Mess"`, `0x6761` =
 `"ag"`). It parses the brace GUID from `0x1485800f0` and installs a facet at `descriptor+0x48`.
 Reading six qwords of `.rdata` at `0x148575298`:
@@ -316,7 +316,7 @@ Reading six qwords of `.rdata` at `0x148575298`:
 
 | offset | size | reader | field |
 | --- | --- | --- | --- |
-| `0x00` | 16 | `FUN_1408787b0(â€¦, 0x10)` | raw 16 bytes |
+| `0x00` | 16 | `FUN_1408787b0(…, 0x10)` | raw 16 bytes |
 | `0x10` | 1 | direct | u8 |
 | `0x18` | var | `FUN_146a6ebe0` | u8 count + payload |
 | `0x28` | 8 | `FUN_14087af30` | u64 BE |
@@ -328,21 +328,21 @@ Reading six qwords of `.rdata` at `0x148575298`:
 | `0x78` | var | `FUN_14087a570` | length-prefixed vector |
 | `0xa0` | var | `FUN_14087a570` | length-prefixed vector |
 | `0xc8` | 4 | `FUN_14087a3c0` | u32 BE |
-| `0xcc` | 1 | `FUN_1408787b0(â€¦, 1)` | bool |
+| `0xcc` | 1 | `FUN_1408787b0(…, 1)` | bool |
 | `0xd0` | var | `FUN_1415b62d0` | sub-record |
 | `0xf4` | var | `FUN_1415b62d0` | sub-record |
 
 **Big-endian throughout**, and that is measured rather than assumed: every integer reader goes
-through `ntohl` â€” `FUN_146168b00` for the u64 path, `FUN_146168aa0` for the u32 path. That is the
+through `ntohl` — `FUN_146168b00` for the u64 path, `FUN_146168aa0` for the u32 path. That is the
 same endianness as every other field this project has decoded, which is a useful cross-check.
 
 **What is NOT decoded, stated plainly:** the *meaning* of each field. The offsets, widths and
 readers are measured. Which u64 is what, what the three vectors contain, and what the two
-`FUN_1415b62d0` sub-records carry are open. The 16-byte head is consistent with an actor id â€”
-`ClientAddEntryMsg` (wire 164) is independently measured as `[00 01][a4][16-byte actor id]` â€” but
+`FUN_1415b62d0` sub-records carry are open. The 16-byte head is consistent with an actor id —
+`ClientAddEntryMsg` (wire 164) is independently measured as `[00 01][a4][16-byte actor id]` — but
 that is not proven for this message and is labelled as an inference in the atlas.
 
-### L8 â€” three corrections, two of them to my own previous session
+### L8 — three corrections, two of them to my own previous session
 
 1. **The descriptor I recorded last session was the wrong one.** `0x1485800b0`'s slot `+0x10`
    registers `FragmentUpdateMsg` (its type object `FUN_146ac6910` inlines `"FragmentUpdateMsg"`),
@@ -351,7 +351,7 @@ that is not proven for this message and is labelled as an inference in the atlas
    is exactly the kind of inference the repository's rules warn about.
 2. **"The GUID strings have zero static referrers" is false.** `0x1485800f0` has exactly one
    referrer, `FUN_146ac20a0`. The original claim was made against the 1.400 image.
-3. **Four of the addresses I listed are not functions at all** â€” `0x146a57540`, `0x146a575e0`,
+3. **Four of the addresses I listed are not functions at all** — `0x146a57540`, `0x146a575e0`,
    `0x14078fbb0`, `0x14046de30` have no `.pdata` entry and appear nowhere in the corpus. They sit
    in inter-function padding, which is why they read as plausible code pointers in a raw `.rdata`
    dump.
@@ -362,15 +362,15 @@ different message. The corpus is what settles it: a function that exists has a `
 type name appears as immediates inside the getter that owns it. That check costs one grep and would
 have caught both mistakes.
 
-### L9 â€” the recipe for the other five
+### L9 — the recipe for the other five
 
 `presence-codecs.json` now carries it: each getter inlines its type name as little-endian
 immediates, so grepping those constants finds the getter, the `FUN_1407de410` call and the
-`*puVar = &UNK_1485â€¦` facet address. Then six qwords at that VA: slot 4 is MARSHAL, slot 5 is
+`*puVar = &UNK_1485…` facet address. Then six qwords at that VA: slot 4 is MARSHAL, slot 5 is
 UNMARSHAL. The same six-step read applies to `SpawnActorsMsg` (574), `Replicate` (391),
 `ReplicateClient` (407), `FragmentUpdateMsg` (422) and `UpdateMsg` (106).
 
-### L10 â€” all six facets located, three layouts decoded
+### L10 — all six facets located, three layouts decoded
 
 `scripts/find-codec-facet.py` automates the recipe and is validated against `AddActorMessage` (it
 reproduces the facet `0x148575298` and both slot addresses derived independently last session).
@@ -384,18 +384,18 @@ reproduces the facet `0x148575298` and both slot addresses derived independently
 | `FragmentUpdateMsg` | 422 | `0x147f44128` | `0x1407c4180` | `0x1407c41a0` | **decoded: u64 BE + u32 BE** |
 | `UpdateMsg` | 106 | `0x147f44ca0` | `0x1407c1890` | `0x1407c5840` | not read yet |
 
-**`SpawnActorsMsg` is a single `u64` big-endian â€” not a list.** `FUN_146a49b20` reads exactly one
+**`SpawnActorsMsg` is a single `u64` big-endian — not a list.** `FUN_146a49b20` reads exactly one
 value through `FUN_14087af30` into `param_3 + 1` and returns; there is no count, no loop, no
 vector. That is a meaningful design constraint for the server: the message that makes actors
 appear carries an *identifier*, and whatever the client does with it is driven by that id rather
 than by an inline payload. It also matches the observation that the client's record slots and
 actor ids are separate addressing schemes.
 
-**`FragmentUpdateMsg` is a `u64` then a `u32`**, both big-endian (`FUN_1407d9520` â†’ `FUN_1407dae40`
+**`FragmentUpdateMsg` is a `u64` then a `u32`**, both big-endian (`FUN_1407d9520` ? `FUN_1407dae40`
 for the u64, then `FUN_14087a3c0` for the u32).
 
 **`Replicate` and `ReplicateClient` share their MARSHAL** (`0x1407c1040`) and differ only in the
-unmarshal â€” which makes sense for a message and its client-direction twin, and is a good sign the
+unmarshal — which makes sense for a message and its client-direction twin, and is a good sign the
 two facet tables were read correctly rather than swapped.
 
 **The 8-byte prefix collision, and how it is resolved.** Both names start with `Replicate`, so a
@@ -408,7 +408,7 @@ The script now matches per function body, so a longer name resolves to one gette
 `0x1407c5600`, `0x1407c5840`), which needs no client and no probe. After that the wire half of
 Phase 4 is fully decoded and the only open question is what the fields *mean*.
 
-### L11 â€” the six split into three fixed layouts and three polymorphic ones
+### L11 — the six split into three fixed layouts and three polymorphic ones
 
 Reading the last two unmarshals changed the shape of the remaining work, and it is worth stating
 because it is not what "decode the six codecs" implies.
@@ -442,14 +442,14 @@ So **the wire shape is chosen by the record's own component type**, and the disp
 `vtable+0x90` this atlas already named for the presence family. There is no per-message layout to
 transcribe for these three: the layout is per *component type*.
 
-`ReplicateClient` is the same structure with its own constructor â€” `FUN_1407e3fe0` instead of
-`FUN_1407e3e10` â€” then the same `FUN_146161c20` and the same virtual triple. Two constructors, one
+`ReplicateClient` is the same structure with its own constructor — `FUN_1407e3fe0` instead of
+`FUN_1407e3e10` — then the same `FUN_146161c20` and the same virtual triple. Two constructors, one
 dispatch, which is exactly why the two messages share a MARSHAL and not an UNMARSHAL.
 
 **What this means for Phase 4, stated honestly.** The three fixed-layout messages are enough to
 tell a client that an actor exists (`SpawnActorsMsg` + `AddActorMessage`) and to update one
 fragment (`FragmentUpdateMsg`). That is the wire half of "another player exists", and it is
-decoded. Replicating *component state* â€” position, vitals, appearance â€” needs the per-component
+decoded. Replicating *component state* — position, vitals, appearance — needs the per-component
 codecs, which is a different and larger body of work: one reader per component type, dispatched
 through `+0x90`. The corpus makes it tractable, and the same recipe applies (find the type, read
 its reader), but it is not one function read away and this log does not pretend otherwise.
@@ -458,28 +458,28 @@ its reader), but it is not one function read away and this log does not pretend 
 in structure, the expected finding there is the same shape with a third constructor. That is an
 expectation, not a measurement, and it is recorded as such.
 
-### L12 â€” T6 done, and Phase 1 started
+### L12 — T6 done, and Phase 1 started
 
 `UpdateMsg` (106) turned out **not** to be polymorphic, correcting my own prediction: `FUN_1407c5840`
-â†’ `FUN_1407d8d50` reads a prefix-varint length (via `FUN_14087b760`, the same ladder this crate
+? `FUN_1407d8d50` reads a prefix-varint length (via `FUN_14087b760`, the same ladder this crate
 already implements), rejects anything at or above `0x201`, and copies the bytes. So **four** of the
 six presence messages have fixed layouts and only `Replicate`/`ReplicateClient` dispatch per
 component type. `presence.rs` now carries `UpdateMsg` with the 512-byte cap.
 
-### L13 â€” Phase 1: `azoth-region`, and the parity that found two real bugs
+### L13 — Phase 1: `azoth-region`, and the parity that found two real bugs
 
 The crate renders the channel document from the registry. The parity test requires the same 7,645
 bytes the Python gateway produces, and building it caught two ordering defects that **no semantic
 comparison would have found**:
 
 1. **`serde_json::Map` is a `BTreeMap` by default**, so every object in the document came out
-   alphabetised â€” `apiEndpoint, awsRegion, clientTag, stage, version` instead of the served
+   alphabetised — `apiEndpoint, awsRegion, clientTag, stage, version` instead of the served
    `awsRegion, version, apiEndpoint, clientTag, stage`. Fixed with the `preserve_order` feature.
 2. **The region's dotted `omni.privacy-settings.*` keys were a `BTreeMap`**, which sorted
    `client-endpoint` before `region` and moved them out of the order the document fixes. Changed to
    a `Vec` so the order is data rather than an accident of key names.
 
-Both are the class of bug the plan's Â§11.1 exists for: a field cannot drift *silently*, so the check
+Both are the class of bug the plan's §11.1 exists for: a field cannot drift *silently*, so the check
 has to be on bytes, not on parsed values. A JSON-value comparison passes on both of these.
 
 **What the crate decides, and the reason recorded in code:**
@@ -488,7 +488,7 @@ has to be on bytes, not on parsed values. A JSON-value comparison passes on both
   can never be handed a 1.460 client;
 * allocation sorts by headroom then name, so two identical registries allocate the same world and a
   load test is reproducible;
-* the ETag is FNV-1a 64 rather than the prototype's MD5 â€” the client needs a tag that changes with
+* the ETag is FNV-1a 64 rather than the prototype's MD5 — the client needs a tag that changes with
   the body, not a particular algorithm, and the route is polled;
 * the region's status is **not** rendered into the channel document (it is not part of that
   contract); what changes the bytes is the display name, and the test says so rather than implying a
@@ -499,7 +499,7 @@ integration tests. The limit was not raised.
 
 **State:** 105 tests across the workspace, `xtask` clean, 0 build warnings, pushed.
 
-### L14 â€” Phase 1's HTTP half: `channeld` serves, and every route is byte-identical
+### L14 — Phase 1's HTTP half: `channeld` serves, and every route is byte-identical
 
 `apps/channeld` is the first Rust binary that answers the client. It serves the channel document,
 both CMS bodies, the MOTD and ping/health, all pre-rendered at startup.
@@ -509,18 +509,18 @@ both CMS bodies, the MOTD and ping/health, all pre-rendered at startup.
 | route | bytes | vs Python |
 | --- | --- | --- |
 | `GET /STEAM_APP_ID.1063730.json` | 7,645 | **identical** |
-| `GET /newsstories/â€¦/metadata.json` | 14,329 | **identical** to the captured body |
-| `GET /marketingtiles/â€¦/metadata.json` | 8,718 | **identical** to the captured body |
-| `GET /motd/worlds_â€¦json` | 2,623 | **identical** |
+| `GET /newsstories/…/metadata.json` | 14,329 | **identical** to the captured body |
+| `GET /marketingtiles/…/metadata.json` | 8,718 | **identical** to the captured body |
+| `GET /motd/worlds_…json` | 2,623 | **identical** |
 | `GET /ping` | 44 | `text/plain`, as measured |
-| `GET /healthz` | 12 | â€” |
+| `GET /healthz` | 12 | — |
 | `GET /cms/manifest` | 404 | correctly *unknown*, not a default |
 
 Headers checked on the wire: `HTTP/1.1 200 OK`, `content-length`, `etag`, `cache-control: max-age=30`,
 and a **304 with a zero-length body** when `If-None-Match` matches.
 
 **The MOTD needed one more fix, and it is the same class as the two before it.** `serde_json` writes
-`","` and `":"`; Python writes `", "` and `": "`. The bodies differed by 214 bytes of whitespace â€”
+`","` and `":"`; Python writes `", "` and `": "`. The bodies differed by 214 bytes of whitespace —
 semantically identical, and exactly the standard that let two ordering bugs through earlier. So
 `azoth-http::pyjson` now reproduces Python's separators, and the route is comparable with `cmp`.
 It is a serde `Formatter`, not a string replace, so a value containing `":"` is not mangled.
@@ -534,16 +534,16 @@ It is a serde `Formatter`, not a string replace, so a value containing `":"` is 
 
 **A build blocker, resolved and recorded.** `tokio` pulls in `windows-sys`, which needs `dlltool` to
 build import libraries. The GNU toolchain's own `dlltool` cannot do it (`dlltool could not create
-import library â€¦ -D ntdll.dll`), and the MSVC target is unavailable on this machine. Installed
+import library … -D ntdll.dll`), and the MSVC target is unavailable on this machine. Installed
 mingw-w64 binutils via winget and put its `bin` on PATH; the requirement and the exact command are
-now in `rust-toolchain.toml`. The three library crates build without it â€” only the binaries that
+now in `rust-toolchain.toml`. The three library crates build without it — only the binaries that
 pull an async runtime need it.
 
 **State:** 158 tests, `xtask` clean, pushed. Phase 1 is **not** closed: the client-in-the-loop
 acceptance (login screen with the Python gateway stopped) has not been run, and that is the only
 thing that can close it.
 
-### L15 â€” Phase 1 acceptance: the client renders the title screen from Rust
+### L15 — Phase 1 acceptance: the client renders the title screen from Rust
 
 **Setup:** `channeld` on 8080, Caddy on 443, **the Python gateway confirmed absent** (`Get-CimInstance`
 found no `azoth_gateway` process, and nothing else was listening on 8080). The client was launched
@@ -562,61 +562,61 @@ CGame::OnCampfireLoginFailed with error: @mm_authresult_Error_Persona
 ```
 
 and a screenshot of the rendered **NEW WORLD AETERNUM** title screen with
-"PULSA CUALQUIER BOTÃ“N PARA CONTINUAR". No black screen, no stalled ladder.
+"PULSA CUALQUIER BOTÓN PARA CONTINUAR". No black screen, no stalled ladder.
 
 **What served what, from Caddy's log for this run only:**
 
 | path | status | served by |
 | --- | --- | --- |
-| `/STEAM_APP_ID.1063730.json` | 200 | **Rust** â€” the only channel request in the run |
-| `/ping` | 200 Ã—35 (after a 308 from Caddy's HTTPS redirect) | Rust |
+| `/STEAM_APP_ID.1063730.json` | 200 | **Rust** — the only channel request in the run |
+| `/ping` | 200 ×35 (after a 308 from Caddy's HTTPS redirect) | Rust |
 | `/games/new-world/tokens` | **404** | Rust, correctly: not a Phase 1 route |
 
 **The 202 is not a Phase 1 failure, and the log says why.** The client got a valid channel document,
-bootstrapped its channel service, and then stopped at the Omni token exchange â€” the first request
+bootstrapped its channel service, and then stopped at the Omni token exchange — the first request
 that belongs to `regiond` (Phase 2). `202` is OmniSDK's "no session", which is exactly what a
 `404` from a gateway that refuses to fabricate produces. The client then failed login cleanly rather
 than hanging, which is the behaviour a missing route *should* produce.
 
-**So Phase 1's acceptance is met on its own terms** â€” "the client reaches the login screen with the
-Python gateway stopped and only Rust serving" â€” and the ladder does not go further because the next
+**So Phase 1's acceptance is met on its own terms** — "the client reaches the login screen with the
+Python gateway stopped and only Rust serving" — and the ladder does not go further because the next
 rung is deliberately out of scope.
 
 **Two things this run did not test, stated so they are not assumed:**
 
-* **CMS** (`/newsstories/â€¦`, `/motd/â€¦`) was never requested, because the client stops at the title
+* **CMS** (`/newsstories/…`, `/motd/…`) was never requested, because the client stops at the title
   screen before the landing page fetches content. Those routes are verified at the byte level
   (L14) but not by the client.
 * **The channel document was fetched exactly once**, so the ETag/304 path was not exercised by the
   client either. It is verified against the running binary with `curl` (L14).
 
-**Next:** Phase 2 (`regiond`) is what makes the 202 resolve â€” accounts, `getlogininfo`, the queue,
+**Next:** Phase 2 (`regiond`) is what makes the 202 resolve — accounts, `getlogininfo`, the queue,
 and a real character. Nothing in Phase 1 needs revisiting first.
 
-## Session 3 â€” Phase 2: identity, the queue, and character select
+## Session 3 — Phase 2: identity, the queue, and character select
 
-### L16 â€” the channel basename question, answered
+### L16 — the channel basename question, answered
 
 The 1.460 client requests exactly **two** channel-document basenames: `STEAM_APP_ID.json` (3 times in
 the log) and `STEAM_APP_ID.1063730.json` (30 times). The `STEAM_APP_ID.1.BRANCH.<rand>.json` form
 that forced a prefix match on 1.400 no longer appears. The prefix matcher already covers both, so
-nothing needed changing â€” recorded so a future reader does not "simplify" it back to an exact match.
+nothing needed changing — recorded so a future reader does not "simplify" it back to an exact match.
 
-### L17 â€” `azoth-store`: durable characters, and the acceptance test that matters
+### L17 — `azoth-store`: durable characters, and the acceptance test that matters
 
 A new crate on `rusqlite` with the bundled SQLite. The driver is **blocking on purpose**: it makes it
 impossible to call the database from an async hot path by accident, which is the failure the plan's
-Â§18.2 warns about.
+§18.2 warns about.
 
 Forward-only migrations, `foreign_keys = ON`, WAL, tombstone deletes, and a `SchemaAhead` guard that
-refuses to open a database newer than the binary â€” the check that stops a rolled-back binary
+refuses to open a database newer than the binary — the check that stops a rolled-back binary
 corrupting newer data.
 
 **The acceptance test is the point**: open a file-backed store, create an account and a character,
 drop the store, reopen the same path, and assert every field is intact. That is "restart the region,
 log in again, the same character returns", proven in a unit test rather than asserted in a plan.
 
-### L18 â€” `regiond`: login succeeds end to end, and a header correction
+### L18 — `regiond`: login succeeds end to end, and a header correction
 
 The service seeds account, Steam identity, persona and one character idempotently, then serves the
 Omni token set, credentials, entitlements, privacy, `getlogininfo`, `worlds/list` and both queue
@@ -635,7 +635,7 @@ a silently dropped body. Now per-route, via `RouteKind::needs_aws_envelope`, and
 | `worlds/list` | `x-amz-json-1.1` | yes |
 | tokens, credentials, queue, entitlements, privacy | `application/json` | no |
 
-### L19 â€” the remote-config layers were the missing rung
+### L19 — the remote-config layers were the missing rung
 
 With login working the client stopped again, and Caddy's log said why: **twelve
 `configuration-sets` requests, all 404**. That layer was never in Phase 1 or Phase 2 as I scoped
@@ -652,42 +652,42 @@ The shapes were never captured in the clear (TLS to S3), so the service serves t
 set** padded to the captured `Content-Length`. That is a length fallback, not shape guessing.
 
 **One honest deviation.** The document is larger than the 146-byte captured `WorldId` layer, because
-it carries the bare, nested and dotted forms of five flags plus the two `javelin.*` gates â€” the
+it carries the bare, nested and dotted forms of five flags plus the two `javelin.*` gates — the
 bare-key lookup has to find them after an unknown merge order. When the document does not fit the
 captured size it is served **whole**, unpadded, and the test asserts "exactly the captured size when
 it fits, at least that size when it does not". Truncating to match a length would delete keys the
 client reads.
 
-### L20 â€” character select reached
+### L20 — character select reached
 
-The panel renders **"SELECCIÃ“N DE PERSONAJE"** with the seeded character `Azoth_7a5241d5` under
+The panel renders **"SELECCIÓN DE PERSONAJE"** with the seeded character `Azoth_7a5241d5` under
 SA East, and the client's log shows `OnCampfireLoginComplete, login successful. ownership=permanent`.
 
 Every route in that run, from Caddy's log: 12 remote-config layers **200**, channel document **200**,
-CMS news/tiles/MOTD **200**, `credentials/omni` **200**, `getlogininfo` **200 Ã—2**, entitlements
-**200**, and **304 Ã—7** on the polled CMS routes.
+CMS news/tiles/MOTD **200**, `credentials/omni` **200**, `getlogininfo` **200 ×2**, entitlements
+**200**, and **304 ×7** on the polled CMS routes.
 
 **The connection-failure dialog on screen was from the previous attempt, not this one**, and the log
-proves it: `credentials/omni` returned **502 Ã—5** while `regiond` was starting, then **200** once it
+proves it: `credentials/omni` returned **502 ×5** while `regiond` was starting, then **200** once it
 was up. Caddy was answering before the upstream existed, which is what a restart looks like from the
 client's side. The successful login followed.
 
 **Still open, and it is the last visible gap:** the three `client.content-service.amazongames.com`
 image routes return 404 (five retries each). The client renders with blank art. `channeld` serves a
 generated placeholder DDS at `/images/`, but those requests carry the content-service host, which the
-Caddy split sends to `channeld` â€” so the placeholder should have answered. It did not, and that is
+Caddy split sends to `channeld` — so the placeholder should have answered. It did not, and that is
 the next concrete defect.
 
-### L21 â€” the image routes: a missing arm, not a missing host
+### L21 — the image routes: a missing arm, not a missing host
 
 The three `client.content-service.amazongames.com/*.dds` requests returned 404 five times each.
 Diagnosis: `channeld` had **no `RouteKind::Images` arm at all**. `azoth_http::route::classify`
 classified them correctly as `Images`, and the router's catch-all then answered
-`{"error":"unknown-path","route":"Images"}` â€” a body that names the classification and still says
+`{"error":"unknown-path","route":"Images"}` — a body that names the classification and still says
 nothing was served. Exactly the behaviour the design asks for: a gap was visible rather than
 disguised.
 
-`apps/channeld/src/images.rs` now serves a generated 256Ã—256 BGRA DDS placeholder, ported from the
+`apps/channeld/src/images.rs` now serves a generated 256×256 BGRA DDS placeholder, ported from the
 prototype's `routes/images.py`. A 404 makes the client retry five times and then render blank white
 art; a dark placeholder is the same effort and a better outcome. Real art is Phase 6, and swapping
 the body is a change to one function.
@@ -697,29 +697,29 @@ the body is a change to one function.
 Two process notes worth keeping:
 
 * A stale `channeld.exe` was still running from an earlier launch, so the rebuilt binary was never
-  the one answering. The fix is to kill the process before rebuilding â€” `cargo build` silently fails
-  to replace a running binary on Windows (`failed to remove file â€¦channeld.exe`), and the next start
+  the one answering. The fix is to kill the process before rebuilding — `cargo build` silently fails
+  to replace a running binary on Windows (`failed to remove file …channeld.exe`), and the next start
   silently reuses the old one.
 * Caddy answered `502` for a few seconds while `channeld` was starting. That is the same signature
   as the earlier login failures, and it is why "the client saw 502" must be read against WHEN the
   upstream came up rather than as a body defect.
 
-## Session 4 â€” Phase 3: the world transport
+## Session 4 — Phase 3: the world transport
 
-### L22 â€” the V3 codec, and two things it corrected
+### L22 — the V3 codec, and two things it corrected
 
 `azoth-wire::v3` now carries both request formats (strict 832-byte, and the six-tagged-record retry
 form) plus the response encoder. Round trip is the invariant, for the reason the Python module gives:
 the layout has opaque regions whose meaning is not established, and a parser that discards them
 cannot prove it read the right bytes.
 
-**Correction 1 â€” the world-id region cannot hold a world id.** The first version exposed
+**Correction 1 — the world-id region cannot hold a world id.** The first version exposed
 `world_id()` searching the 21-byte region before `session_uuid` for a UUID. A UUID string needs 36
-bytes; the region holds 21. The prototype's own name for it is `unknown_worldid_region` â€” a
+bytes; the region holds 21. The prototype's own name for it is `unknown_worldid_region` — a
 *prefix*. The authoritative world id comes from the login **ticket**, and the module now says that
 instead of pretending. A test asserts the region's length and that no UUID can fit.
 
-**Correction 2 â€” the response trailer is pinned to the working form.** `00 00 00 00`, not the
+**Correction 2 — the response trailer is pinned to the working form.** `00 00 00 00`, not the
 captured `01 00 00 01`: measured 2026-09-27, the captured form makes the client fail registration
 with `registration_failed` / `eos_unknown_error` and pop to the main menu. The test exists so nobody
 "fixes" it back to the capture.
@@ -732,14 +732,14 @@ id is not in any schedule field, and the Python leaves it empty too. So the char
 to comes from the **ticket**, and V3's job is to confirm the ticket rather than to introduce the
 identity. That is the shape real ticket validation needs.
 
-### L23 â€” `azoth-dtls`: a test that asserted the official server's OpenSSL build
+### L23 — `azoth-dtls`: a test that asserted the official server's OpenSSL build
 
 The DTLS transport landed with two defects in `crates/azoth-dtls/tests/handshake.rs`, both found by
 running the suite rather than by reading it.
 
-**Defect 1 â€” an observation of someone else's build was asserted as a requirement.** The cookie test
+**Defect 1 — an observation of someone else's build was asserted as a requirement.** The cookie test
 required the HelloVerifyRequest and the ServerHello to carry record version `0xFEFF` (DTLS 1.0),
-because `docs/PLAN-backend-rust.md` Â§0.3 saw exactly that in the capture. It fails on this machine:
+because `docs/PLAN-backend-rust.md` §0.3 saw exactly that in the capture. It fails on this machine:
 
 ```
 assertion `left == right` failed: ServerHello record version
@@ -752,7 +752,7 @@ The measurement that settles it: our OpenSSL 3.6.5 sends `0xFEFF` for the HelloV
 accepts either, and the proof is the Python prototype: `rep.py` builds `SSL.Context(SSL.DTLS_METHOD)`
 and never sets a record version (`grep -rn "FEFF" services/world/` finds no such code), and that
 prototype reaches `InGame` against this client. So the byte is a property of the OpenSSL build on
-each side, not of the protocol or the client â€” the crate must not force either value, and Â§0.3's
+each side, not of the protocol or the client — the crate must not force either value, and §0.3's
 "prefer a mature implementation" conclusion now rests on the correct reason: we do not control this
 byte and do not need to.
 
@@ -762,11 +762,11 @@ round trip. It records every datagram in one interleaved timeline and requires
 ClientHello carrying `cookie_len = 0` and the second a non-empty cookie. The record versions are a
 comment, not an assertion.
 
-**Defect 2 â€” the parallel failure was a port collision, not a logic bug.**
+**Defect 2 — the parallel failure was a port collision, not a logic bug.**
 `application_data_round_trips_in_both_directions` failed under default parallelism and passed alone
 or with `--test-threads=1`. Every bind in the file is already ephemeral (`127.0.0.1:0`) with the
-address read back from the socket â€” `Transport::local_addr` for the world, `local_addr()` for the
-client â€” and the one reused port is derived from the test's own first client, never a constant. The
+address read back from the socket — `Transport::local_addr` for the world, `local_addr()` for the
+client — and the one reused port is derived from the test's own first client, never a constant. The
 suite now passes with default parallelism on repeated runs, so the failure was two tests competing
 for the same address, not a defect in the transport. The rule is written into the helper
 (`loopback()`), because a fixed port is the kind of thing that comes back.

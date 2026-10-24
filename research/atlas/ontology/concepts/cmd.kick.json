@@ -1,0 +1,15 @@
+{
+  "uid": "cmd.kick",
+  "kind": "command",
+  "name": "Kick character session",
+  "summary": "Disconnect a live character session after RBAC (moderator+).",
+  "purpose": "Ops mutation intent; authorized before apply.",
+  "authority": "server",
+  "relations": [],
+  "confidence": "semantics",
+  "status": "implemented",
+  "evidence": [
+    { "type": "doc", "ref": "server/crates/azoth-commands/src/lib.rs" }
+  ],
+  "owners": { "crate": "azoth-commands", "module": "apps/worldd/ops" }
+}

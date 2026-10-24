@@ -3,8 +3,10 @@
 
   python az.py setup [--core|--re|--all|--purge]  # local toolchain (core = default)
   python az.py doctor             # checklist: Python, Caddy, Rust, OpenSSL
+  python az.py test e2e entry     # offline scenario crates (ADR 0007 stub)
   python az.py migrate            # move existing AppData state into this checkout
   python az.py dev                # gateway, world and Caddy in the background
+
   python az.py dev stop           # stop the server stack
   python az.py game               # launch the private client without a console
   python az.py game restart       # cleanly replace the private client
@@ -646,6 +648,15 @@ def main() -> int:
             cwd=ROOT,
             env=local_env(),
         )
+    if head == "test":
+        if rest[:2] == ["e2e", "entry"]:
+            return subprocess.call(
+                [sys.executable, str(SCRIPTS / "e2e-entry-stub.py"), *rest[2:]],
+                cwd=ROOT,
+                env=local_env(),
+            )
+        print("usage: python az.py test e2e entry")
+        return 2
     if head == "status":
         return _status()
     if head == "stop":

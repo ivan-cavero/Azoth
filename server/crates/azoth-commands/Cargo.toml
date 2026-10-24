@@ -1,0 +1,15 @@
+[package]
+name = "azoth-commands"
+description = "Typed admin and player commands with role checks (ops bus surface)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+azoth-model = { path = "../azoth-model" }
+serde = { workspace = true }
