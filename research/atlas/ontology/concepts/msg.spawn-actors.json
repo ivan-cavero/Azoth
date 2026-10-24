@@ -3,24 +3,27 @@
   "kind": "message",
   "name": "SpawnActorsMsg",
   "aliases": ["wire:574"],
-  "summary": "Batch spawn of actors for an observer.",
-  "purpose": "Efficient presence introduction when multiple actors enter interest.",
+  "summary": "Single big-endian u64 identifier (not an inline actor list).",
+  "purpose": "Names something the client uses to drive spawn; payload is the id only.",
   "authority": "server",
   "lifecycle": {
-    "created_when": ["AOI enter batch", "zone load"],
+    "created_when": ["AOI enter", "zone load"],
     "if_absent": "missing peers or NPC population on enter"
   },
   "wire": { "id": 574, "direction": "S2C", "transport": "rep" },
   "domain_types": ["ActorId"],
-  "fields": [],
+  "fields": [
+    { "name": "id", "offset": "0x00", "size": 8, "endian": "be", "note": "meaning unproven; not a count or vector" }
+  ],
   "relations": [
     { "op": "part_of", "to": "flow.presence" },
     { "op": "measured_on", "to": "atlas.presence-codecs" }
   ],
-  "confidence": "bytes",
-  "status": "verified",
+  "confidence": "layout",
+  "status": "implemented",
   "evidence": [
-    { "type": "atlas", "ref": "research/atlas/presence-codecs.json" }
+    { "type": "atlas", "ref": "research/atlas/presence-codecs.json#all_six_facets_located" },
+    { "type": "doc", "ref": "server/crates/azoth-wire/src/presence.rs" }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
   "owners": { "crate": "azoth-wire", "module": "presence" }

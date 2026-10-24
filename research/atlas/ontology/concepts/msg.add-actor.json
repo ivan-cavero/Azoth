@@ -3,7 +3,7 @@
   "kind": "message",
   "name": "AddActorMessage",
   "aliases": ["wire:449"],
-  "summary": "Introduce a remote actor into the client's world view.",
+  "summary": "Introduce a remote actor into the client's world view (15 measured wire fields).",
   "purpose": "Presence: without this family of messages peers cannot appear to each other.",
   "authority": "server",
   "lifecycle": {
@@ -11,19 +11,33 @@
     "if_absent": "other players invisible; multiplayer appears empty"
   },
   "wire": { "id": 449, "direction": "S2C", "transport": "rep" },
-  "domain_types": ["ActorId", "Transform"],
-  "fields": [],
+  "domain_types": ["ActorId"],
+  "fields": [
+    { "name": "head16", "offset": "0x00", "size": 16, "note": "raw 16 bytes; actor-id-shaped, meaning unproven" },
+    { "name": "u8_at_0x10", "offset": "0x10", "size": 1 },
+    { "name": "count_payload", "offset": "0x18", "size": "var", "note": "u8 count + payload (FUN_146a6ebe0)" },
+    { "name": "u64_a", "offset": "0x28", "size": 8, "endian": "be" },
+    { "name": "u64_b", "offset": "0x30", "size": 8, "endian": "be" },
+    { "name": "u64_c", "offset": "0x38", "size": 8, "endian": "be" },
+    { "name": "two_u32", "offset": "0x40", "size": 8, "endian": "be" },
+    { "name": "u8_at_0x48", "offset": "0x48", "size": 1 },
+    { "name": "vec_a", "offset": "0x50", "size": "var" },
+    { "name": "vec_b", "offset": "0x78", "size": "var" },
+    { "name": "vec_c", "offset": "0xa0", "size": "var" },
+    { "name": "u32_at_0xc8", "offset": "0xc8", "size": 4, "endian": "be" },
+    { "name": "bool_at_0xcc", "offset": "0xcc", "size": 1 },
+    { "name": "sub_a", "offset": "0xd0", "size": "var" },
+    { "name": "sub_b", "offset": "0xf4", "size": "var" }
+  ],
   "relations": [
     { "op": "part_of", "to": "flow.presence" },
     { "op": "measured_on", "to": "atlas.presence-codecs" }
   ],
-  "confidence": "bytes",
-  "status": "verified",
+  "confidence": "layout",
+  "status": "implemented",
   "evidence": [
-    {
-      "type": "atlas",
-      "ref": "research/atlas/presence-codecs.json"
-    }
+    { "type": "atlas", "ref": "research/atlas/presence-codecs.json#wire_layout_add_actor_message" },
+    { "type": "doc", "ref": "server/crates/azoth-wire/src/presence.rs" }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
   "owners": { "crate": "azoth-wire", "module": "presence" }

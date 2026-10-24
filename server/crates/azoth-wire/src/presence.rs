@@ -12,11 +12,11 @@
 //! | 422 | `FragmentUpdateMsg` | `u64` then `u32` |
 //! | 449 | `AddActorMessage` | fifteen fields, below |
 //!
-//! The other three — `Replicate` (391), `ReplicateClient` (407), `UpdateMsg` (106) — are
-//! **polymorphic**: they construct a record object for its component type and call
-//! `vtable+0x90 / +0xa0 / +0xb0` on it, so their shape is per component type rather than per
-//! message. They do not belong in this module and are deliberately absent: a struct here would be
-//! a guess dressed as a layout.
+//! `Replicate` (391) and `ReplicateClient` (407) are **polymorphic**: each constructs a record
+//! for its component type and calls `vtable+0x90 / +0xa0 / +0xb0`, so shape is per component,
+//! not per message. They stay out of this module. `UpdateMsg` (106) is fixed (prefix-varint
+//! length ≤512 + blob) and is included below — earlier notes that lumped it with the
+//! polymorphic pair were wrong (`presence-codecs.json`).
 //!
 //! HOW THE LAYOUTS WERE ESTABLISHED
 //! ================================

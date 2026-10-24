@@ -3,23 +3,28 @@
   "kind": "message",
   "name": "UpdateMsg",
   "aliases": ["wire:106"],
-  "summary": "Length-prefixed update blob (max 512 bytes) used as a carrier for component codecs.",
-  "purpose": "Compact update path distinct from polymorphic Replicate constructors.",
+  "summary": "Prefix-varint length (max 512) then that many raw bytes — fixed, not polymorphic.",
+  "purpose": "Carrier blob for one component fragment payload; pairs with FragmentUpdateMsg identity.",
   "authority": "server",
   "lifecycle": {
     "updated_when": ["small component patches"],
     "if_absent": "fallback to larger replicate paths or missing patches"
   },
   "wire": { "id": 106, "direction": "S2C", "transport": "rep" },
-  "fields": [],
+  "fields": [
+    { "name": "length", "size": "varint", "note": "prefix-varint; reject if >= 0x201" },
+    { "name": "blob", "size": "length", "note": "raw bytes, max 512" }
+  ],
   "relations": [
     { "op": "part_of", "to": "flow.presence" },
-    { "op": "measured_on", "to": "atlas.presence-codecs" }
+    { "op": "measured_on", "to": "atlas.presence-codecs" },
+    { "op": "consumes", "to": "msg.fragment-update" }
   ],
-  "confidence": "bytes",
-  "status": "verified",
+  "confidence": "layout",
+  "status": "implemented",
   "evidence": [
-    { "type": "atlas", "ref": "research/atlas/presence-codecs.json" }
+    { "type": "atlas", "ref": "research/atlas/presence-codecs.json#all_six_facets_located.UpdateMsg" },
+    { "type": "doc", "ref": "server/crates/azoth-wire/src/presence.rs" }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
   "owners": { "crate": "azoth-wire", "module": "presence" }
