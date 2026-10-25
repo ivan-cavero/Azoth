@@ -117,6 +117,59 @@ class TestCaptureEndToEnd(unittest.TestCase):
         self.assertIn("request", ex)
         self.assertIn("response", ex)
 
+    def test_an_empty_session_does_not_erase_the_atlas(self):
+        """A fresh run must MERGE into observed-endpoints.json, not replace it.
+
+        MEASURED 2026-10-25: the committed atlas held 99 endpoint families accumulated
+        across months. Starting the lab for one short session rewrote the file from only
+        that session's hits and deleted 1,359 lines. The loss is silent: the file stays
+        valid JSON and every reader just sees a smaller world.
+        """
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        atlas_path = tmp / "observed.json"
+        atlas_path.write_text(
+            json.dumps(
+                {
+                    "$comment": "pre-existing",
+                    "generated": "2026-10-22T21:50:45Z",
+                    "endpoints": [
+                        {
+                            "path": "/prod/game/old-family",
+                            "methods": ["GET"],
+                            "hits": 8223,
+                            "first": "2026-09-13T15:07:54Z",
+                            "last": "2026-10-22T21:50:45Z",
+                            "example": {"response": {"kept": True}},
+                        }
+                    ],
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        from azoth_gateway.routes.traffic import TrafficLog
+
+        rec = TrafficLog(jsonl_path=tmp / "traffic.jsonl", atlas_path=atlas_path)
+        rec.record_full(
+            method="GET",
+            path="/prod/game/worlds/86ae8332-ed32-420e-985c-61011022847a/characters",
+            status=200,
+            req_headers={},
+            req_body=b"",
+            resp_body=b"{}",
+        )
+
+        atlas = json.loads(atlas_path.read_text(encoding="utf-8"))
+        fams = {e["path"]: e for e in atlas["endpoints"]}
+        # The new family is present...
+        self.assertIn("/prod/game/worlds/{id}/characters", fams)
+        # ...and the pre-existing family survived with its accumulated count and example.
+        self.assertIn("/prod/game/old-family", fams)
+        self.assertEqual(fams["/prod/game/old-family"]["hits"], 8223)
+        self.assertEqual(fams["/prod/game/old-family"]["first"], "2026-09-13T15:07:54Z")
+        self.assertEqual(fams["/prod/game/old-family"]["example"], {"response": {"kept": True}})
+
     def test_gen_openapi(self):
         import importlib.util
 
