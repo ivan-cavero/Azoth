@@ -4,6 +4,7 @@ description: >-
   Everfall Rust rules for an authoritative game server: crate boundaries,
   errors, the 50 Hz tick, mutation, and unsafe. Use when writing or reviewing
   any Rust, Cargo.toml, or server crate, including the day server/ is recreated.
+  Load rust-best-practices with it; this file decides where they disagree.
 paths:
   - "**/*.rs"
   - "**/Cargo.toml"
@@ -14,6 +15,32 @@ paths:
 Load this before any `.rs` edit. Also load `everfall-server` if the change adds a crate, and `protocols` if the change encodes a client message. The long checklist is [reference.md](references/REFERENCE.md).
 
 There is no `server/` tree until a row in `research/atlas/meanings.md` names the fields. This skill does not authorize creating that tree.
+
+## Precedence
+
+Three sources meet on a `.rs` file, and they are not equal.
+
+| Order | Source | Covers |
+| --- | --- | --- |
+| 1 | This file, `everfall-server`, `protocols`, `docs/PLAN.md` | What the server is allowed to do: meaning cards, crate boundaries, the 20 ms tick, OpenSSL in one crate, tickets, no token in a log |
+| 2 | `rust-best-practices` | How to write the Rust that does it: API shape, derives, error types, doc sections, iterator idiom |
+| 3 | `rust-review` | How to report on it: a prioritized report, never a rewrite |
+
+Where 2 and 3 contradict 1, 1 wins and the contradiction is worth a line in
+`references/REFERENCE.md` so the next agent does not re-derive it. A rule from 2
+is a default for what 1 does not say, never a reason to add a field, a crate, or
+a dependency that 1 withholds.
+
+Two upstream defaults are already overruled for this project, in
+[`lints/lints.toml`](lints/lints.toml): `as_conversions` is allowed because a
+codec is byte-offset arithmetic, and `print_stdout` is allowed because `worldd`
+diagnostics and `xtask` are operator-facing binaries. `missing_errors_doc` and
+`missing_panics_doc` are allowed because the deleted tree carried 179 `expect()`
+calls in `src/`, and a `# Panics` section on each one is noise.
+
+The review skill owes two answers upstream does not know about: does every
+encoded field have a name in `research/atlas/meanings.md`, and does the change
+keep I/O out of the simulation crate. A report that skips them is incomplete.
 
 ## Boundaries
 
@@ -46,3 +73,5 @@ A gameplay test states the fact: this message tells the client a named thing. By
 - [ ] Every encoded field is named in `research/atlas/meanings.md`
 - [ ] The tick function does not perform a handshake
 - [ ] `cargo test` for the crates you touched is green
+- [ ] `cargo clippy --all-targets --all-features -- -D warnings` is green under
+      [`lints/`](lints/), not under a `#[allow]` written to get past it

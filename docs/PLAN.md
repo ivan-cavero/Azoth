@@ -59,7 +59,13 @@ that the preservation server works.
 - One binary at first: the world process. Channel and region HTTP stay in
   Python until their JSON fields are named the same way.
 - No `unwrap` outside tests. No `unsafe` without a written reason.
-- `clippy` with warnings denied on crates we add.
+- `clippy` with warnings denied on crates we add. The lint set is already
+  decided: paste `.agents/skills/rust/lints/lints.toml` into the workspace
+  `Cargo.toml` and copy its `clippy.toml` beside it. It is the surviving lint
+  block of the deleted tree merged with a third-party default set, and it
+  records why each upstream default was overruled.
+- Writing rules come from `.agents/skills/rust/SKILL.md` first and
+  `rust-best-practices` second. When the two disagree, the Everfall file wins.
 - The server rejects client claims about position, items, and currency that
   the simulation did not accept.
 - Tickets expire. Admin commands are not accepted on the game port.

@@ -1,0 +1,94 @@
+# Everfall Rust lints
+#
+# The workspace lints for the day `server/` comes back. Copy `clippy.toml` from
+# this directory next to the workspace `Cargo.toml`, and paste the blocks below
+# into it. Nothing here creates a crate by itself; `docs/PLAN.md` still decides
+# when the first one is justified.
+#
+# Provenance: the surviving `[workspace.lints]` of the deleted tree
+# (`git show 7bb8894^:server/Cargo.toml`), merged with the drop-in set from
+# BeautifulRust 1.2.0 (`.agents/skills/rust-best-practices/VENDORED.md`).
+# Where the two disagreed, Everfall's measurement won and the reason is written
+# next to the line.
+#
+# Enforce in CI with:
+#
+#     cargo clippy --all-targets --all-features -- -D warnings
+#
+# Silence a lint locally with a reason. The config below requires one:
+#
+#     #[expect(clippy::unwrap_used, reason = "the table is a literal and always parses")]
+
+[workspace.lints.rust]
+# The deleted tree denied this outright, and nothing since has needed an unsafe
+# block: DTLS and crypto live in OpenSSL behind a safe crate boundary. If that
+# ever changes, the exception is `deny` -> `warn` plus a `// SAFETY:` comment,
+# not a local `#[allow]`.
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "warn"
+missing_docs = "warn"
+unused_must_use = "deny"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+# Groups first, at lower priority so the individual settings below win.
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+# --- Panics ------------------------------------------------------------------
+# A client datagram is untrusted input. A parse failure is a disconnect or a
+# counter, never a panic that kills the other players.
+unwrap_used = "warn"
+expect_used = "allow"                    # expect("reason") is the sanctioned form
+panic_in_result_fn = "warn"
+panic = "warn"
+todo = "warn"
+dbg_macro = "warn"
+
+# --- Suppressions ------------------------------------------------------------
+# Every `#[allow]` says why and expires when the lint stops firing.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+
+# --- Unsafe ------------------------------------------------------------------
+# Dead today because `unsafe_code = "deny"` covers it. Kept so that a future
+# exception is held to the same bar as the rest of the file.
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+
+# --- API shape ---------------------------------------------------------------
+# A bool parameter is unreadable at the call site and cannot grow a third mode.
+# `everfall-sim` states player presence as an enum, not a pile of flags.
+fn_params_excessive_bools = "warn"
+struct_excessive_bools = "warn"
+clone_on_ref_ptr = "warn"
+
+# --- Documentation -----------------------------------------------------------
+# Wired fields and encoded layouts are the contract. `# Errors` and `# Panics`
+# stay off on purpose: the deleted tree carried 179 `expect()` calls in `src/`,
+# and documenting each one as a reachable panic would be noise, not a contract.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+# --- Deliberately allowed ----------------------------------------------------
+# A codec reads and writes byte offsets. Being explicit about arithmetic is the
+# point, not noise: `azoth-wire` carried 8 `as` casts in `presence.rs` and 8 in
+# `container.rs`, all of them layout arithmetic with a comment.
+as_conversions = "allow"
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+
+# Layout tables read better as constants than as methods, and a crate named
+# `everfall-wire` should be allowed to say `wire` in its own type names.
+items_after_statements = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+
+# --- Stdout ------------------------------------------------------------------
+# `worldd` diagnostics and `xtask` are operator-facing CLIs whose output is the
+# point. The library crates still log through tracing; that rule lives in
+# `.agents/skills/rust/SKILL.md`, where it can tell a binary from a library.
+print_stdout = "allow"
+print_stderr = "allow"

@@ -1,0 +1,16 @@
+# Everfall clippy configuration. Copy next to the workspace `Cargo.toml`,
+# alongside the `[workspace.lints]` block from `lints.toml`.
+#
+# Derived from BeautifulRust 1.2.0 (`clippy.toml`), with one change: the
+# `allow-*-in-tests` switches are kept, because `docs/adr/0007-testing-doctrine.md`
+# puts the signal in scenario tests, and a panicking assertion inside one is the
+# assertion, not a bug.
+
+# A bool argument is unreadable at the call site (report(true)) and cannot grow
+# a third mode. Use a two-variant enum or two methods instead.
+max-fn-params-bools = 0
+
+# A panic inside a test is the assertion.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-print-in-tests = true

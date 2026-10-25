@@ -51,6 +51,8 @@ If the request is ambiguous, ask: "¿Lo resuelvo o lo dejamos en guía?"
 | Live client | `everfall-live` | a session against the private client |
 | Rust server shape | `everfall-server` | adding `server/` or a gameplay crate |
 | Rust language | `rust` | any `.rs` file |
+| Rust idiom | `rust-best-practices` | any `.rs` write, with `rust`; it fills what `rust` leaves silent |
+| Rust review | `rust-review` | "review this Rust", a crate, a module, or a diff |
 | Python | `python` | `ef.py`, `services/`, `scripts/` |
 | JavaScript / Astro | `javascript` | `platform/web` |
 | Protocol | `protocols` | wire format, DTLS, ladder, captures |
@@ -58,6 +60,9 @@ If the request is ambiguous, ask: "¿Lo resuelvo o lo dejamos en guía?"
 | Names | `naming` | a new file, type, function, or crate |
 
 Folders named `azoth-*` are retired pointers. Do not follow them as the current method.
+
+When `rust`, `rust-best-practices`, and `rust-review` disagree, `rust` wins. The
+order is written down in `.agents/skills/rust/SKILL.md` under Precedence.
 
 ---
 
