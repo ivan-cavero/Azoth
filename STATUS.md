@@ -46,15 +46,24 @@ channel the replay dump covers.
 
 ## Blocked by
 
-No live capture of a `PlayerManagerSelfIdentificationMsg` exists on any build,
-so there is nothing to read the body from. The cheapest unblock is a passive
-capture of one official login on 1.460 that includes this rung.
+Two blockers, both measured, and neither is a missing idea:
 
-Second blocker, measured: the spawn's 48 fragment boundaries are not recoverable
-from its bytes. A constrained search over the 29,721 offsets that parse as a
-fragment header found no 48-fragment path ending exactly at 46,393 within a
-2,000,000-node budget. Serving the captured spawn verbatim stays the only option
-until the per-type fragment readers are decoded.
+1. **The 15 rung needs a capture.** No live capture of a
+   `PlayerManagerSelfIdentificationMsg` exists on any build. The evidence points
+   at `ClientAddEntryMsg` (`0xa4`, 20 bytes) carrying the player's own actor id
+   twice, the second time immediately before level info, but no capture shows the
+   transition itself. A passive capture of one official login on 1.460 unblocks it.
+2. **The spawn needs 47 type readers.** Its 48 fragment boundaries are not
+   recoverable from its bytes: a constrained search over the 29,721 offsets that
+   parse as a fragment header found no 48-fragment path ending at 46,393, and the
+   actor-id anchor leaves 1,587 candidates because a one-byte key plus a
+   one-or-two-byte type is accepted at roughly one offset in three. A fragment
+   carries no length, so the walk needs each type's payload length. Serving the
+   captured spawn verbatim stays the only option until then.
+
+The map itself is not blocked. Every state, transport, wire type, message name
+and size is recorded in `research/atlas/meanings.md`, and the blocks several
+messages share are documented there too.
 
 ## Do not
 

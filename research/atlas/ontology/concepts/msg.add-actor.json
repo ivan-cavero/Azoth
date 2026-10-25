@@ -84,6 +84,14 @@
     {
       "type": "decompile",
       "ref": "negative: a corpus-wide scan found only 12 memcmp call sites, none with a 0x10 length and none in an actor context, so nothing corroborates 'the first 16 bytes are the actor id'. The field is measured as 16 opaque bytes and no more"
+    },
+    {
+      "type": "decompile",
+      "ref": "the layout is shared by THREE message classes, not one. The unmarshal facet FUN_146a6b3e0 has exactly three call sites, in the factories FUN_146a339a0, FUN_146a5f520 and FUN_146a5f970 (124 bytes each, all identical except the object vtable they install). Each factory's address sits in a .rdata slot at 0x1485752c0, 0x148583730 and 0x148583940 respectively. So the 16-byte head + u8 at 0x10 + vector at 0x18 + 0x28/0x30 + the FUN_146a6e090 group at 0x38 is a FAMILY layout, and any claim about this message's fields is really a claim about the family"
+    },
+    {
+      "type": "decompile",
+      "ref": "two of the three object vtables, 0x14857ffe0 and 0x14857dfd8, hold the identical slot triple 0x146a541e0 / 0x146a54230 / 0x146a542b0, so those two are instances of one class; 0x14857db68 holds a different triple (0x141753620 / 0x141754f70 / FUN_141757cd0) and is the second class"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
