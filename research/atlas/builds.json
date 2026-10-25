@@ -267,6 +267,26 @@
         "IapClient itself: builds.json already records it as present in a clean official session"
       ],
       "next_diagnostic": "capture the process's last moments instead of its log: run the private exe under 'az.py'/'ef.py' style instrumentation with a WER local dump configured (HKLM\\SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps), or check CrashDB for a fresh report. CrashDB/reports was empty for every attempt so far, so the client is exiting through a path that does not raise a crash report."
+    },
+    "breakthrough": {
+      "evidence": "observed",
+      "what": "AUTHENTICATION COMPLETES end to end against the Python lab, and the client reaches the world-connect stage.",
+      "how": "Start the lab first (`python ef.py dev`), then launch the private exe DIRECTLY (`private-client/runtime/Bin64/NewWorld.exe`), NOT through `ef.py game start`. The launcher's patch set is what made every earlier attempt die at ~20-27 s; the direct launch survives.",
+      "log_evidence": [
+        "[OmniAuthBackend] Omni CreateSession complete with result: 0, id: amzn1.developerPersonaId... (a REAL id, versus the earlier '201, id:' empty)",
+        "[AuthStackCredentialsProvider] Successfully refreshed persona AWS credentials",
+        "CGame::OnCampfireLoginComplete, login successful. ownership=permanent",
+        "[GameConnection] ConfigureLogin MODE_GATEWAY: endpoint=d3bj4csovi1fe8.cloudfront.net",
+        "LogEnvironmentString: Persona ID: amzn1.developerPersonaId.fc906c07-..."
+      ],
+      "process": "alive and Responding at 4.1 GB with the 'New World' window open, for many minutes rather than 20 s",
+      "known_benign": "[OmniAuthBackend] AGS account link error: GetAccountLinkActionCode returned ... - the account-link step fails harmlessly; login completed anyway"
+    },
+    "where_it_stops_now": {
+      "evidence": "observed",
+      "state": "the client reaches ConfigureLogin MODE_GATEWAY and then re-enters the boot sequence (option loading, CPU feature detection, StreamConfig queries for ProductId and RegionId) at 15:49:50, five minutes after the first ConfigureLogin at 15:44:51",
+      "gap": "the REP world connection never opens: `world.log` shows no DTLS peer and no handshake, so the client never gets as far as WaitingForREPConnection",
+      "next_question": "why does the client restart its boot phase after ConfigureLogin instead of opening the REP socket? That is upstream of the ladder and needs the world-select/login-info exchange to be inspected, not the ladder itself."
     }
   }
 }
