@@ -29,7 +29,16 @@ import tempfile
 import unittest
 from unittest import mock
 
+# `parents[1]` is `reverse/tools`, but the artifacts these tests guard live under the repository
+# root (`research/derived/`), so the anchor had to go up three more levels. Measured 2026-10-25:
+# with parents[1] the three committed-artifact tests raised FileNotFoundError instead of checking
+# the pin, so the guard on `wire-type-names.json` had been silently not running.
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+# The repository root, for the committed artifacts these tests guard. Measured 2026-10-25: the
+# two artifact tests used `ROOT.parents[2]`, one level too high, so they looked for
+# `<Dev>/research/derived/wire-type-names.json` and raised FileNotFoundError instead of checking
+# the pin. The guard on the wire-type table had therefore never actually run.
+REPO = ROOT.parents[1]
 for _kind in ("", "corpus", "pe", "type", "pak", "wire", "eac", "ops"):
     _p = str(ROOT if _kind == "" else ROOT / _kind)
     if _p not in sys.path:
@@ -140,6 +149,77 @@ class NamingTest(unittest.TestCase):
         self.assertIsNone(by_wire[1]["source"])
         self.assertEqual(result["ambiguous_names"], 1)
         self.assertEqual(result["named"], 1)
+
+    def test_an_uppercase_registration_names_its_own_slot(self) -> None:
+        """A descriptor whose dashed GUID is stored UPPERCASE still registers a type.
+
+        MEASURED 2026-10-25 on build 30fe6461: at .rdata 0x148528290 the string
+        `VitalsComponentClientFacet_NotifyDamageNumberBusOnTrueDamageReceived` is followed by
+        NULs and then the UPPERCASE dashed GUID `5B0C96DC-927B-4238-9600-F8EE73A2D8B6`, which
+        is type-table slot 6792. A lowercase-only pattern never indexes that GUID, so the name
+        belonged to nobody and a GUID 0xd0 bytes further on picked it up instead. Both cases are
+        real registrations and both have to be indexed.
+        """
+        blocks = (
+            b"UpperRegisteredMsg\0\0\0\0"
+            + dashed(GUID_A).upper().encode()
+            + b"\0\0\0\0"
+        )
+        image = Synthetic(blocks, [GUID_A])
+        row = rows(scan(self, image))[0]
+        self.assertEqual((row["name"], row["source"]), ("UpperRegisteredMsg", "rdata"))
+
+    def test_an_uppercase_guid_between_the_name_and_the_guid_blocks_the_name(self) -> None:
+        """One name, then an UPPERCASE dashed GUID, then a lowercase one.
+
+        MEASURED 2026-10-25 on build 30fe6461 at .rdata 0x1485800e0:
+        `AddActorMessage` NUL, then `96C829CE-DFBC-4763-959C-32A6B22D81EF` NULs, then
+        `bc291efa-72fe-4c7b-b9f6-859ee42fb1a0`. The uppercase string is a plain dashed
+        GUID, not a brace, so the name belongs to the type registered with THAT guid and
+        the lowercase one has no adjacent name.
+
+        The scan's GUID pattern is lowercase-only, so the uppercase GUID is never indexed
+        and nothing claims the name; without a guard the lowercase GUID reads back over it
+        and reports `AddActorMessage`, which is how wire 449 was misnamed.
+        """
+        blocks = (
+            b"AddActorMessage\0"
+            + b"96C829CE-DFBC-4763-959C-32A6B22D81EF\0\0\0\0"
+            + dashed(GUID_B).encode()
+            + b"\0\0\0\0"
+        )
+        image = Synthetic(blocks, [GUID_B])
+        row = rows(scan(self, image))[0]
+        self.assertIsNone(row["name"])
+        self.assertIsNone(row["source"])
+
+    def test_a_brace_between_the_name_and_the_guid_is_still_skipped(self) -> None:
+        """The new guard must keep the 349/PingMsg shape working."""
+        blocks = (
+            b"RealTypeNameMsg\0"
+            + b"{85C7E01E-55DE-4A6E-AFC5-80FA9A8AD260}\0\0"
+            + dashed(GUID_A).encode()
+            + b"\0\0\0\0"
+        )
+        image = Synthetic(blocks, [GUID_A])
+        row = rows(scan(self, image))[0]
+        self.assertEqual((row["name"], row["source"]), ("RealTypeNameMsg", "rdata"))
+
+    def test_a_run_cut_by_the_window_edge_is_not_a_name(self) -> None:
+        """A long printable run that the 0x100-byte window slices must not be half-read.
+
+        MEASURED 2026-10-25 on build 30fe6461: the type-table slot 0x5d1 GUID at .rdata
+        0x14801dc78 is preceded by the dashed GUID string `b96ff127-...-4f9936d4cc8a`, which
+        starts more than 0x100 bytes earlier. The window therefore begins inside that string,
+        the leading part is lost, and the leftover printable fragment `cc8a` was reported as
+        the wire type's name. A run that touches the window's left edge is truncated evidence,
+        not a name.
+        """
+        filler = b"x" * 0x120  # pushes the real run past the window's left edge
+        blocks = filler + b"-4f9936d4cc8a\0\0\0\0" + dashed(GUID_A).encode() + b"\0\0\0\0"
+        image = Synthetic(blocks, [GUID_A])
+        row = rows(scan(self, image))[0]
+        self.assertIsNone(row["name"])
 
     def test_falls_back_to_the_az_type_registry_and_records_its_source(self) -> None:
         image = Synthetic(b"", [GUID_A])
@@ -264,7 +344,7 @@ class CommittedArtifactTest(unittest.TestCase):
     """The committed table must describe the build the tool is pinned to."""
 
     def setUp(self) -> None:
-        path = ROOT.parents[2] / "research" / "derived" / "wire-type-names.json"
+        path = REPO / "research" / "derived" / "wire-type-names.json"
         self.artifact = json.loads(path.read_text(encoding="utf-8"))
 
     def test_the_pin_matches_the_committed_artifact(self) -> None:
@@ -279,7 +359,7 @@ class CommittedArtifactTest(unittest.TestCase):
 
     def test_the_committed_artifact_covers_the_whole_type_table(self) -> None:
         typeindex = json.loads(
-            (ROOT.parents[2] / "private-client" / "runtime" / "typeindex.json")
+            (REPO / "private-client" / "runtime" / "typeindex.json")
             .read_text(encoding="utf-8")
         )["typeIndex"]
         self.assertEqual(self.artifact["wire_types"], len(typeindex))

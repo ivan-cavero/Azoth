@@ -18,13 +18,22 @@ the type's name as a NUL-terminated printable run:
 
     <Name>\\0<padding>\\0<dashed-guid>
 
-* Trap 1 - padding: the run is not always immediately adjacent. When a GUID is preceded by
-  NUL padding there can be a SHORTER printable run further back that is not the name. This
-  tool reads back over up to 4 NULs and keeps the LONGEST run, which is what fixed the
-  misreading of 349 (recorded as a bare GUID string; it is `PingMsg`).
+* Trap 1 - padding and neighbours: the run is not always immediately adjacent, and what sits
+  between the name and the GUID decides whether there is a name at all. When a BRACE-wrapped
+  GUID sits in between (`PingMsg\0{85C7E01E-...}\0<guid>`) it belongs to the same descriptor,
+  so the scan skips it and takes the name before it. When a PLAIN dashed GUID sits in between,
+  that GUID is a different descriptor and the run further back is ITS name, so this GUID has no
+  adjacent name and is reported unnamed. Nearest run wins, never the longest.
+  MEASURED 2026-10-25: conflating the two cases is how wire 449 reported `AddActorMessage`, a
+  name belonging to slot 121, for as long as the table went unregenerated.
+* Trap 1b - clipped runs: a printable run cut by the 0x100 lookback window, or split by
+  PRINTABLE_RE's 110-character cap, is a fragment rather than a name. MEASURED 2026-10-25:
+  that is where the fragment `cc8a` came from for slot 0x5d1.
 * Trap 2 - braces and case: some types are registered by a brace-wrapped GUID instead of a
   name (those yield `{...}` and are reported as such, not silently dropped), and the image
-  stores the GUID lowercase while `typeindex.json` stores it uppercase.
+  stores the GUID lowercase while `typeindex.json` stores it uppercase. Because this pattern
+  matches lowercase only, a type whose dashed string is stored UPPERCASE is never indexed and
+  stays unnamed; that is the honest answer, not a miss to be papered over.
 
 A wire index whose GUID has no dashed string in the image is reported as unnamed rather than
 guessed: not every index belongs to this naming scheme (the atlas records this for 669 and
@@ -103,7 +112,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import default_paths  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
+# `parents[2]` is `reverse/`, but `private-client/` and `research/` live at the repository root, so
+# every path below resolved one level too high. Measured 2026-10-25: the tool raised
+# FileNotFoundError on `reverse/private-client/runtime/typeindex.json` and had therefore been
+# unrunnable since the layout moved `private-client/` to the root, which is why the committed
+# table kept a stale name instead of being regenerated.
+ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / "research" / "derived" / "wire-type-names.json"
 TYPEINDEX = ROOT / "private-client" / "runtime" / "typeindex.json"
 
@@ -126,10 +140,21 @@ ANCHORS = {
     4247: "TimeComponentClientFacet_SyncDayPhase",
 }
 
-GUID_RE = re.compile(rb"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+# A registration's dashed GUID is stored in EITHER case. MEASURED 2026-10-25 on build
+# 30fe6461: `AddActorMessage` is followed by the UPPERCASE `96C829CE-DFBC-...` (slot 121) and
+# `VitalsComponentClientFacet_NotifyDamageNumberBusOnTrueDamageReceived` by the UPPERCASE
+# `5B0C96DC-...` (slot 6792). A lowercase-only pattern never indexes those registrations, so
+# their names belong to nobody and a GUID further along picks them up. The pattern must accept
+# both cases; the type table's own GUIDs are normalised to lowercase for lookup either way.
+GUID_RE = re.compile(rb"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 PRINTABLE_RE = re.compile(rb"[\x20-\x7e]{3,110}")
-# A printable run that is itself a GUID (optionally brace-wrapped) is never the name; when
-# one sits between the name and the GUID, the naive "longest run" picks the GUID instead.
+# A printable run that is itself a GUID is never the name. Two forms mean different things:
+# a BRACE-wrapped GUID sits inside the same descriptor, so the scan skips it and keeps looking;
+# a PLAIN dashed GUID (either case) is another descriptor's id, so the name further back
+# belongs to that one and this GUID has no adjacent name. Conflating them is how wire 449
+# stole `AddActorMessage` from slot 121; see _pick_name.
+BRACED_GUID_RE = re.compile(r"^\{[0-9A-Fa-f-]{30,}\}$")
+PLAIN_GUID_RE = re.compile(r"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$")
 GUID_LIKE_RE = re.compile(r"^\{?[0-9A-Fa-f-]{30,}\}?$")
 # A real type name looks like an identifier: it starts with a letter or underscore and is made
 # of identifier characters, dots, angle brackets and colons (MSVC/AZ spellings such as
@@ -157,20 +182,31 @@ def _looks_like_a_name(candidate: str) -> bool:
     return alnum / len(candidate) >= 0.75
 
 
-def _pick_name(runs: list[bytes]) -> str | None:
-    """The name for a GUID: the printable run CLOSEST to it that is not itself a GUID.
+def _pick_name(runs: list[tuple[str, bool]]) -> str | None:
+    """The name for a GUID: the printable run CLOSEST to it that is not another descriptor's id.
 
-    Distance matters, not length. The descriptor form is `<Name>\0<padding>\0<guid>`, but for
-    some types a brace-wrapped GUID sits between the name and the GUID
-    (`PingMsg\0{85C7E01E-...}\0<guid>`), so the nearest run is GUID-like and must be skipped.
-    Taking the LONGEST run instead picks up an unrelated neighbour (a cvar name or another
-    trait) and misnames the type - measured, that is how 726 became
+    Distance matters, not length. Taking the LONGEST run picks up an unrelated neighbour (a cvar
+    name or another trait) and misnames the type - measured, that is how 726 became
     `javelin-server.asc-enable-fragment-sharing`.
+
+    A BRACE and a PLAIN dashed GUID mean different things, and conflating them misnames a type:
+
+    * `{85C7E01E-...}` is AZ's own rendering of a GUID that belongs to the SAME descriptor, so the
+      scan skips it and keeps looking for the name before it;
+    * a plain dashed GUID is a DIFFERENT descriptor's id, so the run further back is that type's
+      name, not this one's, and the answer is None.
+
+    MEASURED 2026-10-25 on build 30fe6461: `<name>` then the plain UPPERCASE `96C829CE-...`
+    (slot 121) then lowercase `bc291efa-...` (slot 449). Without this distinction slot 449 read
+    back over the uppercase GUID and reported `AddActorMessage`, which belongs to slot 121.
     """
-    candidates = [r.decode("ascii") for r in runs]
-    for c in reversed(candidates):
-        if not GUID_LIKE_RE.match(c) and _looks_like_a_name(c):
-            return c
+    for text, braced in reversed(runs):
+        if PLAIN_GUID_RE.match(text):
+            if braced:
+                continue  # same descriptor: the name sits before the brace
+            return None  # a different descriptor's GUID: no adjacent name here
+        if _looks_like_a_name(text):
+            return text
     return None
 
 
@@ -196,16 +232,61 @@ def scan(exe: Path, typeindex: Path) -> dict:
     duplicates: list[tuple[str, str, str]] = []
     for m in GUID_RE.finditer(data):
         start = m.start()
-        window = data[max(0, start - 0x100) : start]
+        raw = m.group()
+        dashed = raw.decode("ascii").lower()
+        # The all-zero GUID is padding, never a registration. MEASURED 2026-10-25: it occurs
+        # thousands of times and otherwise takes a name from whichever descriptor precedes it.
+        if dashed == "00000000-0000-0000-0000-000000000000":
+            continue
+        # AZ renders a GUID UPPERCASE when it sits inside braces as part of another descriptor's
+        # text (`PingMsg\0{85C7E01E-...}\0<plain guid>`): that braced GUID is not a registration,
+        # and indexing it would let it claim `PingMsg` and leave wire 349 unnamed. A LOWERCASE
+        # braced GUID, by contrast, IS how some types register (`<name>\0<cvar>\0{695842bb-...}`),
+        # so it must be indexed. Case is the discriminator, which is why this pattern accepts both
+        # cases while the braced-uppercase form is skipped here.
+        braced = start > 0 and data[start - 1] == 0x7B and data[m.end() : m.end() + 1] == b"}"
+        if braced and raw != raw.lower():
+            continue
+        window_start = max(0, start - 0x100)
+        window = data[window_start:start]
         # strip trailing NUL padding (the name is separated from the GUID by NULs)
         end = len(window)
         while end > 0 and window[end - 1] == 0:
             end -= 1
-        runs = PRINTABLE_RE.findall(window[:end])
+        # A run that touches the window's left edge is CUT by it, so its leading bytes are
+        # missing and whatever survives is a fragment, not a name. MEASURED 2026-10-25: the
+        # 0x5d1 GUID at .rdata 0x14801dc78 is preceded by the dashed string
+        # `b96ff127-...-4f9936d4cc8a` starting more than 0x100 bytes earlier, and the leftover
+        # `cc8a` was reported as that wire type's name. Only skip the edge when the window was
+        # actually clipped, i.e. when it does not begin at the start of the image.
+        clipped = window_start > 0
+        body = window[:end]
+        runs = []
+        # NOTE: the loop variable must not be `m`, which is the GUID match this iteration owns.
+        # Shadowing it silently made `dashed` below take the last printable run instead of the
+        # GUID, and every adjacency name came out empty.
+        for run in PRINTABLE_RE.finditer(body):
+            # A match is only a real run when printable bytes do NOT continue on either side of
+            # it. Two measured ways that fails: the 0x100 window clips a longer run (0x5d1's
+            # `b96ff127-...-4f9936d4cc8a` left the fragment `cc8a` at the window edge), and
+            # PRINTABLE_RE's 110-char cap splits a longer run into slices whose first chunk is
+            # not the name. Either way the surviving text is a fragment, not a name.
+            if clipped and run.start() == 0:
+                continue
+            if run.start() > 0 and 0x20 <= body[run.start() - 1] <= 0x7E:
+                continue
+            if run.end() < len(body) and 0x20 <= body[run.end()] <= 0x7E:
+                continue
+            braced = (
+                run.start() > 0
+                and body[run.start() - 1] == 0x7B  # '{'
+                and run.end() < len(body)
+                and body[run.end()] == 0x7D  # '}'
+            )
+            runs.append((run.group().decode("ascii"), braced))
         name = _pick_name(runs)
         if not name:
             continue
-        dashed = m.group().decode("ascii")
         owner = claimed.get(name)
         if owner is not None and owner != dashed:
             duplicates.append((name, owner, dashed))
