@@ -46,7 +46,7 @@ def check_python() -> bool:
         if code == 0:
             _ok("project venv Python", out)
             return True
-    _bad("project venv Python", "python az.py setup --core")
+    _bad("project venv Python", "python ef.py setup --core")
     return False
 
 
@@ -57,7 +57,7 @@ def check_caddy() -> bool:
     if shutil.which("caddy"):
         _ok("Caddy", "on PATH")
         return True
-    _bad("Caddy", "python az.py setup --core")
+    _bad("Caddy", "python ef.py setup --core")
     return False
 
 
@@ -67,14 +67,14 @@ def check_re() -> None:
     if ghidra.is_dir() and jdk.is_dir():
         _ok("RE toolchain (Ghidra+JDK)")
     else:
-        _warn("RE toolchain", "optional; python az.py setup --re")
+        _warn("RE toolchain", "optional; python ef.py setup --re")
 
 
-def check_rust() -> bool:
+def check_rust() -> None:
     code, out = _run(["cargo", "--version"])
     if code != 0:
-        _bad("cargo / Rust", "https://rustup.rs — needed for server/")
-        return False
+        _warn("cargo / Rust", "not required until a meaning card allows server/. See docs/PLAN.md")
+        return
     _ok("cargo", out.splitlines()[0] if out else "cargo")
     rustc_host = ""
     code, out = _run(["rustc", "-vV"])
@@ -91,84 +91,8 @@ def check_rust() -> bool:
             "Visual Studio Build Tools (C++ workload), or `rustup default "
             "stable-x86_64-pc-windows-gnu` and use MinGW OpenSSL only",
         )
-        return False
-    return True
-
-
-def check_openssl() -> bool:
-    """Enough signal to build azoth-dtls; not a full compile."""
-    if sys.platform == "win32":
-        # Apply the same PATH/OPENSSL_DIR fixes az.py uses for cargo.
-        env = os.environ.copy()
-        try:
-            import rust_openssl_env as roe  # type: ignore
-        except ImportError:
-            import importlib.util
-
-            helper = Path(__file__).resolve().parent / "rust_openssl_env.py"
-            spec = importlib.util.spec_from_file_location("rust_openssl_env", helper)
-            assert spec and spec.loader
-            roe = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(roe)
-        notes = roe.apply(env)
-        for note in notes:
-            if "without link.exe" in note or "must not use MinGW" in note:
-                _bad("Rust / OpenSSL stack", note)
-                return False
-            if "no MSYS2" in note:
-                _bad("Rust / OpenSSL stack", note)
-                return False
-            _ok("Rust / OpenSSL stack", note)
-
-        rustc_host = roe.rustc_host()
-        if "gnu" in rustc_host:
-            gcc = roe.which_gcc(env)
-            if not gcc:
-                _bad("gcc for GNU rustc", "MSYS2 mingw64 gcc on PATH")
-                return False
-            if "brechtsanders" in gcc.casefold() or "winlibs" in gcc.casefold():
-                _bad(
-                    "mixed MinGW",
-                    f"gcc resolves to WinLibs ({gcc}); MSYS2 must win. "
-                    "Use `python az.py cargo …` or put C:\\msys64\\mingw64\\bin first.",
-                )
-                return False
-            _ok("gcc", gcc)
-            openssl_dir = env.get("OPENSSL_DIR", "")
-            if openssl_dir and (Path(openssl_dir) / "include" / "openssl" / "ssl.h").is_file():
-                _ok("OpenSSL (MSYS)", openssl_dir)
-                return True
-            _bad("OpenSSL headers", "expected include/openssl/ssl.h under OPENSSL_DIR")
-            return False
-
-        vcpkg = env.get("VCPKG_ROOT") or env.get("VCPKG_INSTALLATION_ROOT")
-        openssl_dir = env.get("OPENSSL_DIR") or env.get("OPENSSL_LIB_DIR")
-        if openssl_dir and Path(openssl_dir).exists():
-            _ok("OpenSSL hint", f"OPENSSL_* → {openssl_dir}")
-            return True
-        if vcpkg and Path(vcpkg).is_dir():
-            _ok("vcpkg root", vcpkg)
-            _warn(
-                "OpenSSL package",
-                "ensure `vcpkg install openssl:x64-windows` (MSVC rustc) — see ADR 0004",
-            )
-            return True
-        _bad(
-            "OpenSSL for Windows Rust link",
-            "MSVC: vcpkg openssl + VCPKG_ROOT; GNU: MSYS2 mingw64. ADR 0004.",
-        )
-        return False
-
-    code, out = _run(["pkg-config", "--modversion", "openssl"])
-    if code == 0:
-        _ok("OpenSSL (pkg-config)", out)
-        return True
-    _bad(
-        "OpenSSL headers",
-        "Debian/Ubuntu: sudo apt install libssl-dev pkg-config; "
-        "Fedora: sudo dnf install openssl-devel",
-    )
-    return False
+        return
+    return
 
 
 def check_git_clean_hints() -> None:
@@ -179,30 +103,24 @@ def check_git_clean_hints() -> None:
 
 
 def main() -> int:
-    print("Azoth doctor (contributor checklist)")
+    print("Everfall doctor (lab checklist)")
     print(f"root: {ROOT}")
     print()
-    print("Core (server / web loop)")
+    print("Core (Python lab)")
     core_ok = True
     core_ok &= check_python()
     core_ok &= check_caddy()
-    core_ok &= check_rust()
-    print()
-    print("DTLS build")
-    ssl_ok = check_openssl()
     print()
     print("Optional")
+    check_rust()
     check_re()
     check_git_clean_hints()
     print()
-    print("Logs live under .azoth/logs/ after `python az.py dev`.")
-    print("Contributor loop: docs/runbooks/contributor-loop.md")
-    print("Purge local tools: python az.py setup --purge")
+    print("Logs live under .azoth/logs/ after `python ef.py dev`.")
+    print("Current step: STATUS.md")
+    print("Purge local tools: python ef.py setup --purge")
     if not core_ok:
         return 1
-    if not ssl_ok:
-        # Core stack can still run Python prototype; Rust world needs OpenSSL.
-        return 2
     return 0
 
 

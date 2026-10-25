@@ -39,7 +39,7 @@ def main() -> None:
         if path.name == "STATUS.md" and n >= NOVEL_LINE_FLOOR:
             fail(f"STATUS.md is a novel again ({n} lines)")
 
-    gen = (ROOT / "site/scripts/gen-roadmap.mjs").read_text(encoding="utf-8")
+    gen = (ROOT / "platform/web/scripts/gen-roadmap.mjs").read_text(encoding="utf-8")
     if "roadmap-full" in gen or "roadmap-v1-inventory" in gen:
         fail("gen-roadmap.mjs must import roadmap-v2 only, not v1 inventory")
 
@@ -55,7 +55,21 @@ def main() -> None:
         ROOT / "deploy/local/compose.yml",
         ROOT / "platform/README.md",
         ROOT / ".agents/README.md",
-        ROOT / ".agents/skills/azoth-ontology/SKILL.md",
+        ROOT / ".agents/skills/everfall-next/SKILL.md",
+        ROOT / ".agents/skills/everfall-server/SKILL.md",
+        ROOT / ".agents/skills/rust/SKILL.md",
+        ROOT / ".agents/skills/rust/references/REFERENCE.md",
+        ROOT / ".agents/skills/python/SKILL.md",
+        ROOT / ".agents/skills/python/references/REFERENCE.md",
+        ROOT / ".agents/skills/javascript/SKILL.md",
+        ROOT / ".agents/skills/javascript/references/REFERENCE.md",
+        ROOT / ".agents/skills/protocols/SKILL.md",
+        ROOT / ".agents/skills/protocols/references/REFERENCE.md",
+        ROOT / ".agents/skills/security/SKILL.md",
+        ROOT / ".agents/skills/security/references/REFERENCE.md",
+        ROOT / ".agents/skills/naming/SKILL.md",
+        ROOT / "research/atlas/meanings.md",
+        ROOT / "docs/PLAN.md",
         ROOT / "scripts/catalog.json",
         ROOT / "scripts/README.md",
     ):

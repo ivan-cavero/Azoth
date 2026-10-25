@@ -1,9 +1,0 @@
-# Reproducible channel for every OS. Do NOT put a Windows target triple in
-# `channel` — rustup treats `stable-x86_64-pc-windows-gnu` as a channel name and
-# CI on Ubuntu fails with: "target tuple in channel name".
-#
-# Windows contributors without VS Build Tools: install the GNU toolchain and
-# use `python az.py cargo …` (MSYS OpenSSL + one MinGW). See server/AGENTS.md
-# and ADR 0004. Do not re-pin this file to windows-gnu.
-[toolchain]
-channel = "stable"

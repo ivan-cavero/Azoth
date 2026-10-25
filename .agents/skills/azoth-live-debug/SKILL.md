@@ -22,7 +22,7 @@ analysis or repository cleanup.
   server-side evidence instead.
 - Keep official routing and the private client separate. Do not change host
   routing or launch the game unless the user asked for that live operation.
-- Check the host route with `python az.py mode status`; separately verify that
+- Check the host route with `python ef.py mode status`; separately verify that
   only one gateway, world server, and Caddy process is serving the attempt.
 
 ## Measure one clean attempt
@@ -36,7 +36,7 @@ analysis or repository cleanup.
   meaningful only after the log shows
   `ProcessPendingReliableMsgQueue processing 26 messages`.
 - Set `AZOTH_LOG_RAW=1` on the world server when distinguishing missing UDP
-  packets from DTLS rejection. The combined `az.py dev` process does not inherit
+  packets from DTLS rejection. The combined `ef.py dev` process does not inherit
   ad hoc environment changes made in another shell.
 - Snapshot a run with `scripts/capture-world-run.py`. Do not truncate or rewrite
   an append-only traffic log while its service is running.

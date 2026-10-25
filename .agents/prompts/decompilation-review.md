@@ -1,3 +1,5 @@
+> This prompt is not the driver. Read `STATUS.md` and `.agents/skills/everfall-next/SKILL.md`. The Rust tree `server/` was deleted. Do not recreate it from these steps.
+
 # Prompt: Build and review a useful client decompilation
 
 Act as the reverse-engineering maintainer for the exact New World client build

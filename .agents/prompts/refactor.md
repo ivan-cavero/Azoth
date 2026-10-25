@@ -1,3 +1,5 @@
+> This prompt is not the driver. Read `STATUS.md` and `.agents/skills/everfall-next/SKILL.md`. The Rust tree `server/` was deleted. Do not recreate it from these steps.
+
 # Prompt: Azoth code and repository refactoring
 
 Act as the maintainer responsible for making the requested Azoth area easier

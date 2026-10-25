@@ -1,6 +1,6 @@
 ---
 name: azoth-ontology
-description: Create or promote Azoth atlas ontology concepts (uids, confidence, evidence, indexes) when naming messages, endpoints, flows, or commands.
+description: Create or promote Everfall atlas ontology concepts (uids, confidence, evidence, indexes) when naming messages, endpoints, flows, or commands. Also update research/atlas/meanings.md when the concept is something the server sends.
 ---
 
 # Ontology skill

@@ -1,3 +1,5 @@
+> This prompt is not the driver. Read `STATUS.md` and `.agents/skills/everfall-next/SKILL.md`. The Rust tree `server/` was deleted. Do not recreate it from these steps.
+
 # Prompt: Determine the exact client/server protocol
 
 Act as the protocol investigator for the stated client build and flow. Establish

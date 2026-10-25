@@ -19,19 +19,4 @@ jobs:
           python scripts/check/check-paths.py
           python scripts/check/check-scripts.py
 
-  rust-domain:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: server
-      - name: Domain crate tests (no OpenSSL / worldd)
-        run: |
-          cargo test -p azoth-model -p azoth-session -p azoth-commands -p azoth-privacy -p azoth-wire
-      - name: xtask workspace gates
-        run: cargo run -p xtask --quiet
+  # Rust returns when research/atlas/meanings.md closes a row. See docs/PLAN.md.

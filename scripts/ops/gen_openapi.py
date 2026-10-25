@@ -6,8 +6,8 @@ research/atlas/openapi.json: one path entry per endpoint family, methods,
 observed request/response example schemas.
 
 Usage:
-  python scripts/gen_openapi.py                 # from traffic.jsonl
-  python az.py doc                              # same thing
+  python scripts/ops/gen_openapi.py             # from traffic.jsonl
+  python ef.py doc                              # same thing
 """
 
 from __future__ import annotations

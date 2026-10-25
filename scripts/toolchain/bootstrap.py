@@ -278,7 +278,7 @@ def main() -> int:
     if "--help" in argv or "-h" in argv:
         print(
             "usage: python scripts/bootstrap.py [--core|--re|--all|--purge] [--update]\n"
-            "  --core   Python + venv + Caddy (default; server/web contributors)\n"
+            "  --core   Python + venv + Caddy (default)\n"
             "  --re     also Ghidra + JDK (reverse engineering)\n"
             "  --all    core + re\n"
             "  --purge  delete .azoth toolchain caches + deploy/bin/caddy.exe\n"
@@ -314,8 +314,8 @@ def main() -> int:
     if with_re:
         print("RE toolchain ready. Ghidra workspaces stay under reverse/builds/<sha256>/.")
     else:
-        print("Core toolchain ready. Add RE tools later with: python az.py setup --re")
-    print("Verify with: python az.py doctor")
+        print("Core toolchain ready. Add RE tools later with: python ef.py setup --re")
+    print("Verify with: python ef.py doctor")
     return 0
 
 

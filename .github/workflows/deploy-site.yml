@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'site/**'
+      - 'platform/web/**'
       - 'research/atlas/**'
       - 'research/docs/**'
       - 'STATUS.md'
@@ -32,34 +32,34 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: site/package-lock.json
+          cache-dependency-path: platform/web/package-lock.json
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install site dependencies
-        working-directory: site
+        working-directory: platform/web
         run: npm ci
 
       - name: Compute build-time facts from the repo
-        run: python site/scripts/build_facts.py
+        run: python platform/web/scripts/build_facts.py
 
       - name: Refresh live status (CI mode)
-        run: python site/scripts/update_live.py --ci
+        run: python platform/web/scripts/update_live.py --ci
 
       - name: Build
-        working-directory: site
+        working-directory: platform/web
         env:
           PAGES_BASE: /Azoth
         run: npm run build
 
       - name: 404 fallback
-        run: cp site/dist/index.html site/dist/404.html
+        run: cp platform/web/dist/index.html platform/web/dist/404.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site/dist
+          path: platform/web/dist
 
   deploy:
     needs: build

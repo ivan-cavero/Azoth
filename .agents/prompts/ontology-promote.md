@@ -1,3 +1,5 @@
+> This prompt is not the driver. Read `STATUS.md` and `.agents/skills/everfall-next/SKILL.md`. The Rust tree `server/` was deleted. Do not recreate it from these steps.
+
 # Ontology promote
 
 Use when the user asks to name, register, or promote a client/server concept

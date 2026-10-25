@@ -1,11 +1,11 @@
-# Platform (player-facing)
+# Platform
 
-Skeletons for product surfaces outside the sim tick (master plan R8 / P14).
+Player-facing surfaces. The simulation does not live here.
 
 | Path | Role |
 | --- | --- |
-| `launcher/` | Download, verify signed patches, start private client |
-| `web/` | Accounts, privacy settings, rankings (opt-in), supporter store later |
+| `web/` | The public site (Astro). GitHub Pages builds this directory. |
+| `launcher/` | A future downloader. Today the game starts with `python ef.py game`. |
 
-Runtime authority stays in `server/`. This tree must not grow wire codecs or
-sim rules. See `docs/LEGAL.md` before any store UI.
+The site used to live at `site/`. Workflows and the lab command use
+`platform/web`.

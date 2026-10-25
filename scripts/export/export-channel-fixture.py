@@ -54,6 +54,14 @@ def render_python() -> tuple[bytes, str]:
 
 
 def main() -> int:
+    root = Path(__file__).resolve()
+    while not (root / "ef.py").is_file() and root.parent != root:
+        root = root.parent
+    if not (root / "server" / "Cargo.toml").is_file():
+        print("server/ is not in this checkout.")
+        print("This helper used to write Rust fixtures. It does not recreate server/.")
+        print("See research/atlas/meanings.md.")
+        return 2
     worlds = json.loads((DATA / "worlds.json").read_text(encoding="utf-8"))
     base = json.loads((DATA / "channel-azoth.json").read_text(encoding="utf-8"))
     body, etag = render_python()

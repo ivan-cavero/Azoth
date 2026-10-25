@@ -1,3 +1,5 @@
+> This prompt is not the driver. Read `STATUS.md` and `.agents/skills/everfall-next/SKILL.md`. The Rust tree `server/` was deleted. Do not recreate it from these steps.
+
 # Boot naming campaign
 
 Use when the user asks to name systems/messages from game open through InGame,

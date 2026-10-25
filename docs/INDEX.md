@@ -1,36 +1,19 @@
 # Docs
 
-Start with [project status](../STATUS.md) (frontier only), then the reference
-for the work at hand. Taxonomy: [`PLAN-master-platform.md`](PLAN-master-platform.md) §13.
+Read `STATUS.md` for the current step and `docs/PLAN.md` for how the server
+is rebuilt. Facts live in `research/atlas/`, especially
+`research/atlas/meanings.md`.
 
-| Work | Read |
+| Need | Where |
 | --- | --- |
-| Run the local stack | [README](../README.md), [deploy](../deploy/README.md) |
-| Change Windows host routing | [Admin operations](ADMIN.md) |
-| **Platform / reorg / agents / security vision** | [Master platform plan](PLAN-master-platform.md) |
-| Rust crates, tick, DTLS, capacity mechanics | [Rust backend plan](PLAN-backend-rust.md) |
-| Short architecture boundaries | [Architecture](ARCHITECTURE.md) |
-| Daily loop vs Compose | [ADR 0009](adr/0009-native-dev-vs-compose.md) |
-| Local compose (CI/Linux) | [deploy/local](../deploy/local/README.md) |
-| Platform skeletons | [platform/](../platform/README.md) |
-| Boot-naming campaign | [runbooks/agentic-boot-campaign.md](runbooks/agentic-boot-campaign.md) |
-| Near-term sequencing | [Roadmap](ROADMAP.md) |
-| ADRs | [`adr/`](adr/) |
-| Status diaries | [`journal/`](journal/) |
-| Operator / overnight agents | [`runbooks/`](runbooks/) |
-| New contributor loop | [`runbooks/contributor-loop.md`](runbooks/contributor-loop.md) |
-| Testing doctrine | [ADR 0007](adr/0007-testing-doctrine.md) |
-| Funding ladder | [ADR 0008](adr/0008-funding-ladder.md), [LEGAL §Funding](LEGAL.md) |
-| Gateway or world (Python prototype) | [Gateway](../services/docs/GATEWAY.md), [World](../services/world/README.md) |
-| Reverse engineer the client | [Reverse tools](../reverse/README.md), [Research index](../research/docs/INDEX.md), [ontology](../research/atlas/ontology/) |
-| Public landing / roadmap display | [site/README](../site/README.md) — **v2 live**; v1 inventory archived |
-| Security / privacy design | [SECURITY.md](SECURITY.md) |
-| Legal / preservation / collab | [LEGAL.md](LEGAL.md), [`../NOTICE`](../NOTICE), [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| Rename / binary names | [ADR 0005](adr/0005-project-rename.md), [ADR 0006](adr/0006-binary-naming.md) |
-| DTLS / OpenSSL choice | [ADR 0004](adr/0004-dtls-crypto-stack.md), [Rust plan §0.3](PLAN-backend-rust.md) |
-| Doc / scripts catalog checks | `python az.py run check-docs` · `check-paths` · `check-scripts` |
-| Script helpers | [`scripts/README.md`](../scripts/README.md) · `python az.py run list` |
-| Historical archives | [`archive/`](archive/), [`sessions/`](sessions/) |
+| Run the lab | `README.md` |
+| Host routing on Windows | `docs/ADMIN.md` |
+| Boxes and ownership | `docs/ARCHITECTURE.md` |
+| Legal and preservation | `docs/LEGAL.md` |
+| Security notes | `docs/SECURITY.md` |
+| Operator notes | `docs/runbooks/` |
+| Older plans and diaries | `docs/archive/`, `docs/journal/` |
 
-Implementation facts belong next to code or in `research/atlas/`. This folder
-holds project-wide guidance, plans, ADRs, journals, and runbooks.
+`docs/archive/PLAN-master-platform.md` and
+`docs/archive/PLAN-backend-rust.md` are history. They described a Rust
+workspace that has been deleted. Do not treat them as the current design.

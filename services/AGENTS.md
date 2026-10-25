@@ -1,12 +1,13 @@
 # services/ agent notes
 
-Python **prototype / parity** only. Root [`AGENTS.md`](../AGENTS.md) still applies.
+This is the measuring lab. Root `AGENTS.md` still applies.
 
 ## Rules
 
-- Authoritative direction is `server/` (Rust). Do not add new long-term features
-  only in Python when the Rust port already owns that plane.
-- Preserve fixtures and measured behaviours for parity tests.
-- Retirement: when Rust acceptance for a feature is green, mark the Python path
-  for deletion (see PLAN-master-platform kill-Python phase).
-- Gateway stdlib; world may use pyOpenSSL for DTLS until cutover.
+- There is no Rust server in the tree. Do not treat these packages as the
+  long-term game. They exist so a client can be observed.
+- A captured body may stay if `research/atlas/meanings.md` still calls it
+  unknown. Say so in the change.
+- Gateway uses the standard library. The world may use pyOpenSSL for DTLS.
+- Preserve a measured behaviour when you change the lab. Write the result
+  into the meanings file.

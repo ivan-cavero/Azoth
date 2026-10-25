@@ -16,10 +16,10 @@ A screenshot is a lossy, expensive observation; a state signal is cheap and
 exact. Before capturing pixels, check whether the answer already exists:
 
 - `Game.log` (client state machine, RMIs, warnings) — ingest with
-  `python az.py re ingest-log`.
+  `python ef.py re ingest-log`.
 - `services/gateway/traffic.jsonl` / world `rep_traffic.jsonl` (what the
   client actually sent/received).
-- Probe counters (`python az.py probe list`) for component/function facts.
+- Probe counters (`python ef.py probe list`) for component/function facts.
 
 Take a screenshot only when the question is visual (did the menu open, is the
 character rendered, did the view move). Never decide "the game ignored input"
@@ -55,7 +55,7 @@ typing; use focus-stealing channels only for the measured action, then release.
 
 ## Screenshot pipeline
 
-1. `python az.py shot <out.png>` — captures the game window (PrintWindow; no
+1. `python ef.py shot <out.png>` — captures the game window (PrintWindow; no
    focus steal).
 2. `python scripts/shrink-image.py <capture.png>` — ALWAYS; never read the
    raw PNG.

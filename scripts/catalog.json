@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "entry": "python az.py run <name>",
+  "entry": "python ef.py run <name>",
   "kinds": [
     "check",
     "export",

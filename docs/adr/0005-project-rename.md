@@ -1,7 +1,7 @@
 # 0005. Project rename (leave “Azoth”)
 
 Date: 2026-10-24
-Status: accepted (name TBD)
+Status: superseded — the name is Everfall (2026-10-25). See docs/PLAN.md.
 
 ## Context
 

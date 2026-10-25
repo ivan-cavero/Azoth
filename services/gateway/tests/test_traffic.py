@@ -121,7 +121,7 @@ class TestCaptureEndToEnd(unittest.TestCase):
         import importlib.util
 
         spec = importlib.util.spec_from_file_location(
-            "gen_openapi", REPO / "scripts" / "gen_openapi.py"
+            "gen_openapi", REPO / "scripts" / "ops" / "gen_openapi.py"
         )
         assert spec is not None and spec.loader is not None
         mod = importlib.util.module_from_spec(spec)

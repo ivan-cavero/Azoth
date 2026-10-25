@@ -3,6 +3,9 @@ param(
     [string[]] $AzothArgs
 )
 
+# Windows bootstrap only: installs the pinned Python, then runs ef.py.
+# Every later command is: python ef.py
+
 $ErrorActionPreference = 'Stop'
 $repoRoot = $PSScriptRoot
 $lockPath = Join-Path $repoRoot 'toolchain.lock.json'
@@ -72,5 +75,5 @@ if (-not (Test-Path -LiteralPath $pythonExe -PathType Leaf)) {
 if ($AzothArgs.Count -eq 0) {
     $AzothArgs = @('--help')
 }
-& $pythonExe (Join-Path $repoRoot 'az.py') @AzothArgs
+& $pythonExe (Join-Path $repoRoot 'ef.py') @AzothArgs
 exit $LASTEXITCODE

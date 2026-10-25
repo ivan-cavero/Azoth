@@ -1,4 +1,4 @@
-# --- project-local runtime (wipe with: python az.py setup --purge) ---
+# --- project-local runtime (wipe with: python ef.py setup --purge) ---
 .azoth/
 *.log
 *.log.*
@@ -50,20 +50,18 @@ Desktop.ini
 *.small.jpg
 
 # --- web / dashboards ---
-site/node_modules/
-site/dist/
-site/.astro/
-site/src/data/repo-facts.gen.json
+platform/web/node_modules/
+platform/web/dist/
+platform/web/.astro/
+platform/web/src/data/repo-facts.gen.json
 **/node_modules/
 **/dist/
 playwright-report/
 test-results/
 coverage/
 
-# --- Rust ---
-server/target/
+# --- Rust (no server tree until a meaning card allows it) ---
 **/target/
-!server/crates/azoth-wire/tests/fixtures/*.bin
 
 # --- env secrets ---
 .env

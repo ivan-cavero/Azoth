@@ -114,7 +114,7 @@ def main() -> int:
 
     catalog = {
         "format": 1,
-        "entry": "python az.py run <name>",
+        "entry": "python ef.py run <name>",
         "kinds": sorted({Path(p).parts[0] for p in LAYOUT.values()}),
         "scripts": {
             Path(name).stem: {

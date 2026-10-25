@@ -1,3 +1,5 @@
+> This prompt is not the driver. Read `STATUS.md` and `.agents/skills/everfall-next/SKILL.md`. The Rust tree `server/` was deleted. Do not recreate it from these steps.
+
 # Prompt: Full project audit (merge readiness)
 
 Act as the Azoth project auditor. Perform one full top-to-bottom review of the

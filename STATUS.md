@@ -1,36 +1,29 @@
 # Live status
 
-Frontier only. Diary:
-[`docs/journal/raw/2026-10-status-dump.md`](docs/journal/raw/2026-10-status-dump.md).
-Platform: [`docs/PLAN-master-platform.md`](docs/PLAN-master-platform.md).
-Agent OS: [`.agents/README.md`](.agents/README.md).
-Daily loop: **`az.py dev`** (ADR 0009). Branch: `refactor/knowledge-os` (push OK; no PR).
+Everfall. Private New World server. The Rust tree in `server/` was removed
+on 2026-10-25. Inventory: `research/atlas/meanings.md`. How we rebuild:
+`docs/PLAN.md`. Command: `python ef.py`.
 
-## Ready? (honest)
+## Now
 
-| Layer | State |
-| --- | --- |
-| Docs / ADRs / agents / scripts / RE / CI | **Ready** |
-| Windows `worldd` via `az.py cargo` | **Ready** |
-| Presence wire emit (AddActor AOI fanout) | **Wired** (candidate guid head) |
-| Playable multiplayer / render | **Not ready** — meanings + client slice still open |
+The Python gateway, Python world, and Caddy are the measuring lab
+(`python ef.py dev`). They can still put a client into a world by sending
+captured traffic. That is a rig, not the game.
 
-## Active blocker
-
-**Prove AddActor head == spawn ActorGuid live; SpawnActors u64 meaning.**
-`worldd` now fans out composed `msg.add-actor` after the entry ladder
-(zeros in undecoded fields). Do not treat that as “players see each other.”
-
-Build: **1.460.6033.6024067** —
+Client build under study: **1.460.6033.6024067** —
 `30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033`.
 
-## Next useful step
+## Next
 
-1. Live session: two clients or probe — unmarshal errors on AddActor fanout?
-2. Decode `SpawnActorsMsg` u64 meaning; emit only with evidence.
-3. Keep capture spawn until InGame holds with presence on the wire.
+Name the fields of one world-entry rung that is still a captured blob.
+Start with self-identification (21 zero bytes) or level info (106 bytes,
+26 unexplained). Write the names into `research/atlas/meanings.md`.
+
+## Blocked by
+
+Those fields have no names, so a new Rust server would only resend the capture.
 
 ## Do not
 
-- PR theater; Compose for daily Windows loop; journal novels; ship PAKs.
-- Claim presence render works (client remoteplayer slice still broken).
+Recreate `server/`. Send a datagram because a capture contained it. Rename
+the in-game resource Azoth. Read `docs/archive/` or `docs/journal/raw/` whole.

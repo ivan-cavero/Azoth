@@ -6,12 +6,12 @@ them under a kind folder and register them in `catalog.json`.
 ## Run
 
 ```text
-python az.py run list                 # catalog by kind
-python az.py run <stem> [args]        # e.g. private-run, measure-walk, doctor
-python az.py setup | doctor | shot …  # first-class commands (also catalogued)
+python ef.py run list                 # catalog by kind
+python ef.py run <stem> [args]        # e.g. private-run, measure-walk, doctor
+python ef.py setup | doctor | shot …  # first-class commands (also catalogued)
 ```
 
-Stems resolve via `scripts/catalog.json`. Prefer `az.py run` over hard-coded
+Stems resolve via `scripts/catalog.json`. Prefer `ef.py run` over hard-coded
 paths in docs and agents.
 
 ## Layout
@@ -35,8 +35,8 @@ paths in docs and agents.
 1. Choose a kind folder (or propose a new one in an ADR if none fits).
 2. Add `scripts/<kind>/<name>.py` with a module docstring (first line = summary).
 3. Register in `catalog.json` under `scripts.<stem>`.
-4. Prefer a caller via `az.py` / skill / runbook — no orphan experiments.
-5. `python az.py run list` should show it.
+4. Prefer a caller via `ef.py` / skill / runbook — no orphan experiments.
+5. `python ef.py run list` should show it.
 
 Regenerate catalog from disk after bulk moves:
 
