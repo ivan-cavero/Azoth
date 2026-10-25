@@ -42,6 +42,17 @@ captured message types. The old note that read `91 17` as the little-endian
 integer `0x1791` was reading the varint backwards; the two bytes are the type
 `0x5d1`, not a number.
 
+The rule is now confirmed on the installed build, not just derived from the
+previous one. `FUN_14087b760` (0x14087b760-0x14087b906) is the 1.460 reader, found
+by instruction signature, and its decompiled ladder is the rule above term for
+expressed differently: below 0x80 the byte is the value, below 0xc0 one more byte
+with shift 6 and mask 0x3f, below 0xe0 two more with shift 5 and mask 0x1f, below
+0xf0 three more with shift 4, otherwise four more, with the cursor at `state+0x10`
+bounds-checked against `state+0x8` before each read. It is called from 853 sites
+across 765 functions, so it is a marshalling primitive rather than a
+message-specific reader. The landmark is recorded in
+`research/atlas/client-functions.json` as `prefix_varint_reader_1460`.
+
 ## Names
 
 | Word | What it is |
