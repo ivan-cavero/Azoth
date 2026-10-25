@@ -2,14 +2,32 @@
   "uid": "flow.world-entry.rung.greetings",
   "kind": "flow",
   "name": "Ladder: Greetings",
-  "summary": "GridMate Cmd_Greetings handshake after V3 registration acceptance.",
-  "purpose": "Advance WaitingForREPConnection toward actor connection.",
+  "aliases": ["Cmd_Greetings", "carrier greeting"],
+  "summary": "The GridMate Carrier greeting. It is a TRANSPORT command, not an application message: it has no type-table slot, no client log string, and no record of its own in the official replay. The ladder's first typed exchange is the client's RegistrationRequestV3Msg, not a greeting.",
+  "purpose": "Bring the Carrier peer to a connected state so typed records can flow. It is not a game event and carries no gameplay state.",
   "authority": "server",
+  "lifecycle": {
+    "created_when": ["the DTLS connection is up and the Carrier layer is negotiating"],
+    "if_absent": "the Carrier never reaches connected and no typed record is delivered at all"
+  },
+  "wire": { "id": "carrier-cmd-1", "direction": "Bidi", "transport": "rep" },
   "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
   "confidence": "semantics",
-  "status": "implemented",
+  "status": "candidate",
   "evidence": [
-    { "type": "doc", "ref": "server/apps/worldd/src/ladder.rs" }
+    {
+      "type": "decompile",
+      "ref": "negative, measured 2026-10-25 on build 30fe6461: the image contains ZERO occurrences of the strings 'Greeting', 'greeting' or 'Cmd_Greetings'. A transport command does not need one, but it also means no client log string can be used to locate a handler, which is how every other rung in this ladder was found."
+    },
+    {
+      "type": "capture",
+      "ref": "the official 1.365 replay's first record in sequence order is seq 0x00, type 0x13 (RegistrationRequestV3Msg), 2750 bytes, direction W - the CLIENT sends it. There is no greeting record among the 177 captured records, because a Carrier command rides inside the Carrier framing rather than as a typed record."
+    },
+    {
+      "type": "doc",
+      "ref": "services/world/src/azoth_world/rep.py greetings_datagram(): builds `bytes([1])  # Cmd_Greetings` inside a Carrier record, is gated behind AZOTH_SEND_GREETINGS, and its comment records that a raw Greetings produced 'Failed to unmarshal message' on 2026-09-20. That is a transport-layer message, consistent with everything above."
+    }
   ],
-  "owners": { "crate": "worldd", "module": "ladder" }
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
 }

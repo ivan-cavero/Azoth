@@ -2,16 +2,260 @@
   "uid": "flow.world-entry.rung.level-info",
   "kind": "flow",
   "name": "Ladder: LevelInfoChanged",
-  "summary": "Captured LevelInfoChangedMsg body (wire 0x663) that loads the map.",
-  "purpose": "Move client to WaitingForPlayerSpawn; still a capture seed until composed.",
-  "authority": "server",
-  "wire": { "id": "0x663", "direction": "S2C", "transport": "rep" },
-  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
-  "confidence": "bytes",
-  "status": "implemented",
-  "evidence": [
-    { "type": "capture", "ref": "azoth-wire ladder LevelInfoChanged body" },
-    { "type": "doc", "ref": "server/apps/worldd/src/ladder.rs" }
+  "aliases": [
+    "wire:0x663",
+    "LevelInfoChangedMsg"
   ],
-  "owners": { "crate": "azoth-wire", "module": "ladder" }
+  "summary": "LevelInfoChangedMsg, the rung from WaitingForSpawnPoint (16) to WaitingForPlayerSpawn (17). Handler decompiled on build 30fe6461 and the 110-byte body parsed end to end from the 1.365 replay.",
+  "purpose": "Tell the client which level to load and which client context instance it belongs to, then let it wait for the player spawn.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": [
+      "the client has identified itself and is waiting for a spawn point"
+    ],
+    "if_absent": "the map never loads and the client never reaches WaitingForPlayerSpawn"
+  },
+  "wire": {
+    "id": "0x663",
+    "direction": "S2C",
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "level_name",
+      "where": "wire",
+      "offset": "0x04",
+      "size": "1 + n",
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Length byte then characters. Measured value: 0x14 followed by 'NewWorld_VitaeEterna'."
+    },
+    {
+      "name": "level_path",
+      "where": "wire",
+      "offset": "0x19",
+      "size": "1 + n",
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Length byte then characters. Measured value: 0x1e followed by 'coatlicue/NewWorld_VitaeEterna'."
+    },
+    {
+      "name": "level_bounds",
+      "where": "wire",
+      "offset": "0x38",
+      "size": 16,
+      "endian": "be",
+      "status": "candidate",
+      "evidence": "capture",
+      "note": "Four big-endian floats: 2048.0, 16.0, 12272.0, 10250.0 on the measured record. A world extent or a far/near plane pair is plausible and unproven."
+    },
+    {
+      "name": "unresolved_u64_at_0x48",
+      "where": "wire",
+      "offset": "0x48",
+      "size": 8,
+      "endian": "be",
+      "status": "candidate",
+      "note": "Zero on the measured record. No reader found in the handler."
+    },
+    {
+      "name": "level_flags",
+      "where": "wire",
+      "offset": "0x50",
+      "size": 4,
+      "status": "candidate",
+      "evidence": "capture",
+      "note": "Measured 01 01 00 00. The project's previous parse read the first two as level_is_loading and in_game; that reading is not proven by the decompile."
+    },
+    {
+      "name": "unresolved_nonce_at_0x54",
+      "where": "wire",
+      "offset": "0x54",
+      "size": 8,
+      "status": "candidate",
+      "note": "8 bytes that differ per record (9c fa 58 61 78 14 69 f2 on the measured one). Not read by the handler."
+    },
+    {
+      "name": "unresolved_group_at_0x5c",
+      "where": "wire",
+      "offset": "0x5c",
+      "size": 10,
+      "status": "candidate",
+      "note": "Measured 65 03 00 00 00 00 01 01 01 00. Not read by the handler, so it is either consumed by the deserializer or ignored."
+    },
+    {
+      "name": "level_context_key",
+      "where": "wire",
+      "offset": "0x66",
+      "size": 8,
+      "endian": "be",
+      "status": "verified",
+      "evidence": "decompile",
+      "note": "The last 8 bytes of the record, measured 00 00 00 c1 7f 9b e4 8f. The handler compares it against the component slot it cached last time and RETURNS EARLY when they match, then stores the new value. So it is the dedup key: a repeated LevelInfo with the same key is ignored by the client. This is a second, independent signal for the same fact the lab had already recorded from the capture (the repeated seq 0x663 at 0x4d carries the same key and is ignored)."
+    },
+    {
+      "name": "level_name",
+      "where": "memory",
+      "offset": "0x00",
+      "size": 32,
+      "kind": "std::string",
+      "status": "verified",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "unresolved_at_0x20",
+      "where": "memory",
+      "offset": "0x20",
+      "size": 8,
+      "kind": "u64",
+      "status": "candidate",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "level_path",
+      "where": "memory",
+      "offset": "0x28",
+      "size": 32,
+      "kind": "std::string",
+      "status": "verified",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "unresolved_at_0x48",
+      "where": "memory",
+      "offset": "0x48",
+      "size": 8,
+      "kind": "u64",
+      "status": "candidate",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "level_bounds",
+      "where": "memory",
+      "offset": "0x50",
+      "size": 16,
+      "kind": "4 x f32",
+      "status": "verified",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "unresolved_at_0x60",
+      "where": "memory",
+      "offset": "0x60",
+      "size": 8,
+      "kind": "u64",
+      "status": "candidate",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "unresolved_at_0x68",
+      "where": "memory",
+      "offset": "0x68",
+      "size": 56,
+      "kind": "sub-object copied by FUN_141608020",
+      "status": "candidate",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "unresolved_at_0xa0",
+      "where": "memory",
+      "offset": "0xa0",
+      "size": 1,
+      "kind": "u8",
+      "status": "candidate",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "m_clientContextInstanceId",
+      "where": "memory",
+      "offset": "0xa1",
+      "size": 1,
+      "kind": "u8",
+      "status": "verified",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "unresolved_at_0xa2",
+      "where": "memory",
+      "offset": "0xa2",
+      "size": 1,
+      "kind": "bool",
+      "status": "candidate",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "unresolved_at_0xa3",
+      "where": "memory",
+      "offset": "0xa3",
+      "size": 1,
+      "kind": "u8",
+      "status": "candidate",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "unresolved_at_0xa4",
+      "where": "memory",
+      "offset": "0xa4",
+      "size": 4,
+      "kind": "padding",
+      "status": "candidate",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    },
+    {
+      "name": "level_context_key",
+      "where": "memory",
+      "offset": "0xa8",
+      "size": 8,
+      "kind": "u64",
+      "status": "verified",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "handler FUN_146447ac0, .pdata 0x146447ac0-0x146447f4f (1167 bytes) on build 30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033. Reached as a virtual method through the adjustor thunk 0x146447aa8 in vtable slot 0x1484fdb88, the slot right after the self-identification handler"
+    },
+    {
+      "type": "decompile",
+      "ref": "the handler reads only three struct offsets: +0xa1 (the value it logs as levelInfo.m_clientContextInstanceId), +0xa2, and +0xa8 (compared against the cached component slot -0x7f8 with an early return). Everything else in the struct is filled by the deserializer and never touched here"
+    },
+    {
+      "type": "log",
+      "ref": "five format strings, all lea-referenced only from FUN_146447ac0: 0x148500d28 'LevelInfoChanged', 0x148500d40 '... failed - pGame is nullptr', 0x148500d70 '... m_clientContextInstanceId %d changing to levelInfo.m_clientContextInstanceId %d', 0x148500dd8 '... javContext.IsMasterPlayer is false', 0x148500e10 '... m_reloadLevel is false'"
+    },
+    {
+      "type": "capture",
+      "ref": "services/world/replay/messages-redacted.txt record 0x10_T0x663_R.bin, 110 bytes, parsed end to end: 00 01 a3 19, 14+'NewWorld_VitaeEterna', 1e+'coatlicue/NewWorld_VitaeEterna', four BE floats at 0x38, u64 zero at 0x48, 01 01 00 00 at 0x50, nonce at 0x54, 65 03 00 00 00 00 01 01 01 00 at 0x5c, key at 0x66"
+    },
+    {
+      "type": "decompile",
+      "ref": "FUN_146403a70 (0x146403a70-0x146403b58, 232 bytes) is the copy constructor the handler calls first: it initialises two std::strings (FUN_1402b0720 at +0x00 and +0x28), copies 4 x u32 at +0x50, a u64 at +0x60, a 56-byte sub-object at +0x68 through FUN_141608020, then the bytes at +0xa0, +0xa1, +0xa2, +0xa3 and the u64 at +0xa8. That enumeration is the struct layout, and it is why +0xa8 is the last member"
+    },
+    {
+      "type": "decompile",
+      "ref": "FUN_146411a10 (619 bytes) is the matching assignment into the component at param_1-0x8b0; it writes the same offsets, which is a second confirmation of the member list"
+    },
+    {
+      "type": "atlas",
+      "ref": "the same key value is pinned independently in services/world/src/azoth_world/javelin/replay_store.py as REPLAY_CAPTURED_LEVELINFO_KEY = 000000c17f9be48f, with a comment that the duplicate with the same key is ignored by the client-side dedup check"
+    },
+    {
+      "type": "decompile",
+      "ref": "the decoded struct is 0xb0 bytes and its member list was read from the copy constructor, not guessed: read from the copy constructor FUN_146403a70, which the handler calls to clone the message before storing it"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

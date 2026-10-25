@@ -1,23 +1,112 @@
 {
   "uid": "flow.world-entry.rung.spawn",
   "kind": "flow",
-  "name": "Ladder rung: spawn record",
-  "summary": "Sends record_id 1 (48 fragments) so the client reaches InGame and the player appears.",
-  "purpose": "Possession/spawn; today still a measured capture seed, not a composed domain snapshot.",
+  "name": "Ladder: Spawn",
+  "aliases": ["wire:0x8", "record_id 1", "spawn record"],
+  "summary": "The spawn record that moves the client from WaitingForPlayerSpawn (17) to InGame (18). The record and its payload layout are verified against the official replay, including the actor id and the position. The 48 internal fragment boundaries are NOT recoverable from the bytes, and that negative result is now measured rather than assumed.",
+  "purpose": "Give the client the local player's full component state so the world appears. This is the server's only lever on where a player starts: the 1 Hz state stream that follows carries no position at all.",
   "authority": "server",
   "lifecycle": {
-    "created_when": ["after LevelInfoChanged"],
-    "if_absent": "stuck in WaitingForPlayerSpawn / no avatar"
+    "created_when": ["the client is in WaitingForPlayerSpawn and has received level info"],
+    "if_absent": "the player never appears; the client stays in WaitingForPlayerSpawn with no error"
   },
-  "relations": [
-    { "op": "part_of", "to": "flow.world-entry" }
+  "wire": { "id": "0x8", "direction": "S2C", "transport": "rep" },
+  "fields": [
+    {
+      "name": "record_header",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 11,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Measured 00 01 08 01 01 01 01 01 01 00 00: the typed envelope, the record type 0x8, and a run of 01/00 flags. The first message of its datagram carries a datagram-level preamble, which is why this prefix is longer than the two-byte typed header the other rungs use."
+    },
+    {
+      "name": "payload_length",
+      "where": "wire",
+      "offset": "0x0b",
+      "size": 3,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Prefix varint d9 a9 05 = 46,393, and the bytes after it are exactly 46,393. The record is self-delimiting here, which is what makes the payload slice provable."
+    },
+    {
+      "name": "record_id",
+      "where": "wire",
+      "offset": "0x0e",
+      "size": 1,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "1. The other variant of record_id 1 is the ongoing 9-fragment, 7,154-byte record, which carries no position; the two are not interchangeable."
+    },
+    {
+      "name": "fragment_count",
+      "where": "wire",
+      "offset": "0x0f",
+      "size": 1,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "0x30 = 48, matching the client's own nested-call count (FUN_146af20d0 -> FUN_146af2340) recorded by the deleted crate. This is a measured agreement, not a guess."
+    },
+    {
+      "name": "fragments",
+      "where": "wire",
+      "offset": "0x10",
+      "size": "46375",
+      "status": "candidate",
+      "note": "48 concatenated [varint key][varint type_index][payload] fragments with NO length field: a fragment's payload length is implied by its type, which only the client's reader knows. 48 distinct keys, 47 distinct types, keys sparse and all <= 77. The individual boundaries are not recovered; see the evidence for the measured negative result."
+    },
+    {
+      "name": "actor_id",
+      "where": "wire",
+      "offset": "0x10+29731",
+      "size": 16,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Payload offset 29,731. Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, which is byte-identical to the ACTOR_ID constant the deleted crate pinned, and it is preceded at 29,727 by 00 00 00 02 exactly as that crate's census anchor describes. This is the one field a private server must rewrite, and nothing else may move."
+    },
+    {
+      "name": "position_x",
+      "where": "wire",
+      "offset": "0x10+38332",
+      "size": 4,
+      "endian": "be",
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Payload offset 38,332, big-endian f32. Measured 46 11 fe 91 = 9343.6416, a plausible world coordinate."
+    },
+    {
+      "name": "position_y",
+      "where": "wire",
+      "offset": "0x10+38336",
+      "size": 4,
+      "endian": "be",
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Payload offset 38,336, big-endian f32. Measured 45 2e 2b b9 = 2786.7327."
+    }
   ],
-  "confidence": "bytes",
-  "status": "implemented",
+  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
+  "confidence": "layout",
+  "status": "candidate",
   "evidence": [
-    { "type": "doc", "ref": "server/apps/worldd/src/ladder.rs" },
-    { "type": "atlas", "ref": "crates/azoth-wire spawn fixtures" }
+    {
+      "type": "capture",
+      "ref": "services/world/replay/messages-redacted.txt record 0x6c_T0x8_R.bin: 46,407 bytes total, seq 0x6c, type 0x8. Payload starts at 0x0e after the varint d9 a9 05 = 46393, and the payload measures exactly 46,393 bytes with 1,802 redacted bytes, matching the deleted crate's declared redaction count exactly"
+    },
+    {
+      "type": "capture",
+      "ref": "payload[1] = 0x30 = 48 confirms the fragment count byte; the deleted crate recorded the same 48 as the client's nested-call count rather than a byte inference, so the two signals are independent"
+    },
+    {
+      "type": "atlas",
+      "ref": "git history at 7bb8894^:server/crates/azoth-wire/src/spawn.rs pinned ACTOR_ID_OFFSET 29731, ACTOR_ID_LEN 16, POSITION_X_OFFSET 38332, POSITION_Y_OFFSET 38336 and the anchor 00 00 00 02; every one of them reproduces on this capture, and the actor id bytes match that file's ACTOR_ID constant exactly"
+    },
+    {
+      "type": "decompile",
+      "ref": "negative result, measured 2026-10-25: recovering the 48 fragment boundaries from the payload was attempted as a constrained search over offsets that parse as [varint key][varint type_index] with keys <= 77. 29,721 offsets qualify, and neither a strictly-ascending-key nor a distinct-key-only walk found a 48-fragment path ending exactly at 46,393 within a 2,000,000-node budget. This reproduces the deleted crate's claim that a fragment cannot be walked from its bytes alone, and it is now a measurement rather than an assertion"
+    }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": "worldd", "module": "ladder" }
+  "owners": { "crate": null, "module": null }
 }

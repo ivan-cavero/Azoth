@@ -1,0 +1,64 @@
+{
+  "uid": "msg.client-add-entry",
+  "kind": "message",
+  "name": "ClientAddEntryMsg",
+  "aliases": ["wire:0xa4"],
+  "summary": "Hand the client one actor id. 20 bytes: the typed envelope plus a 16-byte id. Measured twice in the official replay, the second time immediately before level info.",
+  "purpose": "Register an actor with the client. In the world-entry ladder this is the message that gives the player its own identity before the level loads.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["an actor becomes known to the client", "the local player is identified before level info"],
+    "if_absent": "the client never learns its own actor id, so nothing that follows can refer to it"
+  },
+  "wire": { "id": "0xa4", "direction": "S2C", "transport": "rep" },
+  "domain_types": ["ActorId"],
+  "fields": [
+    {
+      "name": "typed_header",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 4,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Measured 00 01 a4 02: the typed envelope, the prefix varint 0xa4, then the byte 0x02."
+    },
+    {
+      "name": "actor_id",
+      "where": "wire",
+      "offset": "0x04",
+      "size": 16,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0. This is the strongest cross-check in the whole inventory: the same 16 bytes appear as the spawn record's actor id at payload offset 29,731 and as the pinned ACTOR_ID constant in the deleted azoth-wire crate. Three independent sources, one value."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.world-entry" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "records 0x8_T0xa4_R.bin and 0xf_T0xa4_R.bin in services/world/replay/messages-redacted.txt, both 20 bytes, both carrying the identical 16-byte id"
+    },
+    {
+      "type": "capture",
+      "ref": "sequence position: the second ClientAddEntryMsg is seq 0x0f and level info (0x663) is seq 0x10, so the actor id reaches the client immediately before the rung that moves it to WaitingForPlayerSpawn"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/derived/wire-type-names.json resolves slot 164 to ClientAddEntryMsg by direct .rdata adjacency, and the name is corroborated by the deleted crate's own vocabulary"
+    },
+    {
+      "type": "atlas",
+      "ref": "OPEN QUESTION: whether this message is what moves the client from WaitingForActorGameConnection (15) to WaitingForSpawnPoint (16). The shape, the id and the sequence position all fit, but no capture shows the transition itself, and PlayerManagerSelfIdentificationMsg - the Javelin::ClientMessagesTrait member that names this step - never appears in the replay"
+    },
+    {
+      "type": "atlas",
+      "ref": "ClientAddEntryMsg is NOT a member of Javelin::ClientMessagesTrait (aoi-trait-registry.json has no AddEntry entry), so it dispatches on a different path from PlayerManagerSelfIdentificationMsg. They are not the same message under two names"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

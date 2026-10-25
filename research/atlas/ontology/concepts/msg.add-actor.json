@@ -2,43 +2,93 @@
   "uid": "msg.add-actor",
   "kind": "message",
   "name": "AddActorMessage",
-  "aliases": ["wire:449"],
-  "summary": "Introduce a remote actor into the client's world view (15 measured wire fields).",
+  "aliases": [
+    "wire:121"
+  ],
+  "summary": "Introduce a remote actor into the client's world view. The wire type is 121, NOT 449: the previous 449 pairing came from a name/GUID adjacency false positive, and this file records the correction.",
   "purpose": "Presence: without this family of messages peers cannot appear to each other.",
-  "authority": "server",
+  "authority": "unknown",
   "lifecycle": {
-    "created_when": ["peer enters observer AOI", "self after possession (as applicable)"],
+    "created_when": [
+      "peer enters observer AOI",
+      "self after possession (as applicable)"
+    ],
     "if_absent": "other players invisible; multiplayer appears empty"
   },
-  "wire": { "id": 449, "direction": "S2C", "transport": "rep" },
-  "domain_types": ["ActorId"],
+  "wire": {
+    "id": "121",
+    "direction": "unknown",
+    "transport": "rep"
+  },
+  "domain_types": [
+    "ActorId"
+  ],
   "fields": [
-    { "name": "head16", "offset": "0x00", "size": 16, "note": "candidate ActorGuid: same 16 bytes as spawn-record actor id / ClientAddEntryMsg; not live-proven for wire 449" },
-    { "name": "u8_at_0x10", "offset": "0x10", "size": 1 },
-    { "name": "count_payload", "offset": "0x18", "size": "var", "note": "u8 count + payload (FUN_146a6ebe0)" },
-    { "name": "u64_a", "offset": "0x28", "size": 8, "endian": "be" },
-    { "name": "u64_b", "offset": "0x30", "size": 8, "endian": "be" },
-    { "name": "u64_c", "offset": "0x38", "size": 8, "endian": "be" },
-    { "name": "two_u32", "offset": "0x40", "size": 8, "endian": "be" },
-    { "name": "u8_at_0x48", "offset": "0x48", "size": 1 },
-    { "name": "vec_a", "offset": "0x50", "size": "var" },
-    { "name": "vec_b", "offset": "0x78", "size": "var" },
-    { "name": "vec_c", "offset": "0xa0", "size": "var" },
-    { "name": "u32_at_0xc8", "offset": "0xc8", "size": 4, "endian": "be" },
-    { "name": "bool_at_0xcc", "offset": "0xcc", "size": 1 },
-    { "name": "sub_a", "offset": "0xd0", "size": "var" },
-    { "name": "sub_b", "offset": "0xf4", "size": "var" }
+    {
+      "name": "head16",
+      "offset": "0x00",
+      "size": 16,
+      "status": "candidate",
+      "evidence": "decompile",
+      "note": "A raw 16-byte fixed-size read. The unmarshal facet FUN_146a6b3e0 begins with FUN_1408787b0(param_2, param_3, 0x10, &ok), and FUN_1408787b0 is a bounds-checked fixed-size read: it checks cursor + n <= end, copies n bytes, and advances the cursor. What is NOT proven is that these bytes are an ActorGuid: nothing in the facet interprets them, and a corpus-wide search found no 16-byte comparison in an actor context. The old 'candidate ActorGuid' label is therefore unsupported and stays a candidate."
+    },
+    {
+      "name": "u8_at_0x10",
+      "offset": "0x10",
+      "size": 1,
+      "status": "candidate",
+      "evidence": "decompile",
+      "note": "Assigned as a plain byte right after the 16-byte read: *(char *)(param_3 + 0x10) = cStack_38."
+    },
+    {
+      "name": "count_payload",
+      "offset": "0x18",
+      "size": "var",
+      "status": "candidate",
+      "evidence": "decompile",
+      "note": "FUN_146a6ebe0(&state, param_3 + 0x18, param_2) fills it immediately after the byte at 0x10."
+    },
+    {
+      "name": "tail_from_0x28",
+      "offset": "0x28",
+      "size": "var",
+      "status": "candidate",
+      "note": "The facet then reads at 0x28, 0x30, and a nested group through FUN_146a6e090 at 0x38, 0x40, 0x48, 0x50, 0x78, 0xa0 and 0xc8. The 15-field list carried over from the deleted crate is consistent with these offsets but its individual meanings were never decoded."
+    }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" },
-    { "op": "measured_on", "to": "atlas.presence-codecs" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
-  "confidence": "layout",
-  "status": "implemented",
+  "confidence": "bytes",
+  "status": "candidate",
   "evidence": [
-    { "type": "atlas", "ref": "research/atlas/presence-codecs.json#wire_layout_add_actor_message" },
-    { "type": "doc", "ref": "server/crates/azoth-wire/src/presence.rs" }
+    {
+      "type": "decompile",
+      "ref": "wire type corrected 2026-10-25. FUN_146ac20a0 builds the literal name from immediates (lStack_28 = 0x726f746341646441 = 'AddActor', uStack_20 = 'Mess', uStack_1c = 'ag', uStack_1a = 'e') AND parses &UNK_1485800f0, which is the UPPERCASE dashed GUID 96C829CE-DFBC-4763-959C-32A6B22D81EF = typeindex slot 121. One function, both halves, so the binding AddActorMessage -> slot 121 is read from the compiler rather than from adjacency"
+    },
+    {
+      "type": "decompile",
+      "ref": "the false positive's mechanism, measured in .rdata at 0x1485800e0: 'AddActorMessage\\0' is immediately followed by the UPPERCASE GUID 96C829CE-... (slot 121) at 0x1485800f0, and only then, after four NULs, by the lowercase GUID bc291efa-... (slot 449) at 0x148580118. scan-wire-names.py searches the LOWERCASE dashed form, so it never matches slot 121's uppercase string; for slot 449 it reads back over the NULs, walks past the uppercase GUID, and keeps the longest printable run, which is 'AddActorMessage'. That is Trap 1 from that tool's own docstring, firing"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/derived/wire-type-names.json is wrong for these two slots as a consequence: it records 449 -> AddActorMessage (source rdata) and 121 -> name null. The correct pairing is 121 -> AddActorMessage and 449 -> unnamed"
+    },
+    {
+      "type": "decompile",
+      "ref": "unmarshal facet FUN_146a6b3e0 (0x146a6b3e0-0x146a6b4b5, 213 bytes), reached from FUN_146a339a0 (0x146a339a0-0x146a33a1c). First statement FUN_1408787b0(param_2, param_3, 0x10, &cStackX_20), and FUN_1408787b0 (0x1408787b0-0x1408787fb) is a bounds-checked n-byte read: if (cursor + n <= end) copy n bytes and cursor += n, else set the failure flag"
+    },
+    {
+      "type": "decompile",
+      "ref": "negative: a corpus-wide scan found only 12 memcmp call sites, none with a 0x10 length and none in an actor context, so nothing corroborates 'the first 16 bytes are the actor id'. The field is measured as 16 opaque bytes and no more"
+    }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": "azoth-wire", "module": "presence" }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

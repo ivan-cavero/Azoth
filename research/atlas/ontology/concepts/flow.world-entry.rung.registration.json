@@ -1,0 +1,147 @@
+{
+  "uid": "flow.world-entry.rung.registration",
+  "kind": "flow",
+  "name": "Ladder: Registration response",
+  "aliases": [
+    "wire:0x3",
+    "wire:0x13",
+    "registration response",
+    "RegistrationRequestV3Msg",
+    "RegistrationResponseMsg"
+  ],
+  "summary": "The registration rung, both halves. The CLIENT speaks first with RegistrationRequestV3Msg (wire 0x13, 2,750 bytes) carrying its version as a keyed string map; the server answers with RegistrationResponseMsg (wire 0x3, 88 bytes) carrying its own version as one dotted string. This moves the client from WaitingForREPConnection (14) to WaitingForActorGameConnection (15).",
+  "purpose": "Exchange versions and accept the client's registration. The client sends its build first, so a private server's first job is to ANSWER that request, not to open the conversation.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": [
+      "the client has opened the REP connection and is waiting to register"
+    ],
+    "if_absent": "the client stays in WaitingForREPConnection and never reaches the actor game connection"
+  },
+  "wire": {
+    "id": "0x13 / 0x3",
+    "direction": "Bidi",
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "request_version_map",
+      "where": "wire",
+      "offset": "0x20",
+      "size": "var",
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Inside RegistrationRequestV3Msg the client sends its version as repeated `<u32 big-endian key><u8 length><bytes>`. Measured on the 1.400 capture: key 1 = 'Javelin', key 2 = '1', key 3 = '400', key 4 = '6031', key 5 = '6004151', key 8 = 91 bytes beginning '[RETAIL]'. Read together that is product, major, minor, build, revision and channel, i.e. 1.400.6031.6004151. The record begins with a 16-byte datagram preamble (ff c4 4f f7 ...) because it is the first message of its datagram."
+    },
+    {
+      "name": "typed_header",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 3,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Measured 00 01 03: the typed envelope plus the prefix varint 0x03, a one-byte varint because the value is below 0x80."
+    },
+    {
+      "name": "unresolved_u32_at_0x03",
+      "where": "wire",
+      "offset": "0x03",
+      "size": 4,
+      "status": "candidate",
+      "note": "Zero on the measured record. No second signal for what it is."
+    },
+    {
+      "name": "unresolved_u8_at_0x07",
+      "where": "wire",
+      "offset": "0x07",
+      "size": 1,
+      "status": "candidate",
+      "note": "Measured 0x0b. Plausibly a count or a length, but nothing confirms which."
+    },
+    {
+      "name": "unresolved_8_at_0x08",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "status": "candidate",
+      "note": "Measured 88 8d 68 70 6c 41 5b 20. Not an id that appears anywhere else in the capture."
+    },
+    {
+      "name": "unresolved_ids_at_0x10",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 32,
+      "status": "candidate",
+      "note": "32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids."
+    },
+    {
+      "name": "server_version",
+      "where": "wire",
+      "offset": "0x30",
+      "size": 36,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "The 36-byte ASCII string '#[RETAIL].Javelin.1.365.6031.6006993', with no length prefix in front of it: its start is fixed and its length is fixed by the format. This is the server's version, and its shape matches the client's own version format exactly. The captured server reports 1.365.6031.6006993 because that capture was taken on build 1.365, so server and client agreed."
+    },
+    {
+      "name": "trailing_flags",
+      "where": "wire",
+      "offset": "0x54",
+      "size": 4,
+      "status": "candidate",
+      "evidence": "capture",
+      "note": "Measured 01 00 00 01, the last four bytes of the record."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "services/world/replay/messages-redacted.txt record 0x1_T0x3_R.bin: 88 bytes, seq 0x1, direction R, type 0x3. Offsets sum exactly: 3 header + 4 + 1 + 8 + 32 + 36 string + 4 = 88"
+    },
+    {
+      "type": "decompile",
+      "ref": "handler FUN_1464768a0, .pdata 0x1464768a0-0x146476a1d (381 bytes), vtable slot 0x148503e28, reached through the adjustor thunk 'add rcx,8; jmp' at 0x146476896. It logs 'GameConnectionWrapper: received registration response from REP', passes the message to a virtual setter labelled 'Server version' (slot +0x2d0), then reads the client's own version string through a getter and hands it to the setter at +0x110"
+    },
+    {
+      "type": "atlas",
+      "ref": "two independent signals agree that this body carries a server version: the decompiled handler labels the setter 'Server version', and the captured 88-byte body literally contains a version string in the client's own format"
+    },
+    {
+      "type": "atlas",
+      "ref": "third independent signal, added 2026-10-25 after the scan-wire-names.py fix: research/derived/wire-type-names.json now resolves slot 3 to RegistrationResponseMsg. That name was not available when the rung was identified, because the scanner had been unrunnable since private-client/ moved to the repo root"
+    },
+    {
+      "type": "atlas",
+      "ref": "the version format is corroborated by reverse/builds/30fe6461.../corpus/meta.json, whose 'versions' field is ['[RETAIL].Javelin.1.460.6033.6024067'], the same #[RETAIL].Javelin.<version> shape with the client's own build numbers"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x0_T0x13_W.bin: 2,750 bytes, direction W, type 0x13. The keyed-string pattern `<u32 BE key><u8 len><bytes>` reproduces on five consecutive runs at 0x20, 0x29, 0x31, 0x37 and 0x43, and key 8 at 0x45 has length 0x5b = 91 starting '[RETAIL]'"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/derived/wire-type-names.json resolves slot 19 (0x13) to RegistrationRequestV3Msg, slot 2 to RegistrationRequestV2Msg, slot 1 to RegistrationRequestMsg and slot 3 to RegistrationResponseMsg, so the whole registration family is named on this build"
+    },
+    {
+      "type": "log",
+      "ref": "the client does NOT require an exact version match: the capture's client reports 1.400.6031.6004151 through the request keys while the server's response says '#[RETAIL].Javelin.1.365.6031.6006993', a different minor and revision, and the client still advanced. A private server can therefore answer with its own version string rather than having to impersonate the official one"
+    },
+    {
+      "type": "log",
+      "ref": "research/sessions/live_20261022_r1460_first/REPORT.md records the two transitions 100 ms apart: 'WaitingForREPConnection -> WaitingForActorGameConnection' at 08:27:55.006 and 'WaitingForActorGameConnection -> WaitingForSpawnPoint' at 08:27:55.105, which places this rung and the next one in the same tenth of a second"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": null,
+    "module": null
+  }
+}

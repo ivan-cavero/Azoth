@@ -2,15 +2,137 @@
   "uid": "flow.world-entry.rung.self-identification",
   "kind": "flow",
   "name": "Ladder: SelfIdentification",
-  "summary": "PlayerManagerSelfIdentificationMsg (21 zero bytes) before spawn point wait.",
-  "purpose": "Client identity handshake on the REP ladder.",
-  "authority": "server",
-  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
-  "confidence": "semantics",
-  "status": "implemented",
-  "evidence": [
-    { "type": "doc", "ref": "server/apps/worldd/src/ladder.rs" },
-    { "type": "live", "ref": "first-light RE validated live" }
+  "aliases": [
+    "PlayerManagerSelfIdentificationMsg"
   ],
-  "owners": { "crate": "worldd", "module": "ladder" }
+  "summary": "The rung between WaitingForActorGameConnection (15) and WaitingForSpawnPoint (16). The client handler PlayerManager::SelfIdentification and its decoded struct are decompiled on build 30fe6461, but that message does not appear in the official capture at all. What the capture DOES show, twice and immediately before level info, is ClientAddEntryMsg (wire 0xa4, 20 bytes) carrying the player's own 16-byte actor id.",
+  "purpose": "Client identity handshake on the REP ladder. The handler validates the game and client-SDK pointers, copies the message into the player-manager component, marks the client identified, and either spawns the player from the debug cvars or delegates the real spawn.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": [
+      "client has finished greetings and is waiting for its own identity"
+    ],
+    "if_absent": "client stays in WaitingForActorGameConnection and no player is spawned"
+  },
+  "wire": {
+    "id": "unproven",
+    "direction": "S2C",
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "unresolved_u32_at_0x00",
+      "where": "memory",
+      "offset": "0x00",
+      "size": 4,
+      "status": "candidate",
+      "evidence": "decompile",
+      "note": "First field of the decoded struct. Copied into the player-manager component at -0x7e8; nothing reads that component slot, so its role is unknown."
+    },
+    {
+      "name": "unresolved_u32_vector_at_0x08",
+      "where": "memory",
+      "offset": "0x08",
+      "size": 24,
+      "status": "candidate",
+      "evidence": "decompile",
+      "note": "std::vector of 4-byte elements: begin, end, capacity. Proven by the copy helper FUN_1402d1540, which computes (src_end - src_begin) >> 2 and reallocates by element count. This is the only variable-length member of the struct, so it is what makes the message worth sending, and it is the member the wire form replaces with an explicit count plus elements."
+    },
+    {
+      "name": "spawn_from_debug_cvars",
+      "where": "memory",
+      "offset": "0x28",
+      "size": 1,
+      "status": "verified",
+      "evidence": "decompile",
+      "note": "Non-zero makes the handler read two debug cvars as strings, atof them into three position floats and four rotation floats, log 'spawning player at location by editor' and 'using spawn rotation [%.3f, %.3f, %.3f, %.3f]', and skip the real spawn delegate FUN_14167cc70 entirely. Verified in two separate branches of the same function."
+    },
+    {
+      "name": "unresolved_u64_at_0x2c",
+      "where": "memory",
+      "offset": "0x2c",
+      "size": 8,
+      "status": "candidate",
+      "note": "Copied into the player-manager component at -0x7bc. Negative evidence: no function in the 423,609-function corpus reads that component slot, and the value never reaches a log, a comparison or a serialization call."
+    },
+    {
+      "name": "unresolved_u32_at_0x34",
+      "where": "memory",
+      "offset": "0x34",
+      "size": 4,
+      "status": "candidate",
+      "note": "Copied into the player-manager component at -0x7b4. Same negative evidence as the u64 above: written once, read nowhere."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "handler FUN_146455ec0, .pdata BeginAddress 0x146455ec0 / EndAddress 0x146456933, unwind RVA 0x9cc3258, index 315441 of 423637, on build 30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033. Reached as a virtual method through the adjustor thunk 0x146455eac, whose only vtable slot is 0x1484fdb78"
+    },
+    {
+      "type": "decompile",
+      "ref": "FUN_1402d1540 copies the 24-byte std::vector at struct+0x08; it derives the element count as (end - begin) >> 2, which fixes the element width at 4 bytes"
+    },
+    {
+      "type": "log",
+      "ref": "all seven 'PlayerManagerSelfIdentification ...' format strings (0x148500b18, 0x148500b38, 0x148500b78, 0x148500bc0, 0x148500c20, 0x148500c80, 0x148500cd0) are lea-referenced from exactly one function in the image, FUN_146455ec0"
+    },
+    {
+      "type": "atlas",
+      "ref": "RTTI descriptor at .data 0x14a15a2b0 names the instantiation .?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@, and aoi-trait-registry.json lists the message under Javelin::ClientMessagesTrait beside LevelInfoChangedMsg, which IS a proven typed message. Trait membership therefore does not settle the wire type."
+    },
+    {
+      "type": "log",
+      "ref": "ladder state machine: FUN_14644b330 switches on (state - 4) with the state at this+0x1530, and the name table at 0x1484fb420 numbers the rungs 4 Disconnected .. 18 InGame. This rung sits between 15 WaitingForActorGameConnection and 16 WaitingForSpawnPoint"
+    },
+    {
+      "type": "live",
+      "ref": "negative: services/world/src/azoth_world/rep.py records that the synthesized SelfIdent + LevelInfoChanged burst with the 21-byte body raised an access violation at 0x146b6f1be on 2026-09-18, build 1.400, and POST_V3_ENABLED is False because of it. The 21-byte body has never been shown to advance this rung on its own"
+    },
+    {
+      "type": "capture",
+      "ref": "services/world/replay/messages-redacted.txt: the official 1.365 replay contains no 0x5d1 record at all. The 12,706-byte 0x65c record that replay_store.py called 'SelfIdent' is NOT this message: measured 2026-10-25, the type table's slot 1628 holds GUID 169443e0-a508-4653-b437-49b7a195f69c and the string LastSpawnedBotCharacterId sits NUL-padded immediately before it in .rdata at 0x1480041e0/0x148004200. The competing candidate is therefore eliminated, and the bot-grid reading of those bytes replaces it."
+    },
+    {
+      "type": "atlas",
+      "ref": "elimination of the competing candidate: research/derived/wire-type-names.json resolves slot 1628 (wire 0x65c) to LastSpawnedBotCharacterId after the 2026-10-25 scan-wire-names.py fix, and direct byte inspection confirms the name is adjacent to that GUID. So the 0x65c grid record is bot spawn data, and this rung still has no proven wire type"
+    },
+    {
+      "type": "capture",
+      "ref": "MEASURED 2026-10-25: record 0x8_T0xa4_R.bin and its repeat 0xf_T0xa4_R.bin are 20 bytes each, `00 01 a4 02` then 16 bytes. Those 16 bytes are 1a954abc4b3185bfbe37c3d8592618e0, which is the SAME id as the spawn record's actor id at payload offset 29731 and the same id the deleted crate pinned as ACTOR_ID. Three independent sources agree."
+    },
+    {
+      "type": "capture",
+      "ref": "sequence position: ClientAddEntryMsg arrives at seq 0x08 and again at seq 0x0f, and level info (0x663) is seq 0x10. So the actor id reaches the client immediately before the level info that moves it to WaitingForPlayerSpawn, which is exactly this rung's slot in the ladder"
+    },
+    {
+      "type": "atlas",
+      "ref": "ClientAddEntryMsg is NOT a member of Javelin::ClientMessagesTrait (aoi-trait-registry.json has no AddEntry entry), while PlayerManagerSelfIdentificationMsg IS. So they are two different dispatch paths, and the trait message is not the wire message the capture shows"
+    },
+    {
+      "type": "atlas",
+      "ref": "OPEN QUESTION: Is the 15 -> 16 transition caused by ClientAddEntryMsg (0xa4), or by a trait notification that the replay dump does not cover? The capture places 0xa4 immediately before level info, which supports the first reading, but no capture shows the transition itself."
+    },
+    {
+      "type": "atlas",
+      "ref": "OPEN QUESTION: PlayerManagerSelfIdentificationMsg has a decoded struct with a std::vector<u32> at +0x08, which is far more than a 16-byte actor id. So it is not simply the decoded form of ClientAddEntryMsg."
+    },
+    {
+      "type": "atlas",
+      "ref": "OPEN QUESTION: Wire 0x5d1 remains unnamed and absent from the capture; it is not supported as this rung's type."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

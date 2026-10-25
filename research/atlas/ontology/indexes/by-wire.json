@@ -1,11 +1,17 @@
 {
   "generated": "hand-seed-2026-10-24",
   "wires": {
+    "3": "flow.world-entry.rung.registration",
+    "8": "flow.world-entry.rung.spawn",
+    "19": "flow.world-entry.rung.registration",
     "106": "msg.update",
+    "121": "msg.add-actor",
+    "164": "msg.client-add-entry",
     "391": "msg.replicate",
     "407": "msg.replicate-client",
     "422": "msg.fragment-update",
-    "449": "msg.add-actor",
-    "574": "msg.spawn-actors"
-  }
+    "574": "msg.spawn-actors",
+    "663": "flow.world-entry.rung.level-info"
+  },
+  "$comment": "Wire-type to concept. A wire type enters this index only when its identification is proven. 0x5d1 is absent because its identification is a candidate. 449 is absent because its AddActorMessage pairing was a name/GUID adjacency false positive: the name binds to 121, proven by FUN_146ac20a0 building both halves."
 }
