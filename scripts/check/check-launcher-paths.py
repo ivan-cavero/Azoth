@@ -57,6 +57,44 @@ def parts_of(expr: str) -> list[str]:
     return re.findall(r'"([^"]+)"', expr)
 
 
+def wired_port_problems() -> list[str]:
+    """Every upstream port Caddy dials must be a port the lab actually starts.
+
+    MEASURED 2026-10-25: `deploy/Caddyfile.json` routed the whole auth/API hostname
+    set to `127.0.0.1:8082`, which was the deleted Rust `regiond`'s port. Caddy
+    answered 502, the client's auth exchange never reached the Python gateway, and
+    the game died ~20 s after channel-service init with `@mm_authresult_Error_Persona`.
+    Nothing complained: Caddy logs the dial error but the lab still reports
+    "gateway: running", and the failure looks like a game problem.
+
+    The ports the lab serves are read from `lab/services.py` (`--port N`) and the
+    gateway's own default. A dial target outside that set is a dead route.
+    """
+    problems: list[str] = []
+    caddy = ROOT / "deploy" / "Caddyfile.json"
+    services = ROOT / "lab" / "services.py"
+    if not caddy.is_file() or not services.is_file():
+        return problems
+
+    import re as _re
+
+    served = {int(m) for m in _re.findall(r'"--port",\s*"(\d+)"', services.read_text(encoding="utf-8", errors="replace"))}
+    served |= {int(m) for m in _re.findall(r"--port\D{0,4}(\d+)", services.read_text(encoding="utf-8", errors="replace"))}
+    if not served:
+        problems.append("lab/services.py declares no --port, so no dial target can be validated")
+        return problems
+
+    text = caddy.read_text(encoding="utf-8", errors="replace")
+    dials = sorted(set(_re.findall(r'"dial":\s*"127\.0\.0\.1:(\d+)"', text)))
+    for port in dials:
+        if int(port) not in served:
+            problems.append(
+                f"deploy/Caddyfile.json dials 127.0.0.1:{port} but the lab starts only "
+                f"{sorted(served)}; that route would answer 502"
+            )
+    return problems
+
+
 def _installed_modules() -> set[str]:
     """Top-level importable third-party modules, so the local check does not flag them."""
     import pkgutil
@@ -138,6 +176,8 @@ def main() -> int:
             checked += 1
             if not target.exists():
                 problems.append(f"{rel}: REPO / {' / '.join(parts)} -> {target} does not exist")
+
+    problems.extend(wired_port_problems())
 
     if problems:
         for p in problems:
