@@ -53,13 +53,14 @@ Two blockers, both measured, and neither is a missing idea:
    at `ClientAddEntryMsg` (`0xa4`, 20 bytes) carrying the player's own actor id
    twice, the second time immediately before level info, but no capture shows the
    transition itself. A passive capture of one official login on 1.460 unblocks it.
-2. **The spawn needs 47 type readers.** Its 48 fragment boundaries are not
-   recoverable from its bytes: a constrained search over the 29,721 offsets that
-   parse as a fragment header found no 48-fragment path ending at 46,393, and the
-   actor-id anchor leaves 1,587 candidates because a one-byte key plus a
-   one-or-two-byte type is accepted at roughly one offset in three. A fragment
-   carries no length, so the walk needs each type's payload length. Serving the
-   captured spawn verbatim stays the only option until then.
+2. **The spawn needs 47 type readers, and searching for the boundaries is
+   closed.** The capture carries the spawn record 24 times, byte-identically, so a
+   diff yields nothing. The small variant (9 fragments, 7,152 bytes) makes the
+   same walk exhaustive, and it admits exactly one path — a degenerate one with two
+   zero-length fragments and a 6,983-byte tail. That is proof the constraints are
+   insufficient, not merely expensive, so no amount of searching will produce the
+   boundary set. A fragment carries no length; the length lives in the type's
+   reader. Serving the captured spawn verbatim stays the only option.
 
 The map itself is not blocked. Every state, transport, wire type, message name
 and size is recorded in `research/atlas/meanings.md`, and the blocks several

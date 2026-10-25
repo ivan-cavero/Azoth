@@ -124,6 +124,14 @@
     {
       "type": "atlas",
       "ref": "why the boundary set cannot be recovered cheaply, stated once so it is not retried: the fragment header carries no length, so a walk needs each type's payload length, and that length lives only in the client's per-type reader. The deleted crate recorded 16 of the 48 keys (0, 1, 2, 4, 5, 9, 10, 12, 13, 14, 16, 19, 20, 22, 27, 29, 31, and 77 as the maximum) and truncated the rest with an ellipsis, and no commit in git history holds the full list. The remaining work is therefore to read the 47 distinct type deserializers, one per type, which is the same conclusion the deleted crate reached and is now measured rather than inherited."
+    },
+    {
+      "type": "capture",
+      "ref": "the capture carries the SAME 46,407-byte spawn record 24 times (seq 0x2a, 0x2b, 0x2e, 0x2f, 0x30, 0x33, 0x34, 0x35, 0x42, 0x44, 0x47, 0x48, 0x49, 0x4c, 0x4e, 0x4f, 0x52, 0x55, 0x56, 0x59, 0x5a, 0x5b, 0x66, 0x6c) and all 24 payloads are BYTE-IDENTICAL: 46,393 constant bytes, 0 varying. So the record is fully static and a diff between instances yields no information about which bytes are live. It also means serving the captured template verbatim is exactly what the official server does"
+    },
+    {
+      "type": "capture",
+      "ref": "the decisive negative, measured exhaustively on the SMALL variant. The capture also carries record_id 1 at 7,167 bytes with a fragment count byte of 9, so the same walk can be run exhaustively on 9 fragments over 7,152 bytes instead of 48 over 46,375. Requiring 9 fragments, 9 distinct keys, 9 distinct types, keys <= 77 and an exact end at 7,152 yields EXACTLY ONE path, and it is degenerate: two fragments with zero-length payloads and a final fragment of 6,983 bytes. A boundary set where the last fragment is 96% of the record is not the real one. That proves the constraint set is INSUFFICIENT rather than merely expensive, and it is why this is closed until the per-type readers are read rather than searched"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
