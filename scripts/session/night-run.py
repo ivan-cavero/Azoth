@@ -155,7 +155,7 @@ def main() -> int:
         print(f"[night] probe {args.probe} pid={probe.pid} -> {probe_log}")
 
     run_log = base / "private-run.log"
-    cmd = [str(PY), str(ROOT / "scripts" / "private-run.py"), "--settle", str(args.settle)]
+    cmd = [str(PY), str(ROOT / "scripts" / "session" / "private-run.py"), "--settle", str(args.settle)]
     if args.no_launch:
         cmd.append("--no-launch")
     print("[night] driving private-run:", " ".join(cmd[-3:]))
@@ -169,12 +169,12 @@ def main() -> int:
         time.sleep(60)
         left = int((end - time.time()) / 60)
         if not shot_done and left < args.minutes - 3:
-            subprocess.run([str(PY), str(ROOT / "scripts" / "shot.py")], cwd=ROOT, check=False,
+            subprocess.run([str(PY), str(ROOT / "scripts" / "gui" / "shot.py")], cwd=ROOT, check=False,
                            stdout=subprocess.DEVNULL)
             src = ROOT / ".azoth" / "captures" / "azoth_shot.png"
             if src.is_file():
                 (base / "shot.png").write_bytes(src.read_bytes())
-                subprocess.run([str(PY), str(ROOT / "scripts" / "shrink-image.py"),
+                subprocess.run([str(PY), str(ROOT / "scripts" / "gui" / "shrink-image.py"),
                                 str(base / "shot.png")], cwd=ROOT, check=False,
                                stdout=subprocess.DEVNULL)
             shot_done = True

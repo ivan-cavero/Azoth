@@ -104,7 +104,7 @@ k32 = ctypes.windll.kernel32
 
 
 def _find_windows():
-    input_helper = HERE.parents[2] / "scripts" / "send-input.py"
+    input_helper = HERE.parents[2] / "scripts" / "gui" / "send-input.py"
     spec = importlib.util.spec_from_file_location("si", input_helper)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

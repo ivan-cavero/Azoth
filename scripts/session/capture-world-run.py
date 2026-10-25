@@ -48,7 +48,7 @@ def main() -> int:
         if not path.is_file():
             parser.error(f"required file not found: {path}")
     if args.screenshot and (not args.screenshot.is_file() or not args.screenshot.name.endswith(".small.jpg")):
-        parser.error("screenshot must be an existing .small.jpg; shrink it with scripts/shrink-image.py first")
+        parser.error("screenshot must be an existing .small.jpg; shrink it with scripts/gui/shrink-image.py first")
     if args.burst_log and not args.burst_log.is_file():
         parser.error(f"burst log not found: {args.burst_log}")
     if args.slot_log and not args.slot_log.is_file():
@@ -165,7 +165,7 @@ def main() -> int:
                         gateway_payload_count += 1
 
     ack = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "ack-window.py"), "--session", str(selected)],
+        [sys.executable, str(ROOT / "scripts" / "measure" / "ack-window.py"), "--session", str(selected)],
         cwd=ROOT,
         capture_output=True,
         text=True,

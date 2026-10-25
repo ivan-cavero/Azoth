@@ -77,7 +77,7 @@ def sha256_file(path: Path) -> str:
 
 def read_va(path: Path, va: int, n: int) -> bytes:
     """Bytes of a VA inside an executable file on disk."""
-    sys.path.insert(0, str(REPO / "reverse" / "tools"))
+    sys.path.insert(0, str(REPO / "reverse" / "tools" / "corpus"))
     from catalog import PE  # noqa: E402 - local import keeps --check fast
 
     return PE(path).read_va(va, n)

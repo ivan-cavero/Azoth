@@ -107,7 +107,7 @@ def main() -> int:
     if not args.revert:
         try:
             exe = find_private_exe()
-            sys.path.insert(0, str(exe.parents[3] / "reverse" / "tools"))
+            sys.path.insert(0, str(exe.parents[3] / "reverse" / "tools" / "corpus"))
             from catalog import PE  # noqa: E402
 
             pe = PE(exe)

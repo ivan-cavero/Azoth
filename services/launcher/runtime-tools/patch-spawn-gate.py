@@ -71,7 +71,7 @@ def find_windows(title_sub: str) -> list[tuple[int, str]]:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
-        "send_input", HERE.parents[2] / "scripts" / "send-input.py"
+        "send_input", HERE.parents[2] / "scripts" / "gui" / "send-input.py"
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

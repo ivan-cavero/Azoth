@@ -15,7 +15,7 @@ import struct
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "reverse" / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "reverse" / "tools" / "corpus"))
 from catalog import PE  # noqa: E402
 
 PATCH_VA = 0x145DCE8B5

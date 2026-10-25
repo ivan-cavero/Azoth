@@ -43,7 +43,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 PRIVATE = REPO / "private-client"
-PRIVATE_RUN = REPO / "scripts" / "private-run.py"
+PRIVATE_RUN = REPO / "scripts" / "session" / "private-run.py"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from winwindow import game_pids  # noqa: E402

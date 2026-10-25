@@ -60,6 +60,11 @@
       "kind": "check",
       "file": "check-docs.py"
     },
+    "check-launcher-paths": {
+      "path": "check/check-launcher-paths.py",
+      "kind": "check",
+      "file": "check-launcher-paths.py"
+    },
     "check-paths": {
       "path": "check/check-paths.py",
       "kind": "check",

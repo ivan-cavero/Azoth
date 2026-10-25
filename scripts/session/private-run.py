@@ -260,13 +260,13 @@ def patch_scripts_target() -> tuple[int, str] | None:
 
     WHY this exists: patch-predicate-flag.py, patch-timeout-watchdog.py and
     patch-exit-to-menu.py resolve their target with
-    `scripts/send-input.py::find_windows("New World")[0]`, which is a TITLE match
+    `scripts/gui/send-input.py::find_windows("New World")[0]`, which is a TITLE match
     over every visible window (no process filter) and takes the topmost. With two
     private clients open, the topmost "New World" window is not necessarily the
     client this run drives -- and those scripts write into process memory. Reuse
     their exact selection so this check cannot drift from what they will do.
     """
-    helper = REPO / "scripts" / "send-input.py"
+    helper = REPO / "scripts" / "gui" / "send-input.py"
     spec = importlib.util.spec_from_file_location("azoth_send_input", helper)
     if spec is None or spec.loader is None:
         return None
@@ -385,7 +385,7 @@ def click_play(hwnd: int, *, targeted: bool) -> str:
     result = subprocess.run(
         [
             str(PYTHON),
-            str(REPO / "scripts" / "click-window.py"),
+            str(REPO / "scripts" / "gui" / "click-window.py"),
             "New World",
             str(x),
             str(y),
@@ -515,7 +515,7 @@ def main() -> int:
             print(f"  held scan 0x39 for 0.15s in hwnd={hwnd:#x}")
         else:
             subprocess.run(
-                [str(PYTHON), str(REPO / "scripts" / "hold-key.py"), "New World", "0x39", "0.15"],
+                [str(PYTHON), str(REPO / "scripts" / "gui" / "hold-key.py"), "New World", "0x39", "0.15"],
                 cwd=REPO,
                 check=False,
             )

@@ -19,5 +19,6 @@ jobs:
           python scripts/check/check-paths.py
           python scripts/check/check-scripts.py
           python scripts/check/check-atlas.py
+          python scripts/check/check-launcher-paths.py
 
   # Rust returns when research/atlas/meanings.md closes a row. See docs/PLAN.md.
