@@ -215,5 +215,38 @@
     "statement": "pktmon runs with --comp nics, so a session pcap contains every flow on the machine, not only the game's. Measured on live_20261022_r1460_first: after the SNI fix the pcap named api.github.com, code.verboo.ai, telemetry.gentlemanprogramming.com, ecs.office.com, api.steampowered.com and store.steampowered.com, none of which the game contacts.",
     "consequence": "Flow attribution must be filtered by the game's PID connections or by the game's own host list before any traffic is treated as protocol evidence. A top-IP table from a raw pcap is not a game-flow table.",
     "corrected_claim": "The 22,273-packet TCP flow to 51.222.108.239 was first read as voice/Vivox from its OVH reverse DNS. With SNI extraction fixed it is code.verboo.ai, an agent-tooling host. The reverse-DNS inference was wrong."
+  },
+  "live_run_2026_10_25_private_client": {
+    "evidence": "observed",
+    "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+    "why": "First attempt to drive the ladder live on the installed 1.460 build. It did not reach WaitingForREPConnection, and the failure is recorded because the diagnostic path is worth keeping.",
+    "method": "python ef.py dev (caddy + gateway + world) then EF game start; passive Game.log only, no debugger attached to the client by hand",
+    "with_launcher_patches": {
+      "outcome": "the private client dies at ~20-25 s, twice measured (alive 6-21 s, then 4-22 s)",
+      "last_log_line": "Failure in initializing Fuel::Iap::IapClient: 14",
+      "reached": "Steam auth, world metadata, entitlements, 'Channel Service data provider: init success'",
+      "dead_ends_ruled_out": [
+        "the IapClient failure itself: builds.json already records it as one of five errors present in a CLEAN OFFICIAL session, so it is benign",
+        "GPU absence: the log says '- Suitable rendering device: yes' for Intel(R) HD Graphics 630, the same verdict the working official session got, and 2 'Displays connected: yes' lines match",
+        "the launcher killing it: Start-NwPrivate.ps1 only Stop-Processes the child on EAC/private-process validation failures or a missing venv, neither of which fired",
+        "a missing lab: the same failure happens with caddy+gateway+world confirmed running"
+      ]
+    },
+    "without_launcher_patches": {
+      "outcome": "the client SURVIVES past the point where the patched run dies and reaches authentication",
+      "last_log_line": "CGame::OnCampfireLoginFailed with error: @mm_authresult_Error_Persona",
+      "auth_trace": [
+        "[SteamAuth] Steam session reconnected",
+        "[OmniAuthBackend] Omni CreateSession complete with result: 201, id: (EMPTY)",
+        "[SteamAuth] Failed to create session for Omni, result code: 201",
+        "[AuthStackCredentialsProvider] Failed to get valid gateway AWS credentials"
+      ],
+      "reading": "201 with an empty id is not success. Whatever serves Omni CreateSession answered without an id, the client treated that as failure, and Persona auth never started."
+    },
+    "gateway_side": {
+      "observed": "the gateway received only configuration-set GETs (/applications/public..., /applications/publicGameplay..., /motd/worlds_STEAM_APP_ID.json). It logged NO auth POST, so the auth exchange either went to the real Amazon endpoints or was refused before reaching the gateway.",
+      "consequence": "the next step is not about the game at all: find where the client sends its Omni and Steam auth, confirm whether Caddy routed it to the gateway, and why the Omni mock answers 201 with no id."
+    },
+    "hosts_already_configured": "C:/Windows/System32/drivers/etc/hosts already maps 26 Amazon and cloudfront hostnames to 127.0.0.1 for caddy, so no elevation is needed and that was never the blocker."
   }
 }

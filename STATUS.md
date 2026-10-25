@@ -48,6 +48,14 @@ neither is the transition.
 The next real step is therefore to make the lab's Carrier reach actor-connection
 state 2, and the atlas now says which flag that is.
 
+## Live run, 2026-10-25
+
+Attempted live; did not reach REP. **Auth is the wall, not the game.** Patched, the
+client dies ~20-25 s after `IapClient: 14` (benign). Unpatched, it survives to auth
+and fails: `Omni CreateSession 201, id:` empty, then `@mm_authresult_Error_Persona`.
+The gateway got config GETs and **no auth POST**. Detail: `builds.json`
+`live_run_2026_10_25_private_client`.
+
 ## Blocked by
 
 One blocker left, and it is a transport one:
@@ -58,13 +66,9 @@ the client out of rung 15. The lab has a Frida helper for the private client
 but forcing it is not the same as the connection completing, so the real
 handshake is still unproven.
 
-The spawn's 48 fragment boundaries are closed as **underdetermined**, not pending:
-the small variant makes the same walk exhaustive and admits exactly one degenerate
-path, which proves no amount of searching will produce the boundary set. A
-fragment carries no length; the length lives in the type's reader.
-
-The map itself is not blocked. Every state, transport, wire type, message name
-and size is recorded in `research/atlas/meanings.md`.
+The spawn's 48 boundaries are closed as **underdetermined**: the small variant makes
+the walk exhaustive and admits one degenerate path, so searching cannot recover
+them. The map itself is not blocked; see `research/atlas/meanings.md`.
 
 The map itself is not blocked. Every state, transport, wire type, message name
 and size is recorded in `research/atlas/meanings.md`, and the blocks several
