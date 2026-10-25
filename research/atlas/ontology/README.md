@@ -34,3 +34,13 @@ indexes/              # by-uid, by-wire, by-kind (stubs OK)
 - Link from docs; do not copy full concept bodies into STATUS or ROADMAP.
 - Binary-dependent facts carry full executable SHA-256 in `build`.
 - Raw captures stay in ignored `research/sessions/`.
+- `schema.json` sets `additionalProperties: false`, so a key it does not declare is
+  a defect even though the file is still valid JSON. Run
+  `python scripts/check/check-atlas.py`; it enforces the schema's `required` list
+  and its `properties` allowlist over every concept file, and CI runs it with the
+  other gates. It reads the rules from the schema, so widening the schema widens
+  the check.
+- Put a decoded struct's members in `fields` with `"where": "memory"`, not in an
+  ad-hoc top-level key: `fields` is the one place the schema leaves open, and
+  MEASURED 2026-10-25 is that a `struct` block and an `open_questions` list had
+  both been introduced as top-level keys before the checker existed.

@@ -50,6 +50,11 @@
       "kind": "session",
       "file": "capture-world-run.py"
     },
+    "check-atlas": {
+      "path": "check/check-atlas.py",
+      "kind": "check",
+      "file": "check-atlas.py"
+    },
     "check-docs": {
       "path": "check/check-docs.py",
       "kind": "check",
@@ -59,6 +64,11 @@
       "path": "check/check-paths.py",
       "kind": "check",
       "file": "check-paths.py"
+    },
+    "check-scripts": {
+      "path": "check/check-scripts.py",
+      "kind": "check",
+      "file": "check-scripts.py"
     },
     "click-window": {
       "path": "gui/click-window.py",
@@ -119,6 +129,11 @@
       "path": "re/find-codec-facet.py",
       "kind": "re",
       "file": "find-codec-facet.py"
+    },
+    "fix-test-escapes": {
+      "path": "session/fix-test-escapes.py",
+      "kind": "session",
+      "file": "fix-test-escapes.py"
     },
     "focus-window": {
       "path": "gui/focus-window.py",
@@ -309,16 +324,6 @@
       "path": "wire/world-inject.py",
       "kind": "wire",
       "file": "world-inject.py"
-    },
-    "fix-test-escapes": {
-      "path": "session/fix-test-escapes.py",
-      "kind": "session",
-      "file": "fix-test-escapes.py"
-    },
-    "check-scripts": {
-      "path": "check/check-scripts.py",
-      "kind": "check",
-      "file": "check-scripts.py"
     }
   }
 }
