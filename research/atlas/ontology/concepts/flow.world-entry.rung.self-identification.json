@@ -99,11 +99,11 @@
     },
     {
       "type": "capture",
-      "ref": "services/world/replay/messages-redacted.txt: the official 1.365 replay contains no 0x5d1 record at all. The 12,706-byte 0x65c record that replay_store.py called 'SelfIdent' is NOT this message: measured 2026-10-25, the type table's slot 1628 holds GUID 169443e0-a508-4653-b437-49b7a195f69c and the string LastSpawnedBotCharacterId sits NUL-padded immediately before it in .rdata at 0x1480041e0/0x148004200. The competing candidate is therefore eliminated, and the bot-grid reading of those bytes replaces it."
+      "ref": "services/world/replay/messages-redacted.txt: the official 1.365 replay contains no 0x5d1 record at all, and it DOES contain a 12,706-byte 0x65c record at seq 0x06. CORRECTED 2026-10-25: that record IS this message. The wire type was measured by walking the client's own registration hook -- lambda TypeDescriptor 0x14a15a2b0 (name at 0x14a15a2c0 spells InstallRegistrationHook@VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin), thunk 0x1414f2b00, record 0x148012b10 slot4 0x1414f2940, which calls 0x1416ec940 whose lea r11,[rip+0x6917808] at 0x1416ec9f1 points at 0x148004200 = 169443e0-a508-4653-b437-49b7a195f69c = typeIndex[1628] = 0x65c. The control is LevelInfoChangedMsg, which the same method resolves to 0x663."
     },
     {
       "type": "atlas",
-      "ref": "elimination of the competing candidate: research/derived/wire-type-names.json resolves slot 1628 (wire 0x65c) to LastSpawnedBotCharacterId after the 2026-10-25 scan-wire-names.py fix, and direct byte inspection confirms the name is adjacent to that GUID. So the 0x65c grid record is bot spawn data, and this rung still has no proven wire type"
+      "ref": "the elimination recorded here on 2026-10-25 is WITHDRAWN. It rested on research/derived/wire-type-names.json, which pairs a name with a GUID by .rdata adjacency, and that heuristic fails on its own control: the proven LevelInfoChangedMsg GUID (typeIndex[1635]) has NO name in that file. The string LastSpawnedBotCharacterId sits three names before the 169443e0 GUID (LastSpawnedSlice @0x1480041a8, LastSpawnedSlicePosition @0x1480041c0, LastSpawnedBotCharacterId @0x1480041e0, GUID @0x148004200), so that name is adjacency, not ownership. Wire 0x65c is PlayerManagerSelfIdentificationMsg. What remains open is the BODY: 12,702 bytes after the 4-byte typed header, and the model 4+4+4c+1+8+4 = 21+4c gives c = 3170.25, off by exactly one byte, so the vector layout is not confirmed."
     },
     {
       "type": "capture",

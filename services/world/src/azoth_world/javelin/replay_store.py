@@ -89,14 +89,19 @@ def remap_replay_identity(
     return replace(message, body=body)
 
 
-# Wire type 0x65c is NOT self-identification. MEASURED 2026-10-25 on build
-# 30fe6461: the type table's slot 1628 holds GUID
-# 169443e0-a508-4653-b437-49b7a195f69c, and in .rdata at 0x1480041e0 the string
-# `LastSpawnedBotCharacterId` sits NUL-padded immediately before that GUID at
-# 0x148004200. So this record is the bot-character-id message, and the 12,706-byte
-# grid it carries is bot spawn data, not a player identity. The identifiers below
-# keep the `selfident` spelling because renaming them reaches rep.py and the
-# AZOTH_REPLAY_SELFIDENT_GUID lever; the NAME is what was wrong, not the slot.
+# Wire type 0x65c IS self-identification. MEASURED 2026-10-25 on build
+# 30fe6461 by walking the client's own registration hook: lambda TypeDescriptor
+# 0x14a15a2b0 (its name at 0x14a15a2c0 spells
+# `InstallRegistrationHook@VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin`),
+# thunk 0x1414f2b00, record 0x148012b10 slot4 0x1414f2940, which calls
+# 0x1416ec940 whose `lea r11,[rip+0x6917808]` at 0x1416ec9f1 points at
+# 0x148004200 = `169443e0-a508-4653-b437-49b7a195f69c` = typeIndex[1628] = 0x65c.
+# The control is LevelInfoChangedMsg, which the same method resolves to 0x663.
+# An earlier version of this comment claimed the opposite from .rdata adjacency
+# (the string `LastSpawnedBotCharacterId` sits three names before that GUID at
+# 0x1480041e0/0x148004200); that heuristic is disproven by the control, because
+# research/derived/wire-type-names.json gives the proven LevelInfoChangedMsg GUID
+# no name at all. So filling this slot does target player identity.
 #
 # The 0x65c record has a separate binary GUID field. Unlike the ASCII UUID slots
 # above, it is not a character/session string in the capture; it is left as
@@ -152,9 +157,10 @@ def remap_selfident_guid(
 ) -> ReplayMessage:
     """Fill the redacted 0x65c GUID with a selected live UUID.
 
-    The message is `LastSpawnedBotCharacterId`, not self-identification; see the
-    note on REPLAY_SELFIDENT_GUID_TARGET. Filling this slot therefore retargets a
-    bot-character id and says nothing about player identity.
+    The message is `PlayerManagerSelfIdentificationMsg` (wire 0x65c), measured
+    through the client's registration hook with a validated control; see the note
+    on REPLAY_SELFIDENT_GUID_TARGET. Filling this slot therefore does target
+    player identity, which is why the 2026-09-24 negative result matters.
 
     ``session`` and ``character`` use RFC/network byte order, which is also
     the order consumed by the 1.400 GUID formatter. Unknown selectors and

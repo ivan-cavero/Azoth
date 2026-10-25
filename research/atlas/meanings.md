@@ -77,8 +77,8 @@ Naming a field removes it from this list. None of these ids is a gameplay noun.
 | `flow.region.captured-body` | Login, entitlements, world list, and ticket JSON that still copies an official response | unknown bodies |
 | `flow.world-entry.rung.registration.body` | Registration response, wire type `0x3`, 88 bytes. **Parsed**: typed header, `u32` zero, `0x0b`, 8 bytes, 32 redacted bytes, then the 36-byte server version string `#[RETAIL].Javelin.<version>`, then `01 00 00 01`. The version string is the named field; the rest has no second signal. | version string verified, rest partial |
 | `flow.world-entry.rung.greetings.body` | GridMate greeting. Not a game event. | partial |
-| `flow.world-entry.rung.self-identification.body` | The 21 bytes the lab carries. Not one byte is proven: the only live test of this body was a two-rung burst that raised an access violation on 1.400, and the wire type is a candidate in both directions. The client handler is decompiled and its decoded struct is named, but the handler never sees the wire. | handler named, wire type and body unproven |
-| `flow.world-entry.rung.level-info.unexplained` | The part of `LevelInfoChangedMsg` (`0x663`) that is not the level name, the path, the four floats, or the context key: the `u64` at `0x48`, the four flag bytes at `0x50`, the per-record nonce at `0x54`, and the ten-byte group at `0x5c`. The handler reads none of them, so they are either consumed by the deserializer or ignored. | partial |
+| `flow.world-entry.rung.self-identification.body` | The 21 bytes the lab carries, against a real record that is **12,706 bytes**. The wire type is now settled (`0x65c`, measured through the registration hook with a validated control), so what is left is only the body: its size does not match the `0x38`-byte struct under any integer element count (off by one byte), the field order is unproven, and the vector's meaning is unread. The only live test of the 21-byte body raised an access violation on 1.400. | wire type verified, body unproven |
+| `flow.world-entry.rung.level-info.unexplained` | The part of `LevelInfoChangedMsg` (`0x663`) that is not the level name, the level path, or the client context key: the four 4-byte groups at `0x38`, the zero `u64` at `0x48`, the four bytes at `0x50`, the four bytes at `0x54`, and the ten bytes at `0x5c`. The whole 106-byte body is now laid out to the byte, and the two records in the official replay are byte-identical. What stays unnamed is only these, and the handler reads none of them. **`0x54` is not a per-record nonce** — see the layout below. | body laid out, five field groups unnamed |
 | `flow.world-entry.rung.spawn.body` | Spawn record id 1. The record and its payload layout are now verified against the official replay; what stays unnamed is the interior of the 48 fragments. | layout verified, fragments unknown |
 | `flow.world-entry.rung.state-stream.body` | The resend of that spawn, about once a second. The quiet cable is measured. The body is the spawn. | measured effect |
 | `flow.world-entry.presence.fields` | Add-actor fanout. The head is a proven 16-byte fixed read but not a proven ActorGuid, and the tail offsets are known while their meanings are not. | partial |
@@ -112,10 +112,14 @@ The struct keeps the wire order, and the two container members expand:
 | a length byte then the characters | a 32-byte `std::string` |
 | a count then the elements | a 24-byte `std::vector` |
 
-That is why level info is 110 wire bytes and a struct past `0xb0`, and why a
-21-byte self-identification body corresponds to a `0x38`-byte struct. The
-correspondence is a model read off two handlers, not a proof for a third: the
-self-identification body order stays a candidate until its own decoder is read.
+That is why level info is 110 wire bytes and a struct past `0xb0`. The
+correspondence is a model read off two handlers, not a proof for a third, and
+self-identification is where it breaks: the model predicts a 21-byte body for a
+`0x38`-byte struct with an empty vector, but the real record is 12,702 body
+bytes, which no integer element count reconciles with that model (it lands on
+`c = 3170.25`). The model is not wrong about strings and vectors; it is
+unverified for this message, and the size says the message carries far more than
+the struct's shape suggests.
 
 ## World entry ladder
 
@@ -163,9 +167,9 @@ with the names the fixed scanner now resolves:
 | 0x01 | R | `0x3` | 88 | `RegistrationResponseMsg` |
 | 0x02 | R | `0x15d` | 12 | `PingMsg` |
 | 0x03 | W | `0x15d` | 36 | `PingMsg` |
-| 0x04 | R | `0x40a` | 76 | unnamed |
-| 0x05 | R | `0x1be` | 76 | unnamed |
-| 0x06 | R | `0x65c` | 12,706 | `LastSpawnedBotCharacterId` |
+| 0x04 | R | `0x40a` | 76 | `CalendarConnectedMsg` |
+| 0x05 | R | `0x1be` | 76 | `CoatlicueTimingConfigurationConnectedMsg` |
+| 0x06 | R | `0x65c` | 12,706 | `PlayerManagerSelfIdentificationMsg` (measured 2026-10-25; the earlier `LastSpawnedBotCharacterId` was an adjacency error, see "Next meaning to earn") |
 | 0x07 | R | `0x651` | 4 | unnamed |
 | 0x08 | R | `0xa4` | 20 | `ClientAddEntryMsg` |
 | 0x09 | R | `0xca4` | 102 | `EventNotificationComponentClientFacet_SyncNotifications` |
@@ -205,6 +209,47 @@ means the evidence points at it without closing it.
 | 17 | `WaitingForPlayerSpawn` | Carrier | `[carrier+0x252]` becomes set | `0x8` | `ReceiveStateBundle` | 46,407 | layout verified, fragments closed |
 | 18 | `InGame` | REP | the 1 Hz state stream | `0x8` ongoing | `ReceiveStateBundle` | 7,167 | measured effect |
 | after | presence | REP | server adds actors | `0x79` | `AddActorMessage` | — | head 16 B verified |
+
+### `0x663` laid out to the byte
+
+The two `LevelInfoChangedMsg` records in the official 1.365 replay (seq `0x10` and
+seq `0x4d`) are **byte-identical**, 110 bytes including the 4-byte typed header.
+The body is 106 bytes:
+
+| Offset | Size | Bytes, identical in both records |
+| --- | --- | --- |
+| `0x00` | 4 | `00 01 a3 19` typed header, prefix varint 1635 |
+| `0x04` | 21 | `azstr` 20 = `NewWorld_VitaeEterna` |
+| `0x19` | 31 | `azstr` 30 = `coatlicue/NewWorld_VitaeEterna` |
+| `0x38` | 4 | `45 00 00 00` |
+| `0x3c` | 4 | `41 80 00 00` |
+| `0x40` | 4 | `46 3f c0 00` |
+| `0x44` | 4 | `46 20 28 00` |
+| `0x48` | 8 | zero |
+| `0x50` | 4 | `01 01 00 00` |
+| `0x54` | 4 | `9c fa 58 61` |
+| `0x58` | 4 | `78 14 69 f2` |
+| `0x5c` | 10 | `65 03 00 00 00 00 01 01 01 00` |
+| `0x66` | 8 | `00 00 00 c1 7f 9b e4 8f` — the client context key |
+
+Two corrections this settles:
+
+- **`0x54` is not a per-record nonce.** The two records are byte-identical, so
+  whatever sits there is constant inside a session. Calling it a nonce invited a
+  rewrite that no observation supports. The only field the lab deliberately
+  rewrites is the 8 bytes at `0x66`.
+- **The tail was never unexplained.** `replay_store.REPLAY_FRESH_LEVELINFO_TARGET`
+  names exactly `(seq 0x4d, type 0x663, offset 0x66, length 8)`, and
+  `REPLAY_CAPTURED_LEVELINFO_KEY` is the very byte string in this table, so
+  `remap_fresh_levelinfo_key` is remapping the client context key. That is the
+  measured meaning of the last 8 bytes and it was already in the code.
+
+The four groups at `0x38` read as big-endian floats as `2048.0`, `16.0`,
+`12272.0`, `10250.0`. That is a reading, not a meaning: one session and two
+identical records give no second signal, so those four, the zero `u64`, and the
+bytes at `0x50` and `0x54` stay unnamed. They are the whole remaining debt on
+this rung, and Rust may encode them as the captured constants once the row says
+so — the handler reads none of them.
 
 ### The last three rungs are Carrier state, not messages
 
@@ -275,6 +320,71 @@ bytes was acknowledged and never delivered when sent as one datagram
 (measured 2026-09-24). The working cut is 1100 byte chunks, one chunk per
 50 Hz tick. The datagram ceiling is 1200 bytes. Above the path MTU a lost
 fragment loses the whole datagram.
+
+## The three types the replay used to have no name for
+
+`scan-wire-names.py` names a wire type by pairing it with a printable run in
+`.rdata`, and that heuristic is now **disproven**. It is not merely imprecise: it
+gives the proven `LevelInfoChangedMsg` GUID (`typeIndex[1635]`) **no name at
+all**, because that GUID has no adjacent string. So every name in
+`research/derived/wire-type-names.json` is a candidate, not an owner.
+
+The reliable method is the client's own registration hook, and it is mechanical.
+Each handled message has a lambda RTTI descriptor whose mangled name spells both
+the message and its trait:
+
+```
+.?AV<lambda_1>@?1???$InstallRegistrationHook@V<Message>@<Trait>@@@Hub@Amazon@@YA_NXZ@
+```
+
+From that descriptor the chain is fixed: `lea rax,[td]; ret` thunk →
+`.rdata` record where `rec[5]` is the thunk and `rec[4]` is the lambda body →
+the body calls a small per-message function → that function does
+`lea r11,[<guid string>]` → the dashed GUID → `typeIndex` → wire type. One parser
+copy per registration, each with its own hard-coded `lea`, which is why the GUID
+is never a 16-byte constant and why searching for the GUID as bytes finds nothing.
+
+Validated on the control: `LevelInfoChangedMsg` → `0x663`. Reproduced
+independently on `ObjectivesComponentServerFacet_UpdateTrackedObjectives` →
+`0x5b2` (TD `0x14a1d8d50`, thunk `0x1439ee500`, body `0x1439ee450` → `0x143a3da80`,
+`lea` at `0x143a3db31` → `0x148255808` = `298436a9-…`).
+
+### `CoatlicueClientMessages`, fully resolved
+
+| Member | Wire | Index |
+| --- | --- | --- |
+| `CalendarConnectedMsg` | **`0x40a`** | 1034 |
+| `CoatlicueTimingConfigurationConnectedMsg` | **`0x1be`** | 446 |
+| `DistributionManagerConnectedMsg` | `0x2b9` | 697 |
+| `MessageReceiptMsg` | `0x40b` | 1035 |
+| `State` | `0x2bd` | 701 |
+| `TerrainGlobalManagerConnectedMsg` | `0x2ae` | 686 |
+| `TractGlobalManagerConnectedMsg` | `0x288` | 648 |
+| `WorldQueryConnectedMsg` | `0x44` | 68 |
+
+Two independent routes agree. The registration walk above gives this table, and
+the seven non-`State` GUIDs sit contiguously in `.rdata` at `0x84fc998..0x84fca88`
+in exactly this member order, immediately after the `CoatlicueClientMessages::State`
+descriptor. Spot-checked by hand: the `CalendarConnectedMsg` wrapper `0x1469a5fa0`
+calls `0x146437730`, whose `lea r11,[0x1484fd998]` at `0x1464377e1` is the
+`979e13fb-…` string; the `CoatlicueTimingConfigurationConnectedMsg` wrapper
+`0x1469a6050` calls `0x146437b30`, whose `lea r11,[0x1484fd9c0]` at `0x146437be1`
+is the next string, `1e718638-…`.
+
+So the two unnamed types the replay carries at seq `0x04` and `0x05` are
+`CalendarConnectedMsg` and `CoatlicueTimingConfigurationConnectedMsg`. Both are
+76 bytes and both are server→client, which fits two "connected" notices arriving
+right after the registration response.
+
+### `0x5b2` keeps its original name
+
+`0x5b2` is `ObjectivesComponentServerFacet_UpdateTrackedObjectives` (GUID
+`298436a9-06d0-4bda-8dd9-0708b36e7374`). The 2026-10-14 note that stripped this
+name was itself the adjacency defect: the string
+`ObjectivesComponentServerFacet_UpdateTrackedObjectives` at `.rdata` `0x82547a8`
+is followed by two GUIDs, `55a7d1e9-…` (wire `0xa4d`) at `0x82547e0` and
+`298436a9-…` at `0x8254808`, and adjacency cannot say which one owns the string.
+The registration hook can, and it says `0x5b2`.
 
 ## Blocks that several messages share
 
@@ -415,25 +525,98 @@ which is consistent with the same function on the previous build, but that is
 inferred: the `8654f01d…` image is not on this machine, so the old address was
 not re-checked.
 
-What is still missing is the wire. Three separate things have to be settled
-before Rust may encode this rung:
+**The wire type is settled: `0x65c`.** Measured 2026-10-25 on build `30fe6461…`
+by walking the client's own registration hook, and validated against a control.
+The chain, every link re-checked by hand:
 
-1. **Is `0x5d1` this message at all?** The 1.460 type table slot 1489 holds
-   GUID `60a51dfc-8745-4276-976d-8808ef52cd77`, and the 1.460 registry has no
-   name for that GUID. The official 1.365 replay contains no `0x5d1` record.
-   The project also carries a competing claim: `replay_store.py` calls type
-   `0x65c` "SelfIdent" and targets a 16-byte GUID at body offset 5, and the
-   replay does contain a 12,706-byte `0x65c` record that is mostly a grid of
-   small integers and `0xffffffff` runs. That grid is a much better fit for a
-   struct holding a `std::vector<u32>` than 21 zero bytes is.
-2. **What order do the fields take on the wire?** The lab body
-   `[u32][u32 count][count x u32][u8][u64][u32]` is 21 bytes with an empty
-   vector and agrees member-for-member with the decompiled struct, but its
-   provenance is a lost `self_ident.py`. Agreement of shape is not proof of
-   order.
-3. **What does the vector carry?** It is the only variable-length member, so it
-   is what makes this message worth sending at all. Nothing in the client reads
-   the copy the handler stores, so the semantic use has not been found yet.
+| Step | Evidence |
+| --- | --- |
+| lambda TypeDescriptor | name at `0x14a15a2c0` = `.?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@`, TD `0x14a15a2b0` |
+| thunk | `0x1414f2b00` = `48 8d 05 a9 77 c6 08 c3` (`lea rax,[0x14a15a2b0]; ret`) |
+| record | `0x148012b10`, `rec[5]` = the thunk, `rec[4]` = `0x1414f2940` (the lambda body) |
+| lambda body | `0x1414f2940`: `call 0x146163290` (registry), `call 0x1416ec940` (type record), `call 0x1461aaa00` (install) |
+| GUID string | inside `0x1416ec940`, `lea r11,[rip+0x6917808]` at `0x1416ec9f1` → `0x148004200` = `169443e0-a508-4653-b437-49b7a195f69c` |
+| wire type | `typeIndex[1628]` = that GUID, and `9c 19` is prefix varint 1628 = **`0x65c`** |
 
-Until those three are settled, `flow.world-entry.rung.self-identification.body`
-stays unproven and Rust does not encode this body.
+The whole trait resolves by the same walk, and four of these six wire types had
+no name before:
+
+| Member | Wire | Index | GUID string | `lea` site |
+| --- | --- | --- | --- | --- |
+| `DebugCommandResponseMsg` | `0x66` | 102 | `0e86f8d7-3340-4396-b944-ba79385b394a` | `0x1416c91f1` |
+| `State` | `0x2f` | 47 | `c1b677cf-2812-4c22-8ce3-756e863c8d82` | `0x141701bf1` |
+| `PlayerManagerSelfIdentificationMsg` | **`0x65c`** | 1628 | `169443e0-a508-4653-b437-49b7a195f69c` | `0x1416ec9f1` |
+| `PlayerManagerRejectedMsg` | `0x65e` | 1630 | `dcb01cb8-d04a-40ea-a3af-96604fe322fb` | `0x1416ec7f1` |
+| `LevelInfoChangedMsg` | `0x663` | 1635 | `45918D03-02E7-42A4-8A30-1B205F8C37FE` | `0x1416dfff1` |
+| `RemoteConfigChangedMsg` | `0x667` | 1639 | `51a74e6c-7053-4214-a735-f6448cd66517` | `0x1416f71f1` |
+
+`PlayerManagerRejectedMsg` at `0x65e` is the natural pair for
+self-identification: the accept and the reject of the same exchange. Four of the
+six are consecutive in the index (1628, 1630, 1635, 1639), which is a second,
+independent signal that they belong to one trait.
+
+Note for anyone re-running this: `pe.va_to_foff()` is **not** `va - image_base`.
+Sections are aligned, and subtracting the base reads the wrong bytes.
+
+The whole trait resolves by the same walk, and four of these six wire types had
+no name before. Every row below was read from a `lea` inside the per-message
+type-record function, so each has its own address:
+
+| Member | Wire | Index | GUID string | `lea` site |
+| --- | --- | --- | --- | --- |
+| `DebugCommandResponseMsg` | `0x66` | 102 | `0e86f8d7-3340-4396-b944-ba79385b394a` | `0x1416c91f1` |
+| `State` | `0x2f` | 47 | `c1b677cf-2812-4c22-8ce3-756e863c8d82` | `0x141701bf1` |
+| `PlayerManagerSelfIdentificationMsg` | **`0x65c`** | 1628 | `169443e0-a508-4653-b437-49b7a195f69c` | `0x1416ec9f1` |
+| `PlayerManagerRejectedMsg` | `0x65e` | 1630 | `dcb01cb8-d04a-40ea-a3af-96604fe322fb` | `0x1416ec7f1` |
+| `LevelInfoChangedMsg` | `0x663` | 1635 | `45918D03-02E7-42A4-8A30-1B205F8C37FE` | `0x1416dfff1` |
+| `RemoteConfigChangedMsg` | `0x667` | 1639 | `51a74e6c-7053-4214-a735-f6448cd66517` | `0x1416f71f1` |
+
+Five of the six are consecutive in the index (1628, 1630, 1635, 1639 with 0x66
+and 0x2f as the two outliers), which is itself a second signal that they belong
+to one trait. `PlayerManagerRejectedMsg` at `0x65e` is the natural pair for
+self-identification: the accept and the reject of the same exchange.
+
+**Control, and the reason the old answer was wrong.** The identical method on
+`LevelInfoChangedMsg` yields `45918D03-02E7-42A4-8A30-1B205F8C37FE` →
+`typeIndex[1635]` → `0x663`, which is independently proven. That same control
+exposes the defect in `research/derived/wire-type-names.json`: it gives
+`typeIndex[1635]` **no name at all**, because it pairs a name with a GUID by
+`.rdata` adjacency, and the proven LevelInfoChanged GUID has no adjacent name.
+So `wire-type-names.json` naming `0x65c` `LastSpawnedBotCharacterId` was
+adjacency, not ownership: three names (`LastSpawnedSlice`,
+`LastSpawnedSlicePosition`, `LastSpawnedBotCharacterId`) run consecutively before
+the `169443e0` GUID. The earlier "`0x65c` is eliminated" conclusion was built on
+that heuristic and is withdrawn. `0x5d1` (GUID `60a51dfc-…`) is **not** this
+message.
+
+The lab already agreed with this and the prose did not: `levers.md` has
+`AZOTH_REPLAY_SELFIDENT_GUID`, which fills the redacted 16-byte GUID at `0x65c`
+body offset `0x05`. The code treated `0x65c` as the self-identification record
+all along.
+
+Three things are still open, and they are body questions now, not type questions:
+
+1. **The lab body is the wrong size.** The real record in the official 1.365
+   replay is 12,706 bytes (seq `0x06`, direction R). The lab carries 21 bytes
+   with an empty vector. The body is 12,702 bytes, and the model
+   `4 + 4 + 4c + 1 + 8 + 4 = 21 + 4c` gives `c = 3170.25` — off by exactly one
+   byte, so the vector layout is **not** confirmed. Something in the model is
+   missing a byte or an element is not 4 bytes wide.
+2. **What order do the fields take on the wire?** Unchanged: shape agreement is
+   not proof of order, and the only live test of the 21-byte body was the
+   two-rung burst that raised an access violation at `0x146b6f1be` on 1.400
+   (2026-09-18). It has failed once.
+3. **What does the vector carry?** Still the only variable-length member and
+   still unread by the handler. At 12.7 KB it is not a small list.
+
+Until those are settled, `flow.world-entry.rung.self-identification.body` stays
+unproven and Rust does not encode this body. Encoding the wrong 21-byte body
+under the right type id is how the 1.400 crash happened.
+
+## What actually blocks the ladder
+
+None of the above is the next step. Rung 15 is left by completing the Carrier
+actor game connection (`[carrier+0xA0] == 2`, getter `0x145A934A0`), which is a
+transport job, not a message. Self-identification belongs to the rung-17 path.
+`STATUS.md` carries the live blocker; this section records what the rung-17
+message still owes once the transport is done.

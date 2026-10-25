@@ -12,67 +12,67 @@ captured traffic. That is a rig, not the game.
 
 Client build under study: **1.460.6033.6024067** —
 `30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033`.
-That is the executable installed on this machine, measured 2026-10-25, so no
-address is newly retired. `8654f01d…` is the previous build, `1.400.6031.6004151`,
-and its addresses stay retired here.
+That is the executable installed here, measured 2026-10-25, so no address is
+newly retired. `8654f01d…` is `1.400.6031.6004151`, and its addresses stay retired.
 
-The ladder is now a numbered state machine, 4..18, read from the client's own
-state table at `0x1484fb420`, and `research/atlas/meanings.md` carries the
-complete map: every state, its transport, its wire type, its message name and
-its size. Four rungs have verified wire forms — registration (`0x13` request then
-`0x3` response), level info (`0x663`), and the spawn (`0x8`). Three are open, each
-with a named reason: the actor rung (`0xa4` is the leading candidate), the
-spawn's 48 fragment boundaries, and the presence head id.
-
-The wire-type table is honest again. `scan-wire-names.py` had been unrunnable
-since `private-client/` moved, and three naming defects on top of that gave 69
-wire types a confident wrong name; wire 449 was one, and it is `AddActorMessage`
-that belongs to slot 121. The table now names 2170 types, every lost name was a
-fragment or a neighbour's, and the hand-verified anchors still reproduce exactly.
+The ladder is a numbered state machine, 4..18, read from the client's own
+state table at `0x1484fb420`. `research/atlas/meanings.md` carries the complete
+map: every state, its transport, its wire type, its name and its size.
+`research/derived/wire-type-names.json` is **candidate only**: its adjacency
+heuristic is disproven, because it gives the proven `LevelInfoChangedMsg` GUID no
+name at all. The reliable method is the client's own registration hook, and
+`meanings.md` documents it.
 
 ## Next
 
-The last three rungs are **Carrier state, not messages**, and that closes the one
-that was blocked. The official 1.460 `Game.log` shows the client leaving
-`WaitingForActorGameConnection` on `actor game connection succeeds`, i.e. when
-`[carrier+0xA0]` reaches 2, and leaving `WaitingForSpawnPoint` on `spawn point
-found`, i.e. `[carrier+0xBC8]`. The getters are verified leaf functions at
-`0x145A934A0`, `0x145A916F0` and `0x145A934F0`.
+**Rung 15 is closed, and it closed itself.** On 2026-10-22 at 19:22 local,
+against the lab's own world at `127.0.0.1:9000` and on the same build string,
+the client walked the whole ladder without a helper:
 
-So a private server does not need a 21-byte self-identification body to pass rung
-15: it needs the Carrier actor game connection to complete. `ClientAddEntryMsg`
-(`0xa4`) carries the actor id and is a precondition for the spawn, and
-`PlayerManagerSelfIdentificationMsg` is the player manager's spawn instruction;
-neither is the transition.
+```
+17:24:52.867  WaitingForREPConnection
+17:24:54.085  start actor game connection    -> WaitingForActorGameConnection
+17:24:54.251  actor game connection succeeds -> WaitingForSpawnPoint
+17:24:54.285  spawn point found              -> WaitingForPlayerSpawn
+17:24:55.794  player spawn succeeds, in game -> InGame
+```
 
-The next real step is therefore to make the lab's Carrier reach actor-connection
-state 2, and the atlas now says which flag that is.
+It then ran **229 s in-world with no crash and no disconnect**. Evidence:
+`.azoth/logs/game-before-instance2-20261022-192626.log`.
+
+The launcher console for that run was not captured, so "the forced ladder was
+off" rests on two things: commit `608b52b` made it opt-in at 17:17 that evening,
+and the forced path kills the client at ~34 s while this one lived 229 s. The
+world's `world.log` for that window is gone, so the server half is inferred.
+
+So the Carrier acceptance flight in `rep.py` (`carrier_state_datagram`:
+CLOCK_SYNC, CONNECT_ACK, CT_ACKS) is **proven against the real client on 1.460**.
+A private server does not need a self-identification body to pass rung 15;
+`ClientAddEntryMsg` (`0xa4`) and `PlayerManagerSelfIdentificationMsg` are
+preconditions for the spawn, not the transition.
 
 ## Live run, 2026-10-25
 
 Attempted live; did not reach REP. **Auth is the wall, not the game.** Patched, the
-client dies ~20-25 s after `IapClient: 14` (benign). Unpatched, it survives to auth
-and fails: `Omni CreateSession 201, id:` empty, then `@mm_authresult_Error_Persona`.
-The gateway got config GETs and **no auth POST**. Detail: `builds.json`
-`live_run_2026_10_25_private_client`.
+client dies ~20-25 s after `IapClient: 14` (benign). Unpatched it survives to auth and
+fails: `Omni CreateSession 201, id:` empty, then `@mm_authresult_Error_Persona`, with
+config GETs but **no auth POST**. Detail: `builds.json` `live_run_2026_10_25_private_client`.
 
 ## Blocked by
 
-One blocker left, and it is a transport one:
+Auth, as above. Nothing on the world-entry ladder. What remains there is
+decompilation debt, not a blocker:
 
-1. **The Carrier actor game connection must reach state 2.** That is what moves
-the client out of rung 15. The lab has a Frida helper for the private client
-(`services/launcher/runtime-tools/frida-rep-force-ladder.py`) that forces the flag,
-but forcing it is not the same as the connection completing, so the real
-handshake is still unproven.
-
-The spawn's 48 boundaries are closed as **underdetermined**: the small variant makes
-the walk exhaustive and admits one degenerate path, so searching cannot recover
-them. The map itself is not blocked; see `research/atlas/meanings.md`.
-
-The map itself is not blocked. Every state, transport, wire type, message name
-and size is recorded in `research/atlas/meanings.md`, and the blocks several
-messages share are documented there too.
+1. `0x663` is laid out to the byte, the two captured records are identical,
+   and five field groups stay unnamed with the handler reading none of them.
+2. `flow.world-entry.rung.self-identification.body`: the wire type is settled
+   (`0x65c`, measured), but the 21-byte lab body is not the real one. The replay
+   record is 12,706 bytes and the struct model lands off by one byte.
+3. No type in the official replay is nameless any more: `0x40a` and `0x1be` are
+   `CalendarConnectedMsg` and `CoatlicueTimingConfigurationConnectedMsg`, and
+   `0x5b2` is `ObjectivesComponentServerFacet_UpdateTrackedObjectives`.
+4. The spawn's 48 boundaries are closed as **underdetermined**: the small variant
+   makes the walk exhaustive and admits one degenerate path.
 
 ## Do not
 
