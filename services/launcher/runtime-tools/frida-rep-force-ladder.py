@@ -29,11 +29,22 @@ IMAGE_BASE = 0x140000000
 # 1.400.6031.6004151 / 8654f01d...: 0x145A92370, 0x145A905C0, 0x145A923C0
 # 1.460.6033.6024067 / 30fe6461...: 0x145A934A0, 0x145A916F0, 0x145A934F0
 #
-# Each 1.460 address was located by its own displacement, and every pattern is
-# UNIQUE in the image:
-#   83 b9 a0 00 00 00 02   cmp dword [rcx+0xA0], 2     1 occurrence
-#   0f b6 81 c8 0b 00 00   movzx eax, byte [rcx+0xBC8]  1 occurrence
-#   0f b6 81 52 02 00 00   movzx eax, byte [rcx+0x252]  1 occurrence
+# Each 1.460 address is the start of a TINY LEAF FUNCTION that returns one Carrier
+# state, so `mov al,1; ret` replaces it cleanly. None of the three has a .pdata entry
+# (no stack, no frame), which is normal for a leaf and is why they cannot be found by
+# walking the function table. Verified 2026-10-25 on 30fe6461:
+#
+#   0x145A934A0  83 b9 a0 00 00 00 02   cmp dword [rcx+0xA0], 2
+#                0f 94 c0                sete al
+#                c3                      ret              -> return [rcx+0xA0] == 2
+#   0x145A916F0  0f b6 81 c8 0b 00 00   movzx eax, byte [rcx+0xBC8] ; ret
+#   0x145A934F0  0f b6 81 52 02 00 00   movzx eax, byte [rcx+0x252] ; ret
+#
+# TRAP, measured 2026-10-25: the first pattern is NOT unique. `cmp dword [rcx+0xA0], 2`
+# also occurs at 0x145AA408C inside FUN_145AA4070, followed by `jne` rather than `sete`.
+# An earlier version of this comment claimed "1 occurrence", which would let a
+# re-derivation pick the wrong site. The address below is correct; the pattern is only
+# a locator, and it needs the `0f 94 c0 c3` tail to be unambiguous.
 SITES = {
     "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e": (
         0x145A92370,

@@ -5,9 +5,10 @@
   "aliases": [
     "wire:0x8",
     "record_id 1",
-    "spawn record"
+    "spawn record",
+    "ReceiveStateBundle"
   ],
-  "summary": "The spawn record that moves the client from WaitingForPlayerSpawn (17) to InGame (18). The record and its payload layout are verified against the official replay, including the actor id and the position. The 48 internal fragment boundaries are NOT recoverable from the bytes, and that negative result is now measured rather than assumed.",
+  "summary": "The spawn record that moves the client from WaitingForPlayerSpawn (17) to InGame (18). Wire 0x8 is the state bundle, and the client's own log names it ReceiveStateBundle. The record and its payload layout are verified against the official replay, including the actor id and the position. The 48 internal fragment boundaries are closed as underdetermined.",
   "purpose": "Give the client the local player's full component state so the world appears. This is the server's only lever on where a player starts: the 1 Hz state stream that follows carries no position at all.",
   "authority": "server",
   "lifecycle": {
@@ -132,6 +133,14 @@
     {
       "type": "capture",
       "ref": "the decisive negative, measured exhaustively on the SMALL variant. The capture also carries record_id 1 at 7,167 bytes with a fragment count byte of 9, so the same walk can be run exhaustively on 9 fragments over 7,152 bytes instead of 48 over 46,375. Requiring 9 fragments, 9 distinct keys, 9 distinct types, keys <= 77 and an exact end at 7,152 yields EXACTLY ONE path, and it is degenerate: two fragments with zero-length payloads and a final fragment of 6,983 bytes. A boundary set where the last fragment is 96% of the record is not the real one. That proves the constraint set is INSUFFICIENT rather than merely expensive, and it is why this is closed until the per-type readers are read rather than searched"
+    },
+    {
+      "type": "log",
+      "ref": "the client's own log names the message: research/sessions/live_20261022_r1460_first Game.log line at 08:27:55.381 reads '[GameMessagePort] HandleUnexpectedMessage skipping ReceiveStateBundle for bundle message due to clientContext == nullptr'. So wire 0x8 is ReceiveStateBundle, and the log also shows the client skipping it when the client context does not exist yet, which is why level info must land first"
+    },
+    {
+      "type": "log",
+      "ref": "the transition out of state 17 is the Carrier spawn flag, not this message: Game.log shows 'GameConnectionWrapper: player spawn succeeds, in game' at 08:27:59.106 moving 17 to 18, and 'spawn point found' at 08:27:55.381 moving 16 to 17. The getters are 0x145A916F0 ([carrier+0xBC8]) and 0x145A934F0 ([carrier+0x252]) on build 30fe6461"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

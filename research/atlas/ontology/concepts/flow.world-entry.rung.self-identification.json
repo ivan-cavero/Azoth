@@ -5,8 +5,8 @@
   "aliases": [
     "PlayerManagerSelfIdentificationMsg"
   ],
-  "summary": "The rung between WaitingForActorGameConnection (15) and WaitingForSpawnPoint (16). The client handler PlayerManager::SelfIdentification and its decoded struct are decompiled on build 30fe6461, but that message does not appear in the official capture at all. What the capture DOES show, twice and immediately before level info, is ClientAddEntryMsg (wire 0xa4, 20 bytes) carrying the player's own 16-byte actor id.",
-  "purpose": "Client identity handshake on the REP ladder. The handler validates the game and client-SDK pointers, copies the message into the player-manager component, marks the client identified, and either spawns the player from the debug cvars or delegates the real spawn.",
+  "summary": "PlayerManagerSelfIdentificationMsg. Its client handler and decoded struct are decompiled on build 30fe6461, but the rung it was believed to drive is a Carrier state flag, not this message. Measured on the official 1.460 Game.log: the client leaves WaitingForActorGameConnection when 'actor game connection succeeds', i.e. when [carrier+0xA0] reaches 2.",
+  "purpose": "Tell the player manager to spawn the player. The handler validates the game and client-SDK pointers, copies the message into the player-manager component, marks the client identified, and either spawns from the debug cvars or delegates the real spawn to FUN_14167cc70. That places it on the spawn path, not on the actor-connection transition.",
   "authority": "server",
   "lifecycle": {
     "created_when": [
@@ -128,6 +128,18 @@
     {
       "type": "atlas",
       "ref": "OPEN QUESTION: Wire 0x5d1 remains unnamed and absent from the capture; it is not supported as this rung's type."
+    },
+    {
+      "type": "log",
+      "ref": "CORRECTION, measured 2026-10-25 on research/sessions/live_20261022_r1460_first: the rung is a Carrier flag. Game.log shows 'start actor game connection' at 08:27:55.006 moving 14 to 15, then 'actor game connection succeeds' at 08:27:55.105 moving 15 to 16. No message arrives at that instant. The three post-registration rungs read carrier state through leaf getters whose 1.460 addresses are verified: 0x145A934A0 returns [rcx+0xA0]==2, 0x145A916F0 returns [rcx+0xBC8], 0x145A934F0 returns [rcx+0x252]"
+    },
+    {
+      "type": "log",
+      "ref": "the same session logs 'Player Actor: 462E0DB5432EE8FC9FF2049C9D2FD6F9' at 08:27:59.068, immediately before 'player spawn succeeds, in game'. That is a second, independent session's 16-byte actor id, in hex, in a client log line -- a cheap anchor for any future run"
+    },
+    {
+      "type": "atlas",
+      "ref": "so the atlas no longer claims this message drives rung 15. ClientAddEntryMsg (0xa4) carries the actor id and is a precondition for the spawn; PlayerManagerSelfIdentificationMsg is the player manager's spawn instruction. Neither is the actor-connection transition"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

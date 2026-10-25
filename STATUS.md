@@ -32,35 +32,39 @@ fragment or a neighbour's, and the hand-verified anchors still reproduce exactly
 
 ## Next
 
-Settle which wire type is `PlayerManagerSelfIdentificationMsg`, and prove the
-body. The handler is done and its decoded struct is named, but the rung's wire
-side is unproven. The competing `0x65c` candidate is now **eliminated**: measured
-2026-10-25, wire `0x65c` is `LastSpawnedBotCharacterId` (slot 1628, GUID
-`169443e0-…`, name NUL-padded immediately before the GUID in `.rdata`), so the
-12,706-byte grid the replay carries is bot spawn data and the
-`AZOTH_REPLAY_SELFIDENT_GUID` lever was retargeting a bot id. What remains is
-`0x5d1`, whose type-table GUID `60a51dfc-…` is unnamed and which the replay does
-not contain at all. A new hypothesis to test: self-identification may arrive on
-the **actor game connection**, a separate GridMate connection from the REP
-channel the replay dump covers.
+The last three rungs are **Carrier state, not messages**, and that closes the one
+that was blocked. The official 1.460 `Game.log` shows the client leaving
+`WaitingForActorGameConnection` on `actor game connection succeeds`, i.e. when
+`[carrier+0xA0]` reaches 2, and leaving `WaitingForSpawnPoint` on `spawn point
+found`, i.e. `[carrier+0xBC8]`. The getters are verified leaf functions at
+`0x145A934A0`, `0x145A916F0` and `0x145A934F0`.
+
+So a private server does not need a 21-byte self-identification body to pass rung
+15: it needs the Carrier actor game connection to complete. `ClientAddEntryMsg`
+(`0xa4`) carries the actor id and is a precondition for the spawn, and
+`PlayerManagerSelfIdentificationMsg` is the player manager's spawn instruction;
+neither is the transition.
+
+The next real step is therefore to make the lab's Carrier reach actor-connection
+state 2, and the atlas now says which flag that is.
 
 ## Blocked by
 
-Two blockers, both measured, and neither is a missing idea:
+One blocker left, and it is a transport one:
 
-1. **The 15 rung needs a capture.** No live capture of a
-   `PlayerManagerSelfIdentificationMsg` exists on any build. The evidence points
-   at `ClientAddEntryMsg` (`0xa4`, 20 bytes) carrying the player's own actor id
-   twice, the second time immediately before level info, but no capture shows the
-   transition itself. A passive capture of one official login on 1.460 unblocks it.
-2. **The spawn needs 47 type readers, and searching for the boundaries is
-   closed.** The capture carries the spawn record 24 times, byte-identically, so a
-   diff yields nothing. The small variant (9 fragments, 7,152 bytes) makes the
-   same walk exhaustive, and it admits exactly one path — a degenerate one with two
-   zero-length fragments and a 6,983-byte tail. That is proof the constraints are
-   insufficient, not merely expensive, so no amount of searching will produce the
-   boundary set. A fragment carries no length; the length lives in the type's
-   reader. Serving the captured spawn verbatim stays the only option.
+1. **The Carrier actor game connection must reach state 2.** That is what moves
+the client out of rung 15. The lab has a Frida helper for the private client
+(`services/launcher/runtime-tools/frida-rep-force-ladder.py`) that forces the flag,
+but forcing it is not the same as the connection completing, so the real
+handshake is still unproven.
+
+The spawn's 48 fragment boundaries are closed as **underdetermined**, not pending:
+the small variant makes the same walk exhaustive and admits exactly one degenerate
+path, which proves no amount of searching will produce the boundary set. A
+fragment carries no length; the length lives in the type's reader.
+
+The map itself is not blocked. Every state, transport, wire type, message name
+and size is recorded in `research/atlas/meanings.md`.
 
 The map itself is not blocked. Every state, transport, wire type, message name
 and size is recorded in `research/atlas/meanings.md`, and the blocks several

@@ -137,6 +137,10 @@
     {
       "type": "log",
       "ref": "research/sessions/live_20261022_r1460_first/REPORT.md records the two transitions 100 ms apart: 'WaitingForREPConnection -> WaitingForActorGameConnection' at 08:27:55.006 and 'WaitingForActorGameConnection -> WaitingForSpawnPoint' at 08:27:55.105, which places this rung and the next one in the same tenth of a second"
+    },
+    {
+      "type": "log",
+      "ref": "PREDICTION CONFIRMED on the real build, 2026-10-25. The ficha predicted a 1.460 client should be told #[RETAIL].Javelin.1.460.6033.6024067. The official 1.460 session's Game.log shows exactly that at 08:27:54.940: 'LogEnvironmentString: Server version: [RETAIL].Javelin.1.460.6033.6024067'. Server and client versions matched because both were 1.460, which is what the earlier 1.365 capture also showed"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

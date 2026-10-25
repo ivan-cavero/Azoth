@@ -200,29 +200,66 @@ means the evidence points at it without closing it.
 | 13 | `StartREPConnection` | DTLS | client opens the socket | — | — | — | named |
 | 14 | `WaitingForREPConnection` | REP | **client sends first** | `0x13` | `RegistrationRequestV3Msg` | 2,750 | verified |
 | 14→15 | | REP | server answers | `0x3` | `RegistrationResponseMsg` | 88 | verified |
-| 15 | `WaitingForActorGameConnection` | REP | server hands over the actor id | `0xa4` | `ClientAddEntryMsg` | 20 | candidate |
-| 16 | `WaitingForSpawnPoint` | REP | server sends the level | `0x663` | `LevelInfoChangedMsg` | 110 | handler and body verified |
-| 17 | `WaitingForPlayerSpawn` | REP | server sends the spawn | `0x8` | unnamed | 46,407 | layout verified, fragments unknown |
-| 18 | `InGame` | REP | the 1 Hz state stream | `0x8` ongoing | unnamed | 7,154 | measured effect |
+| 15 | `WaitingForActorGameConnection` | Carrier | **the actor game connection reaches state 2** | — | — | — | verified |
+| 16 | `WaitingForSpawnPoint` | Carrier | `[carrier+0xBC8]` becomes set | `0x663` | `LevelInfoChangedMsg` | 110 | handler and body verified |
+| 17 | `WaitingForPlayerSpawn` | Carrier | `[carrier+0x252]` becomes set | `0x8` | `ReceiveStateBundle` | 46,407 | layout verified, fragments closed |
+| 18 | `InGame` | REP | the 1 Hz state stream | `0x8` ongoing | `ReceiveStateBundle` | 7,167 | measured effect |
 | after | presence | REP | server adds actors | `0x79` | `AddActorMessage` | — | head 16 B verified |
+
+### The last three rungs are Carrier state, not messages
+
+This is the single most important correction in this inventory, and it was in the
+client's own log the whole time. The 1.460 official session's `Game.log` shows:
+
+```
+08:27:55.006  GameConnectionWrapper: start actor game connection
+08:27:55.006  Update state WaitingForREPConnection to new state WaitingForActorGameConnection
+08:27:55.105  GameConnectionWrapper: actor game connection succeeds
+08:27:55.105  Update state WaitingForActorGameConnection to new state WaitingForSpawnPoint
+08:27:55.209  [GameMessagePort] LevelInfoChanged
+08:27:55.381  GameConnectionWrapper: spawn point found
+08:27:55.381  Update state WaitingForSpawnPoint to new state WaitingForPlayerSpawn
+```
+
+So the transition out of state 15 is the **actor game connection succeeding**, and
+the transition out of 16 is the **spawn point flag**. Three tiny leaf functions
+read those Carrier flags, and their addresses on 1.460 are verified:
+
+| Carrier flag | Address on 1.460 | Body |
+| --- | --- | --- |
+| `[carrier+0xA0] == 2` | `0x145A934A0` | `cmp dword [rcx+0xA0],2 ; sete al ; ret` |
+| `[carrier+0xBC8]` | `0x145A916F0` | `movzx eax, byte [rcx+0xBC8] ; ret` |
+| `[carrier+0x252]` | `0x145A934F0` | `movzx eax, byte [rcx+0x252] ; ret` |
+
+None of the three has a `.pdata` entry (no stack, no frame), which is normal for a
+leaf and is why walking the function table cannot find them.
+
+**What this means for the rung that was blocked.** Rung 15 is *not* a message. It
+is not `ClientAddEntryMsg` (`0xa4`), and it is not the 21-byte body the lab carries.
+A private server moves the client out of 15 by completing the Carrier actor game
+connection, which is a transport job. `PlayerManagerSelfIdentificationMsg` still
+exists and its handler still spawns the player, so it belongs to the rung-17 path,
+not to rung 15. The `0xa4` actor-id message is what tells the client WHICH actor it
+is, which is a precondition for that spawn, not the transition itself.
 
 The three rungs that are still open are open for different reasons, and the
 reason matters more than the status:
 
-- **15** — `ClientAddEntryMsg` carries the player's own 16-byte actor id and
-  arrives twice, the second time immediately before level info. That is the right
-  shape and the right position, but no capture shows the transition itself, and
-  `PlayerManagerSelfIdentificationMsg` — the trait member that names this step —
-  never appears in the replay at all.
+- **15** — **closed as a transport question.** The rung is left when the Carrier
+  actor game connection reaches state 2 (`[carrier+0xA0] == 2`, getter at
+  `0x145A934A0`), not when a message arrives. `ClientAddEntryMsg` carries the
+  player's 16-byte actor id and arrives immediately before level info, but it is a
+  precondition for the spawn rather than the transition.
 - **17** — the record and its payload layout are verified, including the actor id
-  at 29,731 and the position at 38,332/38,336. What is not recoverable from the
-  bytes is the 48 fragment boundaries, and that is a measurement, not a shrug.
+  at 29,731 and the position at 38,332/38,336. The 48 fragment boundaries are
+  closed as underdetermined; see the spawn row.
 - **presence** — `AddActorMessage` is wire `0x79`, not `0x449`, and its head is a
   proven 16-byte fixed read that is *not* proven to be an actor id.
 
 The one rung with no wire type at all is greetings, because it is a Carrier
 command rather than a message. That is the complete map: 15 states, four rungs
-with verified wire forms, three open with a named reason each.
+with verified wire forms, one rung answered by a Carrier flag, and two open with a
+named reason each.
 
 | Rung | Client state it moves | What it is | Evidence |
 | --- | --- | --- | --- |
