@@ -2,15 +2,25 @@
   "uid": "flow.world-entry.rung.spawn",
   "kind": "flow",
   "name": "Ladder: Spawn",
-  "aliases": ["wire:0x8", "record_id 1", "spawn record"],
+  "aliases": [
+    "wire:0x8",
+    "record_id 1",
+    "spawn record"
+  ],
   "summary": "The spawn record that moves the client from WaitingForPlayerSpawn (17) to InGame (18). The record and its payload layout are verified against the official replay, including the actor id and the position. The 48 internal fragment boundaries are NOT recoverable from the bytes, and that negative result is now measured rather than assumed.",
   "purpose": "Give the client the local player's full component state so the world appears. This is the server's only lever on where a player starts: the 1 Hz state stream that follows carries no position at all.",
   "authority": "server",
   "lifecycle": {
-    "created_when": ["the client is in WaitingForPlayerSpawn and has received level info"],
+    "created_when": [
+      "the client is in WaitingForPlayerSpawn and has received level info"
+    ],
     "if_absent": "the player never appears; the client stays in WaitingForPlayerSpawn with no error"
   },
-  "wire": { "id": "0x8", "direction": "S2C", "transport": "rep" },
+  "wire": {
+    "id": "0x8",
+    "direction": "S2C",
+    "transport": "rep"
+  },
   "fields": [
     {
       "name": "record_header",
@@ -86,7 +96,12 @@
       "note": "Payload offset 38,336, big-endian f32. Measured 45 2e 2b b9 = 2786.7327."
     }
   ],
-  "relations": [{ "op": "part_of", "to": "flow.world-entry" }],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
@@ -104,9 +119,16 @@
     },
     {
       "type": "decompile",
-      "ref": "negative result, measured 2026-10-25: recovering the 48 fragment boundaries from the payload was attempted as a constrained search over offsets that parse as [varint key][varint type_index] with keys <= 77. 29,721 offsets qualify, and neither a strictly-ascending-key nor a distinct-key-only walk found a 48-fragment path ending exactly at 46,393 within a 2,000,000-node budget. This reproduces the deleted crate's claim that a fragment cannot be walked from its bytes alone, and it is now a measurement rather than an assertion"
+      "ref": "negative result, measured 2026-10-25: recovering the 48 fragment boundaries from the payload was attempted as a constrained search over offsets that parse as [varint key][varint type_index] with keys <= 77. 29,721 offsets qualify, and neither a strictly-ascending-key nor a distinct-key-only walk found a 48-fragment path ending exactly at 46,393 within a 2,000,000-node budget. This reproduces the deleted crate's claim that a fragment cannot be walked from its bytes alone, and it is now a measurement rather than an assertion A second, tighter attempt used the verified actor-id anchor: any fragment header whose payload ends exactly at 29727 (the `00 00 00 02` that precedes the actor id) or at 29731 would be a real boundary. That also fails to discriminate: 1,587 offsets in a 3,000-byte window parse as a valid `[varint key][varint type]` header ending at 29727, and 1,588 end at 29731, because a one-byte key <= 77 plus a one-or-two-byte type is accepted at roughly one offset in three. The anchor therefore does not pin a boundary either."
+    },
+    {
+      "type": "atlas",
+      "ref": "why the boundary set cannot be recovered cheaply, stated once so it is not retried: the fragment header carries no length, so a walk needs each type's payload length, and that length lives only in the client's per-type reader. The deleted crate recorded 16 of the 48 keys (0, 1, 2, 4, 5, 9, 10, 12, 13, 14, 16, 19, 20, 22, 27, 29, 31, and 77 as the maximum) and truncated the rest with an ellipsis, and no commit in git history holds the full list. The remaining work is therefore to read the 47 distinct type deserializers, one per type, which is the same conclusion the deleted crate reached and is now measured rather than inherited."
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }
