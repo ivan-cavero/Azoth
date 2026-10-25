@@ -54,9 +54,9 @@ export const roadmapGroups: RoadmapGroup[] = [
     items: [
       {
         id: "E0-1",
-        label: "InGame on Azoth stack",
-        detail: "Private client reaches InGame; worldd has no replay pump — templates are temporary seeds.",
-        evidence: "docs/PLAN-backend-rust.md; server/apps/worldd",
+        label: "Client enters a world on the lab",
+        detail: "The private client can reach a world through the Python measuring rig. That rig replays a capture. It is not the authoritative server.",
+        evidence: "docs/PLAN.md; research/atlas/meanings.md",
         effort: "XL",
         state: "active",
       },
@@ -176,7 +176,7 @@ export const roadmapGroups: RoadmapGroup[] = [
       {
         id: "E4-1",
         label: "Docker compose clone path",
-        detail: "Same binaries as bare az.py dev.",
+        detail: "Same binaries as bare ef.py dev.",
         effort: "L",
         state: "planned",
       },

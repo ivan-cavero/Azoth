@@ -34,7 +34,7 @@ Every outcome is informative, which is why it is worth one run.
 Read-only apart from the query's return value. Ends through `device.kill` (hooks hot code).
 
 Usage:
-  python az.py probe frida-transform-qi-answer --wait 400 --timeout 240
+  python ef.py probe frida-transform-qi-answer --wait 400 --timeout 240
 """
 
 from __future__ import annotations

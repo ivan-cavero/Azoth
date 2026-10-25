@@ -1,7 +1,7 @@
 # Local routing and TLS
 
 `deploy/` contains the Caddy configuration, host allowlist, and private/official
-route switch. `python az.py caddy` starts Caddy; `python az.py mode status` is
+route switch. `python ef.py caddy` starts Caddy; `python ef.py mode status` is
 read-only. Changing host routing requires elevation. Read
 [`docs/ADMIN.md`](../docs/ADMIN.md) before any elevated operation.
 
@@ -11,9 +11,9 @@ read-only. Changing host routing requires elevation. Read
 - `hosts-allowlist.json` — approved names redirected in private mode.
 - `switch-mode.ps1` — applies `private`/`official` routing or checks status.
 
-`python az.py dev` runs Caddy on loopback with the gateway and world server.
+`python ef.py dev` runs Caddy on loopback with the gateway and world server.
 Its CA, certificates, and state live in ignored `.azoth/caddy/`; the binary is
-installed by `python az.py setup`.
+installed by `python ef.py setup`.
 
 ## Linux compose (server path)
 

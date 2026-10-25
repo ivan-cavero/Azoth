@@ -13,12 +13,12 @@ the decompilation "little by little" without losing track:
     function after the first import), otherwise through one-shot headless runs.
 
 Usage:
-  python az.py re campaign init                 # sync manifest -> per-build state
-  python az.py re campaign status               # per-phase coverage
-  python az.py re campaign add world-entry --target 0x146b6eb70 --note "inbound decode"
-  python az.py re campaign expand world-entry 0x146b6eb70   # + callers of that VA
-  python az.py re campaign run --phase login --batch 10
-  python az.py re campaign run                  # next pending batch from any phase
+  python ef.py re campaign init                 # sync manifest -> per-build state
+  python ef.py re campaign status               # per-phase coverage
+  python ef.py re campaign add world-entry --target 0x146b6eb70 --note "inbound decode"
+  python ef.py re campaign expand world-entry 0x146b6eb70   # + callers of that VA
+  python ef.py re campaign run --phase login --batch 10
+  python ef.py re campaign run                  # next pending batch from any phase
 
 A phase is "understood" only when its message contract and state transitions are
 in `research/atlas/` with evidence labels; done here means decompiled and

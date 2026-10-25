@@ -1,5 +1,5 @@
 {
-  "_comment": "Confirmed landmarks in NewWorld.exe build 1.400.6031.6004151. 'va' is a virtual address (image base 0x140000000). Add names only with evidence; inspect one with: python az.py re decompile --symbol <name>.",
+  "_comment": "Confirmed landmarks in NewWorld.exe build 1.400.6031.6004151. 'va' is a virtual address (image base 0x140000000). Add names only with evidence; inspect one with: python ef.py re decompile --symbol <name>.",
   "worldtype_mapper": {
     "va": "0x1417c40a0",
     "what": "Maps a string to the WorldType enum: strncmp 'FTUE' (len 4) -> 0, 'OpenWorld' (len 9) -> 1, else 2 (Unknown). Confirms the wire token is the bare 'OpenWorld', not 'eWorldType_OpenWorld'.",

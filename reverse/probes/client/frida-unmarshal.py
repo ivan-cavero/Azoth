@@ -25,8 +25,8 @@ This probe hooks FUN_1461adb90 and dumps its arguments. It is READ-ONLY: it logs
 not write memory and does not change control flow.
 
 Usage:
-  python az.py probe frida-unmarshal --timeout 600
-  python az.py probe frida-unmarshal --timeout 600 --out .azoth/logs/unmarshal.jsonl
+  python ef.py probe frida-unmarshal --timeout 600
+  python ef.py probe frida-unmarshal --timeout 600 --out .azoth/logs/unmarshal.jsonl
 """
 
 from __future__ import annotations

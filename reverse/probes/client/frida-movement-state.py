@@ -36,7 +36,7 @@ WHAT IT MEASURES, and why each part is safe:
 Read-only. Private no-EAC client. Attach BEFORE world entry.
 
 Usage:
-  python az.py probe frida-movement-state --timeout 1800 --poll 0.25
+  python ef.py probe frida-movement-state --timeout 1800 --poll 0.25
 """
 
 from __future__ import annotations

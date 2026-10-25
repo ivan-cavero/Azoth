@@ -30,7 +30,7 @@ WHAT THE RESULT MEANS
 Read-only: it hooks one function, reads two fields, writes nothing.
 
 Usage:
-  python az.py probe frida-alc-stamp --timeout 300 --poll 0.1
+  python ef.py probe frida-alc-stamp --timeout 300 --poll 0.1
 """
 
 from __future__ import annotations

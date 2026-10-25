@@ -24,7 +24,7 @@ message/event that should refresh the stamp.
 Read-only: hardware watchpoints do not modify memory. Private no-EAC client.
 
 Usage:
-  python az.py probe frida-aa8-watchpoint --timeout 900
+  python ef.py probe frida-aa8-watchpoint --timeout 900
 """
 
 from __future__ import annotations

@@ -32,7 +32,7 @@ $env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'   # the world renders + player
 $env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'           # replays 0x1096/0x1097; NOT an ALC/HUD fix
 $env:AZOTH_CHUNK_GAP_MS             = '4'           # measured default; slower 20 ms is not a fix
 $env:AZOTH_RESEND_INTERVAL_S        = '1.0'         # no post-spawn resend storm (see gate 8b)
-python az.py dev
+python ef.py dev
 
 # once: trust Caddy's CA (gate 2)
 python scripts/trust-caddy-ca.py
@@ -58,7 +58,7 @@ results. Everything below explains historical setup failures and measurements.
 that variable is not bound yet while defaults are evaluated, so the script died
 with `Cannot bind argument to parameter 'Path' because it is an empty string`
 and the client window never appeared. **pwsh 7 binds it, so the same script
-works there** — which is why the bug can hide. Both `az.py game` and
+works there** — which is why the bug can hide. Both `ef.py game` and
 `scripts/private-run.py` invoke `powershell.exe`, so the whole documented run
 path was dead. Fixed 2026-10-09 by resolving the `$RuntimeRoot` default in the
 body, after `param()`. If a run reports `FAIL: window never appeared`, check
@@ -71,7 +71,7 @@ A private run crosses five independent gates. A failure at any gate looks like
 
 | # | Gate | Working state | Failure signature |
 | --- | --- | --- | --- |
-| 1 | Host routing | `python az.py mode status` prints `in-sync` | `missing:`/`drift:` line; client reaches real AWS |
+| 1 | Host routing | `python ef.py mode status` prints `in-sync` | `missing:`/`drift:` line; client reaches real AWS |
 | 2 | **Local CA trusted** | Windows trusts Caddy's current root | client stuck at the title gate, **0 gateway rows** |
 | 3 | Services | one gateway, one world, one caddy | client answers but state never advances |
 | 4 | REP trust | DTLS handshake accepted | `@mm_csdkerr_transport_security_error (2)`, `tlsv1 alert unknown ca` |
@@ -83,17 +83,17 @@ A private run crosses five independent gates. A failure at any gate looks like
 
 ## Gate 6 is not optional, and its DEFAULT is the failing value
 
-`python az.py dev` forwards whatever `AZOTH_*` variables the **calling shell**
+`python ef.py dev` forwards whatever `AZOTH_*` variables the **calling shell**
 happens to have (this is the same trap as `AZOTH_LOG_RAW`), so a missing variable
 is not an error — it is a silently different experiment. The three below must be
-exported in the **same** shell that starts the stack, before `python az.py dev`:
+exported in the **same** shell that starts the stack, before `python ef.py dev`:
 
 ```powershell
 $env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'   # gate 6; default is 'off'
 $env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'
 $env:AZOTH_RESEND_INTERVAL_S        = '1.0'
 # leave AZOTH_CHUNK_GAP_MS unset (4 ms default) and AZOTH_REPLAY_SPLIT_SEQ unset
-python az.py dev
+python ef.py dev
 ```
 
 **These three are now the whole configuration.** The type-0x08 state stream used to be an opt-in
@@ -369,7 +369,7 @@ connection blocker; do not call input-response a cable or connection fix. See
 
 ## Gate 2 — the local CA (the silent one)
 
-**Symptom.** `python az.py status` reports gateway, world, and caddy all
+**Symptom.** `python ef.py status` reports gateway, world, and caddy all
 `running`; hosts are `in-sync`; DNS for a redirected host resolves to `127.0.0.1`
 and `::1`. The client still hangs at the "press any button" title gate and the
 gateway logs **zero** requests for the run.
@@ -544,8 +544,8 @@ one redacted 16-byte span per large state bundle. Server log evidence:
 ```
 
 **The world server must be started with this setting for a usable private run.**
-`python az.py world restart` inherits the environment of the shell that starts
-it, so export it there (or use a wrapper); `python az.py dev` started earlier
+`python ef.py world restart` inherits the environment of the shell that starts
+it, so export it there (or use a wrapper); `python ef.py dev` started earlier
 will not pick it up.
 
 ## Historical Gate 7 — input-response traffic (not the ALC red cable)
@@ -620,7 +620,7 @@ function at `0x143f983d0`; the interface is registered by name by `FUN_143f98300
 descriptor is `IPositionReceiver` at `0x1482ea920` with GUID
 `{17C00FC6-074F-47EB-9640-9743D890ED6F}`. The blocker is that **no client-side RMI target
 is an instance of it** (37063 targets, 225 distinct vtables, 0 positives). Probe:
-`python az.py probe frida-position-target`.
+`python ef.py probe frida-position-target`.
 
 `StartMovementCommunicationMsg` was re-run **reliably on channel 0** (the earlier attempt
 was unreliable on channel 1, which the client never decodes — its body was already correct
@@ -634,7 +634,7 @@ The client ships `nw_getPlayerPosition` ("print player position to the screen").
 `0x141015b30` calls **`FUN_140fddfa0(&holder)`** and prints
 `*(float*)(holder+0x14c)`, `+0x15c`, `+0x16c` — the local player position in the client's own
 format. `teleport` (handler `0x141020a40`) reaches `FUN_140fbf3b0`, so the client can also set
-its own position. Use `python az.py probe frida-player-position`; validate with
+its own position. Use `python ef.py probe frida-player-position`; validate with
 `frida-position-validate`, which calls the client's own command handler and watches its printer
 fire. Do NOT diff the `Transform` component's bytes: its head is a pointer/counter header, and
 a 4 s W-hold changes nothing there — that measures the wrong bytes.
@@ -655,7 +655,7 @@ read 0 across a whole session), so no target id can apply a position.
 
 ### The live player entity's components (measured 2026-10-12)
 
-`python az.py probe frida-player-components-full` dumps all 126 components and names them. The
+`python ef.py probe frida-player-components-full` dumps all 126 components and names them. The
 entity carries `PlayerPositionTrackingComponent` (GUID `62620B33-6F37-418B-9C4F-62AD6058D54D`),
 `CharacterComponent`, `Transform`, `TraversalComponent`, `CameraLockComponent`,
 `PlayerInputFiltersComponent`, `MotionParameterSmoothingComponent`, `PlayerAOIComponent`,
@@ -792,14 +792,14 @@ replay pacing, actual icon color, and session duration as separate results.
 Manual sequence:
 
 ```text
-1. python az.py mode status                 # expect: in-sync
+1. python ef.py mode status                 # expect: in-sync
 2. python scripts/trust-caddy-ca.py         # Gate 2; verify with Invoke-WebRequest
 3. export AZOTH_REPLAY_LOCAL_PLAYER_UUID=character   # Gate 6 (world env)
    export AZOTH_REPLAY_INPUT_RESPONSE=1              # Gate 7 (world env)
-4. python az.py dev                         # gateway + world + caddy
-5. python az.py status                      # exactly one of each
+4. python ef.py dev                         # gateway + world + caddy
+5. python ef.py status                      # exactly one of each
 6. python scripts/patch-dtls-disk.py apply  # Gate 4; no Frida
-7. python az.py game                        # launcher, no -Watch
+7. python ef.py game                        # launcher, no -Watch
 8. drive splash -> character select         # scan-code SendInput, Space = 0x39
 9. apply world-phase patches at char select # predicate flag, watchdog, ...
 10. click Jugar
@@ -859,7 +859,7 @@ is not implemented (see "Identity" below). Treat "two clients connect" and
 $env:AZOTH_REPLAY_LOCAL_PLAYER_UUID = 'character'
 $env:AZOTH_REPLAY_INPUT_RESPONSE    = '1'
 $env:AZOTH_RESEND_INTERVAL_S        = '1.0'
-python az.py dev
+python ef.py dev
 python scripts/patch-dtls-disk.py apply
 python scripts/private-run.py                       # client 1 (unchanged path)
 

@@ -377,10 +377,14 @@ type GUIDs to handlers). Not `FUN_146b70af0`.
 ```
 C: CONNECT_REQUEST (ch3 sys1)  -> S: CLOCK_SYNC(sys4) + CONNECT_ACK(sys2) + CT_ACKS(sys6)
 C: RegistrationRequestV3Msg (ch0, 832 B)  -> S: RegistrationResponseMsg (88 B)  [rep.ready 0->1]
-S: SelfIdentification (4 B, type 0x1791)  -> state ladder 10->11
+S: SelfIdentification (header 00 01 + type 0x5d1, then 21 B) -> 10->11
 S: LevelInfoChanged (0x663)               -> 12->13
 S: replica-create for the player actor    -> 13->14 (spawn)
 ```
+
+`91 17` read as a little-endian integer is `0x1791`. Under the prefix varint
+it is type `0x5d1`. Corrected 2026-10-25 from the lab encoder. The 10→11
+effect is still the external ladder note, not a new measurement.
 
 The live session does NOT follow this cleanly (see §6).
 

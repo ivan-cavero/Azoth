@@ -21,10 +21,10 @@ entity's component list - a different path. This probe answers, at runtime and r
 Read-only: it calls an existing accessor and reads memory. It writes nothing.
 
 NO UNLOAD AT THE END: `frida-agent.dll_unloaded` execute-after-unload is a measured crash source here
-(offset 0x9c7e0, reproduced many times). Leave it attached; end the client with `python az.py stop`.
+(offset 0x9c7e0, reproduced many times). Leave it attached; end the client with `python ef.py stop`.
 
 Usage:
-  python az.py probe frida-position-holder
+  python ef.py probe frida-position-holder
 """
 
 from __future__ import annotations

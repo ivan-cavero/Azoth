@@ -35,7 +35,7 @@ at all.
 Attach BEFORE world entry. Read-only, private no-EAC client.
 
 Usage:
-  python az.py probe frida-position-receiver --timeout 900 --poll 10
+  python ef.py probe frida-position-receiver --timeout 900 --poll 10
 """
 
 from __future__ import annotations

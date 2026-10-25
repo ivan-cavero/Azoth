@@ -18,9 +18,9 @@ mismatch is a hard failure. This reads files on disk and never attaches to a
 running process.
 
 Usage:
-    python az.py re pak-read selftest
-    python az.py re pak-read read Engine.pak config/game.xml --out game.xml
-    python az.py re pak-read info SharedDataStrm.pak <entry-path>
+    python ef.py re pak-read selftest
+    python ef.py re pak-read read Engine.pak config/game.xml --out game.xml
+    python ef.py re pak-read info SharedDataStrm.pak <entry-path>
 """
 
 from __future__ import annotations

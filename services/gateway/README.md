@@ -7,10 +7,10 @@ is not split into microservices.
 Start it through the root CLI:
 
 ```powershell
-python az.py gateway start
+python ef.py gateway start
 ```
 
-For the full development stack use `python az.py dev`. The supported route
+For the full development stack use `python ef.py dev`. The supported route
 behavior and traffic capture are documented in
 [`services/docs/GATEWAY.md`](../docs/GATEWAY.md). Traffic and body sidecars are
 local data and may contain private session information.

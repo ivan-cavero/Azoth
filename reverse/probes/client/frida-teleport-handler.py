@@ -35,7 +35,7 @@ Either answer is a real result. This MUTATES game state on success (it moves the
 is not read-only; say so when quoting the capture.
 
 Usage:
-  python az.py probe frida-teleport-handler --target 9400,2800,90
+  python ef.py probe frida-teleport-handler --target 9400,2800,90
 """
 
 from __future__ import annotations

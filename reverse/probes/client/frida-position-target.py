@@ -25,7 +25,7 @@ Read-only apart from the interface queries themselves (the same call the client 
 on this path anyway).
 
 Usage:
-  python az.py probe frida-position-target --timeout 300 --max-vtables 600
+  python ef.py probe frida-position-target --timeout 300 --max-vtables 600
 """
 
 from __future__ import annotations

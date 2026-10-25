@@ -15,8 +15,8 @@ resolves its profile through the Windows known-folder API, so `Game.log` and
 [`PRIVATE-CLIENT-RUNBOOK.md`](../../../research/docs/PRIVATE-CLIENT-RUNBOOK.md)
 for the full path table and the Caddy CA trust step a cold setup needs.
 
-`python az.py game` starts a hidden supervisor and stores its output in
-`.azoth/logs/`. `python az.py game status|stop|restart` manages the same process.
+`python ef.py game` starts a hidden supervisor and stores its output in
+`.azoth/logs/`. `python ef.py game status|stop|restart` manages the same process.
 The `-Watch` flow applies build-specific memory probes only after checking that
 the target PID is the project-local executable and no EAC process is active.
 Treat these as client experiments and re-derive every address when the client

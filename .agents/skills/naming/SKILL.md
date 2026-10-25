@@ -7,7 +7,7 @@ description: >-
 
 # Naming
 
-One word for one thing. The project is Everfall. The in-game resource is Azoth. The old command name `az.py` is a shim. The directory `.azoth/` is the local tool root until a dedicated migration.
+One word for one thing. The project is Everfall. Azoth is the in-game resource and the name of the local tool directory `.azoth/`. The command is `python ef.py`. Do not rename the resource. Do not add a command called `az`.
 
 ## Forms
 

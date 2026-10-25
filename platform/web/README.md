@@ -74,14 +74,14 @@ v1 source. Draft eras live in `src/data/roadmap-v2.ts` (not wired to
 Servir la web localmente (puerto propio, no el 8080 del gateway):
 
 ```bash
-python az.py web start     # http://127.0.0.1:8090  (AZOTH_WEB_PORT para otro)
-python az.py web status
-python az.py web stop
+python ef.py web start     # http://127.0.0.1:8090  (AZOTH_WEB_PORT para otro)
+python ef.py web status
+python ef.py web stop
 ```
 
 Ojo: `public/roadmap.json` y `public/live.json` se copian a `dist/` en el
 build; si editas los JSON sin rebuild, servir `dist/` mostrará la copia
-antigua. `python az.py web` sirve `dist/` — tras editar los JSON, copia:
+antigua. `python ef.py web` sirve `dist/` — tras editar los JSON, copia:
 
 ```bash
 cp platform/web/public/roadmap.json platform/web/dist/roadmap.json

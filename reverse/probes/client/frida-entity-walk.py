@@ -26,10 +26,10 @@ WHAT IT REPORTS, per distinct entity, all read-only:
     by only looking at the wire order).
 
 NO UNLOAD AT THE END: `frida-agent.dll_unloaded` execute-after-unload is a measured crash source here
-(offset 0x9c7e0). The session stays attached and the client is ended with `python az.py stop`.
+(offset 0x9c7e0). The session stays attached and the client is ended with `python ef.py stop`.
 
 Usage:
-  python az.py probe frida-entity-walk --seconds 30
+  python ef.py probe frida-entity-walk --seconds 30
 """
 
 from __future__ import annotations

@@ -30,7 +30,7 @@ Required output and acceptance criteria:
    full-coverage request, enumerate functions/ranges, track completion and
    failures, and report coverage rather than implying that a partial export is
    complete. For incremental phase work use the campaign runner
-   (`python az.py re campaign ...`): read the current phase's state, run a
+   (`python ef.py re campaign ...`): read the current phase's state, run a
    batch, review the emitted `.c` files, then grow the phase with `add` /
    `expand` from string, reflection, and xref anchors. Keep the committed
    manifest as the phase map; never edit generated state into it.

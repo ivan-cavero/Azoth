@@ -19,7 +19,7 @@ $SteamAppId = '1063730'
 # script under Windows PowerShell 5.1, though it is under pwsh 7. Measured
 # 2026-10-09: with the default inside param() the launcher dies with
 # "Cannot bind argument to parameter 'Path' because it is an empty string", and
-# the client window never appears. Both az.py and scripts/private-run.py invoke
+# the client window never appears. Both ef.py and scripts/private-run.py invoke
 # powershell.exe (5.1), so the whole documented run path was dead. Resolve the
 # default here, where $PSScriptRoot is always available.
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
@@ -64,10 +64,10 @@ $stubBuild = Join-Path $repoLauncher 'steam_stub\build.ps1'
 $privateRoot = Split-Path -Parent $RuntimeRoot
 $profileLocal = Join-Path $privateRoot 'profile\Local'
 $profileRoaming = Join-Path $privateRoot 'profile\Roaming'
-# Per-instance state: instance 1 keeps `private-client\state` (az.py reads
+# Per-instance state: instance 1 keeps `private-client\state` (ef.py reads
 # `state\game.pid` there), instance N>1 gets `state\instance-N` so the two
 # clients cannot overwrite each other's pid file or source-hash record.
-# Per-instance state: instance 1 keeps `private-client\state` (az.py reads
+# Per-instance state: instance 1 keeps `private-client\state` (ef.py reads
 # `state\game.pid` there), instance N>1 gets `state\instance-N` so the two
 # clients cannot overwrite each other's pid file or source-hash record.
 #
@@ -334,7 +334,7 @@ if ($Watch) {
     if (-not (Test-Path -LiteralPath $python)) {
         Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
-        throw 'Project Python tools are not installed. Run `python az.py setup` first.'
+        throw 'Project Python tools are not installed. Run `python ef.py setup` first.'
     }
     Write-Host '  Waiting for NewWorld.exe to map, then applying Frida patches...'
     $ready = $false

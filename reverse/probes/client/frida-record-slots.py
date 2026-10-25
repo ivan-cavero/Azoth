@@ -20,7 +20,7 @@ slot's value after the call. A record id that appears with `slotEmpty: true` onc
 Read-only. Ends through `_paths.safe_shutdown()`; `device.kill` is the default because this
 hooks a per-record function.
 
-Usage: python az.py probe frida-record-slots [--timeout 240]
+Usage: python ef.py probe frida-record-slots [--timeout 240]
 """
 
 from __future__ import annotations

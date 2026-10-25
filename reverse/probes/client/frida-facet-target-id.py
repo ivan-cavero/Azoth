@@ -33,8 +33,8 @@ Read-only: one vtable call per DISTINCT vtable (the same AZ type-id getter the c
 probe already uses), not per target.
 
 Usage:
-  python az.py probe frida-facet-target-id --find TimeComponentClientFacet
-  python az.py probe frida-facet-target-id                # dump every facet id
+  python ef.py probe frida-facet-target-id --find TimeComponentClientFacet
+  python ef.py probe frida-facet-target-id                # dump every facet id
 """
 
 from __future__ import annotations

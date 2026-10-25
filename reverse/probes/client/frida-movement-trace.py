@@ -23,7 +23,7 @@ Stages hooked (all image-base relative, build 8654f01d):
   0x146b6f190  typed-message dispatcher (InGame activity clock)
 
 Usage:
-  python az.py probe frida-movement-trace [--timeout 240]
+  python ef.py probe frida-movement-trace [--timeout 240]
 """
 
 from __future__ import annotations

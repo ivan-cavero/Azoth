@@ -26,7 +26,7 @@ for each hit, converting an unreachable-by-xref decision into an ordered call ch
 Read-only. Private no-EAC client; Steam untouched.
 
 Usage:
-  python az.py probe frida-20min-exit --timeout 1800
+  python ef.py probe frida-20min-exit --timeout 1800
 """
 
 from __future__ import annotations

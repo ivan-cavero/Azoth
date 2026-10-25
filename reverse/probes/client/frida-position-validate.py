@@ -22,7 +22,7 @@ matters for later measurements (`nw_findLocalEntity`, `nw_getPlayerHealth`, ...)
 Read-only with respect to game state: the command only prints.
 
 Usage:
-  python az.py probe frida-position-validate --timeout 120
+  python ef.py probe frida-position-validate --timeout 120
 """
 
 from __future__ import annotations

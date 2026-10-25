@@ -32,7 +32,7 @@ not a substitute.
 - Identify the build before recording a fact that depends on the binary. A VA,
   offset or wire type measured on one build is not evidence for another; record
   which build it came from in `builds.json`.
-- Gateway traffic writes `observed-endpoints.json`; run `python az.py doc` to
+- Gateway traffic writes `observed-endpoints.json`; run `python ef.py doc` to
   regenerate `openapi.json` after a play session.
 
 `client-functions.json` is hand-maintained evidence, not decompiler output.

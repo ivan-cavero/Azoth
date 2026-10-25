@@ -26,7 +26,7 @@ Interpretation:
 Read-only. Private no-EAC client.
 
 Usage:
-  python az.py probe frida-type-resolver --timeout 900
+  python ef.py probe frida-type-resolver --timeout 900
 """
 
 from __future__ import annotations

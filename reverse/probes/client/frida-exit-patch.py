@@ -29,8 +29,8 @@ is untouched, `python scripts/patch-dtls-disk.py restore` still restores everyth
 and Steam is never involved. EAC is not present in this client.
 
 Usage:
-  python az.py probe frida-exit-patch --timeout 1800
-  python az.py probe frida-exit-patch --no-patch --timeout 1800   # control
+  python ef.py probe frida-exit-patch --timeout 1800
+  python ef.py probe frida-exit-patch --no-patch --timeout 1800   # control
 """
 
 from __future__ import annotations

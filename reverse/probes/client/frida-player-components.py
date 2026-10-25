@@ -48,8 +48,8 @@ HOW the answer is obtained, in increasing order of risk:
   `FUN_1413fb700` calls for every component anyway. Guarded per call.
 
 Usage:
-  python az.py probe frida-player-components --wait 400 --timeout 1200
-  python az.py probe frida-player-components --mode getters
+  python ef.py probe frida-player-components --wait 400 --timeout 1200
+  python ef.py probe frida-player-components --mode getters
 """
 
 from __future__ import annotations

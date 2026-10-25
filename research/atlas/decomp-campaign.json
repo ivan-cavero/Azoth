@@ -1,5 +1,5 @@
 {
-  "_comment": "Decompilation campaign manifest. Phases follow the player-visible flow in research/docs/DECOMP-PLAN.md. Targets reference research/atlas/client-functions.json symbols (or VAs) so they re-resolve per build; `python az.py re campaign init` snaps them to exact .pdata ranges in the ignored per-build state. Add targets with `campaign add` / `campaign expand` as a phase's call graph grows. A phase is complete when its message contract and state transitions are in the atlas with evidence labels, not when this list looks long.",
+  "_comment": "Decompilation campaign manifest. Phases follow the player-visible flow in research/docs/DECOMP-PLAN.md. Targets reference research/atlas/client-functions.json symbols (or VAs) so they re-resolve per build; `python ef.py re campaign init` snaps them to exact .pdata ranges in the ignored per-build state. Add targets with `campaign add` / `campaign expand` as a phase's call graph grows. A phase is complete when its message contract and state transitions are in the atlas with evidence labels, not when this list looks long.",
   "phases": [
     {
       "name": "launch",

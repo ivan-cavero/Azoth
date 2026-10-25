@@ -30,7 +30,7 @@ only looked up during the world load, and attaching during the title phase has c
 client.
 
 Usage:
-  python az.py probe frida-physics-timeline --timeout 900 --snap2 30 --snap3 120
+  python ef.py probe frida-physics-timeline --timeout 900 --snap2 30 --snap3 120
 """
 
 from __future__ import annotations

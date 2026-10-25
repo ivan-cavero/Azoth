@@ -27,11 +27,11 @@ NO UNLOAD AT THE END, ON PURPOSE. `frida-agent.dll_unloaded` execute-after-unloa
 crash source in this project (offset 0x9c7e0, reproduced again on 2026-10-20 twice from the
 launcher's own DTLS patch). A read-only scan installs no hooks, but the agent still has to be
 unloaded, so this probe leaves the session attached and the process is ended deliberately
-(`python az.py stop`) once the numbers are in.
+(`python ef.py stop`) once the numbers are in.
 
 Usage:
-  python az.py probe frida-actor-transform            # all 13 captured ids + the player
-  python az.py probe frida-actor-transform --window 1024 --timeout 300
+  python ef.py probe frida-actor-transform            # all 13 captured ids + the player
+  python ef.py probe frida-actor-transform --window 1024 --timeout 300
 """
 
 from __future__ import annotations

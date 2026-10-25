@@ -1,23 +1,19 @@
-# Python services (transitional)
+# services/
 
-Authoritative runtime is `server/` (Rust). These trees are the **prototype /
-parity** path until R7 (kill Python play path).
+This is the measuring lab, not the game server.
 
-| Path | Role today | Rust owner |
-| --- | --- | --- |
-| `gateway/` | HTTPS bootstrap (Omni, CMS, getlogininfo, queue, …) | `apps/regiond` + `apps/channeld` |
-| `world/` | DTLS + REP + ladder (replay-era heritage) | `apps/worldd` + `azoth-dtls` / `azoth-wire` / `azoth-session` |
-| `launcher/` | Private client launch / patches | `platform/launcher` (skeleton) + `scripts/session` / `scripts/patch` |
+| Path | What it does today |
+| --- | --- |
+| `gateway/` | HTTP before the client opens a world: channel document, login, world list |
+| `world/` | DTLS session. It can replay a capture so the client can be watched |
+| `launcher/` | Starts the private client copy |
 
-## Rules
+`python ef.py dev` starts Caddy, the gateway, and the world. The replay is
+allowed to emit a captured body while `research/atlas/meanings.md` still
+calls that body unknown. It does not decide position, items, or currency.
 
-- Do not add long-term features only in Python when Rust already owns the plane.
-- Preserve fixtures and measured behaviours for parity tests.
-- When a Rust acceptance gate is green for a feature, mark the Python module
-  for deletion here and in STATUS — do not leave twin sources of truth.
-- Nested notes: [`AGENTS.md`](AGENTS.md).
+Channel and region HTTP stay here until their JSON fields are named the
+same way as a world message. The world process that replaces the replay
+will be Rust, one named message at a time. See `docs/PLAN.md`.
 
-## Daily loop
-
-Still started via `python az.py dev` (gateway + world + Caddy). Compose is
-Linux/CI only (ADR 0009).
+Nested notes: [`AGENTS.md`](AGENTS.md).

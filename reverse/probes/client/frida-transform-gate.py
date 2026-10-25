@@ -26,7 +26,7 @@ Read-only: it hooks three entry points and counts. Ends through `device.kill` be
 the client calls continuously (a bare detach is the measured execute-after-unload crash).
 
 Usage:
-  python az.py probe frida-transform-gate --wait 400 --timeout 240
+  python ef.py probe frida-transform-gate --wait 400 --timeout 240
 """
 
 from __future__ import annotations

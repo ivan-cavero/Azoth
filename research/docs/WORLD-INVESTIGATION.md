@@ -399,8 +399,8 @@ value that makes `Initialize` clean up the context it was just given.
 
 ## Ops / environment notes
 
-- Stack: gateway `:8080`, Caddy `:443`, world `:9000`, hosts private. `python az.py dev` for
-  gateway+world (hot reload); launch it detached. `python az.py shot` + `scripts/shrink-image.py`
+- Stack: gateway `:8080`, Caddy `:443`, world `:9000`, hosts private. `python ef.py dev` for
+  gateway+world (hot reload); launch it detached. `python ef.py shot` + `scripts/shrink-image.py`
   for screenshots (never Read the raw PNG).
 - Caddy can hang on some hosts after a restart; verify
   `https://d1w0bfy6smo4d1.cloudfront.net/prod/game/getlogininfo/jwt/omni` through `:443` (200)
@@ -414,4 +414,4 @@ value that makes `Initialize` clean up the context it was just given.
 ## Minor debt
 
 - `services/world` needs `pyOpenSSL` (the one deliberate non-stdlib dep — stdlib ssl has no DTLS).
-- After a session: `python az.py doc` (regenerate `research/atlas/openapi.json`) and commit the atlas.
+- After a session: `python ef.py doc` (regenerate `research/atlas/openapi.json`) and commit the atlas.

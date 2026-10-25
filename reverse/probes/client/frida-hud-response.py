@@ -28,8 +28,8 @@ reversible and low risk; the process is a private no-EAC client and Steam is nev
 touched.
 
 Usage:
-  python az.py probe frida-hud-response --wait 300 --timeout 900
-  python az.py probe frida-hud-response --mode poke --timeout 1200
+  python ef.py probe frida-hud-response --wait 300 --timeout 900
+  python ef.py probe frida-hud-response --mode poke --timeout 1200
 """
 
 from __future__ import annotations

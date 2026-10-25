@@ -7,8 +7,8 @@ Ghidra output is pseudocode, not matching source. Re-running resumes from
 shard index files.
 
 Usage:
-  python az.py re corpus --limit 40
-  python az.py re corpus
+  python ef.py re corpus --limit 40
+  python ef.py re corpus
 """
 
 from __future__ import annotations

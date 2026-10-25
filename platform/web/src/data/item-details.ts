@@ -33,11 +33,11 @@ export const itemDetails: Record<string, ItemDetail> = {
   // ============================================================ bootstrap milestones
   "G0.1": {
     what: "Establish one supported command entry point for setup, local lifecycle, status, and project tooling. Keep caches, runtimes, and generated analysis under repository-local ignored paths so a fresh checkout has a documented operating path.",
-    how: "Use az.py and its PowerShell launcher to route setup and development commands; keep the root README and operator docs aligned with those commands.",
+    how: "Use python ef.py for setup, the local lifecycle, and status. Keep the root README aligned with that command.",
     completion: {
       date: "2026-09-12",
-      notes: ["The project bootstrap, az.py command surface, and documented local toolchain are in place."],
-      evidence: ["README.md", "az.py", "az.ps1"],
+      notes: ["The project bootstrap, the ef.py command, and the documented local toolchain are in place."],
+      evidence: ["README.md", "ef.py"],
     },
   },
   "G0.2": {
@@ -60,7 +60,7 @@ export const itemDetails: Record<string, ItemDetail> = {
   },
   "G0.4": {
     what: "Bring up the private world endpoint over DTLS and run an authoritative server tick independently of inbound packet frequency. This is the protocol runtime foundation; client-visible ALC health and player movement are separate acceptance gates.",
-    how: "Use the world service and supported az.py lifecycle commands; keep network parsing, session state, and periodic emitters observable in logs and measurements.",
+    how: "Use the world service and supported ef.py lifecycle commands; keep network parsing, session state, and periodic emitters observable in logs and measurements.",
     completion: {
       date: "2026-10-01",
       notes: ["The Python world server accepts the private-client DTLS path and runs its own tick loop."],
@@ -780,7 +780,7 @@ export const itemDetails: Record<string, ItemDetail> = {
 
   // ============================================================ N
   N1: {
-    what: "This landing page: live stack status, deliverables timeline, the full roadmap, verification matrix, pace charts. Static Astro build served by GitHub Pages; live.json polled from the az.py lifecycle.",
+    what: "This landing page: live stack status, deliverables timeline, the full roadmap, verification matrix, pace charts. Static Astro build served by GitHub Pages; live.json polled from the ef.py lifecycle.",
     completion: {
       date: "2026-10-10",
       notes: [
@@ -838,7 +838,7 @@ export const itemDetails: Record<string, ItemDetail> = {
     links: [{ label: "ARCHITECTURE.md", href: "https://github.com/ivan-cavero/Azoth/blob/main/docs/ARCHITECTURE.md" }],
   },
   O5: {
-    what: "Deploy story: Caddy serving the site + gateway routing on a single host first; process supervision via az.py exists.",
+    what: "Deploy story: Caddy serving the site + gateway routing on a single host first; process supervision via ef.py exists.",
     how: "Public host setup; TLS; the Pages site stays the marketing face.",
   },
   O6: {

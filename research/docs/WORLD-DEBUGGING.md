@@ -13,14 +13,14 @@ cause. Do not repeat a line already closed in STATUS or the atlas.
 
 ## A valid attempt
 
-1. Check `python az.py mode status`; confirm only one gateway, world server,
+1. Check `python ef.py mode status`; confirm only one gateway, world server,
    and Caddy process is serving the test.
 2. Start a fresh private game process for each A/B variant. A failed world
    attempt destroys that process's `ClientContext`.
 3. Mark this process's `Game.log` start. Do not trust counters until the log
    shows `ProcessPendingReliableMsgQueue processing 26 messages`.
 4. Set `AZOTH_LOG_RAW=1` on the world server if the question involves packet
-   delivery or DTLS. `python az.py dev` does not inherit environment changes
+   delivery or DTLS. `python ef.py dev` does not inherit environment changes
    made in another shell.
 5. Change one variable, then capture the attempt:
 

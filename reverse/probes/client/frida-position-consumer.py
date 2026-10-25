@@ -31,7 +31,7 @@ Interpretation:
 Read-only. Private no-EAC client; Steam untouched.
 
 Usage:
-  python az.py probe frida-position-consumer --timeout 900
+  python ef.py probe frida-position-consumer --timeout 900
 """
 
 from __future__ import annotations

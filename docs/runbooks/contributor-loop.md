@@ -8,7 +8,7 @@ Day to day on Everfall. The current step is `STATUS.md`. The rebuild rule is
 ```text
 git clone <repo>
 cd <repo>
-.\az.ps1 setup          # Windows, once: pinned Python and Caddy
+python ef.py setup          # Windows, once: pinned Python and Caddy
 python ef.py doctor
 python ef.py dev        # gateway, world, Caddy
 python ef.py game       # private client

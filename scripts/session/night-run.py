@@ -87,7 +87,7 @@ def game_log_markers() -> dict[str, int]:
 def wait_for_gateway(seconds: float = 120.0) -> bool:
     """Wait until Caddy can serve the CMS manifest from the gateway.
 
-    WHY THIS EXISTS. `python az.py dev` returns as soon as it has SPAWNED the three
+    WHY THIS EXISTS. `python ef.py dev` returns as soon as it has SPAWNED the three
     services; the gateway takes another ~20-30 s to bind 127.0.0.1:8080. Launching
     the client inside that window makes Caddy answer 502 for
     `d2c74t4zimux3r.cloudfront.net/STEAM_APP_ID.1063730.json`, and the client then

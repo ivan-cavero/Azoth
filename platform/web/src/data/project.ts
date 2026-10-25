@@ -72,7 +72,7 @@ export const weeklyCommits = repoFacts.weeklyCommits;
 
 export const ganttTasks: GanttTask[] = [
   { id: "bootstrap", code: "G0.1", start: "2026-09-06", end: "2026-09-12", progress: 1, status: "done",
-    label: { es: "Bootstrap, toolchain y az.py", en: "Bootstrap, toolchain and az.py" } },
+    label: { es: "Bootstrap, toolchain y ef.py", en: "Bootstrap, toolchain and ef.py" } },
   { id: "capture", code: "G0.2", start: "2026-09-11", end: "2026-09-20", progress: 1, status: "done",
     label: { es: "Capturas de sesión oficial y Game.log", en: "Official session captures and Game.log" } },
   { id: "gateway", code: "G0.3", start: "2026-09-13", end: "2026-09-24", progress: 1, status: "done",
@@ -186,8 +186,8 @@ export const stack: StackEntry[] = [
     name: "PowerShell", state: "now",
     role: { es: "Launcher y operación en Windows", en: "Windows launcher and operations" },
     detail: {
-      es: "az.ps1 descubre la librería de Steam y orquesta az.py.",
-      en: "az.ps1 discovers the Steam library and orchestrates az.py.",
+      es: "El cliente privado arranca desde services/launcher. El comando del repo es python ef.py.",
+      en: "The private client starts from services/launcher. The repo command is python ef.py.",
     },
   },
 ];
@@ -223,8 +223,8 @@ export const versions: Version[] = [
   { tag: "v0.1", date: "2026-09-06",
     title: { es: "Arranque del proyecto", en: "Project kickoff" },
     bullets: {
-      es: ["Repositorio, entry point az.py / az.ps1", "Toolchain checksum-verified en rutas locales ignoradas"],
-      en: ["Repository, az.py / az.ps1 entry point", "Checksum-verified toolchain in ignored local paths"],
+      es: ["Repositorio y el comando python ef.py", "Toolchain checksum-verified en rutas locales ignoradas"],
+      en: ["Repository and the python ef.py command", "Checksum-verified toolchain in ignored local paths"],
     } },
   { tag: "v0.2", date: "2026-09-13",
     title: { es: "Gateway HTTP", en: "HTTP gateway" },

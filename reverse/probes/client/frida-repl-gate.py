@@ -26,7 +26,7 @@ distinct sequences were ACCEPTED, so "the stream applied" becomes falsifiable.
 Read-only: it hooks one function, reads two fields and the return value. No writes.
 
 Usage:
-  python az.py probe frida-repl-gate --timeout 120
+  python ef.py probe frida-repl-gate --timeout 120
 """
 
 from __future__ import annotations

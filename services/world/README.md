@@ -1,13 +1,15 @@
-# World server
+# World lab
 
-The world process speaks Javelin REP over UDP with DTLS 1.2. The login queue
-returns its `RepAddress`; local development defaults to `127.0.0.1:9000`.
+The world process speaks Javelin REP over UDP with DTLS 1.2. It replays a
+captured session so the client can be watched. It does not decide the game.
+The login queue returns its `RepAddress`; local development defaults to
+`127.0.0.1:9000`.
 
 ```powershell
-python az.py world start
+python ef.py world start
 ```
 
-`python az.py dev` starts the gateway and world together. The world needs
+`python ef.py dev` starts the gateway and world together. The world needs
 pyOpenSSL because Python's standard `ssl` module does not implement DTLS.
 Install it in the interpreter used for the world with
 `python -m pip install pyOpenSSL`.
@@ -33,7 +35,7 @@ component path.
 ## Useful runtime settings
 
 - `AZOTH_LOG_RAW=1` records encrypted UDP datagrams before/after DTLS. Set it
-  in the environment used to start the world process. `python az.py dev` does
+  in the environment used to start the world process. `python ef.py dev` does
   not forward changes made in another shell.
 - `AZOTH_LOG_OUTBOUND_PAYLOADS=0` disables captured plaintext server sends.
 - `AZOTH_REP_TRAFFIC_JSONL=<path>` redirects the append-only traffic log.

@@ -3,8 +3,8 @@
 Static analysis CLIs for the New World client. Prefer:
 
 ```text
-python az.py re list
-python az.py re <workflow> …
+python ef.py re list
+python ef.py re <workflow> …
 ```
 
 Layout is by kind (`corpus/`, `pe/`, `type/`, `pak/`, `wire/`, `eac/`, `ops/`).

@@ -15,13 +15,14 @@ Client build under study: **1.460.6033.6024067** —
 
 ## Next
 
-Name the fields of one world-entry rung that is still a captured blob.
-Start with self-identification (21 zero bytes) or level info (106 bytes,
-26 unexplained). Write the names into `research/atlas/meanings.md`.
+Name a field inside the 21-byte self-identification body. The 4-byte `0x1791`
+note was the header `00 01 91 17` read as a little-endian integer; those bytes
+are wire type `0x5d1`. Decompile the handler on the 1.460 build, or adopt the
+installed build first. Its SHA-256 is `8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e`.
 
 ## Blocked by
 
-Those fields have no names, so a new Rust server would only resend the capture.
+The 21-byte body still has no named field, so Rust would only resend zeros.
 
 ## Do not
 

@@ -37,7 +37,7 @@ Map layout read from `FUN_1417da460` (byte-verified decompile):
 Read-only. Private no-EAC client.
 
 Usage:
-  python az.py probe frida-rmi-targets --timeout 900 --poll 5
+  python ef.py probe frida-rmi-targets --timeout 900 --poll 5
 """
 
 from __future__ import annotations

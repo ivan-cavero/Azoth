@@ -28,7 +28,7 @@ READ-ONLY in the sense that matters: it invokes a getter the client calls itself
 console command, and reads memory. Nothing is written.
 
 Usage:
-  python az.py probe frida-player-position --timeout 600 --poll 0.25
+  python ef.py probe frida-player-position --timeout 600 --poll 0.25
 """
 
 from __future__ import annotations

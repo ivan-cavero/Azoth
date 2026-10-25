@@ -31,17 +31,17 @@ string with no direct code xref may still be used through a pointer table, so
 check that route before closing the lead.
 
 ```powershell
-python az.py re pe info
-python az.py re pe str <distinctive-text>
-python az.py re pe callers <va>
-python az.py re decompile --symbol <confirmed-name>
-python az.py re decompile --target <va>
-python az.py re decompile --callers-of <va>
-python az.py re decompile --range <start>-<end>
+python ef.py re pe info
+python ef.py re pe str <distinctive-text>
+python ef.py re pe callers <va>
+python ef.py re decompile --symbol <confirmed-name>
+python ef.py re decompile --target <va>
+python ef.py re decompile --callers-of <va>
+python ef.py re decompile --range <start>-<end>
 ```
 
-For a long investigation, `python az.py re decompile --serve` keeps the
-current Ghidra project open; send work with normal `python az.py re decompile`
+For a long investigation, `python ef.py re decompile --serve` keeps the
+current Ghidra project open; send work with normal `python ef.py re decompile`
 requests and stop it with `--stop`.
 The first import is the expensive operation. Do not repeatedly create or
 re-import the project for individual functions.
@@ -55,11 +55,11 @@ reuses the long-lived decomp server, so after the first import a batch of ten
 functions costs seconds.
 
 ```powershell
-python az.py re campaign init        # sync manifest -> per-build state
-python az.py re campaign status      # per-phase coverage
-python az.py re campaign add world-entry --target 0x146b6eb70 --note "inbound decode"
-python az.py re campaign expand world-entry 0x146b6eb70   # + callers of that VA
-python az.py re campaign run --phase login --batch 10
+python ef.py re campaign init        # sync manifest -> per-build state
+python ef.py re campaign status      # per-phase coverage
+python ef.py re campaign add world-entry --target 0x146b6eb70 --note "inbound decode"
+python ef.py re campaign expand world-entry 0x146b6eb70   # + callers of that VA
+python ef.py re campaign run --phase login --batch 10
 ```
 
 Work loop: pick a phase, run a batch, read the emitted `.c` files under
@@ -79,7 +79,7 @@ Ghidra will never recover them. That is expected, not a dead end. When a
 decompiled field or offset is the open question:
 
 1. Re-read the callers, string references, and AZ reflection metadata first
-   (`python az.py re xref`, `re strings`, `re naming`) — cheap static signals.
+   (`python ef.py re xref`, `re strings`, `re naming`) — cheap static signals.
 2. If static signals cannot settle it, escalate to the dynamic workflow in
    `.agents/prompts/live-analysis.md`: verify the EAC gate, then reuse or
    adapt an existing probe from `reverse/probes/client/`. Proven patterns:
@@ -87,7 +87,7 @@ decompiled field or offset is the open question:
    `MemoryAccessMonitor` the field range to find the writer
    (`frida-activity-timer.py` did exactly this for `+0xAA8`), or a hardware
    watchpoint on a pointer slot (`frida-mgr-watch.py`). List probes with
-   `python az.py probe list`.
+   `python ef.py probe list`.
 3. Record the confirmed type and writer back into
    `research/atlas/client-functions.json` with the probe and run as evidence.
    Never paste the runtime finding back into pseudocode as if it were source.
@@ -125,7 +125,7 @@ decompiled field or offset is the open question:
   handles compilation. The tool also handles Windows paths with parentheses.
 - Do not pipe a Ghidra import through a command that closes its output early;
   it can leave a partial project.
-- Run `python az.py setup` to install Ghidra and its JDK under ignored
+- Run `python ef.py setup` to install Ghidra and its JDK under ignored
   `.azoth/tools/`. All generated projects, pseudocode, indexes, and caches live
   under `reverse/builds/<full-executable-sha256>/` by default. Git ignores this
   directory, so each exact client build has a separate project and corpus.

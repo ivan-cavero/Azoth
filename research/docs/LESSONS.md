@@ -102,7 +102,7 @@ servers / TWO gateways ran — the client was talking to the stale one with
 old code. Cost hours across a session (worse after server restarts).
 
 **Rule:** before diagnosing behavior, enumerate processes by command line
-(`Get-CimInstance Win32_Process`) and kill duplicates. `az.py start`
+(`Get-CimInstance Win32_Process`) and kill duplicates. `ef.py start`
 windows make this easy to miss. A launcher-side "start if not running"
 guard is the structural fix.
 
@@ -125,8 +125,8 @@ not consumed anywhere.
 **Rule:** background input without stealing the user's mouse is NOT
 possible via window messages. The only channel is SendInput
 (`click-window.py`/`send-input.py`), which steals mouse+focus — ask the
-user before firing. For UI iteration, restarting the game (`az.py game`)
-is the no-steal alternative. Screenshot channel: `python az.py shot`
+user before firing. For UI iteration, restarting the game (`ef.py game`)
+is the no-steal alternative. Screenshot channel: `python ef.py shot`
 (GDI PrintWindow → `%TEMP%\azoth_shot.png`) + `shrink-image.py`.
 
 ## 12. "Services are running" is not "the client can talk" — trust is a layer
@@ -161,7 +161,7 @@ hangs it.
 1. `switch-mode.ps1 status` → in-sync?
 2. One gateway, one world, one caddy? (by command line, not memory)
 3. `python scripts/trust-caddy-ca.py --check` → caddy CA trusted?
-4. Tests green? (`az.py gateway test`, `az.py world test`)
+4. Tests green? (`ef.py gateway test`, `ef.py world test`)
 5. Is the shape I'm about to guess already decompiled — or decompilable
    in one sitting? If yes: decompile, don't guess.
 6. Does the client log what it parsed? If not, hook or raw-log it first.

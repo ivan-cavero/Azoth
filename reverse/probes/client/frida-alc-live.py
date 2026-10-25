@@ -36,7 +36,7 @@ run on the network or game thread. This probe removes that hole:
 Read-only. Private no-EAC client.
 
 Usage:
-  python az.py probe frida-alc-live --timeout 1500
+  python ef.py probe frida-alc-live --timeout 1500
 """
 
 from __future__ import annotations

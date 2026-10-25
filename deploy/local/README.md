@@ -1,6 +1,6 @@
 # Local compose (Linux / CI / prod-like — not daily Windows dev)
 
-Daily private-client work uses **`python az.py dev`** on the host
+Daily private-client work uses **`python ef.py dev`** on the host
 ([ADR 0009](../../docs/adr/0009-native-dev-vs-compose.md)).
 
 ```bash

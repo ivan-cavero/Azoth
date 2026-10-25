@@ -1,8 +1,8 @@
 # Everfall
 
-Private server for New World. The project used to be called Azoth. That name
-belongs to another preservation project (projectazoth.com), so the public name
-is Everfall. The in-game resource is still called Azoth. Do not rename it.
+Private server for New World. The public name is Everfall. An older project
+already uses Azoth (projectazoth.com). What each word refers to is in the
+Names section of `research/atlas/meanings.md`.
 
 The Rust server that lived in `server/` was deleted on 2026-10-25. It sent
 the client a ladder of captured bytes, including a 46,393 byte spawn and a
@@ -11,7 +11,7 @@ what those bytes were trying to be is `research/atlas/meanings.md`.
 
 ## What runs today
 
-`python ef.py` is the command. On a fresh Windows checkout, `.\az.ps1 setup`
+`python ef.py` is the command. On a fresh Windows checkout, `python ef.py setup`
 once installs the pinned local Python, then every later command is
 `python ef.py`. The hidden tool directory stays `.azoth/` so the existing lab
 keeps its paths.

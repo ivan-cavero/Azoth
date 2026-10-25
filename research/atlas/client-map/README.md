@@ -36,7 +36,7 @@ to evidence files. One file per player-visible phase, in order:
 
 ## Workflow
 
-1. Pick the phase in `python az.py re campaign status` with pending work.
+1. Pick the phase in `python ef.py re campaign status` with pending work.
 2. Decompile a batch, read the `.c` output under the build workspace.
 3. Write findings into the phase file with evidence links; add new function
    discoveries to the campaign phase (`campaign add` / `expand`) and confirmed

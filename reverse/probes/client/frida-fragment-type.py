@@ -10,7 +10,7 @@ fragment codec work (physics, NPCs).
 
 Read-only.
 
-Usage: python az.py probe frida-fragment-type [--timeout 120]
+Usage: python ef.py probe frida-fragment-type [--timeout 120]
 """
 
 from __future__ import annotations

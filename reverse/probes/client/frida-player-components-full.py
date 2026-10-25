@@ -22,7 +22,7 @@ WHAT THIS DOES, all read-only:
 Naming of the dumped GUIDs is done offline against `research/atlas/az-type-registry.json`.
 
 Usage:
-  python az.py probe frida-player-components-full --timeout 900 --poll 5
+  python ef.py probe frida-player-components-full --timeout 900 --poll 5
 """
 
 from __future__ import annotations

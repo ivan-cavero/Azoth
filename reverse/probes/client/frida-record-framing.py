@@ -26,7 +26,7 @@ and our parser is swallowing every record after the first.
 
 Read-only.
 
-Usage: python az.py probe frida-record-framing [--timeout 300]
+Usage: python ef.py probe frida-record-framing [--timeout 300]
 """
 
 from __future__ import annotations

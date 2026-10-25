@@ -29,7 +29,7 @@ Read-only: it calls no client function and writes no client memory. Ends through
 kill this client minutes later (frida-agent.dll execute-after-unload).
 
 Usage:
-  python az.py probe frida-fragment-vtable [--timeout 180] [--max-records 12]
+  python ef.py probe frida-fragment-vtable [--timeout 180] [--max-records 12]
 """
 
 from __future__ import annotations

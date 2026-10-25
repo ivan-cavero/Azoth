@@ -304,13 +304,13 @@ def type_table() -> dict[str, int]:
     path = ROOT / "private-client" / "runtime" / "typeindex.json"
     if not path.is_file():
         # The file is not in git (private-client/ is ignored) and there is no
-        # `az.py disk` command. The LAUNCHER copies it from the Steam install
+        # `ef.py disk` command. The LAUNCHER copies it from the Steam install
         # along with bootstrap.cfg / engine.json / PaksList.lst /
         # system_windows_pc.cfg. So build the private runtime once.
         raise SystemExit(
             "missing "
             + str(path)
-            + ": the launcher copies it from the Steam install. Build the private runtime once with `python az.py game`, then re-run this tool. Refusing to write a registry without wire types."
+            + ": the launcher copies it from the Steam install. Build the private runtime once with `python ef.py game`, then re-run this tool. Refusing to write a registry without wire types."
         )
     entries = json.loads(path.read_text(encoding="utf-8"))["typeIndex"]
     return {g.lower().replace("-", ""): i for i, g in enumerate(entries)}

@@ -24,8 +24,8 @@ connection failure. The factory is no-argument and returns a default-constructed
 be an identity matrix, so **a body appearing is the acceptance signal - not the absence of warnings**.
 
 Usage:
-  python az.py probe frida-transform-lookup --mode measure --wait 400 --timeout 300
-  python az.py probe frida-transform-lookup --mode attach --cap 40 --wait 400 --timeout 300
+  python ef.py probe frida-transform-lookup --mode measure --wait 400 --timeout 300
+  python ef.py probe frida-transform-lookup --mode attach --cap 40 --wait 400 --timeout 300
 """
 
 from __future__ import annotations

@@ -20,7 +20,7 @@ not flood the channel.
 Read-only. Private no-EAC client; Steam untouched.
 
 Usage:
-  python az.py probe frida-duration-exit --timeout 3600
+  python ef.py probe frida-duration-exit --timeout 3600
 """
 
 from __future__ import annotations

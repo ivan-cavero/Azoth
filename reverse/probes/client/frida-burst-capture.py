@@ -34,7 +34,7 @@ Read-only. Run with the Windows python (frida 17):
 
   python reverse/probes/client/frida-burst-capture.py  # use an interpreter with frida installed
 
-Usage: launch it right after `az.py game`. The client enters the world by
+Usage: launch it right after `ef.py game`. The client enters the world by
 itself 2-17 min after launch; attach within the first seconds or the burst is
 missed. `reverse/probes/client/frida-reader-capture.py` covers the socket->reader boundary.
 """

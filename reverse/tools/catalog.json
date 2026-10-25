@@ -1,7 +1,7 @@
 {
   "format": 1,
-  "entry": "python az.py re <workflow>",
-  "note": "Heavy RE CLIs. Prefer az.py re over raw paths. Folder layout under reverse/tools/<kind>/.",
+  "entry": "python ef.py re <workflow>",
+  "note": "Heavy RE CLIs. Prefer ef.py re over raw paths. Folder layout under reverse/tools/<kind>/.",
   "workflows": {
     "decompile": {
       "path": "corpus/decomp.py",

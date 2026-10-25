@@ -2,7 +2,7 @@
 """Screenshot the New World window -> PNG in the ignored project capture folder.
 
 The model cannot read raw game PNGs directly: pair with shrink-image.py.
-Usage: python az.py shot [out.png]
+Usage: python ef.py shot [out.png]
 """
 
 from __future__ import annotations

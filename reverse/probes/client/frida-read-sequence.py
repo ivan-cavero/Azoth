@@ -19,7 +19,7 @@ Hooks:
 
 Read-only.
 
-Usage: python az.py probe frida-read-sequence [--timeout 240]
+Usage: python ef.py probe frida-read-sequence [--timeout 240]
 """
 
 from __future__ import annotations

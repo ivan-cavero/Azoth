@@ -19,7 +19,7 @@ create an actor entry, and no record can bind state to it, no matter how the pay
 Read-only. Scans asynchronously with a hard byte budget so a large heap cannot hang the probe.
 
 Usage:
-  python az.py probe frida-actor-presence --actor cafebabedeadbeef0123456789abcdef
+  python ef.py probe frida-actor-presence --actor cafebabedeadbeef0123456789abcdef
 """
 
 from __future__ import annotations

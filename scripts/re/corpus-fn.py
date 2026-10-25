@@ -3,7 +3,7 @@
 
 The corpus (reverse/builds/<sha>/corpus/shards) is the bulk Ghidra pseudocode dump
 of every .pdata function. Each shard has a `.idx` line `<va>\t<status>\t<bytes>\t<shard>`.
-This is a fast reader for that; use `python az.py re decompile` when the function
+This is a fast reader for that; use `python ef.py re decompile` when the function
 is not in the corpus or you need a fresh decompile.
 
 Usage:

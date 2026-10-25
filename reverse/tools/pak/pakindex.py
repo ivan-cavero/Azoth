@@ -13,10 +13,10 @@ exactly that baseline, so a rebuild that disagrees is loud.
 Disk only. Never touches a running process.
 
 Usage:
-    python az.py re pak-index build      # index + summary
-    python az.py re pak-index stats      # summary of the db
-    python az.py re pak-index find slab  # entries by substring
-    python az.py re pak-index selftest
+    python ef.py re pak-index build      # index + summary
+    python ef.py re pak-index stats      # summary of the db
+    python ef.py re pak-index find slab  # entries by substring
+    python ef.py re pak-index selftest
 """
 
 from __future__ import annotations

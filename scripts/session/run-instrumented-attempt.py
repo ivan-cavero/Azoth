@@ -5,7 +5,7 @@ Automates the full sequence so the record-1/possession burst never escapes
 the probe window (it fires ~5 s after ClientContext::Initialize, and the
 previous runs lost it by attaching minutes later):
 
-  1. start the game via the managed launcher (python az.py game restart)
+  1. start the game via the managed launcher (python ef.py game restart)
   2. attach reverse/probes/client/frida-record1-chain.py as soon as the window exists
   3. wait for the burst markers (record1 events) or a timeout
   4. report what was captured; the user then enters the world normally
@@ -55,7 +55,7 @@ def main() -> int:
     # 1. launch
     print("[attempt] launching game (watch flow)...", flush=True)
     subprocess.Popen(
-        [str(PYTHON), "az.py", "game", "restart"],
+        [str(PYTHON), "ef.py", "game", "restart"],
         cwd=REPO, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )

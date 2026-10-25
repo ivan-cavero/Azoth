@@ -1,62 +1,82 @@
 # Everfall
 
-Everfall is a private New World server. It runs a local lab against a copy of
-the installed client: gateway, world, and the routing that lets that client
-connect.
+Everfall is a private server for New World. The stock client is the contract:
+it should enter a world because our server decided what that world is, not
+because we copied a packet we cannot explain.
 
-The game's resource is still called Azoth. This project is not that word, and
-it is not affiliated with Amazon Games.
+This is unofficial. It is not affiliated with Amazon Games.
 
-## Start here
+## The idea
 
-- [Current step](STATUS.md)
-- [What each server message means](research/atlas/meanings.md)
-- [How the real server is rebuilt](docs/PLAN.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Docs](docs/INDEX.md)
+A server tells the client what happened. It does not let the client invent
+its position, its items, or its currency. To do that we have to know what
+each message means. A captured blob is evidence of a shape. It is not a
+model of the game.
 
-## Run locally
+So the rule is: name the fields, then send the message. Until a row in
+[`research/atlas/meanings.md`](research/atlas/meanings.md) names those
+fields, the only thing allowed to emit the old bytes is the measuring lab.
+Rust does not encode an unnamed field.
 
-From the repository root, after the toolchain exists:
+The lab exists so we can watch the client. `python ef.py dev` starts three
+local programs:
 
-```powershell
+- Caddy terminates local HTTPS.
+- The gateway answers the HTTP the client uses before a world: the channel
+  document, login, and the world list.
+- The world speaks DTLS and can replay a captured session.
+
+That replay can put a client on a loading screen. It does not decide the
+game. When a meaning is written down, the real server grows by one message:
+the simulation decides, the encoder writes the named fields, and the socket
+sends the result. Crypto stays off the 20 ms tick. The stock client remains
+the test. A patched client, later, would be a second protocol beside this
+one, not a way around an unnamed field.
+
+How that server is allowed to come back is [`docs/PLAN.md`](docs/PLAN.md).
+The current step is [`STATUS.md`](STATUS.md).
+
+## Run
+
+`python ef.py` is the only command. On Windows, any Python 3.11 or newer
+can run the first setup. Setup installs the pinned interpreter, the
+virtualenv, and Caddy under `.azoth/`.
+
+```text
+python ef.py setup
+python ef.py doctor
 python ef.py dev
 python ef.py game
 python ef.py status
 python ef.py stop
 ```
 
-On a new Windows machine, install the pinned interpreter once:
+The Steam install stays read-only. The private client copy is
+`private-client/`. Logs are `.azoth/logs/`. `python ef.py setup --re` adds
+Ghidra. `python ef.py mode private` switches host routing and needs an
+elevated shell.
 
-```powershell
-.\az.ps1 setup
-```
+## Where things live
 
-`az.ps1` is that installer. It is not a second command language. After setup,
-use `python ef.py`. `python ef.py migrate` moves an older per-user workspace
-into this checkout. The Steam install stays read-only. The private client
-lands in `private-client/`. Tools and logs land in `.azoth/`.
-
-`python ef.py dev` starts Caddy, the gateway, and the world in the background.
-`python ef.py mode private` switches host routing and needs an elevated
-shell. Switch back when you are done. `python ef.py re list` lists client
-analysis workflows. `python ef.py probe list` lists live probes.
-
-## Project map
-
-| Path | Owns |
+| Path | What it is |
 | --- | --- |
-| `ef.py` | The command |
-| `az.ps1` | Windows installer for the pinned Python |
-| `services/gateway` | HTTP before the client joins a world |
-| `services/world` | DTLS lab |
-| `services/launcher` | Private client launch |
-| `platform/web` | Public site |
-| `research/atlas` | Facts and the meaning inventory |
-| `reverse/` | Static analysis and probes |
+| `ef.py`, `lab/` | The command. It starts and stops processes. It is not the game. |
+| `services/gateway` | The HTTP the client needs before it opens a world |
+| `services/world` | The DTLS measuring lab, including capture replay |
+| `services/launcher` | How the private client is started |
+| `platform/web` | The public site |
+| `research/atlas` | Facts, and the meaning inventory |
+| `reverse/` | Decompilation and live probes |
 | `deploy/` | Caddy and local certificates |
 | `scripts/` | Helpers behind `python ef.py run` |
-| `docs/` | Current guidance. History is in `docs/archive/` |
 
-There is no `server/` tree. The Rust workspace was removed on purpose. The
-rule for bringing it back is in `docs/PLAN.md`.
+There is no `server/` directory. The previous Rust tree sent captured bytes
+whose fields were not named, so it was removed. Git history still has it.
+
+## Names
+
+Everfall is this project. New World is the game. Azoth is a resource in the
+game, and it is also the previous name of this project. The local tool
+folder stays `.azoth/` so checkouts that already use it keep working. The
+Python packages `azoth_gateway` and `azoth_world` keep those import names
+for the same reason. None of those words is the server we are building.

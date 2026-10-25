@@ -14,7 +14,7 @@ ours, the layout is right; if not, the length field or the header is wrong.
 
 Read-only.
 
-Usage: python az.py probe frida-fragment-bytes [--timeout 180]
+Usage: python ef.py probe frida-fragment-bytes [--timeout 180]
 """
 
 from __future__ import annotations

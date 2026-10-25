@@ -38,7 +38,7 @@ function Test-Admin {
 function Resolve-Python {
     $python = Join-Path $ProjectRoot '.azoth\venv\Scripts\python.exe'
     if (Test-Path -LiteralPath $python) { return $python }
-    throw 'Project Python is missing. Run `python az.py setup` from the checkout first.'
+    throw 'Project Python is missing. Run `python ef.py setup` from the checkout first.'
 }
 
 function Start-DetachedProcess {

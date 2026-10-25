@@ -787,7 +787,7 @@ INBOUND_KNOWN_REQUESTS: dict[int, str] = {
     # committed capture - the capture has no gathering in it - so they are listed to make a live
     # session NAME what the player's interaction actually sends instead of logging an unknown type.
     # That naming is the measurement the roadmap item needs before any reply can be designed:
-    # `python az.py doc`/the coverage line will show which of these the client really emits when a
+    # `python ef.py doc`/the coverage line will show which of these the client really emits when a
     # tree is chopped, and their bodies can then be decoded with `parse_inbound_request`.
     #
     # Direction matters and is easy to get wrong: a `*ClientFacet_*` name is the SERVER calling the
@@ -917,7 +917,7 @@ STATE_PLAYER_FRAGMENT_BOUNDARIES = (2, 60, 3955, 4295, 4301, 4498, 5335, 5386, 7
 CAPTURED_PLAYER_POSITION = struct.pack(">ff", 9343.6416015625, 2786.732666015625)
 # THE ONE FRAGMENT THAT CARRIES THE POSITION, and its byte range in the spawn payload.
 #
-# MEASURED 2026-10-18 from the CLIENT (`python az.py probe frida-fragment-grammar
+# MEASURED 2026-10-18 from the CLIENT (`python ef.py probe frida-fragment-grammar
 # --min-fragments 20`): the 46393-byte spawn payload is a sequence of 48 fragments whose
 # boundaries the client itself reports. Fragment #35 starts at payload offset **38310** and the
 # next one starts at **38397**, so it is 87 bytes; its header is `10 0b` (key=16, type=11) and

@@ -84,7 +84,7 @@ Full rules: `.agents/skills/security/SKILL.md`.
 ## Commands
 
 ```text
-.\az.ps1 setup          # Windows, once: pinned Python
+python ef.py setup          # Windows, once: pinned Python
 python ef.py dev        # gateway + world + Caddy
 python ef.py game       # private client
 python ef.py status

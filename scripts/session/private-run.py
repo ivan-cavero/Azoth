@@ -165,7 +165,7 @@ def wait_for_log(marker: str, *, timeout: float = 300.0) -> bool:
 def state_dir(instance: int) -> Path:
     """Where the launcher writes this client's pid/source record.
 
-    Instance 1 keeps the historical `private-client/state` (az.py reads
+    Instance 1 keeps the historical `private-client/state` (ef.py reads
     `state/game.pid` there); instance N>1 gets `state/instance-N`.
     """
     base = PRIVATE / "state"

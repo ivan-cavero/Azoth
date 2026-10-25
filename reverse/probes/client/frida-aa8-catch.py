@@ -28,8 +28,8 @@ Read-only except for the access monitor's page protection; the process is the
 private no-EAC client and Steam is never touched.
 
 Usage:
-  python az.py probe frida-aa8-catch --timeout 600
-  python az.py probe frida-aa8-catch --watch 0xAA0 32 --timeout 600
+  python ef.py probe frida-aa8-catch --timeout 600
+  python ef.py probe frida-aa8-catch --watch 0xAA0 32 --timeout 600
 """
 
 from __future__ import annotations

@@ -20,7 +20,7 @@ age of the stamp and the state of the ALC pointer can be seen in one sample.
 Read-only. Private no-EAC client.
 
 Usage:
-  python az.py probe frida-hud-thresholds --timeout 120
+  python ef.py probe frida-hud-thresholds --timeout 120
 """
 
 from __future__ import annotations

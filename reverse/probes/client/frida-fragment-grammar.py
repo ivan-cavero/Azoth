@@ -25,7 +25,7 @@ Read-only. Ends through `_paths.safe_shutdown()`: a bare `session.detach()` was 
 this client minutes later with an execute-after-unload fault, and that has been mistaken for a
 client bug twice.
 
-Usage: python az.py probe frida-fragment-grammar [--timeout 240] [--record 1]
+Usage: python ef.py probe frida-fragment-grammar [--timeout 240] [--record 1]
 """
 
 from __future__ import annotations

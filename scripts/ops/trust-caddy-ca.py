@@ -66,7 +66,7 @@ exit 0
 def run(script: str) -> int:
     if not CADDY_ROOT.is_file():
         print(f"caddy root not found: {CADDY_ROOT}")
-        print("start the stack once (`python az.py dev`) so Caddy creates its PKI.")
+        print("start the stack once (`python ef.py dev`) so Caddy creates its PKI.")
         return 2
     result = subprocess.run(
         [*PS, "-Command", script.format(root=str(CADDY_ROOT))],

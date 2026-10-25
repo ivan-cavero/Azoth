@@ -19,7 +19,7 @@ every consumer in the session. The frames are RVAs, to be resolved offline with
 Read-only. Private no-EAC client.
 
 Usage:
-  python az.py probe frida-stamp-callers --timeout 300
+  python ef.py probe frida-stamp-callers --timeout 300
 """
 
 from __future__ import annotations

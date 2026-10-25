@@ -16,7 +16,7 @@ Stop if you cannot show the process was launched without EAC. Do not document a 
 
 ## Supply chain
 
-`.\az.ps1 setup` and `python ef.py setup` install pinned tools under `.azoth/`. Do not point those downloads at a mirror. If a checksum fails, stop.
+`python ef.py setup` installs pinned tools under `.azoth/`. Do not point those downloads at a mirror. If a checksum fails, stop.
 
 npm installs for the site use `platform/web/package-lock.json`. Do not pipe a remote script into a shell.
 

@@ -2,7 +2,7 @@
 
 Scalable fact store for agents. One concept = one JSON file under `concepts/`.
 Indexes under `indexes/` are generated or hand-maintained stubs until
-`az.py atlas index` exists.
+`ef.py atlas index` exists.
 
 ## Confidence ladder
 

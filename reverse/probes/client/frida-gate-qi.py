@@ -25,7 +25,7 @@ WHAT THIS PROBE DOES, all read-only
    confirmation of the comparison, not an inference from disassembly.
 
 Usage:
-  python az.py probe frida-gate-qi --wait 400 --timeout 200
+  python ef.py probe frida-gate-qi --wait 400 --timeout 200
 """
 
 from __future__ import annotations

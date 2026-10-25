@@ -39,7 +39,7 @@ Also reports the control: the position is read again with the client's own acces
 `frida-player-position.py`.
 
 Usage:
-  python az.py probe frida-teleport-test --target 9400,2800,90 --shutdown kill
+  python ef.py probe frida-teleport-test --target 9400,2800,90 --shutdown kill
 """
 
 from __future__ import annotations

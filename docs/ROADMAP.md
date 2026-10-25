@@ -1,11 +1,8 @@
 # Roadmap
 
-[`STATUS.md`](../STATUS.md) owns the current blocker and next experiment.
-[`ARCHITECTURE.md`](ARCHITECTURE.md) owns short repository boundaries and
-capacity philosophy. [`PLAN-master-platform.md`](PLAN-master-platform.md) owns
-the absolute platform/refactor/security/playable-spine vision and phase map.
-[`PLAN-backend-rust.md`](PLAN-backend-rust.md) owns Rust crate and tick
-mechanics. This file orders near-term work without repeating those references.
+The current step is [`STATUS.md`](../STATUS.md). How the server comes back is
+[`PLAN.md`](PLAN.md). The sections below are the older work order, from before
+`server/` was removed. Do not treat them as the current plan.
 
 ## Work order
 
@@ -29,14 +26,14 @@ Do not block the Rust entry/presence port; this branch is the parallel knowledge
 
 ### 1. Make daily work predictable — in progress
 
-- Use `.\az.ps1 setup` on a clean Windows checkout to install checksum-verified
-  project-local Python and tools. Then use `.\az.ps1 dev`, `.\az.ps1 game`,
-  `.\az.ps1 status`, and `.\az.ps1 stop` for lifecycle management.
+- Use `python ef.py setup` on a clean Windows checkout to install checksum-verified
+  project-local Python and tools. Then use `python ef.py dev`, `python ef.py game`,
+  `python ef.py status`, and `python ef.py stop` for lifecycle management.
 - Finish auditing the remaining operator scripts by caller and purpose; keep
   focused one-off experiments out of normal startup.
 - Keep generated tools, client profile, logs, and analysis output under ignored
   project-local directories. Never change the Steam install.
-- On this existing checkout, run `python az.py migrate` after the active game
+- On this existing checkout, run `python ef.py migrate` after the active game
   and decompiler processes close; preserve old analysis output as an archive and
   start new work in the executable-hash workspace.
 - After each experiment finds a working behavior, record why it worked, check
@@ -607,7 +604,7 @@ exists **twice**: the composed state bundle (2026-10-14) and the movement author
 ## Explicitly deferred
 
 - A full 423k-function decompilation run is explicit via
-  `python az.py re corpus`; setup never starts it in the background. The old
+  `python ef.py re corpus`; setup never starts it in the background. The old
   per-user corpus is preserved locally as an archive, not input to the new workspace.
 - Do not add a database, queue, fleet scheduler, content DSL, service split, or
   generic plugin system until an implemented feature or measured bottleneck

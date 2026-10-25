@@ -21,7 +21,7 @@ the conclusion stands. If some return non-null, they are named here.
 Read-only. Ends through `device.kill` (hooks hot code).
 
 Usage:
-  python az.py probe frida-qi-census --wait 400 --timeout 240
+  python ef.py probe frida-qi-census --wait 400 --timeout 240
 """
 
 from __future__ import annotations

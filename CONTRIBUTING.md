@@ -6,9 +6,10 @@ before you open a PR or share captures.
 
 ## What we want
 
-- Protocol facts with evidence (atlas / ontology promotions).
-- Authoritative server behaviour in Rust (`server/`) that uses domain types,
-  not new magic offsets in app code.
+- Protocol facts with evidence. A new field name lands in
+  `research/atlas/meanings.md` before any code encodes it.
+- Rust only after that file names the fields. The shape is in `docs/PLAN.md`.
+  There is no `server/` tree until then.
 - Docs that shrink chaos: short STATUS, ADRs for irreversible choices.
 - Tests and harnesses that prove a claim.
 
@@ -24,13 +25,12 @@ before you open a PR or share captures.
 
 Follow [`docs/runbooks/contributor-loop.md`](docs/runbooks/contributor-loop.md).
 
-1. `python az.py setup --core` then `python az.py doctor` (add `--re` only if
-   you need Ghidra). Purge leftovers with `python az.py setup --purge`.
+1. `python ef.py setup --core` then `python ef.py doctor` (add `--re` only if
+   you need Ghidra). Purge leftovers with `python ef.py setup --purge`.
 2. Prefer a focused branch; keep PRs reviewable.
 3. Update the atlas / ontology when you learn a wire fact — chat is not durable.
 4. Keep `STATUS.md` ≤ ~80 lines; put diaries under `docs/journal/raw/`.
-5. For Rust: put meaning in `azoth-model` (and future sim/replica); put bytes in
-   `azoth-wire`; keep DTLS inside the DTLS crate.
+5. Do not add a Rust crate for a message whose fields are still unknown.
 6. Tests must encode a **real failure mode or player-visible outcome** (ADR
    0007). No decorative getter tests.
 7. Funding ideas must follow [`docs/LEGAL.md`](docs/LEGAL.md) §Funding — no

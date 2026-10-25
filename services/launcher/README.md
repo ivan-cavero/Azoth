@@ -4,7 +4,7 @@ The current private launcher is
 [`src/Start-NwPrivate.ps1`](src/Start-NwPrivate.ps1). It prepares the ignored
 `private-client/runtime/` tree from the operator's Steam install, copies the
 executable and writable configuration files, and links the read-only assets.
-The `python az.py game` supervisor hides the launcher console and records
+The `python ef.py game` supervisor hides the launcher console and records
 lifecycle state and launcher output under `.azoth/`.
 
 Two environment facts measured 2026-10-07, both in
@@ -18,7 +18,7 @@ Two environment facts measured 2026-10-07, both in
   Caddy's current local CA before a private run. Run
   `python scripts/trust-caddy-ca.py` once after Caddy has created its PKI.
 
-`python az.py migrate` moves the previous per-user runtime/profile into those
+`python ef.py migrate` moves the previous per-user runtime/profile into those
 project-local paths. Run it once after closing the game and any Ghidra process
 using the old analysis workspace. Existing private executables are preserved;
 pass `-RefreshExe` to the PowerShell launcher only when you want a fresh copy

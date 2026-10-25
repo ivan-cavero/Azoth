@@ -150,14 +150,14 @@ Regla intacta: el roadmap NO es el tracker de trabajo (STATUS.md manda).
 
 ## 4. Estado final de la web
 
-- `http://127.0.0.1:8090` (ES) y `/en/` (EN) — `python az.py web`.
+- `http://127.0.0.1:8090` (ES) y `/en/` (EN) — `python ef.py web`.
 - Hero limpio con tarjeta de captura real del juego (Windsward, sesión del
   7 oct) — sin fondos a pantalla completa.
 - Timeline: 28 entregables con scroll horizontal, AHORA centrado al 65%.
 - Roadmap: 135 puntos en vivo, filtros TODO/HECHO/EN CURSO/PLANIFICADO/
   RESEARCH, alineación de columnas corregida.
 - Ritmo: commits reales de git, tick 50→60 Hz objetivo, 44 submundos.
-- `live.json` conectado al ciclo de vida de `az.py dev`/`az.py web`.
+- `live.json` conectado al ciclo de vida de `ef.py dev`/`ef.py web`.
 
 ---
 

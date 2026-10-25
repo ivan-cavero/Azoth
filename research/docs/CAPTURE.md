@@ -41,7 +41,7 @@ The **clear** part of auth is in `Game.log` (the client prints it). That is wort
 ## How to use it
 
 1. Close weird overlays (not the Steam overlay; that one is already in). Do not have Cheat Engine open "just in case".
-2. Run `python az.py run research/tools/capture/Start-NwCapture.ps1 -SkipStatic`
+2. Run `python ef.py run research/tools/capture/Start-NwCapture.ps1 -SkipStatic`
    (or the `.bat` next to it) for the official Steam client; add
    `-PrivateClient` when invoking `Start-NwCapture.ps1` directly for the private
    runtime. Accept the UAC prompt (pktmon needs admin).

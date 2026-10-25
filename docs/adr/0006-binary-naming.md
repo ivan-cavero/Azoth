@@ -15,7 +15,7 @@ plan already sketches public names without the suffix in the deploy diagram.
 1. **Published / CLI names:** `world`, `region`, `channel`, `ops`.
 2. **Cargo package names** may keep the `*d` suffix until the project rename
    cutover (ADR 0005) to avoid churn in `Cargo.toml` + docs mid-flight.
-3. `az.py` / compose / k8s manifests should prefer the public names once
+3. `ef.py` / compose / k8s manifests should prefer the public names once
    aliases exist (`[[bin]] name = "world"` or install-time rename).
 4. Docs written from this ADR onward say **world process** or `` `world` ``
    when speaking to operators; `worldd` is the current crate id.

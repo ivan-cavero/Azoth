@@ -42,8 +42,8 @@ Read-only with respect to game state: `lc_getTime` only prints. `--request` addi
 wire message (0x1098) the server's dispatcher already keys on.
 
 Usage:
-  python az.py probe frida-game-time --timeout 120 --poll 5
-  python az.py probe frida-game-time --request          # also press the client to ask the server
+  python ef.py probe frida-game-time --timeout 120 --poll 5
+  python ef.py probe frida-game-time --request          # also press the client to ask the server
 """
 
 from __future__ import annotations

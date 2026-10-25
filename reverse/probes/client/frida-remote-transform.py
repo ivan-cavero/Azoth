@@ -42,8 +42,8 @@ Ends through `device.kill` (this hooks hot code; a bare detach is the measured e
 crash).
 
 Usage:
-  python az.py probe frida-remote-transform --mode measure --timeout 180
-  python az.py probe frida-remote-transform --mode attach --cap 40 --timeout 180
+  python ef.py probe frida-remote-transform --mode measure --timeout 180
+  python ef.py probe frida-remote-transform --mode attach --cap 40 --timeout 180
 """
 
 from __future__ import annotations

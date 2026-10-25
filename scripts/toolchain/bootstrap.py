@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Azoth's pinned, project-local toolchain with upstream checksums."""
+"""Install Everfall's pinned, project-local toolchain with upstream checksums."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ LOCAL = ROOT / ".azoth"
 TOOLS = LOCAL / "tools"
 DOWNLOADS = LOCAL / "downloads"
 LOCK = ROOT / "toolchain.lock.json"
-USER_AGENT = "Azoth-local-toolchain-bootstrap/1"
+USER_AGENT = "Everfall-local-toolchain-bootstrap/1"
 
 
 def read_json(url: str) -> Any:
@@ -289,12 +289,15 @@ def main() -> int:
         print(
             "Windows bootstrap only today. Linux server builds use system packages "
             "+ Docker (see docs/PLAN-master-platform.md §0D). "
-            "Run `python az.py doctor` for a checklist.",
+            "Run `python ef.py doctor` for a checklist.",
             file=sys.stderr,
         )
         return 2
     if sys.version_info < (3, 11):
-        print("Run `./az.ps1 setup` to install the locked project-local Python runtime.", file=sys.stderr)
+        print(
+            "Python 3.11 or newer is required. Install one, then run `python ef.py setup`.",
+            file=sys.stderr,
+        )
         return 2
 
     profile, with_re, purge_only = _profile(argv)

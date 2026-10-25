@@ -238,7 +238,7 @@ unnamed, and the server's own name table marks it `(name unverified)`.
 * The dispatcher's answers: `event: inbound-answer`, `inbound-time-target-learned`,
   `inbound-dispatcher-owned`.
 * The client's own in-game time and day phase: `reverse/probes/client/frida-game-time.py`
-  (`python az.py probe frida-game-time`), which runs the client's own `lc_getTime` command and
+  (`python ef.py probe frida-game-time`), which runs the client's own `lc_getTime` command and
   reads its printed values.
 * The negative result and the four-condition table:
   `research/sessions/session-20261014T1354Z-authoritative-effect-negative/` (`REPORT.md`,

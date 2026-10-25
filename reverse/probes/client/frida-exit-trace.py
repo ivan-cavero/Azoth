@@ -31,8 +31,8 @@ component exists, that alone would explain why resetting the field did not help.
 Read-only except for the optional reset. Private runtime only; EAC is never involved.
 
 Usage:
-  python az.py probe frida-exit-trace --wait 400 --timeout 1800
-  python az.py probe frida-exit-trace --reset-field   # also keep +0xAA8 fresh
+  python ef.py probe frida-exit-trace --wait 400 --timeout 1800
+  python ef.py probe frida-exit-trace --reset-field   # also keep +0xAA8 fresh
 """
 
 from __future__ import annotations

@@ -21,7 +21,7 @@ one function; if they differ, the answer is per-job.
 Read-only. Ends through `device.kill` (it hooks code the client runs continuously).
 
 Usage:
-  python az.py probe frida-gate-vtables --wait 400 --timeout 200
+  python ef.py probe frida-gate-vtables --wait 400 --timeout 200
 """
 
 from __future__ import annotations

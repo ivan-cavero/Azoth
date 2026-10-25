@@ -14,8 +14,8 @@ Industry default for app code: **native process + containerized dependencies**.
 
 ## Decision
 
-1. **Day-to-day development (Windows):** `python az.py setup --core`,
-   `python az.py doctor`, `python az.py dev` (+ `python az.py game`).
+1. **Day-to-day development (Windows):** `python ef.py setup --core`,
+   `python ef.py doctor`, `python ef.py dev` (+ `python ef.py game`).
    Gateway/world/Caddy are host processes. Logs under `.azoth/logs/`.
 2. **Compose (`deploy/local/compose.yml`):** Linux server images for CI,
    clone-on-Linux, and production-like smoke — **not** the default edit loop

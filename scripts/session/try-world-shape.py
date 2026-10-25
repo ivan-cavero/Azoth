@@ -6,8 +6,8 @@ run (~2 min) because the panel only consumes getlogininfo at login: hot-swapping
 the override and waiting for the next poll does NOT re-render it.
 
 Usage:
-  python az.py shape /path/to/body.json
-  python az.py shape /path/to/raw-response.bin --raw
+  python ef.py shape /path/to/body.json
+  python ef.py shape /path/to/raw-response.bin --raw
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def restart_game() -> None:
     if not python.is_file():
         python = Path(sys.executable)
     subprocess.run(
-        [str(python), str(REPO / "az.py"), "game", "restart"],
+        [str(python), str(REPO / "ef.py"), "game", "restart"],
         check=True,
         cwd=REPO,
     )

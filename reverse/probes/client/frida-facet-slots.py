@@ -37,7 +37,7 @@ Read-only. It never writes to the target and never calls a function pointer that
 probe does not already call.
 
 Usage:
-  python az.py probe frida-facet-slots --timeout 300
+  python ef.py probe frida-facet-slots --timeout 300
 """
 
 from __future__ import annotations

@@ -9,7 +9,7 @@ two logs were read at different times, in different units, with different greps:
 * `Game.log` timestamps are UTC; `.azoth/logs/world.log` JSON `ts` is UTC; local wall
   clock is +02:00. Comparing them by eye produced two wrong conclusions.
 * `services/world/rep_traffic.jsonl` (what `log_event` writes) and
-  `.azoth/logs/world.log` (the child's stdout, which `az.py` captures) are DIFFERENT
+  `.azoth/logs/world.log` (the child's stdout, which `ef.py` captures) are DIFFERENT
   files. Reading only the second one once made it look like the server had been
   silent for 40 minutes when in fact the file had simply stopped being written.
 * Measuring 2 minutes after entering the world misses a disconnect at ~44 s and

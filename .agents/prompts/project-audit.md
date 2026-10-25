@@ -23,16 +23,16 @@ Known risks from the last session:
    paths, or out-of-repo state to build, test, or run: search for `AppData`,
    `%LOCALAPPDATA%`, `C:\Users`, and hardcoded absolute paths. The only
    allowed references are: documented Windows shell variables for official
-   client data (`Game.log`), the one-time `python az.py migrate`, and the
+   client data (`Game.log`), the one-time `python ef.py migrate`, and the
    launcher redirecting env vars into `private-client/`.
 3. **Broken references.** Extract every path mentioned in docs, scripts, and
    JSON, and verify the target exists. Pay special attention to tools deleted
    in the last refactor: a doc that cites a removed script either gets its
    pointer updated or the script comes back. Bare filenames used as shorthand
    are acceptable only when unambiguous within the doc.
-4. **Entry-point coherence.** `az.py` / `az.ps1` must cover the documented
-   operations (setup, migrate, dev, game, status, re, probe, run, doc) and no
-   second supervisor or launcher script may exist outside it.
+4. **Entry-point coherence.** `python ef.py` is the only command. It covers
+   setup, migrate, dev, game, status, re, probe, run, and doc. No second
+   supervisor (`az.py`, `az.ps1`, or another launcher at the repo root) may exist.
 5. **Test readiness.** Run the existing unittest suites
    (`services/gateway/tests`, `services/world/tests`) and any others reachable
    through the documented commands. Every suite must pass without manual

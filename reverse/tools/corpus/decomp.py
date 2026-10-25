@@ -24,12 +24,12 @@ project database. `--serve` keeps that JVM open: the first open is still
 slow, every later function is a file drop in the queue (~seconds).
 
 Usage:
-  python az.py re decompile --serve
-  python az.py re decompile --symbol worldtype_mapper
-  python az.py re decompile --target 0x144ad6e70 --out functions/target.c
-  python az.py re decompile --callers-of 0x1417c40a0
-  python az.py re decompile --stop
-  python az.py re decompile --selftest
+  python ef.py re decompile --serve
+  python ef.py re decompile --symbol worldtype_mapper
+  python ef.py re decompile --target 0x144ad6e70 --out functions/target.c
+  python ef.py re decompile --callers-of 0x1417c40a0
+  python ef.py re decompile --stop
+  python ef.py re decompile --selftest
 """
 
 from __future__ import annotations
@@ -135,9 +135,9 @@ def check_install() -> list[str]:
     problems = []
     g = ghidra_paths()
     if not g["headless"].is_file():
-        problems.append(f"Ghidra headless not found: {g['headless']} (run `python az.py setup`)")
+        problems.append(f"Ghidra headless not found: {g['headless']} (run `python ef.py setup`)")
     if not (g["jdk"] / "bin" / "javac.exe").is_file():
-        problems.append(f"JDK javac not found under {g['jdk']} (run `python az.py setup`)")
+        problems.append(f"JDK javac not found under {g['jdk']} (run `python ef.py setup`)")
     if not JAVA_SRC.is_file():
         problems.append(f"script source missing: {JAVA_SRC}")
     return problems

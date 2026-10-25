@@ -6,7 +6,7 @@ ontology uid and atlas fact — nothing anonymous.
 
 ## Preconditions
 
-- Branch reorg landed; `python az.py doctor` core OK.
+- Branch reorg landed; `python ef.py doctor` core OK.
 - Build SHA pinned in `STATUS.md` / `research/atlas/builds.json`.
 - Private client available; EAC state verified (Azoth launch without EAC —
   still verify). No Frida while uncertain.
@@ -45,5 +45,5 @@ ontology uid and atlas fact — nothing anonymous.
 ## After this campaign
 
 Resume Rust domain lift: compose spawn from model, enter world with practices
-in ADR 0007 / server AGENTS — still via **`az.py dev`**, not Compose
+in ADR 0007 / server AGENTS — still via **`ef.py dev`**, not Compose
 (ADR 0009).
