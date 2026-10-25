@@ -20,6 +20,7 @@
       "msg.add-actor",
       "msg.client-add-entry",
       "msg.fragment-update",
+      "msg.periodic-counter",
       "msg.replicate",
       "msg.replicate-client",
       "msg.spawn-actors",

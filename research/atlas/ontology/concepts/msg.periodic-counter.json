@@ -1,0 +1,88 @@
+{
+  "uid": "msg.periodic-counter",
+  "kind": "message",
+  "name": "unnamed periodic counter message",
+  "aliases": ["wire:0x18a6"],
+  "summary": "A 40-byte message whose body is identical across its four captured instances except the last byte, which counts 01, 02, 03, 04. It is a keepalive, not an event, and it shares its tail envelope with LevelInfoChangedMsg.",
+  "purpose": "Keep the session alive on a timer. The incrementing final byte is a sequence number, which is what a keepalive needs and what an event does not.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["periodically while the client is in or entering the world"],
+    "if_absent": "unknown; a keepalive that stops is the usual cause of a silent disconnect, which is consistent with the lab's observed 10 s drop after silence"
+  },
+  "wire": { "id": "0x18a6", "direction": "S2C", "transport": "rep" },
+  "fields": [
+    {
+      "name": "typed_header",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 4,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Measured 00 01 a6 62: the typed envelope plus the prefix varint a6 62 = 0x18a6."
+    },
+    {
+      "name": "unresolved_id_at_0x04",
+      "where": "wire",
+      "offset": "0x04",
+      "size": 16,
+      "status": "candidate",
+      "note": "Measured f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a, identical in all four instances. As a GUID with the first three fields little-endian it is 57EDCBF8-8BC6-F418-BF85-314BBC4A951A. It is NOT the player's actor id (1a954abc4b3185bfbe37c3d8592618e0), so it names something else."
+    },
+    {
+      "name": "flags_at_0x14",
+      "where": "wire",
+      "offset": "0x14",
+      "size": 4,
+      "status": "candidate",
+      "note": "Measured 01 01 00 00, the same four bytes that open the level-info tail. Shared envelope, meaning unknown."
+    },
+    {
+      "name": "session_nonce",
+      "where": "wire",
+      "offset": "0x18",
+      "size": 8,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Measured 9c fa 58 61 78 14 69 f2, the SAME value that LevelInfoChangedMsg carries at 0x54. Two different message types sharing a value is the strongest kind of field evidence in this inventory, and the value differs per session rather than per record, which is why it is called a session nonce."
+    },
+    {
+      "name": "unresolved_tag_at_0x20",
+      "where": "wire",
+      "offset": "0x20",
+      "size": 6,
+      "status": "candidate",
+      "note": "Measured 65 03 00 00 00 00, also present at the same place in the level-info tail. 65 03 00 00 is 869 as a little-endian u32, which reads like a version or protocol tag; unproven."
+    },
+    {
+      "name": "sequence_counter",
+      "where": "wire",
+      "offset": "0x26",
+      "size": 1,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "The last byte of the record. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order. The byte before it is 0x02 in all four instances."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.world-entry" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "records 0xb_T0x18a6_R.bin, 0x38_T0x18a6_R.bin, 0x53_T0x18a6_R.bin and 0x68_T0x18a6_R.bin, 40 bytes each, at seq 0x0b, 0x38, 0x53 and 0x68. Their bodies are byte-identical except the final byte, which is 01, 02, 03, 04 in that order"
+    },
+    {
+      "type": "capture",
+      "ref": "the 8-byte value 9c fa 58 61 78 14 69 f2 sits at offset 0x18 here and at 0x54 in the level-info record 0x10_T0x663_R.bin, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/derived/wire-type-names.json reports no name for slot 6310, and a direct dump of that GUID's surroundings shows only pointer qwords before it, so the name is not recoverable from .rdata adjacency and this concept stays unnamed on purpose"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

@@ -239,6 +239,62 @@ bytes was acknowledged and never delivered when sent as one datagram
 50 Hz tick. The datagram ceiling is 1200 bytes. Above the path MTU a lost
 fragment loses the whole datagram.
 
+## Blocks that several messages share
+
+Some byte runs repeat across different message types. A shared run means two
+messages are talking about the same object, so it is stronger evidence than a
+single record's layout: the same value cannot be coincidence when it appears in
+types with different headers.
+
+Three blocks are measured, and each is an unnamed field until someone names it.
+
+### The 8-byte session nonce
+
+`9c fa 58 61 78 14 69 f2` appears in two different messages, at the same relative
+position after a 4-byte flag group:
+
+| Message | Flags | Nonce | What follows |
+| --- | --- | --- | --- |
+| `0x663` level info, at `0x50` | `01 01 00 00` | the nonce | `65 03 00 00 00 00 01 01 01 00` then the 8-byte context key |
+| `0x18a6`, at `0x14` | `01 01 00 00` | the same nonce | `65 03 00 00 00 00 02 <counter>` |
+
+So the tail of both messages is `[4 flag bytes][8-byte nonce][65 03 00 00 00 00]
+[discriminator]`, and the discriminator decides what follows. `65 03 00 00` is
+`869` as a little-endian `u32`, which reads like a version or protocol tag; that
+is a candidate, not a name.
+
+### `0x18a6` is a periodic counter
+
+Four instances, 40 bytes each, at seq `0x0b`, `0x38`, `0x53` and `0x68`. The body
+is identical except the **last byte**, which increments: `01`, `02`, `03`, `04`.
+That is a sequence number, so this is a keepalive rather than an event. Its
+16-byte id is `f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a`, which is **not**
+the player's actor id; as a GUID with the first three fields little-endian it is
+`57EDCBF8-8BC6-F418-BF85-314BBC4A951A`.
+
+### The 36-byte identity block and the `58 61 78 14` tag
+
+`0x40a` and `0x1be` are both 76 bytes and differ only in their first 40; bytes
+40..76 are **byte-identical**, and the same 36 bytes appear inside `0x65c` at
+offset 57. The layout is the same in all three:
+
+```
+[4-byte tag 58 61 78 14][32 bytes][36-byte shared block]
+```
+
+`0x40a`: tag at 4, block at 40. `0x1be`: tag at 4, block at 40. `0x65c`: tag at
+21, block at 57. The 36-byte block is
+`cb d4 a1 8a 40 42 c7 ee a4 62 98 c7 49 9b a8 26 ef 53 39 aa 29 70 e2 83 fc f3
+4b 6f 8f 07 86 d6 8b f3 ae 45`, and the tag is the same 4 bytes in all three. A
+private server that echoes a captured record keeps these consistent for free; one
+that composes messages has to know what they are, and nobody does yet.
+
+### `0x651` is a message with no body
+
+One instance, 4 bytes: `00 01 91 19`. That is the typed header and nothing else,
+so its body is zero length. A message that carries no data is a signal, and at seq
+`0x07` it sits between the registration rungs and the rest of the handshake.
+
 ## Presence
 
 **The wire type was wrong, and that is now fixed at the source.** `AddActorMessage`

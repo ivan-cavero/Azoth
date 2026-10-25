@@ -68,12 +68,13 @@
       "note": "Measured 01 01 00 00. The project's previous parse read the first two as level_is_loading and in_game; that reading is not proven by the decompile."
     },
     {
-      "name": "unresolved_nonce_at_0x54",
+      "name": "session_nonce",
       "where": "wire",
       "offset": "0x54",
       "size": 8,
-      "status": "candidate",
-      "note": "8 bytes that differ per record (9c fa 58 61 78 14 69 f2 on the measured one). Not read by the handler."
+      "status": "verified",
+      "note": "Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record.",
+      "evidence": "capture"
     },
     {
       "name": "unresolved_group_at_0x5c",
@@ -251,6 +252,10 @@
     {
       "type": "decompile",
       "ref": "the decoded struct is 0xb0 bytes and its member list was read from the copy constructor, not guessed: read from the copy constructor FUN_146403a70, which the handler calls to clone the message before storing it"
+    },
+    {
+      "type": "capture",
+      "ref": "cross-message confirmation of the tail envelope: the level-info tail is [01 01 00 00][session nonce][65 03 00 00 00 00][discriminator], and the periodic counter message 0x18a6 carries the identical first three components at its own 0x14/0x18/0x20 before its own discriminator 02 and counter byte"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

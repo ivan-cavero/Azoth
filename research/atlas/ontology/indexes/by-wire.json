@@ -11,7 +11,8 @@
     "407": "msg.replicate-client",
     "422": "msg.fragment-update",
     "574": "msg.spawn-actors",
-    "663": "flow.world-entry.rung.level-info"
+    "663": "flow.world-entry.rung.level-info",
+    "0x18a6": "msg.periodic-counter"
   },
   "$comment": "Wire-type to concept. A wire type enters this index only when its identification is proven. 0x5d1 is absent because its identification is a candidate. 449 is absent because its AddActorMessage pairing was a name/GUID adjacency false positive: the name binds to 121, proven by FUN_146ac20a0 building both halves."
 }
