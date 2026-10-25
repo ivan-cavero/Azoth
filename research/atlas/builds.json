@@ -247,6 +247,26 @@
       "observed": "the gateway received only configuration-set GETs (/applications/public..., /applications/publicGameplay..., /motd/worlds_STEAM_APP_ID.json). It logged NO auth POST, so the auth exchange either went to the real Amazon endpoints or was refused before reaching the gateway.",
       "consequence": "the next step is not about the game at all: find where the client sends its Omni and Steam auth, confirm whether Caddy routed it to the gateway, and why the Omni mock answers 201 with no id."
     },
-    "hosts_already_configured": "C:/Windows/System32/drivers/etc/hosts already maps 26 Amazon and cloudfront hostnames to 127.0.0.1 for caddy, so no elevation is needed and that was never the blocker."
+    "hosts_already_configured": "C:/Windows/System32/drivers/etc/hosts already maps 26 Amazon and cloudfront hostnames to 127.0.0.1 for caddy, so no elevation is needed and that was never the blocker.",
+    "root_cause_found": {
+      "evidence": "observed",
+      "finding": "deploy/Caddyfile.json dialed 127.0.0.1:8082 for the whole auth/API hostname set. 8082 was the deleted Rust regiond's port; commit f05c3e1 moved that route there and the Rust removal left it pointing at nothing.",
+      "how_it_hid": "Caddy answered 502 while `ef.py status` reported 'gateway: running'. A dial failure is invisible in the status, and a timeout reads exactly like a game problem.",
+      "proof": "before: GET https://tokenservice.amazongames.com/ -> 502 and POST https://d1w0bfy6smo4d1.cloudfront.net/games/new-world/tokens -> 502. After the one-line fix: 404 on the root and 200 on the tokens POST, and the gateway log shows 'POST /games/new-world/tokens 2B -> omni tokens mock'. Hostnames were never the problem: Caddy declares 34 and /etc/hosts maps all 34 to 127.0.0.1.",
+      "fixed_in": "a44c425"
+    },
+    "remaining_failure": {
+      "evidence": "observed",
+      "where": "between the enum-registration warning and the IapClient line",
+      "symptom": "the client writes the EnumStringConversion warning at +0.374 s after 'Channel Service data provider: init success' and then dies writing nothing else",
+      "why_it_is_local": "the official working 1.460 session took 14 s to reach the SAME 'Fuel::Iap::IapClient: 14' line and then continued to 'Initializing default materials', the level load and InGame. A local, deterministic exit that fast is not that delay, so IapClient is a coincidence, not the cause.",
+      "ruled_out": [
+        "auth routing: fixed in a44c425, tokens POST returns 200 with a well-formed body",
+        "the auth body: _token_set() emits every field the SDK reads, in the field order its docstring requires",
+        "GPU absence: 'Suitable rendering device: yes' for Intel HD 630, same as the official session",
+        "IapClient itself: builds.json already records it as present in a clean official session"
+      ],
+      "next_diagnostic": "capture the process's last moments instead of its log: run the private exe under 'az.py'/'ef.py' style instrumentation with a WER local dump configured (HKLM\\SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps), or check CrashDB for a fresh report. CrashDB/reports was empty for every attempt so far, so the client is exiting through a path that does not raise a crash report."
+    }
   }
 }
