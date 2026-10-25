@@ -13,8 +13,10 @@ platform_persona_account.cpp). Key discovery (2026-09-09):
   platform:str?, identityId:str, personaId:str }.
 * account => AgsPersonaAccount { type:"shadow"|"full", ageGroup:int,
   identityId:str, personaId:str }. Missing account => 307.
-* Session persona = account.personaId; account.type "shadow" skips the
-  full-account entitlements path (matches official flow for unlinked Steam).
+* Session persona = account.personaId. The type is behaviour, not a label: the
+  client's GetIsShadowAccount gate (landingscreenv2.luac::TryShowAGIDLink)
+  shows the Amazon account-link modal only for "shadow". We serve "full" so a
+  private client never lands in the linking flow.
 * Tokens are JWT-looking strings (jwt_reader requires 2 dots); alg "none"
   with empty signature parses fine locally.
 * iat/exp in the JWT payload are MILLISECONDS ("AGS Auth token iat %lldms").
@@ -90,7 +92,7 @@ def _token_set() -> dict:
             "personaId": AZOTH_PERSONA,
         },
         "account": {
-            "type": "shadow",
+            "type": "full",
             "ageGroup": 1,
             "identityId": AZOTH_PERSONA,
             "personaId": AZOTH_PERSONA,

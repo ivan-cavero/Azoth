@@ -33,6 +33,8 @@
   the current world-entry and movement work.
 - [Capture](CAPTURE.md) — official passive capture procedure.
 - [PAK format](PAK-FORMAT.md) — measured archive and asset formats.
+- [Account-link modal](ACCOUNT-LINK-MODAL.md) — how the "Enlazar cuenta"
+  dialog is built, where its text lives, and the levers to change or disable it.
 
 ## Durable data
 

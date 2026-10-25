@@ -16,6 +16,31 @@ output is stored under `.azoth/logs/`.
 - `data/` — checked-in gateway seed data.
 - `research/atlas/` — durable wire schemas and observed endpoint families.
 
+## Local overrides
+
+Most routes serve `<discovery_dir>/<name>.json` verbatim when that file exists,
+before any code default: `tokens.json`, `characters.json`,
+`characters_validator.json`, `entitlements.json`, `entitlements_sync.json`,
+`getlogininfo.json`, `privacy.json`, `queue.json`, `worlds_list.json`. Two more
+work one level up: `worlds.json` replaces the registry that several responses
+are built from, and `placeholder.dds` replaces the served image. The default
+directory is the gitignored `services/gateway/mock_discovery/`, so a leftover
+override changes what the client sees between sessions while the repo looks
+unchanged. When a run behaves differently from the code you just read, check
+that directory first.
+
+One override decides a visible dialog: `account.type` in `tokens.json`.
+The code default is `"full"`, which keeps the client out of the Amazon
+account-link flow; `"shadow"` is the unlinked Steam persona and makes the
+client show that dialog. A leftover `tokens.json` override can therefore flip
+the dialog back on while the repo looks unchanged. The link code itself is
+stubbed at `/auth/platform/user/code`.
+
+A second, independent switch for the same dialog rides the S3 remote-config
+document: `javelin.enable-agid-account-linking` is served as `false` in
+`routes/s3.py::JAVELIN`, which is the check the landing screen reads before it
+shows the modal.
+
 ## Captures
 
 The gateway appends request/response summaries to

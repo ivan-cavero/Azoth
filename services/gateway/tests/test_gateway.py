@@ -158,6 +158,18 @@ class GatewayTest(unittest.TestCase):
         self.assertIs(doc["enable-anticheat"], False)
         self.assertIs(doc["game-security.enable-anticheat"], False)
 
+    def test_s3_disables_agid_account_linking(self):
+        # The second, independent switch for the account-link dialog: the
+        # landing screen's ConfigProviderEventBus.GetBool check.
+        path = (
+            "/applications/publicGameplay/configuration-sets/WorldId/"
+            f"{WORLD_ID}/6031%3B6004151"
+        )
+        with urllib.request.urlopen(f"http://127.0.0.1:18080{path}") as r:
+            self.assertEqual(r.status, 200)
+            doc = json.loads(r.read().decode())
+        self.assertIs(doc["javelin.enable-agid-account-linking"], False)
+
     def test_post_goes_to_discovery(self):
         req = urllib.request.Request(
             "http://127.0.0.1:18080/prod/some/future/endpoint",
@@ -198,7 +210,9 @@ class GatewayTest(unittest.TestCase):
         self.assertIn("personaId", pa)
         self.assertIn("identityId", pa)
         acc = doc["account"]
-        self.assertIn(acc["type"], ("shadow", "full"))
+        # The client's GetIsShadowAccount gate (landingscreenv2.luac::TryShowAGIDLink)
+        # decides whether the account-link modal shows, so this value is behaviour.
+        self.assertEqual(acc["type"], "full")
         self.assertIn("ageGroup", acc)
         self.assertEqual(acc["personaId"], AZOTH_PERSONA)
         self.assertEqual(pa["personaId"], AZOTH_PERSONA)

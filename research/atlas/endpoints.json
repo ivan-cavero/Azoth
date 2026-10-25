@@ -83,7 +83,7 @@
       "host": "tokenservice.amazongames.com",
       "responseModel": "token set (see errors.json: 203 = JSON parse error)",
       "status": "implemented",
-      "notes": "Keys in parser order: region, limitedUseToken, platformAccount{ageGroup,identityType,platform,identityId,personaId}, account{type:shadow|full,ageGroup,identityId,personaId}, isNewAccount, conflictingAccount, accessToken, expiresIn, fallbackToken."
+      "notes": "Keys in parser order: region, limitedUseToken, platformAccount{ageGroup,identityType,platform,identityId,personaId}, account{type:shadow|full,ageGroup,identityId,personaId}, isNewAccount, conflictingAccount, accessToken, expiresIn, fallbackToken. account.type IS the account-link lever: 'shadow' is an unlinked Steam persona and is what puts the client in the Amazon link-account flow (official live returned Shadow plus a link code), 'full' is a linked persona and shows no dialog. Inferred from the 2026-09 official capture and the client's own link-code request, not from a controlled A/B. The served value comes from two places that disagree: routes/omni.py defaults to 'shadow', while a gitignored <discovery_dir>/tokens.json (served verbatim) currently says 'full' - so whether the dialog appears depends on a local file, not on repo state. The link code itself is stubbed at /auth/platform/user/code ({code, statusCode})."
     },
     {
       "operation": "OmniCredentials",

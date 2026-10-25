@@ -60,6 +60,10 @@ GAME_SECURITY: dict = {
 JAVELIN: dict = {
     "javelin.offline-id-version": 2,
     "javelin.enable-offline-capitals": True,
+    # Master switch of the account-link dialog. The landing screen reads it
+    # with ConfigProviderEventBus.GetBool in TryShowAGIDLink
+    # (lyshineui/main menu/landingscreenv2.luac); False suppresses the modal.
+    "javelin.enable-agid-account-linking": False,
 }
 
 

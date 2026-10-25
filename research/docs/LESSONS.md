@@ -156,6 +156,31 @@ stdlib, or a disk patch on the private copy. And apply world-phase memory
 patches only once the client is at character select — applying them during load
 hangs it.
 
+## Search the repo for the measured path before inventing one
+
+**Incident (2026-10-25):** chasing why the client never left the Aeternum splash,
+I invented input calls by hand. I posted Enter (VK 0x0D) via
+`scripts/gui/post-input.py` — nothing. Then a real scan code 0x1C (Enter) via
+`scripts/gui/send-input.py` — still nothing. Two launches spent on the wrong key.
+
+The repo already had the answer, written down: `scripts/session/private-run.py`
+says `pass the splash gate with a scan-code Space` and does
+`hold-key.py "New World" 0x39 0.15`. Scan **0x39 is Space, not Enter**. With it
+the client reached character select in ~20 s. The same script also refuses to
+send keys when the window rejects focus, which is exactly the failure mode the
+`azoth-computer-use` skill warns about (`SetForegroundWindow` is refused unless
+the caller is foreground, and the key lands in whatever window the user is in).
+
+**Rule:** when the question is "how do I drive the client past step X", the
+first search is the repo (`grep -rn "splash\|attract\|hold-key\|scan" scripts/`),
+not a fresh key to try. A script that already automates the step encodes the
+measured key, the measured duration and the focus guard. Guessing costs a
+10-minute launch per wrong guess; the search costs one command.
+
+**Corollary:** a record's `NEXT:` line is a hypothesis, not an instruction. The
+`frontend_splash_loop_after_livekernelfault_20261005` record pointed at
+`post-input.py` with Enter, and both halves were wrong for this gate.
+
 ## Quick pre-flight for any new session
 
 1. `switch-mode.ps1 status` → in-sync?
