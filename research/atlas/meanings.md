@@ -532,12 +532,17 @@ Signal 1 carries the argument on its own -- a field that is absent cannot be a
 stale fixed offset. Signals 2 and 3 say the mechanism is the plausible one; they
 do not select it uniquely.
 
-What that means, and what it does not. It means the spawn record is a **baseline**
--- the first and only time the client hears this entity's full state, which is why
-the position is there and nowhere else -- and later records carry **deltas**. It
-does **not** give the delta format: field mask, present-field list, and the
-reference state the delta applies against are all still unmeasured, and none of
-them is guessable from three instances.
+What that means: the spawn record is a **baseline** -- the first and only time the
+client hears this entity's full state, which is why the position is there and
+nowhere else -- and later records carry **deltas**.
+
+**CORRECTION 2026-10-26: the delta format is no longer unmeasured.** This paragraph
+used to say that "field mask, present-field list and the reference state are all
+still unmeasured and none is guessable from three instances". That was true when it
+was written and is now wrong: the format was recovered by decompiling the reader and
+the writer, and it was never going to come from the bytes. See "The delta format,
+measured" below. The rest of this section stands -- the payload is still not a fixed
+layout, and there is still no offset to patch.
 
 The consequence for the ladder is the useful part. Rung 17 fails although the
 spawn bundle arrives at the right size, and a delta interpretation says why the
@@ -619,6 +624,138 @@ through slot `+0x50` of the client object and writes it through slot `+0x110`. I
 never compares them itself. Whether a comparison exists behind `+0x2d0` or
 `+0x110` is **unmeasured**, so "the version mismatch causes the timeout" is a
 candidate, not a finding.
+
+### The delta format, measured
+
+Recovered 2026-10-26 by decompiling the fragment reader and, independently, the
+fragment **writer** on build `30fe6461`. Every claim below was re-checked by the
+parent against the binary: the vtable slots, the 54-bit mask constant, the group
+geometry, the decompressor, and the five field names all reproduce.
+
+**A fragment has no length field because it never needs one.** The fragment reader
+`0x146af38c0` reads the key varint, reads the type-index varint, resolves the type
+object, and then hands the live stream to that object's **virtual slot `+0x90`**,
+letting the type consume whatever it consumes. The consumed count is computed
+*afterwards*, as `position_after - position_before`, and passed only to
+`FUN_146a64be0` / `FUN_146a64170`, which are log helpers. So the boundaries are not
+derivable from the bytes because the format does not put them there; the schema
+implies the length. This is why the 2026-10-18 live measurement of the 48 offsets is
+not a workaround for weak analysis but the only possible source.
+
+**The payload opens with a presence mask.** For `ALCReplicatedState` (type id
+`01B0664B-3AB6-44A6-87E3-8C69D40E0365`, type index 11, vtable `0x148100b10`), the
+payload reader is vtable `+0x90` = `0x142a44650` and the shape is:
+
+```
+u8            top_mask              raw byte, not a varint; 8 usable bits, ALC uses 2
+for each set bit g in top_mask:
+    varint64  field_mask            54 usable bits (0x3fffffffffffff)
+    for each set bit f of field_mask, ascending:
+        field f's own codec          that field's vtable+0x30
+```
+
+Three independent numbers agree on 54: each group is `0x3b0` bytes = `54 x 0x10`
+descriptor slots plus a `0x50` header, the mask is ANDed with `0x3fffffffffffff`
+(`2^54 - 1`), and the loop bound computes `0x360 >> 4 = 54`.
+
+**The writer confirms it in reverse, which is the check that matters.** Vtable
+`+0x88` = `0x142a3f120` collects the presence bits, writes the body, then seeks back
+to the payload start (`+0x48`), writes the single mask byte (`+0x40`), and seeks to
+the end (`+0x38`). The mask is a back-patch because the bits are not known until
+every field's presence predicate has run. A group whose mask is empty has its top
+bit cleared. Reader and writer agreeing on the same constant from opposite
+directions is what makes this measured rather than inferred.
+
+**So field presence IS the delta.** `bit set <=> field on the wire`. A field that is
+not set is not stale, it is absent, and the decoder never touches it. This is the
+mechanism behind the missing position pair, now with a cause instead of an inference.
+
+**The reference state is the absolute portion, inside the same field.** ALC carries
+the quantity twice -- `worldPosRel` (bit 10) and `worldPosAbs` (bit 26), `idRel` (0)
+and `idAbs` (24), `timeOffsetRel` (1) and `timeOffsetAbs` (25) -- as distinct members
+with distinct presence bits. The value transform is vtable `+0x78` = `0x142a3dd60`,
+which is a two-line trampoline into `0x142a28350`:
+
+```c
+value = *(float*)(member + 0x10) + dequantize(byte at member + 0x60, scale at +0x88)
+// and +0x14/+0x61, +0x18/+0x62 for the other two axes
+```
+
+and the same function's failure branch carries the client's own statement of the
+contract, from `.rdata` `0x1480ffab0`:
+
+```
+"Absolute portion in delta compression wasn't set! We can't calculate the value."
+```
+
+with the reflection key `DeltaCompression` at `0x1480ffb00`. That is why a delta with
+no absolute base is fatal rather than stale: the client refuses to compute and says
+so in a string.
+
+**The field table, in bit order** (group 0, 53 of 54 slots used; group 1, 9 of 54).
+The names below are read from the class's own `.rdata`, which clusters them at
+`0x148100c94..0x148100fxx`:
+
+| bit | field | bit | field |
+| --- | --- | --- | --- |
+| 0 | `idRel` | 26 | **`worldPosAbs`** |
+| 1 | `timeOffsetRel` | 27 | `scopeTimeBlob0Data0` |
+| 2 | `slayerSeqTimeRel` | 28 | `scopeTimeBlobEx` |
+| 3 | `slayerSeqTimeAbs` | 29 | `scopeTimeBlob1Data0` |
+| 4/6/8 | `slayerSeqTimeRel` | 30 | `teleportAndMigrationId` |
+| 5/7/9 | `slayerSeqTimeAbs` | 31 | `scopeData` |
+| **10** | **`worldPosRel`** | 32 | `scopeInfoBlob` |
+| 11 | `rotation` | 33 | `globalFragTags` |
+| 12/15/18/21 | `slayerStateId` | 34 | `aiAngleToDesiredFacing` |
+| 13/16/19/22 | `slayerStateIdStarted` | 35 | `wpnaccrystance` |
+| 14/17/20/23 | `slayerSequenceId` | 36 | `wpnaccrymvmnt` |
+| 24 | `idAbs` | 37 | `scopeTimeBlob0Data1` |
+| 25 | `timeOffsetAbs` | 38..42 | `scopeTimeBlob1Data1`, `timeAnchor`, `dataBits`, `moreDataBits`, `combinedExtraNetworkData` |
+| 43..48 | `segmentedStamina`, `gritBrokenCounter`, `shapeCastFilter`, `slayerScriptLayers`, `slayerScriptFlags`, `scopeTimeBlob0Data2` | 49..52 | `scopeTimeBlob0Data3`, `scopeTimeBlob1Data2/3`, `quantization` |
+
+Group 1: `distGround`, `waterDepth`, `scopelessInfoBlob`, `scopelessTimeBlob`,
+`hitCharacterCounter`, `hitStructureCounter`, `hitWorldCounter`, `forbiddenBounds`,
+`currentGridAccessibility`.
+
+**The type index is a real registry, not a code offset.** `0x1461ae2a0` turns the
+varint index into a 16-byte type id through a flat table at `registry + 0x40` with
+stride `0x10`, bounds-checked against `registry + 0x48`; **index 0 is the escape
+that carries the 16 id bytes inline**. `0x1461ae3f0` then calls `0x146166220`, a hash
+map keyed by that id, whose node holds the key halves at `+0x10`/`+0x18` and the type
+object at `+0x20`. A missing key returns 0 and the fragment fails.
+
+**Independent corroboration across types, from the 300-fragment live capture.** Every
+fragment in `fragment-grammar.jsonl` records the varints the client's own reader read
+inside it. Measuring the first payload varint from the end of the type-index varint:
+offsets are 2, 3, 4, 10, 19, 23, 27, 31 -- **0 and 1 never occur**, and 2 is the
+floor, which is exactly one mask byte plus one field-mask varint. That holds across
+many different types, not just ALC, so mask-first framing is the general shape and
+not an ALC peculiarity. It is still not decompiled for the other 47 types, and is
+recorded as strongly indicated rather than measured for them.
+
+**What is explicitly NOT recovered.** Stated so nobody writes code against a guess:
+the wire encoding of the absolute quad. The code consumes four floats at
+`member + 0x10..0x1c`, while the spawn payload holds an f32 big-endian pair at `+20`;
+how those bytes land in those floats is **unknown**, so a Rust position encoder is
+still blocked on this one field. And which bit the update record actually sets is a
+**hypothesis** -- the schema offers `worldPosRel` and the names fit exactly, but no
+raw update payload exists locally to confirm it. The per-field codecs
+(`+0x18` present?, `+0x28` write, `+0x30` read) are per-field-type and not enumerated.
+
+### What a Rust encoder needs, now that the format is known
+
+A server that **echoes captured bytes** needs none of this and is not blocked by it.
+A server that **authors** state needs the following, in order:
+
+- `record := varint record_id | u8 fragment_count | fragment*`
+- `fragment := varint key | varint type_index | payload`, with no length anywhere
+- resolve `type_index` (0 means the next 16 bytes are the id) and let the type's
+  schema define the payload
+- emit the top mask **last or back-patched**, because presence is not known until
+  every predicate has run -- this is what the client's own writer does
+- `worldPosAbs` must be present at least once per entity before any relative form,
+  or the client refuses to compute a position and logs that it cannot
+- never infer a payload length: emit the fields, count the bytes, trust the count
 
 ## The three types the replay used to have no name for
 

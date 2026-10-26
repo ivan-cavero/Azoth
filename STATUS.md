@@ -61,18 +61,18 @@ type table is one name per wire**: all 3,390 named types carry a single answer, 
 the "ambiguity" was the reader taking eight qwords from the table base instead of the
 lambda's own 48-byte row. No settled name changed.
 
-The spawn's **48 fragments are named too**: a fragment's second varint is a
-type-table index, so the hook names it — 47 distinct types, every one a
-`*ReplicatedState`. The boundaries were never derivable from the bytes; they were
-measured live and are in `frag-spawn.jsonl`. The position is in fragment 36,
-`ALCReplicatedState`, not `PositionInTheWorldReplicatedState` (index 13, absent here).
+The spawn's **48 fragments are named too**: a fragment's second varint is a type-table
+index, so the hook names it — 47 distinct types, all `*ReplicatedState`. The boundaries
+are not derivable from the bytes, because a fragment has no length field at all; they
+were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Name the bodies, not the types.** Types are settled: 3,390 named, other 3,662
-characterised (dead table slots, no GUID in the build). What the Rust port still lacks
-is field layout inside the named types. The version mismatch stays registered and
-unfixed on purpose; rung 17's failure mode is parked in writing.
+**Name the last field that blocks the port.** Types are settled (3,390 named) and the
+delta format is measured: a payload opens with a presence mask, so an unset field is
+*absent*, not stale. One thing blocks a Rust position encoder — the wire encoding of
+the absolute quad. The client reads floats at `member+0x10`, the payload holds f32-BE
+at +20, and how one becomes the other is unrecovered. Start there.
 
 ## Do not
 
