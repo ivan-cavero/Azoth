@@ -757,6 +757,49 @@ A server that **authors** state needs the following, in order:
   or the client refuses to compute a position and logs that it cannot
 - never infer a payload length: emit the fields, count the bytes, trust the count
 
+### Two negatives about the rung-17 log path, and one reasoning trap
+
+Measured 2026-10-26, while trying to find the handler for the bundle on 1.460. Both
+negatives below are real and each was re-checked by the parent against the binary.
+
+**The rung-17 log strings have no reference anywhere in the image.** These three
+strings, with their VAs:
+
+| String | VA | rip-relative `lea` xrefs |
+| --- | --- | --- |
+| `skipping ReceiveStateBundle` | `0x148500708` | **0** |
+| `clientContext == nullptr` | `0x14850073e` | **0** |
+| `player spawn succeeds` | `0x1484ffeff` | **0** |
+
+Zero is surprising for a string that demonstrably appears in the client's own log, and
+it means the logging call site cannot be found by scanning for the string's address.
+No imm64 reference and no pointer-table entry exists either. Whatever reads them, it
+does not load their address the way a normal `lea` does.
+
+**The two verified handlers did not fire on the processor's dispatch path.** A probe
+hooked twelve slots of the processor vtable `0x148590ab8` and the two handlers
+verified on this build, `0x146455ec0` (`0x65c`) and `0x146447ac0` (`0x663`). Result:
+**1015 calls** landed on other slots of the same vtable -- `0x14029e840` took 1001 and
+`0x1402a0100` took 14 -- while both verified handlers took **0**.
+
+**The trap, recorded because it was a real error and not a subtlety.** That second
+negative was first read as "the atlas's dispatch claim is wrong, the slot-`+0x20`
+address is not the dispatch". It is not wrong: `vtable 0x148590ab8 + 0x20` **is**
+`0x14029f9f0`, re-checked against the binary in this session, and that same pointer
+fills 24 slots of the table. What the zero actually means is that **the run never
+reached the code that dispatches a bundled message at all**: in that run's `Game.log`,
+`WaitingForSpawnPoint` and `WaitingForPlayerSpawn` occur **zero** times and the log
+ends during CMS file loading, i.e. the client never entered the world. A probe attached
+to a client that stayed at the loading screen measures a live client doing nothing on
+the path of interest, and 1015 calls to other slots proves the hooks were live without
+proving anything about dispatch.
+
+The rule this yields, which is worth more than either negative: **before reading any
+live negative about a protocol path, confirm from the client's own log that the run
+reached that path.** Hooks firing is evidence the probe works, never evidence that the
+client entered the state under test. The parent caught this only by checking the log's
+size (50 KB against 206 KB for the reference run) and grepping for the ladder states.
+
 ## The three types the replay used to have no name for
 
 `scan-wire-names.py` names a wire type by pairing it with a printable run in
