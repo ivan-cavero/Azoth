@@ -56,7 +56,10 @@ proven controls (`0x663`, `0x65c`):
 | `0x651` | `ReceivePlayerSpawnPointMsg` | `ClientViewListenerTrait` |
 | `0x18a6` | `GridTrackingComponentClientFacet_UpdatePhasing` | `ClientMessages` |
 
-`0x651` has no body; `0x18a6` is a 40-byte periodic record with unnamed fields.
+`0x651` has no body; `0x18a6` is a 40-byte periodic record with unnamed fields. **The
+type table is one name per wire**: all 3,390 named types carry a single answer, because
+the "ambiguity" was the reader taking eight qwords from the table base instead of the
+lambda's own 48-byte row. No settled name changed.
 
 The spawn's **48 fragments are named too**: a fragment's second varint is a
 type-table index, so the hook names it — 47 distinct types, every one a
@@ -66,13 +69,10 @@ measured live and are in `frag-spawn.jsonl`. The position is in fragment 36,
 
 ## Next
 
-**Keep naming: turn the 796 ambiguous types into single answers.** The version
-mismatch is registered and deliberately **not** fixed — repairing the replay is not
-the goal, a complete named inventory is. Rung 17 fails by *waiting*, not rejecting
-(0 `Failed to unmarshal`, 0 `ValidationError`, `connection_player_timeout`), and the
-bundle is deferred, not dropped: parked. The debt blocking the Rust port is ambiguity
-— `message-names.py` attributes every slot of a hook record to that record's GUID, so
-one record with several hooks reports several names per type.
+**Name the bodies, not the types.** Types are settled: 3,390 named, other 3,662
+characterised (dead table slots, no GUID in the build). What the Rust port still lacks
+is field layout inside the named types. The version mismatch stays registered and
+unfixed on purpose; rung 17's failure mode is parked in writing.
 
 ## Do not
 

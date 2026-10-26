@@ -674,6 +674,16 @@ that lambda, and its own descriptor is that row's second qword. Measured on buil
 | The 2,594 previously-unambiguous types | **2,576 agree, 18 return nothing, 0 contradict** |
 | The 7 replay types with independently known names | **7/7 correct** |
 
+The full sweep was then regenerated (`research/derived/message-names.json`, 31m55s)
+and the result is stable rather than merely larger. Across the whole 7,052-entry
+table: 3,390 named, 97 with no hook record, 3,565 with no GUID string -- the same
+counts as before, so nothing was invented and nothing was lost. Every named row now
+holds exactly **one** name where 796 held more. `resolution` splits them 3,372
+`entry-match` and 18 `slot-scan`, and against the previous artifact **no
+previously-unambiguous row changed its name at all** (2,594 compared: 0 changed, 0
+lost, 0 gained). A tie-breaker that quietly rewrote settled answers would have been
+worse than the ambiguity it fixed; this one did not touch them.
+
 The third row is the one that makes this a measurement instead of a tidy-up, and
 `0x663` is inside it: the tie-breaker returns `LevelInfoChangedMsg` alone, where the
 old slot scan also offered `State` -- and `LevelInfoChangedMsg` is proven
@@ -698,7 +708,9 @@ offered `AckMovementMsg`. Both are real entries in the table; which one owns tha
 is **not established**, and the ground-truth set of seven contains no such case, so the
 7/7 result says nothing about it. Until a case like that is settled independently, a
 row whose answer ends in `Trait` should be read as "this GUID belongs to a trait
-registration, or to the message the slot scan offered" and not as a decision.
+registration, or to the message the slot scan offered" and not as a decision. The
+regenerated table has **85** such rows, 21 of them among the 796 that were previously
+ambiguous -- the other 64 were already single answers, so they are not a new risk.
 
 What this changes for the Rust port: the type table can be read as a map from wire
 number to one name, with the candidate list retained beside it as provenance
