@@ -67,11 +67,12 @@ measured live and are in `frag-spawn.jsonl`. The position is in fragment 36,
 
 ## Next
 
-**Hook the spawn handler on 1.460 and see whether the client rejects the record or
-accepts it and waits.** Naming is no longer the wall: the fragments have type names,
-and their payloads are baseline/delta, not fixed layouts — the spawn carries the
-position pair, the update record omits it. With no offset to patch, "what does the
-captured spawn not supply" was the wrong question. Auth works; the ladder walks to 17.
+**Decide the version handshake.** Rung 17 fails by *waiting*, not rejecting: the
+client's log has 0 `Failed to unmarshal` and 0 `ValidationError`, and expires with
+`Errors::connection_player_timeout`. The bundle is deferred, not dropped
+(`clientContext == nullptr`, then reprocessed). The one concrete defect found is that
+the lab declares `Server version: …1.400…` to a 1.460 client (`v3.py:23`, unpinned).
+The handler only records both versions, so whether that matters is unmeasured.
 
 ## Do not
 

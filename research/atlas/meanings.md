@@ -391,7 +391,7 @@ named reason each.
 
 | Rung | Client state it moves | What it is | Evidence |
 | --- | --- | --- | --- |
-| Registration response | `WaitingForREPConnection` (14) → `WaitingForActorGameConnection` (15) | Wire type `0x3`, 88 bytes, **parsed on the 1.365 replay** (`0x1_T0x3_R.bin`): `00 01 03`, `u32` zero at `0x03`, `0x0b` at `0x07`, 8 bytes at `0x08`, 32 redacted bytes at `0x10`, then the 36-byte ASCII string `#[RETAIL].Javelin.1.365.6031.6006993` at `0x30`, then `01 00 00 01` at `0x54`. The handler `FUN_1464768a0` on `30fe6461…` (vtable slot `0x148503e28`) logs `received registration response from REP`, passes the message to a virtual setter labelled **`Server version`**, and then copies the client's own version string into the same slot. Two independent signals therefore agree: the handler names the field, and the captured body contains it. The server reports its own build, and in that capture server and client agreed at 1.365, so a 1.460 client should be told `#[RETAIL].Javelin.1.460.6033.6024067`. This rung is a version handshake, not a gameplay body. | version string verified |
+| Registration response | `WaitingForREPConnection` (14) → `WaitingForActorGameConnection` (15) | Wire type `0x3`, 88 bytes, **parsed on the 1.365 replay** (`0x1_T0x3_R.bin`): `00 01 03`, `u32` zero at `0x03`, `0x0b` at `0x07`, 8 bytes at `0x08`, 32 redacted bytes at `0x10`, then the 36-byte ASCII string `#[RETAIL].Javelin.1.365.6031.6006993` at `0x30`, then `01 00 00 01` at `0x54`. The handler `FUN_1464768a0` on `30fe6461…` (vtable slot `0x148503e28`) logs `received registration response from REP`, passes the message to the virtual setter at **`+0x2d0`** with the label **`Server version`** (`.rdata` `0x1484ffe38`), then reads the client's own version through slot **`+0x50`** of the client object and writes it through slot **`+0x110`**. It does not compare the two; whether anything behind those slots does is unmeasured. **Measured live 2026-10-26:** the lab still declares `[RETAIL].Javelin.1.400.6031.6004151` (`v3.py:23`) to a 1.460 client and the client logs exactly that, so the recommendation below is not yet in the code. Two independent signals therefore agree: the handler names the field, and the captured body contains it. The server reports its own build, and in that capture server and client agreed at 1.365, so a 1.460 client should be told `#[RETAIL].Javelin.1.460.6033.6024067`. This rung is a version handshake, not a gameplay body. | version string verified |
 | Greetings | GridMate peer handshake | A **Carrier command**, not an application message: `Cmd_Greetings` = command byte 1 inside a Carrier record. It has no type-table slot, the 1.460 image contains no `Greeting` string at all, and the 1.365 replay has no record for it among its 177. The ladder's first typed exchange is the client's `RegistrationRequestV3Msg`, not a greeting. | transport-level, no typed record |
 | Self identification | `WaitingForREPConnection`/`WaitingForActorGameConnection` (15) -> `WaitingForSpawnPoint` (16) | `PlayerManagerSelfIdentificationMsg`. The client handler is `FUN_146455ec0` on SHA-256 `30fe6461...`: it logs `PlayerManagerSelfIdentification`, returns early when the game or client-SDK pointer is null, copies the message into the player-manager component, sets an identified flag at component `-0x7f0`, and either spawns from the debug cvars or delegates to `FUN_14167cc70`. Its decoded struct is `0x38` bytes: `0x00` u32, `0x08` `std::vector<u32>` (24 bytes), `0x28` u8, `0x2c` u64, `0x34` u32. Only `0x28` is named: non-zero switches placement to the debug cvars and skips the real spawn. **The body is now measured** (2026-10-26): a 135-byte prefix, a **56 x 56 grid of big-endian `u32`** (12,544 bytes) whose cells are an 8-value enum with `0xFFFFFFFF` = empty, and a 27-byte tail; `struct+0x00` is 56, the grid side, and the vector holds 3,136 elements. Two 16-byte GUIDs are redacted (prefix `0x05`, tail `0x3192`) and only the prefix one has a lever. The grid's meaning is unnamed. The message is registered in `Javelin::ClientMessagesTrait`, the same trait as `LevelInfoChangedMsg`. (Superseded text removed 2026-10-26: this paragraph used to say `0x65c` was `LastSpawnedBotCharacterId`, and later that the wire order was open by one byte -- the first was the adjacency defect corrected in `b7d106e`, the second was a wrong model now replaced by measurement.) | handler, struct and body measured; grid semantics unnamed |
 | Level info | `WaitingForSpawnPoint` (16) → `WaitingForPlayerSpawn` (17) | `LevelInfoChangedMsg`, wire type `0x663`. The handler is `FUN_146447ac0` on `30fe6461…`, the next virtual slot in the same vtable as the self-identification handler, and it reads only three struct offsets: `+0xa1`, which it logs as `levelInfo.m_clientContextInstanceId`, `+0xa2`, and `+0xa8`, which it compares against the slot it cached last time and **returns early when they match**. The body is parsed end to end on the 1.365 replay record `0x10_T0x663_R.bin`, 110 bytes: `00 01 a3 19`, `14`+`NewWorld_VitaeEterna`, `1e`+`coatlicue/NewWorld_VitaeEterna`, four big-endian floats `2048.0 / 16.0 / 12272.0 / 10250.0` at `0x38`, `u64` zero at `0x48`, `01 01 00 00` at `0x50`, an 8-byte per-record nonce at `0x54`, `65 03 00 00 00 00 01 01 01 00` at `0x5c`, and the 8-byte `level_context_key` `00 00 00 c1 7f 9b e4 8f` at `0x66`. The key is named: it is the dedup key, proven by the early return above and independently by the lab's own capture note that a repeated `0x663` with the same key is ignored. | partial, measured |
@@ -553,6 +553,62 @@ encode a delta. A server that **authors** state -- spawning a second entity,
 moving one, setting a component -- has to produce deltas against a reference
 state the client is holding, and that encoder is the real work item. It is not
 blocked by naming; it is blocked by the format, which is a different thing.
+
+## Rung 17: the client accepts the record and waits
+
+The open question after the spawn fragments were named was whether the client
+**rejects** the captured spawn or **accepts it and waits** for something. The
+client's own log answers it, with no probe and no new address: it accepts.
+
+Measured on the 1.460 run in `.azoth/logs/runs/run-20261026-1460-ladder/`:
+
+| Signature | Count | Meaning |
+| --- | --- | --- |
+| `Failed to unmarshal` | **0** | nothing was rejected as malformed |
+| `ValidationError` | **0** | nothing was rejected as invalid |
+| `player spawn succeeds` | 0 | the spawn never completed |
+| `Errors::connection_player_timeout` | 1 | the failure is a wait that expired |
+
+So the 46,407-byte spawn record was decoded without a single complaint and the
+state machine still expired. That is the "accept and wait" branch, and it retires
+the line of investigation that looks for a wire field the capture omits: a record
+the client parses cleanly is not missing a field it knows how to reject.
+
+Two details from the same log that constrain what comes next.
+
+**The baseline is skipped once and then retried.** At `10:00:13.831`, 20 ms after
+`Calling clientContext->Initialize`, the client logs
+`HandleUnexpectedMessage skipping ReceiveStateBundle for bundle message due to
+clientContext == nullptr`, and at `10:00:14.306` it logs
+`ProcessPendingReliableMsgQueue processing 2 messages from m_pendingUnexpectedMsgs`.
+The bundle is not dropped; it is deferred past a window where the client has no
+context to apply it to. The spawn sends that follow (`seq` 42, 43, 46, 48, 51, 52,
+53 of type `0x8`, each 46,407 bytes in 43 chunks) all arrive after that window, so
+the timing race alone does not explain the timeout. It is also why "the spawn
+arrives 15-18 ms too early" was recorded as the cause earlier and is not
+sufficient on its own.
+
+**The stream that follows carries no position.** The world loops record 1 at
+`player_period_s: 0.25` while the client waits. That is the 9-fragment, 7,153-byte
+record, which was measured to contain no position pair at all (see "The fragment
+payload is not a fixed layout"), so everything the client receives while it waits
+is a delta against a baseline it is holding, not new position information.
+
+**A concrete defect found in the same run, unrelated to the decode.** At
+`10:00:13.190` the client logs
+`Server version: [RETAIL].Javelin.1.400.6031.6004151` -- the lab declares a 1.400
+server to a 1.460 client. The value comes from
+`services/world/src/azoth_world/javelin/v3.py:23` (`DEFAULT_SERVER_VERSION`), no
+test pins it, and the registration-response row above had already recorded that a
+1.460 client should be told `#[RETAIL].Javelin.1.460.6033.6024067`. Decompiling the
+handler `FUN_1464768a0` on `30fe6461` shows why the mismatch is unproven rather
+than proven-harmless: it writes the server's string through virtual slot `+0x2d0`
+of the game-connection object (the label passed with it is `Server version`,
+recovered from `.rdata` `0x1484ffe38`), then fetches the client's own version
+through slot `+0x50` of the client object and writes it through slot `+0x110`. It
+never compares them itself. Whether a comparison exists behind `+0x2d0` or
+`+0x110` is **unmeasured**, so "the version mismatch causes the timeout" is a
+candidate, not a finding.
 
 ## The three types the replay used to have no name for
 
