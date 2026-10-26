@@ -329,6 +329,11 @@
       "path": "wire/world-inject.py",
       "kind": "wire",
       "file": "world-inject.py"
+    },
+    "capture-segments": {
+      "path": "session/capture-segments.py",
+      "kind": "session",
+      "file": "capture-segments.py"
     }
   }
 }

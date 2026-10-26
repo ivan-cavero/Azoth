@@ -1117,6 +1117,39 @@ marker `3d 4c cc cd` occurs at `0x59` in **3,676 of 3,830** bodies, with x/y at
 281-byte group that region is **constant**, which is correct rather than surprising: those
 2,106 samples were taken while the player stood still.
 
+**The segmented capture, and what one thing at a time buys.** A driver
+(`scripts/session/capture-segments.py`) holds one action per labelled window and timestamps
+it; `field-differential --segments` joins the log's own `ts` to those windows. Two clean
+pairs came out of an 8-segment walk plan (idle / forward / idle / strafe left / strafe
+right / idle / jump / idle), each compared at a length both segments share:
+
+| Pair | Body | Offsets steady in both but different | Offsets constant idle, variable moving |
+| --- | --- | --- | --- |
+| `idle-mid` vs `strafe-right` | 323 B (65 vs 49 bodies) | **0** | **43** |
+| `idle-end` vs `jump` | 283 B (120 vs 53 bodies) | **0** | **0** |
+
+The zero in the first column is the useful part: no offset holds a *different but steady*
+value across those two segments, which is what a flag that flips with an action would look
+like. The 43 in the second column is the movement-correlated set -- offsets that are pinned
+while the player stands and move only while strafing: `0x32, 0x3b, 0x41, 0x51, 0x55, 0x69,
+0x6a, 0x6c, 0x6d, 0x70, 0x7a, 0x81, 0x91, 0x95, 0x9d...0xd0`. That set includes `0x6a`,
+`0x6c` and `0x6d`, adjacent to the position pair at `0x65..0x6c` -- consistent with the
+body carrying a heading or a velocity next to the position.
+
+**A measurement artifact that has to be understood before reading any of this.** The body
+length is not fixed per TYPE: each segment has a *dominant* length and they differ -- 321 in
+`idle-before`, 371 walking forward, 281 after walking, 381 strafing left, 323 in both
+`idle-mid` and `strafe-right`, 283 in both `jump` and `idle-end`. So the length is a
+function of how many entries are active, not of the action alone, and two segments can only
+be compared at a length they share. That is why the tool refuses to mix lengths and why the
+table above has only two rows: four of the eight segments had no partner at their dominant
+length.
+
+The `283 B` pair showing nothing at all is recorded as a **negative, not a success**:
+`jump` and `idle-end` share a length but show no difference, so either the 283-byte form
+carries no movement state, or the jump did not register as a distinct action. Both are
+plausible and this corpus cannot separate them.
+
 Two honest limits. This is a map of *where bytes change*, not a schema: the 257 constant
 offsets could be tags, reserved bytes or values that happened not to change in this session,
 and naming them needs a session that varies one thing at a time. And the 41-byte stride is

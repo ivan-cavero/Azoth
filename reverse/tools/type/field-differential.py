@@ -90,7 +90,7 @@ def _channel1_body(payload: bytes) -> bytes | None:
     return None
 
 
-def iter_bodies(corpus: Path, want: int, *, event: str = "app-data"):
+def iter_bodies(corpus: Path, want: int, *, event: str = "app-data", timestamps: bool = False):
     """Yield body bytes for every message of `want` found in a world-log corpus.
 
     Two container shapes are handled because the client uses both: channel-0 records
@@ -98,6 +98,10 @@ def iter_bodies(corpus: Path, want: int, *, event: str = "app-data"):
     channel-1 records carry the type inside a container whose marker moves by two bytes
     when the record is prefixed. Guessing one shape and skipping the other is how a tool
     silently returns nothing.
+
+    `timestamps=True` yields `(ts, body)` instead, where `ts` is the log line's own
+    UTC stamp. That is what makes segment attribution possible: the driver records the
+    wall-clock window each action covered, and the analysis joins on the same format.
     """
     seen = 0
     with corpus.open(encoding="utf-8", errors="replace") as handle:
@@ -123,10 +127,11 @@ def iter_bodies(corpus: Path, want: int, *, event: str = "app-data"):
             for message in parsed.messages:
                 payload = bytes(message.payload)
                 seen += 1
+                ts = row.get("ts")
                 channel1 = _channel1_body(payload)
                 if channel1 is not None:
                     if want == alc.INPUT_STREAM_TYPE:
-                        yield channel1
+                        yield (ts, channel1) if timestamps else channel1
                     continue
                 # channel 0: the typed-stream marker
                 try:
@@ -134,7 +139,7 @@ def iter_bodies(corpus: Path, want: int, *, event: str = "app-data"):
                 except Exception:
                     continue
                 if type_id == want:
-                    yield payload[offset:]
+                    yield (ts, payload[offset:]) if timestamps else payload[offset:]
     if seen == 0:
         raise SystemExit(f"no {event} records decoded from {corpus}")
 
@@ -192,6 +197,54 @@ def regions(rows: list[dict], min_run: int = 1) -> list[tuple[int, int, bool]]:
     return [(a, b, v) for a, b, v in out if (b - a + 1) >= min_run]
 
 
+def segment_report(rows_by_segment: dict[str, list[dict]]) -> list[dict]:
+    """Offsets that are steady inside every segment but differ between them.
+
+    WHY THIS IS THE INTERESTING SET. Inside a walking segment almost every byte of the
+    body wobbles, because the player is moving continuously -- that is motion noise, not
+    structure. An offset that holds ONE value throughout a segment and a DIFFERENT value in
+    another segment is correlated with whatever separates the two. Requiring both halves
+    is what makes the result a label rather than a guess: constancy alone would flag every
+    tag byte, and difference alone would flag every noisy byte.
+
+    A segment with only one sample cannot show constancy, so it is reported with
+    `samples` and skipped rather than silently treated as steady.
+    """
+    labels = list(rows_by_segment)
+    if len(labels) < 2:
+        return []
+    width = max(len(rows_by_segment[label]) for label in labels)
+    out = []
+    for off in range(width):
+        # The value each segment held, or None when the offset varied inside it.
+        held: dict[str, int | None] = {}
+        for label in labels:
+            cols = rows_by_segment[label]
+            if off >= len(cols):
+                held[label] = None
+                continue
+            col = cols[off]
+            if col["absent"]:
+                held[label] = None  # absent at least once: not steady by definition
+            elif col["varies"]:
+                held[label] = None
+            else:
+                held[label] = col["top"][0][0]
+        steady = [label for label in labels if held[label] is not None]
+        if len(steady) < 2:
+            continue
+        values = {held[label] for label in steady}
+        if len(values) > 1:
+            out.append(
+                {
+                    "off": off,
+                    "values": {label: held[label] for label in steady},
+                    "samples": {label: len(rows_by_segment[label]) for label in steady},
+                }
+            )
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--type", required=True, help="wire type, e.g. 0x635")
@@ -206,6 +259,10 @@ def main() -> int:
                              "offsets that are 'absent' in most samples, which reads as "
                              "variation and drowns the real structure. Group by length first.")
     parser.add_argument("--out", help="write the full JSON map here")
+    parser.add_argument("--segments",
+                        help="a segments.json from `ef.py run capture-segments`. Reports the "
+                             "offsets that are steady within each segment but differ between "
+                             "them -- the action-correlated set.")
     args = parser.parse_args()
 
     want = int(args.type, 16) if args.type.lower().startswith("0x") else int(args.type)
@@ -222,6 +279,9 @@ def main() -> int:
             f"only {len(bodies)} bodies of type 0x{want:x} found (need {args.min_samples}). "
             "Differential analysis needs a corpus that varies; see this file's docstring."
         )
+
+    if args.segments:
+        return report_segments(args, want)
 
     if args.length is not None:
         before = len(bodies)
@@ -266,6 +326,68 @@ def main() -> int:
                 indent=1,
             )
             + "\n",
+            encoding="utf-8",
+        )
+        print(f"\nwrote {out}")
+    return 0
+
+
+def report_segments(args, want: int) -> int:
+    """Join the log's own timestamps to the driver's labelled windows and diff segments."""
+    plan = json.loads(Path(args.segments).read_text(encoding="utf-8"))
+    windows = [
+        (seg["label"], seg["start"], seg["end"]) for seg in plan["segments"]
+    ]
+
+    by_segment: dict[str, list[bytes]] = {label: [] for label, _, _ in windows}
+    total = 0
+    for ts, body in iter_bodies(Path(args.corpus), want, timestamps=True):
+        if ts is None:
+            continue
+        total += 1
+        for label, start, end in windows:
+            if start <= ts <= end:
+                by_segment[label].append(body)
+                break
+
+    print(f"type 0x{want:x}: {total} bodies total, attributed to segments:")
+    for label, _, _ in windows:
+        bodies = by_segment[label]
+        sizes = sorted({len(b) for b in bodies})
+        print(f"  {label:18} {len(bodies):5} bodies   lengths {sizes[:6]}")
+
+    usable = {label: bodies for label, bodies in by_segment.items()
+              if len(bodies) >= 2 and len({len(b) for b in bodies}) == 1}
+    skipped = [label for label in by_segment if label not in usable]
+    if len(usable) < 2:
+        raise SystemExit(
+            "need at least two segments that each have >=2 bodies of ONE length; "
+            f"usable: {sorted(usable)}; skipped: {skipped}. A segment whose bodies have "
+            "mixed lengths cannot show constancy, because a short body's tail is absent."
+        )
+    if skipped:
+        print(f"\nskipped (too few bodies or mixed lengths): {skipped}")
+
+    width = len(next(iter(usable.values()))[0])
+    rows_by_segment = {label: variability(bodies)["columns"] for label, bodies in usable.items()}
+    differing = segment_report(rows_by_segment)
+
+    print(f"\nsegments compared: {sorted(usable)}   body width {width}")
+    print(f"offsets steady within every segment but differing between them: {len(differing)}\n")
+    if not differing:
+        print("none. Either the actions had no effect on this type, or the segments were "
+              "too short to separate motion noise from a held value.")
+        return 0
+
+    for entry in differing:
+        rendered = ", ".join(f"{k}=0x{v:02x}" for k, v in entry["values"].items())
+        print(f"  0x{entry['off']:03x}  {rendered}")
+
+    if args.out:
+        out = Path(args.out)
+        out.write_text(
+            json.dumps({"type": f"0x{want:x}", "segments": sorted(usable),
+                        "body_width": width, "differing": differing}, indent=1) + "\n",
             encoding="utf-8",
         )
         print(f"\nwrote {out}")

@@ -67,12 +67,12 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Name the fields the differential map found.** The method now works: a live movement
-session gave 3,830 bodies of `0x635`, and the 281-byte group (2,106 samples) yields 257
-constant and 24 varying offsets. The varying ones include an array of **41-byte entries
-with a 2-byte field at `+27`**. What is left is meaning, not boundaries: the 257 constant
-offsets need a session that varies one thing at a time to tell a tag from a value that
-merely held still.
+**Give the movement-correlated offsets a meaning.** The segmented capture works: an
+8-action plan yields **43 offsets that are constant standing and vary while strafing**
+(323-byte body), including `0x6a/0x6c/0x6d` next to the position pair at `0x65..0x6c`.
+No offset holds a different-but-steady value across segments, so no flag flips yet. Next:
+a plan that isolates a flag rather than a motion — sitting, sheathing a weapon, opening the
+inventory — since those change state instead of position.
 
 ## Do not
 
