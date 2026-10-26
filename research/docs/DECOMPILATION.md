@@ -40,6 +40,29 @@ python ef.py re decompile --callers-of <va>
 python ef.py re decompile --range <start>-<end>
 ```
 
+## The other direction: what the client sends, and what it expects back
+
+A layout cannot be confirmed from pseudocode alone, so the byte side needs its own tools.
+These answer "which message does this surface send" and "what shape is it on the wire":
+
+```powershell
+python ef.py re input-contract --surfaces        # surface -> keys -> message families
+python ef.py re input-contract --check           # measured bindings, as a regression test
+python ef.py re segment-types --corpus <log> --segments <plan.json> --offset <N>
+python ef.py run capture-segments --plan panels   # drive the panels, label the windows
+python ef.py re field-differential --type 0x5de --corpus <log> --segments <plan.json>
+```
+
+`input-contract` derives its inventory from the shipped PAK profiles and joins it to
+`research/derived/wire-type-names.json`; it does not carry a hand-written list, because a
+hand-written list misses surfaces. `segment-types` counts wire types per labelled window and
+resolves each to its name. `field-differential --segments` compares bodies **within one
+body width only**: a variable-length type shifts every offset after its insertion point, so a
+cross-width diff reports one shifted region as dozens of fields.
+
+The systems, their entry-point wire types and how to provoke each one are in
+[INTERACTION-DECOMP-PLAN.md](INTERACTION-DECOMP-PLAN.md).
+
 For a long investigation, `python ef.py re decompile --serve` keeps the
 current Ghidra project open; send work with normal `python ef.py re decompile`
 requests and stop it with `--stop`.
