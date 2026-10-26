@@ -56,8 +56,7 @@ proven controls (`0x663`, `0x65c`):
 | `0x651` | `ReceivePlayerSpawnPointMsg` | `ClientViewListenerTrait` |
 | `0x18a6` | `GridTrackingComponentClientFacet_UpdatePhasing` | `ClientMessages` |
 
-`0x651` is the typed header and no body. `0x18a6` is the 40-byte periodic record;
-its fields stay unnamed. The same pass fixed seven of eleven `ef.py re` workflows.
+`0x651` has no body; `0x18a6` is a 40-byte periodic record with unnamed fields.
 
 The spawn's **48 fragments are named too**: a fragment's second varint is a
 type-table index, so the hook names it — 47 distinct types, every one a
@@ -67,12 +66,13 @@ measured live and are in `frag-spawn.jsonl`. The position is in fragment 36,
 
 ## Next
 
-**Decide the version handshake.** Rung 17 fails by *waiting*, not rejecting: the
-client's log has 0 `Failed to unmarshal` and 0 `ValidationError`, and expires with
-`Errors::connection_player_timeout`. The bundle is deferred, not dropped
-(`clientContext == nullptr`, then reprocessed). The one concrete defect found is that
-the lab declares `Server version: …1.400…` to a 1.460 client (`v3.py:23`, unpinned).
-The handler only records both versions, so whether that matters is unmeasured.
+**Keep naming: turn the 796 ambiguous types into single answers.** The version
+mismatch is registered and deliberately **not** fixed — repairing the replay is not
+the goal, a complete named inventory is. Rung 17 fails by *waiting*, not rejecting
+(0 `Failed to unmarshal`, 0 `ValidationError`, `connection_player_timeout`), and the
+bundle is deferred, not dropped: parked. The debt blocking the Rust port is ambiguity
+— `message-names.py` attributes every slot of a hook record to that record's GUID, so
+one record with several hooks reports several names per type.
 
 ## Do not
 

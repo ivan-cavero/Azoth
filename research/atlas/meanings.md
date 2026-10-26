@@ -594,6 +594,16 @@ record, which was measured to contain no position pair at all (see "The fragment
 payload is not a fixed layout"), so everything the client receives while it waits
 is a delta against a baseline it is holding, not new position information.
 
+**Decision 2026-10-26: the version mismatch stays a candidate on purpose.** It is
+recorded and not fixed, because fixing it would be making the replay work, and the
+replay working is not the goal. The goal is a complete, named inventory so the Rust
+server can be written against named fields. A one-line change to `v3.py:23` would
+move the experiment and say nothing about the protocol, so it waits until someone is
+actually working on the ladder. What the inventory owes the Rust port is the fact
+that the field exists, that it is called `Server version`, that the client records
+both versions, and that nothing in this build was found comparing them -- all four
+are now written down.
+
 **A concrete defect found in the same run, unrelated to the decode.** At
 `10:00:13.190` the client logs
 `Server version: [RETAIL].Javelin.1.400.6031.6004151` -- the lab declares a 1.400
