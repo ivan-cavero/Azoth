@@ -395,7 +395,7 @@ named reason each.
 | Greetings | GridMate peer handshake | A **Carrier command**, not an application message: `Cmd_Greetings` = command byte 1 inside a Carrier record. It has no type-table slot, the 1.460 image contains no `Greeting` string at all, and the 1.365 replay has no record for it among its 177. The ladder's first typed exchange is the client's `RegistrationRequestV3Msg`, not a greeting. | transport-level, no typed record |
 | Self identification | `WaitingForREPConnection`/`WaitingForActorGameConnection` (15) -> `WaitingForSpawnPoint` (16) | `PlayerManagerSelfIdentificationMsg`. The client handler is `FUN_146455ec0` on SHA-256 `30fe6461...`: it logs `PlayerManagerSelfIdentification`, returns early when the game or client-SDK pointer is null, copies the message into the player-manager component, sets an identified flag at component `-0x7f0`, and either spawns from the debug cvars or delegates to `FUN_14167cc70`. Its decoded struct is `0x38` bytes: `0x00` u32, `0x08` `std::vector<u32>` (24 bytes), `0x28` u8, `0x2c` u64, `0x34` u32. Only `0x28` is named: non-zero switches placement to the debug cvars and skips the real spawn. **The body is now measured** (2026-10-26): a 135-byte prefix, a **56 x 56 grid of big-endian `u32`** (12,544 bytes) whose cells are an 8-value enum with `0xFFFFFFFF` = empty, and a 27-byte tail; `struct+0x00` is 56, the grid side, and the vector holds 3,136 elements. Two 16-byte GUIDs are redacted (prefix `0x05`, tail `0x3192`) and only the prefix one has a lever. The grid's meaning is unnamed. The message is registered in `Javelin::ClientMessagesTrait`, the same trait as `LevelInfoChangedMsg`. (Superseded text removed 2026-10-26: this paragraph used to say `0x65c` was `LastSpawnedBotCharacterId`, and later that the wire order was open by one byte -- the first was the adjacency defect corrected in `b7d106e`, the second was a wrong model now replaced by measurement.) | handler, struct and body measured; grid semantics unnamed |
 | Level info | `WaitingForSpawnPoint` (16) → `WaitingForPlayerSpawn` (17) | `LevelInfoChangedMsg`, wire type `0x663`. The handler is `FUN_146447ac0` on `30fe6461…`, the next virtual slot in the same vtable as the self-identification handler, and it reads only three struct offsets: `+0xa1`, which it logs as `levelInfo.m_clientContextInstanceId`, `+0xa2`, and `+0xa8`, which it compares against the slot it cached last time and **returns early when they match**. The body is parsed end to end on the 1.365 replay record `0x10_T0x663_R.bin`, 110 bytes: `00 01 a3 19`, `14`+`NewWorld_VitaeEterna`, `1e`+`coatlicue/NewWorld_VitaeEterna`, four big-endian floats `2048.0 / 16.0 / 12272.0 / 10250.0` at `0x38`, `u64` zero at `0x48`, `01 01 00 00` at `0x50`, an 8-byte per-record nonce at `0x54`, `65 03 00 00 00 00 01 01 01 00` at `0x5c`, and the 8-byte `level_context_key` `00 00 00 c1 7f 9b e4 8f` at `0x66`. The key is named: it is the dedup key, proven by the early return above and independently by the lab's own capture note that a repeated `0x663` with the same key is ignored. | partial, measured |
-| Spawn | `WaitingForPlayerSpawn` (17) → `InGame` (18) | Record type `0x8`, record id 1, 48 fragments, 46,393 payload bytes. **Measured on the 1.365 replay** (`0x6c_T0x8_R.bin`, 46,407 bytes total): `00 01 08` then a run of `01`/`00` flags to `0x0b`, then the varint `d9 a9 05` = 46,393, and exactly that many bytes follow. The payload is `[record_id = 1][fragment_count = 0x30 = 48][48 fragments]`, where a fragment is `[varint key][varint type_index][payload]` with **no length field**. Verified offsets inside the payload: `actor_id` 16 bytes at 29,731 (preceded at 29,727 by `00 00 00 02`), `position_x` BE f32 at 38,332 = 9343.6416, `position_y` BE f32 at 38,336 = 2786.7327. The actor id bytes match the constant the deleted crate pinned, byte for byte, and the 1,802 redacted bytes match its declared redaction count. The capture carries this same record **24 times** and all 24 payloads are byte-identical, so it is fully static. The 48 fragment boundaries are **not** derivable from the bytes -- a byte walk on the small variant (record id 1, 9 fragments, 7,152 bytes) is exhaustive and admits only a degenerate path, so the constraints are insufficient, not merely expensive. They were **measured live** instead (2026-10-18, 25 identical copies), and every fragment is now named by its type index; see "The 48 spawn fragments, named". The position sits in fragment 36, `ALCReplicatedState`. | layout verified, all 48 fragments named |
+| Spawn | `WaitingForPlayerSpawn` (17) → `InGame` (18) | Record type `0x8`, record id 1, 48 fragments, 46,393 payload bytes. **Measured on the 1.365 replay** (`0x6c_T0x8_R.bin`, 46,407 bytes total): `00 01 08` then a run of `01`/`00` flags to `0x0b`, then the varint `d9 a9 05` = 46,393, and exactly that many bytes follow. The payload is `[record_id = 1][fragment_count = 0x30 = 48][48 fragments]`, where a fragment is `[varint key][varint type_index][payload]` with **no length field**. Verified offsets inside the payload: `actor_id` 16 bytes at 29,731 (preceded at 29,727 by `00 00 00 02`), `position_x` BE f32 at 38,332 = 9343.6416, `position_y` BE f32 at 38,336 = 2786.7327. The actor id bytes match the constant the deleted crate pinned, byte for byte, and the 1,802 redacted bytes match its declared redaction count. The capture carries this same record **24 times** and all 24 payloads are byte-identical, so it is fully static. The 48 fragment boundaries are **not** derivable from the bytes -- a byte walk on the small variant (record id 1, 9 fragments, 7,152 bytes) is exhaustive and admits only a degenerate path, so the constraints are insufficient, not merely expensive. They were **measured live** instead (2026-10-18, 25 identical copies), and every fragment is now named by its type index; see "The 48 spawn fragments, named". The position sits in fragment 36, `ALCReplicatedState`. | layout verified, all 48 fragments named; payloads are baseline/delta, not fixed layout |
 | State stream | keeps the connection indicator quiet | The **ongoing** variant: record id 1 at 7,167 bytes with a fragment count byte of 9, carried at seq 0x73, 0x98, 0x9a, 0x9c and 0x9e. Its head is `00 01 08 01 <seq> 01 01 01 01 00 00 <len varint> 01 09`. It carries no position at all, which is why the spawn record is the server's only lever on where a player starts. The spawn itself is re-sent 24 times byte-identically, so the stream is a verbatim repeat rather than an update. | measured effect, unknown body |
 
 Chunking is a transport fact, not a game fact. A record bigger than about 256
@@ -502,6 +502,57 @@ hook.
 The same table is committed machine-readable as
 `research/derived/spawn-fragments.json`, because the capture it comes from is
 gitignored and would otherwise be the only record.
+
+### The fragment payload is not a fixed layout
+
+Named fragments are not the same as a readable schema, and the difference is
+architectural rather than a missing afternoon of work. The same fragment type does
+not carry the same bytes in the same places, measured three ways:
+
+1. **The update omits a field the baseline carries.** Type `11`
+   (`ALCReplicatedState`) has an 87-byte body in the spawn record, payload
+   `38310..38397`, and the authoritative x/y pair is at payload `+20` as big-endian
+   f32 (9343.6416, 2786.7327). The *same* key and type in the 9-fragment record
+   (payload offset `5335`) does **not** contain that pair anywhere: searched as f32
+   big-endian and little-endian, and each component alone -- zero hits in its 7,153
+   bytes, while the spawn's 46,393 bytes match at `38332`. A field that is simply
+   absent cannot be a fixed offset that happens to hold a stale value.
+2. **The client's own reads move.** The same fragment type yields its nested
+   prefix-varint reads at offsets `29, 32, 34, 37, 38, 41` in one instance and
+   `33, 36, 38, 41, 43, 46` in another, with the same *values* (`31`, `1081`) at
+   the shifted offsets. This is supporting evidence rather than independent proof:
+   a variable-length field ahead of them would also shift them, so it rules out a
+   flat fixed struct but does not on its own establish delta encoding.
+3. **The mechanism exists in the build.** The client registers
+   `statereplication-enable-hub-delta-compression` and `asc-enable-fragment-sharing`
+   (see the 452 `javelin-server.*` cvars), so delta compression is a feature this
+   build has, not an inference from the bytes.
+
+Signal 1 carries the argument on its own -- a field that is absent cannot be a
+stale fixed offset. Signals 2 and 3 say the mechanism is the plausible one; they
+do not select it uniquely.
+
+What that means, and what it does not. It means the spawn record is a **baseline**
+-- the first and only time the client hears this entity's full state, which is why
+the position is there and nowhere else -- and later records carry **deltas**. It
+does **not** give the delta format: field mask, present-field list, and the
+reference state the delta applies against are all still unmeasured, and none of
+them is guessable from three instances.
+
+The consequence for the ladder is the useful part. Rung 17 fails although the
+spawn bundle arrives at the right size, and a delta interpretation says why the
+obvious line of attack cannot work: there is no fixed offset to patch, so "find
+what the captured spawn does not supply" is the wrong question for a record whose
+fields are conditional. The right question is whether the client rejects the
+record or accepts it and then waits for something else, which is a handler
+question and needs a hook, not more byte reading.
+
+For the Rust port the same fact is a constraint worth having early: a server that
+**echoes captured bytes** satisfies this format for free, because it never has to
+encode a delta. A server that **authors** state -- spawning a second entity,
+moving one, setting a component -- has to produce deltas against a reference
+state the client is holding, and that encoder is the real work item. It is not
+blocked by naming; it is blocked by the format, which is a different thing.
 
 ## The three types the replay used to have no name for
 

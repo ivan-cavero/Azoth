@@ -63,16 +63,15 @@ The spawn's **48 fragments are named too**: a fragment's second varint is a
 type-table index, so the hook names it — 47 distinct types, every one a
 `*ReplicatedState`. The boundaries were never derivable from the bytes; they were
 measured live and are in `frag-spawn.jsonl`. The position is in fragment 36,
-`ALCReplicatedState`, not `PositionInTheWorldReplicatedState` (index 13, in no
-fragment of this record).
+`ALCReplicatedState`, not `PositionInTheWorldReplicatedState` (index 13, absent here).
 
 ## Next
 
-**Name what the spawn's named fragments still do not say.** The bundle arrives at
-the right size and every fragment has a type name, so what is left is field meaning
-inside those fragments, not identity. Start with `ALCReplicatedState` (fragment 36),
-which carries the authoritative position, and with the two ambiguous type rows
-(3652, 3681). Nothing external blocks this: auth works and the ladder walks to 17.
+**Hook the spawn handler on 1.460 and see whether the client rejects the record or
+accepts it and waits.** Naming is no longer the wall: the fragments have type names,
+and their payloads are baseline/delta, not fixed layouts — the spawn carries the
+position pair, the update record omits it. With no offset to patch, "what does the
+captured spawn not supply" was the wrong question. Auth works; the ladder walks to 17.
 
 ## Do not
 
