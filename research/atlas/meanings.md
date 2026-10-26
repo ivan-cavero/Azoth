@@ -1959,22 +1959,39 @@ offsets** as "different with a panel open", and they were one shifted region, no
 fields. Any tool that compares `0x635` bodies without grouping by shape is measuring its
 own misalignment.
 
-**The panel flag is the inventory's, not "a panel"'s.** Searching every from-end offset for
-one that separates a surface from all 23 other windows:
+**What the two panel segments differ in.** Comparing only bodies of the *same* width — the
+only valid comparison, and the one the tool did not make at first — the two panel-open
+segments (`inventory-open-idle` and `skills-open-idle`, both 298 B, 99 and 100 bodies) differ
+at **14** offsets. Five of them carry a clean two-valued pattern:
 
-| Surface | From-end offsets that separate it | Value |
-| --- | --- | --- |
-| inventory open | **2** (`b[-10]`, `b[-54]`) | `0x04`; every other window `0x00` (or `0x2c` mid-transition) |
-| skills panel open | **0** | — |
+| Absolute offset | From-end (298 B) | inventory open | skills open |
+| --- | --- | --- | --- |
+| `0x059` | `b[-209]` | `0x04` | `0x00` |
+| `0x09c` | `b[-142]` | `0x04` | `0x00` |
+| `0x0c8` | `b[-98]` | `0x04` | `0x00` |
+| `0x0f4` | `b[-54]` | `0x04` | `0x00` |
+| `0x120` | `b[-10]` | `0x04` | `0x00` |
 
-So "a panel is open" is **not** a field in this message. Inventory-open is, and it is
-`0x04` at from-end offset 54. Validated on two windows that are **not** part of the plan
-(the ad-hoc manual clicks at 20:58): 120/120 and 180/180 bodies carried `(298, 94)` with
-`b[-54]=0x04`, reproducing the signature independently.
+Five offsets in lockstep is one field repeated at a stride (the gaps are 67, 44, 44, 44
+bytes), not five independent fields — the same shape as the position marker's repetition. So
+the reading is a **per-slot record** whose flag is `0x04` for the inventory, and the skills
+panel sets `0x00` in every slot.
 
-Evidence word: **measured** for the shapes, the offsets and the inventory flag;
-**unknown** for what the 15 inserted bytes mean, and for whether the flag is a bitfield or
-an enum that happens to be `4`.
+**This corrects the first version of this section**, which reported *two* from-end offsets
+(`b[-10]`, `b[-54]`) and concluded that the skills panel had no separating offset at all.
+That test compared from-end offsets across bodies of **different widths**, where an absolute
+offset is a different field in each width, so it excluded `0x59`, `0x9c` and `0xc8` — the
+same field, read at the wrong anchor. The equal-width comparison recovers all five. The two
+originally reported offsets are two of the five, so nothing that was reported was wrong;
+what was wrong was the count and the conclusion drawn from it.
+
+Validated on two windows that are **not** part of the plan (the ad-hoc manual clicks at
+20:58): 120/120 and 180/180 bodies carried `(298, 94)` with `0x04` at those offsets,
+reproducing the signature independently.
+
+Evidence word: **measured** for the shapes, the offsets and the `0x04`/`0x00` pattern;
+**unknown** for what the 15 inserted bytes mean, for the field's width (one byte of a
+bitfield, or an enum), and for what the other nine differing offsets are.
 
 ### The trap, written down because it cost a pass
 
