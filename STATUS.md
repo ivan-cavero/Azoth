@@ -67,12 +67,12 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Record bodies directly instead of reading the world log.** A live movement session gave
-a defect and no table: the container marker moves from 24 to 26 when a record carries an
-`ff ff` prefix (fixed, with tests), and the log misses messages — 3,810 lines say
-`channel: 1` while re-parsing yields 60. Slicing from the log's own `records` list matches
-byte-exactly, so that is the reliable path. Grown bodies exist (91…372 B) once per length,
-and a differential needs many of one size. Recording each `0x635` body unblocks it.
+**Name the fields the differential map found.** The method now works: a live movement
+session gave 3,830 bodies of `0x635`, and the 281-byte group (2,106 samples) yields 257
+constant and 24 varying offsets. The varying ones include an array of **41-byte entries
+with a 2-byte field at `+27`**. What is left is meaning, not boundaries: the 257 constant
+offsets need a session that varies one thing at a time to tell a tag from a value that
+merely held still.
 
 ## Do not
 

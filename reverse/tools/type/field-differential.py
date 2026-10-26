@@ -51,6 +51,22 @@ from azoth_world.javelin.frame import parse_datagram, parse_envelope  # noqa: E4
 from azoth_world.javelin.lz4 import decompress_lz4_block  # noqa: E402
 
 
+def _decompress(envelope, body: bytes) -> bytes:
+    """LZ4-decompress the datagram body when the Carrier type byte says it is compressed.
+
+    `CarrierEnvelope` has only `type_byte`, `proto` and `sequence` -- there is **no**
+    `compressed` attribute, so `getattr(envelope, "compressed", False)` is always False.
+    This tool used to do exactly that and therefore fed compressed bytes straight into
+    `parse_datagram`, which produced plausible-looking garbage: 3,802 records on channel 3
+    and 60 on channel 1 out of 3,810 datagrams. Measured 2026-10-26: 3,756 of the
+    channel-1 datagrams in one live session are `0x81`, so this quietly discarded 98% of
+    the corpus while looking like it worked.
+    """
+    if getattr(envelope, "type_byte", None) == 0x81:
+        return decompress_lz4_block(body)
+    return body
+
+
 def _channel1_body(payload: bytes) -> bytes | None:
     """Body of a channel-1 typed record, or None if this is not one.
 
@@ -100,8 +116,7 @@ def iter_bodies(corpus: Path, want: int, *, event: str = "app-data"):
                 continue
             try:
                 envelope, body = parse_envelope(bytes.fromhex(raw))
-                if getattr(envelope, "compressed", False):
-                    body = decompress_lz4_block(body)
+                body = _decompress(envelope, body)
                 parsed = parse_datagram(body)
             except Exception:
                 continue
@@ -185,6 +200,11 @@ def main() -> int:
                         help="refuse to report below this many bodies")
     parser.add_argument("--max-samples", type=int, default=20000,
                         help="cap so a huge corpus stays fast; distinctness is sampled")
+    parser.add_argument("--length", type=int,
+                        help="only analyse bodies of exactly this many bytes. REQUIRED in "
+                             "practice: bodies of different lengths pad the comparison with "
+                             "offsets that are 'absent' in most samples, which reads as "
+                             "variation and drowns the real structure. Group by length first.")
     parser.add_argument("--out", help="write the full JSON map here")
     args = parser.parse_args()
 
@@ -202,6 +222,15 @@ def main() -> int:
             f"only {len(bodies)} bodies of type 0x{want:x} found (need {args.min_samples}). "
             "Differential analysis needs a corpus that varies; see this file's docstring."
         )
+
+    if args.length is not None:
+        before = len(bodies)
+        bodies = [b for b in bodies if len(b) == args.length]
+        if not bodies:
+            raise SystemExit(
+                f"no bodies of exactly {args.length} bytes (had {before} bodies of other lengths)"
+            )
+        print(f"filtered to {args.length} bytes: {len(bodies)} of {before} bodies")
 
     distinct = len(set(bodies))
     report = variability(bodies)

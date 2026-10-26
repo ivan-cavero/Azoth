@@ -1073,6 +1073,55 @@ Measured on that stream (`--min-samples 200`, whole `world.log`): 936 bodies of 
 is a starting point, not an answer: the tool finds where variability *starts and stops*,
 and naming those runs needs a sample that changes one field while everything else holds.
 
+**The differential method works, and the first thing it found was a defect in the reader.**
+A live in-world movement session (W, A, D held; the player visibly moved) gave **3,830**
+bodies of `0x635` across **57** distinct lengths. The first run of the tool saw **60** of
+them and reported a corpus with no usable structure.
+
+The cause was a one-line assumption. `CarrierEnvelope` has only `type_byte`, `proto` and
+`sequence` -- there is **no** `compressed` attribute -- so `getattr(envelope, "compressed",
+False)` was always False and LZ4-compressed datagrams went into `parse_datagram` untouched.
+Compression is decided by the Carrier type byte `0x81`, and nothing else. Measured on this
+session: **3,756** of the `0x81` datagrams needed decompression and did not get it.
+
+What makes that failure worth recording is its shape. It did not crash and it did not
+return nothing: it produced 3,802 records on channel 3 and 60 on channel 1 out of 3,810
+datagrams, which reads like a corpus where the input stream is simply rare. **Garbage
+compressed bytes parse into plausible-looking records**, so the tool was confidently wrong
+rather than visibly broken. Three tests now pin the type-byte rule and the missing
+attribute.
+
+**The first real field map, on the 281-byte body** (2,106 samples, all distinct):
+**257 offsets constant, 24 varying**, and the varying ones are not scattered:
+
+| Region | Bytes | Note |
+| --- | --- | --- |
+| `0x11` | 1 | varies |
+| `0x15` | 1 | varies |
+| `0x19..0x1f` | 7 | varies |
+| `0x25`, `0x27` | 1 each | vary, separated by one constant byte |
+| `0x2b..0x2d` | 3 | varies |
+| `0x32..0x33` | 2 | varies |
+| `0x78..0x79`, `0xa1..0xa2`, `0xca..0xcb`, `0xf3..0xf4` | 2 each | **the structural finding** |
+| everything else | 257 | constant |
+
+Those last four pairs sit at **exactly 41 bytes apart** (`0x78`, `0xa1`, `0xca`, `0xf3` ->
+41, 41, 41), and each is at offset **+27 within its own entry** (`0x78-0x34 = 68`, `68 mod
+41 = 27`; same for the other three). From `0x34` five 41-byte entries fit before the tail.
+So the body carries a **repeating array of 41-byte entries with a 2-byte varying field at
+`+27`** -- a real structure recovered without decompiling anything.
+
+The position is where `alc.py` says it is, and now with a sample size to prove it: the
+marker `3d 4c cc cd` occurs at `0x59` in **3,676 of 3,830** bodies, with x/y at
+`0x65..0x6c` as big-endian floats (one sample read `9342.0195, 2790.3813`). Across the
+281-byte group that region is **constant**, which is correct rather than surprising: those
+2,106 samples were taken while the player stood still.
+
+Two honest limits. This is a map of *where bytes change*, not a schema: the 257 constant
+offsets could be tags, reserved bytes or values that happened not to change in this session,
+and naming them needs a session that varies one thing at a time. And the 41-byte stride is
+strong evidence, not proof, until a second body size shows the same stride independently.
+
 **The first real capture attempt produced a defect and no table.** A live in-world session
 was driven end to end (movement held on W, A and D; the player visibly moved -- the HUD
 showed `2991 uid` and an overweight notice), and 6.3 MB of new log came out of it. Three

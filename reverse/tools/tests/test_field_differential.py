@@ -134,6 +134,48 @@ class PrefixedContainerTest(unittest.TestCase):
         self.assertEqual(payload[offset:], bytes([0xDE, 0xAD]))
 
 
+class CompressionDetectionTest(unittest.TestCase):
+    """`CarrierEnvelope` has no `compressed` attribute, and believing it did cost 98%.
+
+    Measured 2026-10-26: a tool that asked `getattr(envelope, "compressed", False)` always
+    got False, so LZ4-compressed datagrams went into `parse_datagram` untouched. The result
+    did not look broken -- it produced 3,802 channel-3 records and 60 channel-1 records out
+    of 3,810 datagrams -- so the corpus appeared to contain almost no input stream. The
+    truth was 3,830 channel-1 bodies. Compression is decided by the Carrier type byte, 0x81,
+    and nothing else.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tool = load_tool()
+
+    def test_type_byte_0x80_is_not_decompressed(self):
+        class Envelope:
+            type_byte = 0x80
+
+        body = bytes([0x20, 0x00, 0x06])
+        self.assertEqual(self.tool._decompress(Envelope(), body), body)
+
+    def test_type_byte_0x81_is_decompressed(self):
+        from azoth_world.javelin.lz4 import decompress_lz4_block
+
+        class Envelope:
+            type_byte = 0x81
+
+        # A minimal LZ4 block of pure literals: token nibble 0xF0 would need a length
+        # extension, so use a short literal run: high nibble = length, then the literals.
+        payload = bytes([0x30]) + b"abc"
+        self.assertEqual(decompress_lz4_block(payload), b"abc")
+        self.assertEqual(self.tool._decompress(Envelope(), payload), b"abc")
+
+    def test_the_envelope_really_has_no_compressed_attribute(self):
+        """Pin the trap itself, so nobody reintroduces the getattr that silently misfires."""
+        from azoth_world.javelin.frame import CarrierEnvelope
+
+        self.assertFalse(hasattr(CarrierEnvelope, "compressed"))
+        self.assertFalse(hasattr(CarrierEnvelope, "compressed_size"))
+
+
 class CatalogTest(unittest.TestCase):
     def test_the_tool_is_registered(self):
         import json
