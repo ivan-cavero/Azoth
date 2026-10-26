@@ -67,12 +67,12 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Build the differential field measurer.** The gap is not names but per-field encodings:
-6 of 185 wire types are laid out to the byte, and even `ALCReplicatedState` — 62 field
-names known, mask measured — has 61 fields with unknown wire encoding. The route is open
-because the presence mask says which fields a body carries, so two bodies of one type
-differing in a single field differ in that field's bytes only. Acceptance: recover one
-unknown field's encoding, checked against a second body.
+**Capture a corpus the measurer can use.** `ef.py re field-differential` is built and
+works, but the replay cannot feed it — its state records are byte-identical on every
+repeat, so every offset reads as constant. The live `0x635` stream gave 936 bodies, 926
+distinct, all 65 bytes with 9 varying offsets — the *small* form; the in-world body grows
+past 154 bytes and that shape was not in the log. Next: capture an in-world movement
+session and point the measurer at the long form.
 
 ## Do not
 

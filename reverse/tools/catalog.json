@@ -46,6 +46,10 @@
     "message-names": {
       "path": "type/message-names.py",
       "kind": "type"
+    },
+    "field-differential": {
+      "path": "type/field-differential.py",
+      "kind": "type"
     }
   },
   "files": {
@@ -223,6 +227,10 @@
     },
     "message-names": {
       "path": "type/message-names.py",
+      "kind": "type"
+    },
+    "field-differential": {
+      "path": "type/field-differential.py",
       "kind": "type"
     }
   }

@@ -1053,6 +1053,32 @@ That is why extracting every name would not move the number much. It would make 
 *findable* -- a named field tells you which codec to hook -- but the codecs still have to be
 measured one at a time, and a name alone composes no bytes.
 
+**The differential measurer exists, and the replay cannot feed it.** Built 2026-10-26:
+`python ef.py re field-differential --type 0x635 --corpus <log>`. It decodes both container
+shapes (the `00 01` typed marker on channel 0, `alc.split_container` on channel 1), groups
+bodies by type, and reports per-offset variability collapsed into constant/varying runs.
+It deliberately does not pad short bodies, because a short body means the tail fields were
+absent rather than zero and padding would invent a phantom field.
+
+The finding that matters is about the corpus, not the tool. **Pointed at the captured
+replay it is useless by construction**: the state records are byte-identical on every
+repeat -- 24 copies of the spawn record, 5 of the player record -- so every offset reads as
+constant and the tool correctly reports that there is nothing to differentiate. The
+variation in a live session lives entirely in the **client's input stream**: type `0x635`
+gave 220,252 distinct bodies out of 220,367 in one session.
+
+Measured on that stream (`--min-samples 200`, whole `world.log`): 936 bodies of `0x635`,
+926 distinct, every one exactly **65 bytes**, and only **9 of 65 offsets vary** -- at
+`0x11`, `0x15`, `0x24..0x26`, `0x2a..0x2c`, `0x32`. That is a real variability map and it
+is a starting point, not an answer: the tool finds where variability *starts and stops*,
+and naming those runs needs a sample that changes one field while everything else holds.
+
+Two limits worth stating before anyone builds on this. The 65-byte bodies are the **small**
+form; the roadmap records the in-world body growing to 93 and past 154 bytes, so the rich
+form was not in this corpus and its extraction path is still unexercised. And constant
+runs are ambiguous by nature -- a constant field and a constant value inside a varying
+field look identical, which is why the tool reports runs rather than claiming fields.
+
 **What this implies for the plan, stated plainly.** Naming the types was the cheap half. What a
 composing server needs is per-field encode/decode, and the only routes to that are (a) decompile
 each field codec, or (b) measure it empirically -- and (b) is now possible in a way it was not
