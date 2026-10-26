@@ -6,27 +6,45 @@
     "product_version": "1.460.6033.6024067",
     "size_bytes": 179214008,
     "source": "Steam app 1063730, C:/Program Files (x86)/Steam/steamapps/common/New World/Bin64/NewWorld.exe",
-    "measured": "2026-10-22, re-measured 2026-10-25",
+    "measured": "2026-10-22, re-measured 2026-10-25 and 2026-10-26",
     "measured_by": "sha256sum on disk; FileVersion via VersionInfo",
-    "evidence": "research/sessions/live_20261022_r1460_first/session.json"
+    "evidence": "research/sessions/live_20261022_r1460_first/session.json",
+    "steam_manifest": {
+      "file": "steamapps/appmanifest_1063730.acf",
+      "buildid": "25810808",
+      "last_updated_utc": "2026-10-26T08:57:15Z",
+      "evidence": "observed",
+      "note": "Steam re-verified the install on 2026-10-26 (LastUpdated, exe mtime 09:49 local) and the executable's SHA-256 did not change: it is still 30fe6461. So the 2026-10-26 Steam update did NOT move this machine to a different client build; 1.460.6033.6024067 has been the installed build since at least 2026-10-22."
+    }
   },
   "previous": {
     "sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
     "file_version": "1.400.6031.6004151",
     "size_bytes": 179204176,
-    "note": "The build every existing client-map entry, client-functions.json entry, corpus and decompilation campaign was measured on. Not the build currently installed."
+    "note": "The build every existing client-map entry, client-functions.json entry, corpus and decompilation campaign was measured on. Not the build installed by Steam — but it IS the build the lab actually runs, because the private runtime copy below is still this version (measured 2026-10-26)."
   },
   "runtime_copy": {
     "evidence": "observed",
     "sha256": "97f17df315aef97bed1303bb9d57330be67e9e0c9e22acb59dde68de837b743c",
     "path": "private-client/runtime/Bin64/NewWorld.exe",
-    "relation_to_installed": "Same size and same FileVersion as the Steam source; exactly 5 bytes differ, at file offsets 0x5dceff5..0x5dceff9 (the DTLS patch). Never decompile this copy: every VA belongs to the Steam source above.",
-    "measured": "2026-10-25"
+    "file_version": "1.460.6033.6024067",
+    "size_bytes": 179214008,
+    "derived_from": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+    "relation_to_derived_from": "The DTLS verify bypass of scripts/patch/patch-dtls-disk.py applied at VA 0x145DCF9F5 (0f 84 19 01 00 00 -> e9 1a 01 00 00 90), the 1.460 site, not the 1.400 site 0x145DCE8B5. Reproduced bit-exactly: `patch-dtls-disk.py restore` then `apply` on a clean 1.460 copy yields exactly this SHA-256, so this hash is the 1.460-plus-DTLS-patch copy and nothing else.",
+    "relation_to_installed": "THE SAME BUILD as the Steam source, plus the 5-byte DTLS patch. Both are 1.460.6033.6024067 and 179,214,008 B; they differ only at 0x145DCF9F5. This is the first time the lab and the static analysis have run the same binary, so every VA in the 1.460 entries of this file is valid for a live run. Never decompile this copy: read the Steam install instead, because this one's bytes are modified.",
+    "version_skew": {
+      "evidence": "observed",
+      "status": "RESOLVED 2026-10-26",
+      "was": "The lab silently ran 1.400 (537403d4) while every named 1.460 address, and the DTLS site the launcher patches for 1.460 (0x145DCF9F5), belonged to 1.460. It persisted because Start-NwPrivate.ps1 records the copy as mode 'preserved' when its hash differs from Steam, and only replaces it on -RefreshExe or when the mode is 'synced' AND the runtime still matches its own recorded hash; private-client/state/client-source.json held exactly that.",
+      "fix": "`python scripts/patch/patch-dtls-disk.py restore` then `apply`, which re-patches the current install rather than reusing the stale copy, and then `Start-NwPrivate.ps1 -RefreshExe`. The resulting hash reproduced the value this file had recorded for the 1.460 copy all along (97f17df3), which is the proof the record and the bytes finally agree.",
+      "guard_that_still_matters": "build_sites.py::identify() refuses to patch when the private copy's size differs from the official one. That guard is what prevented the DTLS bypass from being applied at a 1.460 address inside a 1.400 binary, and it must stay."
+    },
+    "measured": "2026-10-26"
   },
   "consequence": {
-    "evidence": "inferred",
-    "statement": "The installed build differs from the analyzed build in version, SHA-256 and size. Every VA in client-functions.json, every offset in the client-map and the 423,579-range corpus are historical for this install until re-derived. Static analysis and the live server experiments must be re-measured against 30fe6461 before their conclusions are reused.",
-    "not_yet_done": "Corrected 2026-10-25: a Ghidra project and a corpus DO exist for 30fe6461. reverse/builds/30fe6461.../ghproj holds an analyzed project (459 MB) and reverse/builds/30fe6461.../corpus holds 3,396 pseudocode shards covering 423,609 functions against 423,637 .pdata entries, meta.json pinning exe_sha256 30fe6461. What is still missing is per-message naming: no ladder body has been decoded from this corpus yet."
+    "evidence": "observed",
+    "statement": "RESOLVED 2026-10-26. Static analysis reads the Steam install (30fe6461) and the lab now runs 30fe6461 plus the 5-byte DTLS patch (97f17df3), so a VA named from static analysis is valid for a live run. Every entry in client-functions.json and every offset in the client-map that carries build_sha256 30fe6461 may be used directly. The historical caveat applies only to the retained 1.400 entries (build_sha256 8654f01d), whose VAs belong to the previous build and must not be used against this one.",
+    "not_yet_done": "UPDATED 2026-10-26 (second correction, same day). A Ghidra project for 30fe6461 NOW EXISTS: reverse/builds/30fe6461.../ghproj is 461 MB, imported in 96 s by `python ef.py re decompile --target 0x146455ec0` with -noanalysis, and it decompiles 1.460 functions on demand. The corpus is still only accounted (423,609 ranges, no shards); per-function decompilation works without it. The first four 1.460 functions are decompiled under reverse/builds/30fe6461.../functions/: selfident-1460.c (FUN_146455ec0, the 0x65c handler), selfident-consumer-1460.c (FUN_14167cc70), selfident-reader-1460.c (FUN_1417abe30), selfident-spawn-1460.c (FUN_141680460). What is still missing is per-message BODY decoding: the 0x65c struct layout is now proven from the handler, but its wire order is open by exactly one byte (see meanings.md)."
   },
   "sessions": [
     {
@@ -93,6 +111,46 @@
       "why_insufficient": "The capture holds 7 distinct RMI names against 5 in the previous session, and the only two new ones are TimeComponentClientFacet_SyncTimeChange and TimeComponentClientFacet_SyncDayPhase. No auction, trading-post, recipe or crafting facet name appears at all.",
       "trap_avoided": "GlobalStorageComponentClientFacet_ReceiveStorageSearchItems fired 23 times and could easily be read as trading-post activity. All 23 carry the same timestamp, 09:41:54.580, which is ONE SECOND BEFORE the InGame transition at 09:41:55.817. That is the login/spawn burst, not a user search. The previous session shows the same 23 count. Do not treat this facet as evidence of auction coverage.",
       "errors": "30 RMIDispatch missing-facet-target errors, 2 SlayerScriptComponent unknown-entity, 2 '[ERROR] 0xCCC7000' at startup (09:38:49-50, before the world loaded)"
+    },
+    {
+      "session": ".azoth/logs/runs/run-20261026-1460-ladder",
+      "date": "2026-10-26",
+      "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+      "service": "the local lab (gateway + world + Caddy), private client at 127.0.0.1:9000",
+      "method": "private launcher WITHOUT the -Watch Frida patch set (the -Watch set kills the client inside frida-agent.dll_unloaded at offset 0x9c7e0, 0xc0000005, the documented execute-after-unload race). Natural ladder, no forced gate. The private copy had just been refreshed from Steam to this build, so the lab and the install are the same binary for the first time.",
+      "evidence": "observed",
+      "ladder": "Disconnected -> QueryGameUpdateCheck -> QueueGameLogin -> WaitingForQueuedLogin -> ObtainREPRequirements -> StartREPConnection -> WaitingForREPConnection (14) -> WaitingForActorGameConnection (15) -> WaitingForSpawnPoint (16) -> WaitingForPlayerSpawn (17) -> Disconnected",
+      "rungs_passed": [
+        14,
+        15,
+        16,
+        17
+      ],
+      "reached_ingame": false,
+      "observed": {
+        "rung_15": {
+          "evidence": "observed",
+          "note": "CLOSED on 1.460 by the client itself: 'Update state WaitingForREPConnection to new state WaitingForActorGameConnection' at 10:00:13.210, then 'GameConnectionWrapper: actor game connection succeeds' at 10:00:13.377. No forced gate was applied. This is the transition STATUS.md previously asserted without evidence on this build."
+        },
+        "auth": {
+          "evidence": "observed",
+          "note": "AUTH COMPLETES on 1.460. 'Omni CreateSession complete with result: 0, id: amzn1.developerPersonaId.fc906c07-...' at 09:51:50, 'Successfully refreshed gateway AWS credentials', and 'CGame::OnCampfireLoginComplete, login successful. ownership=permanent' at 10:01:51. The gateway answered POST /games/new-world/tokens and the entitlements sync+get. The client then reached the character-select screen and rendered it (character Azoth_Dev, Windsward). The earlier 'auth is the wall' reading is superseded: what failed on 2026-10-25 was a client still running the 1.400 copy."
+        },
+        "rung_17_failure": {
+          "evidence": "observed",
+          "note": "The wall. The world sent the spawn six times - 0x8 bundles of exactly 46,407 bytes at seq 86, 89, 90, 91, 102 and 108 (plus 46,423 at seq 37), which is the size meanings.md records for the spawn. The client received them and never logged 'player spawn succeeds'. At 10:02:13.777 it gave up on its own: 'State(WaitingForPlayerSpawn) is timeout : frames 10, currentTimeoutIntervalCount 2', then ActorContainerDisconnect, 'Disconnected from REP', and 'CGame exiting to main menu'. So the captured 1.365 spawn satisfies 1.400 but NOT 1.460. No server-side disconnect and no crash: this is the client's own state timeout after ~120 s.",
+          "root_cause": "ROOT CAUSE, measured 2026-10-26 with a controlled A/B. It is a RACE, not a missing field. The client's own log: '10:00:13.822 Loading of map \"NewWorld_VitaeEterna\" deferred in order to async unload previous level \"NW_Frontend_NightHaven\"' -> '10:00:13.831 HandleUnexpectedMessage skipping ReceiveStateBundle for bundle message due to clientContext == nullptr' -> '10:00:13.846 ...allowing map change' -> '10:00:13.846 Loading level NewWorld_VitaeEterna'. The spawn arrives 15 ms BEFORE the new level's context exists, so the client discards it, and the replay never repeats that seq. A/B: AZOTH_REPLAY_SPLIT_SEQ=0x25 (= replay seq 37, the 46,423-byte bundle) with AZOTH_REPLAY_SPLIT_DELAY_S=10 moved the drop to 10:25:04.485 and the map change to 10:25:04.503 (still 18 ms apart), but the client then kept the message: '10:25:04.939 ProcessPendingReliableMsgQueue processing 2 messages from m_pendingUnexpectedMsgs'. The rung still timed out at 10:26:54, so the split alone does not close it: only 2 messages were replayed out of the six large bundles, because the split holds seqs >= 0x25 and the rest of the spawn family never arrived late enough. This matches research/atlas/levers.md, which documents the identical 17 ms symptom and the 'replay split at 0x25' lever for 1.400. CONSEQUENCE FOR THE PLAN: this is rig scheduling, NOT decompilation debt. No unnamed field is involved. Do not spend naming effort here."
+        },
+        "client_errors": {
+          "evidence": "observed",
+          "note": "Four OnLocalNetworkConnectionWarning (countReceived 1..4 between 10:01:18 and 10:01:47), and three 'Exceeded max recursion for deferred actions. The rest will be dropped' errors with numDeferredActions 3, 4, 3 between 10:00:19 and 10:00:20. No 'Failed to unmarshal'."
+        },
+        "registration": {
+          "evidence": "observed",
+          "note": "The 1.460 client's own V3 registration request decodes with the new build strings: version 60333 / 460 / 6024067, world_id 00000000-0000-4000-8000-000000000002, character_id 11111111-1111-1111-1111-111111111111, persona amzn1.developerPersonaId.fc906c07-42a2-2dd1-f59f-9c56cf4f212c, endpoint 127.0.0.1:9000, build [RETAIL]."
+        }
+      },
+      "supersedes": "live_run_2026_10_25_private_client: that run failed at auth because the private copy was still 1.400 while the notes assumed 1.460. With the copy refreshed, auth completes and the ladder walks to rung 17."
     }
   ],
   "static_regeneration_2026_10_22": {
@@ -287,6 +345,23 @@
       "state": "the client reaches ConfigureLogin MODE_GATEWAY and then re-enters the boot sequence (option loading, CPU feature detection, StreamConfig queries for ProductId and RegionId) at 15:49:50, five minutes after the first ConfigureLogin at 15:44:51",
       "gap": "the REP world connection never opens: `world.log` shows no DTLS peer and no handshake, so the client never gets as far as WaitingForREPConnection",
       "next_question": "why does the client restart its boot phase after ConfigureLogin instead of opening the REP socket? That is upstream of the ladder and needs the world-select/login-info exchange to be inspected, not the ladder itself."
-    }
+    },
+    "superseded_by": "sessions[] entry 2026-10-26 (.azoth/logs/runs/run-20261026-1460-ladder). This run's auth failure was NOT a 1.460 property: the private copy was still 1.400, so the notes called a 1.400 failure a 1.460 one. With the copy refreshed to 1.460, auth completes and the ladder walks to rung 17."
+  },
+  "static_regeneration_2026_10_26": {
+    "evidence": "observed",
+    "what": "Full naming sweep of the 1.460 type table through the client's registration hook, the method proven in commit b7d106e and reversed into a tool this session (`python ef.py re message-names`).",
+    "command": "python ef.py re message-names --scan-unresolved --out research/derived/message-names.json",
+    "result": {
+      "wire_types": 7052,
+      "named_by_hook": 3390,
+      "no_hook_record": 97,
+      "no_guid_string": 3565,
+      "ambiguous_multi_name": 796
+    },
+    "comparison": "The adjacency heuristic in research/derived/wire-type-names.json names 2559. The hook names 3390, and unlike adjacency it is compiler-written evidence. Of the replay's 40 types, the hook names 40/40.",
+    "no_guid_string_characterised": "NOT a tool limitation. 40 of the 3565 were probed for their GUID in BOTH forms: the dashed text (either case) and the 16 raw bytes in AZ's little-endian-field order. Zero hits either way, so those GUIDs are absent from this executable. They are dead type-table slots this build never registers, not unnamed messages. That is why they resolve to nothing: there is nothing to find.",
+    "ambiguous_caveat": "796 types resolve to more than one name, because one GUID is reachable from more than one hook record. The first name is not necessarily the owner. Treat those as candidates and check the trait before relying on one.",
+    "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033"
   }
 }

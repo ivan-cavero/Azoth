@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-22",
+  "generated": "2026-10-26",
   "exe_sha256_prefix": "30fe6461f929ba44",
   "paks": 123,
   "entries": 1414367,
@@ -155,6 +155,6 @@
     "levels/nw_trial_season_04_daichidojo/level.pak": 23,
     "levels/nw_trial_season_04_deviceroom/level.pak": 23
   },
-  "build_seconds": 24.3,
+  "build_seconds": 13.3,
   "note": "Central directories only. Full index at .azoth/cache/pak-index/pakindex.db (gitignored)."
 }

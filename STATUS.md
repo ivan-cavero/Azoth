@@ -10,71 +10,71 @@ The Python gateway, Python world, and Caddy are the measuring lab
 (`python ef.py dev`). They can still put a client into a world by sending
 captured traffic. That is a rig, not the game.
 
-Client build under study: **1.460.6033.6024067** —
-`30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033`.
-That is the executable installed here, measured 2026-10-25, so no address is
-newly retired. `8654f01d…` is `1.400.6031.6004151`, and its addresses stay retired.
+**The lab runs 1.460 now.** On 2026-10-26 the private copy was refreshed from
+Steam (`patch-dtls-disk.py restore`, then `apply` at site `0x145DCF9F5`) and it
+reproduces the recorded patched hash `97f17df3…` exactly. Install and lab copy
+are the same build for the first time: `1.460.6033.6024067`, `30fe6461…`.
 
-The ladder is a numbered state machine, 4..18, read from the client's own
-state table at `0x1484fb420`. `research/atlas/meanings.md` carries the complete
-map: every state, its transport, its wire type, its name and its size.
-`research/derived/wire-type-names.json` is **candidate only**: its adjacency
-heuristic is disproven, because it gives the proven `LevelInfoChangedMsg` GUID no
-name at all. The reliable method is the client's own registration hook, and
-`meanings.md` documents it.
+## Measured run, 2026-10-26 10:00
+
+The first live ladder on 1.460, launched **without** the Frida patch set: the
+`-Watch` set kills the client inside `frida-agent.dll_unloaded` at offset
+`0x9c7e0`, `0xc0000005`, which is the execute-after-unload race already on
+record. Natural ladder, no forced gate. Evidence in
+`.azoth/logs/runs/run-20261026-1460-ladder/`.
+
+```
+09:59:55  Disconnected              -> QueryGameUpdateCheck
+10:00:12  ObtainREPRequirements     -> StartREPConnection
+10:00:12  StartREPConnection        -> WaitingForREPConnection        (14)
+10:00:13  WaitingForREPConnection   -> WaitingForActorGameConnection  (15)  PASSES
+10:00:13  actor game connection succeeds
+10:00:13  WaitingForActorGameConnection -> WaitingForSpawnPoint       (16)  PASSES
+10:00:13  spawn point found         -> WaitingForPlayerSpawn          (17)
+10:01:51  OnCampfireLoginComplete, login successful, ownership=permanent
+10:02:13  State(WaitingForPlayerSpawn) is timeout: frames 10, count 2
+10:02:14  WaitingForPlayerSpawn     -> Disconnected
+```
+
+**Rung 15 is confirmed on 1.460**, and it closed itself with no forced gate.
+**Auth is no longer the wall**: the persona login completes and the gateway
+answers tokens and entitlements. The client reaches the character screen and
+renders it (`Azoth_Dev`, Windsward).
+
+**The wall is rung 17.** The world sent the spawn six times — `0x8` bundles of
+exactly **46,407 bytes** (seq 86, 89, 90, 91, 102, 108), the size the atlas
+records — and the client never logged `player spawn succeeds`; its own state
+machine timed out after ~120 s. So the captured spawn satisfies 1.400 but not
+1.460. The older note that this ladder reached `InGame` on 1.460 does not
+reproduce today; what reproduces is the sequence above.
+
+## Named, 2026-10-26
+
+Two ladder wire types had no name and now do, through the client's own
+registration hook, walked backwards from GUID to name and validated on the two
+proven controls (`0x663`, `0x65c`) before either was trusted:
+
+| Wire | Name | Trait |
+| --- | --- | --- |
+| `0x651` | `ReceivePlayerSpawnPointMsg` | `ClientViewListenerTrait` |
+| `0x18a6` | `GridTrackingComponentClientFacet_UpdatePhasing` | `ClientMessages` |
+
+`0x651` is 4 bytes: the typed header and no body, so the record is the whole
+message. `0x18a6` is the 40-byte periodic record the atlas called "the periodic
+counter"; its fields stay unnamed. Both carry their full evidence chain in
+`meanings.md` and the ontology. The same pass fixed seven of eleven `ef.py re`
+workflows, dead since the kind-layout reorg.
 
 ## Next
 
-**Rung 15 is closed, and it closed itself.** On 2026-10-22 at 19:22 local,
-against the lab's own world at `127.0.0.1:9000` and on the same build string,
-the client walked the whole ladder without a helper:
-
-```
-17:24:52.867  WaitingForREPConnection
-17:24:54.085  start actor game connection    -> WaitingForActorGameConnection
-17:24:54.251  actor game connection succeeds -> WaitingForSpawnPoint
-17:24:54.285  spawn point found              -> WaitingForPlayerSpawn
-17:24:55.794  player spawn succeeds, in game -> InGame
-```
-
-It then ran **229 s in-world with no crash and no disconnect**. Evidence:
-`.azoth/logs/game-before-instance2-20261022-192626.log`.
-
-The launcher console for that run was not captured, so "the forced ladder was
-off" rests on two things: commit `608b52b` made it opt-in at 17:17 that evening,
-and the forced path kills the client at ~34 s while this one lived 229 s. The
-world's `world.log` for that window is gone, so the server half is inferred.
-
-So the Carrier acceptance flight in `rep.py` (`carrier_state_datagram`:
-CLOCK_SYNC, CONNECT_ACK, CT_ACKS) is **proven against the real client on 1.460**.
-A private server does not need a self-identification body to pass rung 15;
-`ClientAddEntryMsg` (`0xa4`) and `PlayerManagerSelfIdentificationMsg` are
-preconditions for the spawn, not the transition.
-
-## Live run, 2026-10-25
-
-Attempted live; did not reach REP. **Auth is the wall, not the game.** Patched, the
-client dies ~20-25 s after `IapClient: 14` (benign). Unpatched it survives to auth and
-fails: `Omni CreateSession 201, id:` empty, then `@mm_authresult_Error_Persona`, with
-config GETs but **no auth POST**. Detail: `builds.json` `live_run_2026_10_25_private_client`.
-
-## Blocked by
-
-Auth, as above. Nothing on the world-entry ladder. What remains there is
-decompilation debt, not a blocker:
-
-1. `0x663` is laid out to the byte, the two captured records are identical,
-   and five field groups stay unnamed with the handler reading none of them.
-2. `flow.world-entry.rung.self-identification.body`: the wire type is settled
-   (`0x65c`, measured), but the 21-byte lab body is not the real one. The replay
-   record is 12,706 bytes and the struct model lands off by one byte.
-3. No type in the official replay is nameless any more: `0x40a` and `0x1be` are
-   `CalendarConnectedMsg` and `CoatlicueTimingConfigurationConnectedMsg`, and
-   `0x5b2` is `ObjectivesComponentServerFacet_UpdateTrackedObjectives`.
-4. The spawn's 48 boundaries are closed as **underdetermined**: the small variant
-   makes the walk exhaustive and admits one degenerate path.
+**Find what rung 17 reads that the captured spawn does not supply on 1.460.**
+The bundle arrives, at the right size, so this is an interior question and not a
+transport one. The atlas already names the debt: the spawn's 48 fragment
+boundaries are "closed as underdetermined". Start by re-deriving the 1.460
+`[carrier+0x252]` setter and diffing it against the 1.400 one. Nothing external
+blocks this: auth works and the ladder walks to 17.
 
 ## Do not
 
-Recreate `server/`. Send a datagram because a capture contained it. Rename
-the in-game resource Azoth. Read `docs/archive/` or `docs/journal/raw/` whole.
+Recreate `server/`. Send a datagram because a capture contained it. Rename the
+in-game resource Azoth. Read `docs/archive/` or `docs/journal/raw/` whole.
