@@ -241,6 +241,51 @@ class SegmentReportTest(unittest.TestCase):
         self.assertEqual([f["off"] for f in found], [], "tail offset is absent in `mixed`")
 
 
+class WidthGroupingTest(unittest.TestCase):
+    """Segments of different body widths must never be compared column by column.
+
+    THE DEFECT THIS PINS. The ALC input stream is variable-length: 283 bytes idle, 298 with
+    a panel open, with the growth inserted BEFORE the position anchor. The first version of
+    `report_segments` picked one segment's width and diffed every segment's column i against
+    every other's column i, so it compared field 91 of one body against field 91 of a body
+    whose fields start three bytes later. On a real session (2026-10-26) that reported **133
+    differing offsets**, and all 133 were the 15-byte insertion rather than a field. The
+    output also printed a single `body width`, which was false whenever the segments differed.
+
+    The fix is structural: group by width, compare inside a group only, and report every
+    width that was present.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tool = load_tool()
+
+    def test_two_widths_are_reported_separately(self):
+        # Same prefix, different length: an offset that looks different across widths.
+        short = [bytes([0xAA, 0x01, 0x02, 0x03]) for _ in range(4)]
+        long_ = [bytes([0xAA, 0x01, 0x02, 0x09, 0x03]) for _ in range(4)]
+        grouped = self.tool.group_by_width({"idle": short, "panel": long_})
+        self.assertEqual(sorted(grouped), [4, 5])
+        # Neither width has two segments, so nothing is comparable -- and that must be
+        # reported rather than silently diffed.
+        self.assertEqual(self.tool.comparable_widths(grouped), {})
+
+    def test_a_width_with_two_segments_is_comparable_on_its_own(self):
+        a = [bytes([0xAA, 0x01, 0x02]) for _ in range(4)]
+        b = [bytes([0xAA, 0x02, 0x02]) for _ in range(4)]
+        long_ = [bytes([0xAA, 0x01, 0x02, 0x03]) for _ in range(4)]
+        grouped = self.tool.group_by_width({"a": a, "b": b, "c": long_})
+        comparable = self.tool.comparable_widths(grouped)
+        self.assertEqual(sorted(comparable), [3], "only width 3 has two segments")
+        self.assertEqual(sorted(comparable[3]), ["a", "b"])
+
+    def test_a_segment_with_mixed_lengths_is_dropped_before_grouping(self):
+        mixed = [bytes([0xAA, 0x01]), bytes([0xAA, 0x01, 0x02])]
+        clean = [bytes([0xAA, 0x01, 0x02]) for _ in range(3)]
+        usable = self.tool.usable_segments({"mixed": mixed, "clean": clean})
+        self.assertEqual(sorted(usable), ["clean"])
+
+
 class CatalogTest(unittest.TestCase):
     def test_the_tool_is_registered(self):
         import json

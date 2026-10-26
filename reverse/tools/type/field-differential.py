@@ -197,6 +197,39 @@ def regions(rows: list[dict], min_run: int = 1) -> list[tuple[int, int, bool]]:
     return [(a, b, v) for a, b, v in out if (b - a + 1) >= min_run]
 
 
+def usable_segments(by_segment: dict[str, list[bytes]]) -> dict[str, list[bytes]]:
+    """Segments whose bodies all share ONE length, and which have at least two samples.
+
+    A segment with mixed lengths is dropped rather than truncated: a short body's tail is
+    absent, so constancy there is unmeasurable, and padding it would invent bytes that were
+    never on the wire. A single body has no variation to measure, so it cannot establish
+    constancy either.
+    """
+    return {label: bodies for label, bodies in by_segment.items()
+            if len(bodies) >= 2 and len({len(b) for b in bodies}) == 1}
+
+
+def group_by_width(usable: dict[str, list[bytes]]) -> dict[int, dict[str, list[bytes]]]:
+    """Group usable segments by their single body width.
+
+    This exists because a variable-length type makes a naive column diff meaningless. The
+    ALC input stream is 283 bytes idle and 298 with a panel open, and the growth is inserted
+    BEFORE the position anchor, so column i of one body and column i of the other are
+    different fields. Comparing them reported 133 "differing offsets" that were one 15-byte
+    insertion (measured 2026-10-26).
+    """
+    grouped: dict[int, dict[str, list[bytes]]] = {}
+    for label, bodies in usable.items():
+        grouped.setdefault(len(bodies[0]), {})[label] = bodies
+    return grouped
+
+
+def comparable_widths(grouped: dict[int, dict[str, list[bytes]]]
+                      ) -> dict[int, dict[str, list[bytes]]]:
+    """The widths that carry at least two segments, i.e. the widths that can be diffed."""
+    return {width: group for width, group in grouped.items() if len(group) >= 2}
+
+
 def segment_report(rows_by_segment: dict[str, list[dict]]) -> list[dict]:
     """Offsets that are steady inside every segment but differ between them.
 
@@ -356,41 +389,69 @@ def report_segments(args, want: int) -> int:
         sizes = sorted({len(b) for b in bodies})
         print(f"  {label:18} {len(bodies):5} bodies   lengths {sizes[:6]}")
 
-    usable = {label: bodies for label, bodies in by_segment.items()
-              if len(bodies) >= 2 and len({len(b) for b in bodies}) == 1}
+    # A segment is usable only when every one of its bodies has ONE length: a short body's
+    # tail is absent, so constancy there is unmeasurable.
+    usable = usable_segments(by_segment)
     skipped = [label for label in by_segment if label not in usable]
-    if len(usable) < 2:
+
+    # COMPARISONS HAPPEN PER WIDTH, NEVER ACROSS WIDTHS. Column i of a 283-byte body and
+    # column i of a 298-byte body are different fields: a variable-length type inserts its
+    # growth before an anchor, so everything after the insertion point shifts. Diffing the
+    # two column by column reports one shifted region as dozens of "differing offsets".
+    # Measured 2026-10-26 on the ALC input stream, where this tool reported **133 offsets**
+    # between idle bodies (283 B) and panel-open bodies (298 B), and every one of them was
+    # the 15-byte insertion rather than a field. Grouping by width is what makes the result
+    # mean anything.
+    by_width = group_by_width(usable)
+    comparable = comparable_widths(by_width)
+    if not comparable:
         raise SystemExit(
-            "need at least two segments that each have >=2 bodies of ONE length; "
-            f"usable: {sorted(usable)}; skipped: {skipped}. A segment whose bodies have "
-            "mixed lengths cannot show constancy, because a short body's tail is absent."
+            "need at least two segments of the SAME body width, each with >=2 bodies; "
+            f"widths present: { {w: sorted(g) for w, g in by_width.items()} }; "
+            f"skipped: {skipped}. Segments of different widths are never compared: a "
+            "variable-length body shifts every offset after its insertion point."
         )
     if skipped:
-        print(f"\nskipped (too few bodies or mixed lengths): {skipped}")
+        print("")
+        print(f"skipped (too few bodies or mixed lengths): {skipped}")
+    if len(by_width) > 1:
+        print("")
+        print(f"{len(by_width)} distinct body widths present {sorted(by_width)}: "
+              "each group is compared on its own.")
 
-    width = len(next(iter(usable.values()))[0])
-    rows_by_segment = {label: variability(bodies)["columns"] for label, bodies in usable.items()}
-    differing = segment_report(rows_by_segment)
+    blocks = []
+    for width in sorted(comparable):
+        group = comparable[width]
+        rows_by_segment = {label: variability(bodies)["columns"]
+                           for label, bodies in group.items()}
+        differing = segment_report(rows_by_segment)
+        blocks.append({"body_width": width, "segments": sorted(group),
+                       "differing": differing})
 
-    print(f"\nsegments compared: {sorted(usable)}   body width {width}")
-    print(f"offsets steady within every segment but differing between them: {len(differing)}\n")
-    if not differing:
-        print("none. Either the actions had no effect on this type, or the segments were "
-              "too short to separate motion noise from a held value.")
-        return 0
-
-    for entry in differing:
-        rendered = ", ".join(f"{k}=0x{v:02x}" for k, v in entry["values"].items())
-        print(f"  0x{entry['off']:03x}  {rendered}")
+        print("")
+        print(f"segments compared: {sorted(group)}   body width {width}")
+        print("offsets steady within every segment but differing between them: "
+              f"{len(differing)}")
+        if not differing:
+            print("  none. Either the actions had no effect on this type, or the segments "
+                  "were too short to separate motion noise from a held value.")
+            continue
+        for entry in differing:
+            rendered = ", ".join(f"{k}=0x{v:02x}" for k, v in entry["values"].items())
+            print(f"  0x{entry['off']:03x}  {rendered}")
 
     if args.out:
         out = Path(args.out)
-        out.write_text(
-            json.dumps({"type": f"0x{want:x}", "segments": sorted(usable),
-                        "body_width": width, "differing": differing}, indent=1) + "\n",
-            encoding="utf-8",
-        )
-        print(f"\nwrote {out}")
+        payload = {"type": f"0x{want:x}", "widths": blocks,
+                   "mixed_widths": len(by_width) > 1}
+        if len(blocks) == 1:
+            # Keep the single-width shape older readers expect.
+            payload.update({"segments": blocks[0]["segments"],
+                            "body_width": blocks[0]["body_width"],
+                            "differing": blocks[0]["differing"]})
+        out.write_text(json.dumps(payload, indent=1) + chr(10), encoding="utf-8")
+        print("")
+        print(f"wrote {out}")
     return 0
 
 
