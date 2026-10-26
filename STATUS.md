@@ -67,12 +67,12 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Name the last field that blocks the port.** The ladder is no longer the wall, so the
-remaining work is naming, then Rust. Types are settled (3,390 named) and the delta
-format is measured: a payload opens with a presence mask, so an unset field is
-*absent*, not stale. One field still blocks a Rust position encoder — the wire encoding
-of the absolute quad. The client reads floats at `member+0x10`, the payload holds f32-BE
-at +20, and how one becomes the other is unrecovered. Start there.
+**Write the Rust wire crate.** The naming phase is done for everything a first crate
+needs: 3,390 types named, the delta format measured (a payload opens with a presence
+mask, so an unset field is *absent*, not stale), and the position quad closed — x/y are
+`f32` big-endian on the wire, z is client-derived, and the delta is
+`scale * (2*byte - 255) / 255`. Start `everfall-wire` with `LevelInfoChangedMsg` and
+the `worldPosAbs` fragment, testing the meaning against the captured bytes.
 
 ## Do not
 

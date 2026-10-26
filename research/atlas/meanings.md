@@ -846,14 +846,77 @@ many different types, not just ALC, so mask-first framing is the general shape a
 not an ALC peculiarity. It is still not decompiled for the other 47 types, and is
 recorded as strongly indicated rather than measured for them.
 
-**What is explicitly NOT recovered.** Stated so nobody writes code against a guess:
-the wire encoding of the absolute quad. The code consumes four floats at
-`member + 0x10..0x1c`, while the spawn payload holds an f32 big-endian pair at `+20`;
-how those bytes land in those floats is **unknown**, so a Rust position encoder is
-still blocked on this one field. And which bit the update record actually sets is a
-**hypothesis** -- the schema offers `worldPosRel` and the names fit exactly, but no
-raw update payload exists locally to confirm it. The per-field codecs
+**The absolute quad is now measured, and it was the last field blocking the port.**
+The decompressor was read live on a client already in the world (probe
+`reverse/probes/client/frida-worldpos-decompress.py`, hooks `FUN_142a28350`, which ALC
+vtable `+0x78` calls with `param_1 = ALC + 0x8c0`). The `worldPosAbs` member as the
+client actually holds it:
+
+| Member offset | Holds | Value at the measured instant |
+| --- | --- | --- |
+| `+0x10` | x, host `f32` | `9343.6416015625` |
+| `+0x14` | y, host `f32` | `2786.732666015625` |
+| `+0x18` | z, host `f32` (client-derived, not on the wire) | `87.5379638671875` |
+| `+0x60/+0x61/+0x62` | three quantized delta bytes, one per axis | `0x7F`, `0x7F`, `0x7F` |
+| `+0x88` | quantization scale | `0x40000000` = `2.0f` |
+
+**The wire is `f32` big-endian and the client byte-swaps on read.** Proved by
+reversing the bytes rather than by inspecting code: the wire at spawn payload `+20` is
+`46 11 fe 91`, the memory u32 at `member+0x10` is `0x4611FE91`, and
+`struct.pack("<I", 0x4611FE91)` = `91 fe 11 46`, which is that wire run **backwards**.
+Same for y (`45 2e 2b b9` → `0xB92B2E45` → `b9 2b 2e 45`). Both interpretations give
+the exact floats the atlas already had. So a Rust encoder writes x and y as `f32`
+big-endian -- which is precisely what the `AZOTH_STATE_POSITION` lever has been doing
+at the byte level all along.
+
+**z is not on the wire and the client fills it.** The struct holds `87.538`, and the
+2026-10-14 measurement independently recorded the accessor reporting
+`87.5379638671875` while x/y sat exactly on the server's values. The wire carries a 2D
+position; the height comes from the client.
+
+**The delta formula, closed to the last bit.** `FUN_142a28350` adds a dequantized byte
+to the absolute value, and the dequantizer at `0x1417171d0` is a leaf with no `.pdata`
+entry, so it was read as instructions:
+
+```
+movzx eax, cl            ; the quantized byte
+movaps xmm0, xmm1        ; xmm1 = the scale
+mulss xmm0, [C]          ; C = f32 at .rdata 0x14804e270 = 0x3C008081
+movd  xmm2, eax
+cvtdq2ps xmm2, xmm2
+mulss xmm0, xmm2
+subss xmm0, xmm1
+ret
+```
+
+which is `delta = scale * (C * byte - 1)` with `C = 0.007843137718737125`. That constant
+is **exactly `f32(2/255)`**, bit for bit, so:
+
+```
+delta     = scale * (2 * byte - 255) / 255      byte in [0,255], zero at byte = 127.5
+value     = absolute + delta                     computed in f32
+```
+
+`byte = 127.5` would be zero and is not representable, so the smallest step is
+`+-scale/255`; `0x7F` sits just below zero and `0x80` just above. Verified numerically
+rather than by eye: at the measured scale 2.0, byte `0x7F` predicts `-0.007843137`,
+and an `f32` near 9343.64 has ULP `2^-10 = 0.0009765625`, so the prediction rounds to
+`-8 ULP = -0.0078125` -- which is exactly the measured difference between the absolute
+`9343.6416015625` and the produced `9343.6337890625`. Predicting the rounding, not just
+the magnitude, is what makes this a closed measurement.
+
+**Hypothesis, not measured:** the scale at `+0x88` most likely comes from the wire's
+`quantization` field (group 0, bit 52), which is the only field in the schema whose name
+matches that role. The value 2.0 was read from the member, not traced back to a wire
+byte, so the link is plausible and unproven.
+
+**What remains unknown, and it is much smaller now.** Which bit the update record
+actually sets is still a **hypothesis** -- the schema offers `worldPosRel` and the names
+fit, but no raw update payload exists locally to confirm it. The per-field codecs
 (`+0x18` present?, `+0x28` write, `+0x30` read) are per-field-type and not enumerated.
+Neither blocks a position encoder: the byte layout and the delta arithmetic are both
+measured, and an encoder that writes `worldPosAbs` with three `0x7F` delta bytes needs
+none of the codec detail.
 
 ### What a Rust encoder needs, now that the format is known
 
@@ -869,6 +932,25 @@ A server that **authors** state needs the following, in order:
 - `worldPosAbs` must be present at least once per entity before any relative form,
   or the client refuses to compute a position and logs that it cannot
 - never infer a payload length: emit the fields, count the bytes, trust the count
+
+And the position, now that the quad is measured:
+
+```
+worldPosAbs (group 0, bit 26):
+    x        f32 BIG-ENDIAN          # measured: memory u32 is these bytes reversed
+    y        f32 BIG-ENDIAN
+    z        NOT SENT                # the client derives the height from the ground
+    deltas   3 bytes, one per axis   # 0x7F/0x7F/0x7F at the captured spawn
+    scale    f32                     # 2.0 in the captured spawn
+
+delta = scale * (2*byte - 255) / 255     # zero is byte 127.5, not representable,
+value = absolute + delta                 # so the finest step is +-scale/255, in f32
+```
+
+The three `0x7F` bytes are what the capture carried, and they mean "just below zero"
+rather than "no delta". An encoder that wants an exact position should expect a
+residual of up to `scale/255` per axis -- at scale 2.0 that is 0.0078 units, which is
+under a centimetre of world space and far below anything a client can see.
 
 ### Two negatives about the rung-17 log path, and one reasoning trap
 
