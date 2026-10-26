@@ -1,0 +1,54 @@
+{
+  "uid": "msg.receive-player-spawn-point",
+  "kind": "message",
+  "name": "ReceivePlayerSpawnPointMsg",
+  "aliases": ["wire:0x651"],
+  "summary": "A 4-byte record that is the typed envelope and nothing else, so its body is empty. It arrives at seq 0x07, after registration and before level info, and tells the client its spawn point is known.",
+  "purpose": "Signal that the client's spawn point has been resolved, which is what rung 16 (WaitingForSpawnPoint) is waiting for. A message with no body is a signal rather than data, so the whole record is the name.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["the server has resolved where the client should spawn, after registration and before level info"],
+    "if_absent": "unknown; the rung it sits under is named WaitingForSpawnPoint, so its absence is a candidate for a client that never leaves that rung. Not measured: no run has withheld it while holding everything else constant"
+  },
+  "wire": { "id": "0x651", "direction": "S2C", "transport": "rep" },
+  "fields": [
+    {
+      "name": "typed_header",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 4,
+      "status": "verified",
+      "evidence": "capture",
+      "note": "Measured 00 01 91 19. The prefix varint 91 19 is 1617 = 0x651, which is the whole record: there is no body to lay out."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.world-entry" }
+  ],
+  "confidence": "semantics",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "registration hook on build 30fe6461: GUID 21207525-B448-4193-AACA-83D4F847929F (typeIndex[1617]) is the .rdata string at 0x14802b000, its lea site 0x1416f3ff1 sits inside the per-message type-record function 0x1416f3f40-0x1416f4138, the function's caller 0x1414e9550 is the lambda body, that caller's record 0x14800fe90 holds rec[1] = 0x1414e9600, and 0x1414e9600 is lea rax,[0x14a15aa90]; ret where 0x14a15aa90 is the TypeDescriptor .?AV<lambda_1>@?1???$InstallRegistrationHook@VReceivePlayerSpawnPointMsg@ClientViewListenerTrait@Javelin@@@Hub@Amazon@@YA_NXZ@"
+    },
+    {
+      "type": "atlas",
+      "ref": "aoi-trait-registry.json independently reads the same mangled hook name and places it in trait Javelin::ClientViewListenerTrait, the listener side rather than the player-manager side. A zero-length 'spawn point is ready' signal on the listener trait fits rung 16"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x7_T0x651_R.bin in services/world/replay/messages-redacted.txt, 4 bytes, seq 0x07, direction R: 00 01 91 19"
+    },
+    {
+      "type": "atlas",
+      "ref": "NOT the rung-15 transition. STATUS.md records that the actor game connection reaching state 2 leaves rung 15, and this record arrives after registration at the same rung as a notification. Sending it does not substitute for the Carrier transport work"
+    },
+    {
+      "type": "atlas",
+      "ref": "the .rdata adjacency heuristic gives this GUID no name at all (research/derived/wire-type-names.json reports no name for slot 1617), because the GUID is a lone lowercase run with no printable neighbour. The one method known to be broken is silent here rather than agreeing, so this name rests on the registration hook alone"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

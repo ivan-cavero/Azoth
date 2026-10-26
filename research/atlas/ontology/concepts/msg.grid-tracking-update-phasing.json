@@ -1,14 +1,14 @@
 {
-  "uid": "msg.periodic-counter",
+  "uid": "msg.grid-tracking-update-phasing",
   "kind": "message",
-  "name": "unnamed periodic counter message",
-  "aliases": ["wire:0x18a6"],
-  "summary": "A 40-byte message whose body is identical across its four captured instances except the last byte, which counts 01, 02, 03, 04. It is a keepalive, not an event, and it shares its tail envelope with LevelInfoChangedMsg.",
-  "purpose": "Keep the session alive on a timer. The incrementing final byte is a sequence number, which is what a keepalive needs and what an event does not.",
+  "name": "GridTrackingComponentClientFacet_UpdatePhasing",
+  "aliases": ["wire:0x18a6", "msg.periodic-counter"],
+  "summary": "A 40-byte message whose body is identical across its four captured instances except the last byte, which counts 01, 02, 03, 04. It is a phasing update for the grid-tracking component, and it shares its tail envelope with LevelInfoChangedMsg.",
+  "purpose": "Tell the client which phasing state its grid cell is in. The incrementing final byte is a sequence number, so the record is a periodic refresh rather than a one-off event.",
   "authority": "server",
   "lifecycle": {
     "created_when": ["periodically while the client is in or entering the world"],
-    "if_absent": "unknown; a keepalive that stops is the usual cause of a silent disconnect, which is consistent with the lab's observed 10 s drop after silence"
+    "if_absent": "unknown; a periodic refresh that stops is the usual cause of a silent disconnect, which is consistent with the lab's observed 10 s drop after silence"
   },
   "wire": { "id": "0x18a6", "direction": "S2C", "transport": "rep" },
   "fields": [
@@ -27,7 +27,7 @@
       "offset": "0x04",
       "size": 16,
       "status": "candidate",
-      "note": "Measured f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a, identical in all four instances. As a GUID with the first three fields little-endian it is 57EDCBF8-8BC6-F418-BF85-314BBC4A951A. It is NOT the player's actor id (1a954abc4b3185bfbe37c3d8592618e0), so it names something else."
+      "note": "Measured f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a, identical in all four instances. As a GUID with the first three fields little-endian it is 57EDCBF8-8BC6-F418-BF85-314BBC4A951A. It is NOT the player's actor id (1a954abc4b3185bfbe37c3d8592618e0), so it names something else. The message name does not settle it: grid tracking is the component, not the subject."
     },
     {
       "name": "flags_at_0x14",
@@ -67,9 +67,21 @@
   "relations": [
     { "op": "part_of", "to": "flow.world-entry" }
   ],
-  "confidence": "layout",
-  "status": "candidate",
+  "confidence": "semantics",
+  "status": "verified",
   "evidence": [
+    {
+      "type": "decompile",
+      "ref": "registration hook on build 30fe6461: GUID D33230C8-9B7C-4B25-AFAA-254F8875A606 (typeIndex[6310]) is the .rdata string at 0x14802c838, its lea site 0x1416d53f1 sits inside the per-message type-record function 0x1416d5340-0x1416d5538, the function's caller 0x14153aa00 is the lambda body, that caller's record 0x148029878 holds rec[1] = 0x14153aab0, and 0x14153aab0 is lea rax,[0x14a157630]; ret where 0x14a157630 is the TypeDescriptor .?AV<lambda_1>@?1???$InstallRegistrationHook@VGridTrackingComponentClientFacet_UpdatePhasing@ClientMessages@Javelin@@@Hub@Amazon@@YA_NXZ@"
+    },
+    {
+      "type": "atlas",
+      "ref": "aoi-trait-registry.json independently reads the same mangled hook name and places it in trait Javelin::ClientMessages, the client-facing set. The two signals are independent: one is a TypeDescriptor in .rdata, the other a compiler-written template name"
+    },
+    {
+      "type": "live",
+      "ref": "the name is one of the five live facet names the official 1.460 session logged (research/atlas/builds.json, rmi_names, session research/sessions/live_20261022_r1460_first). A different run of the same build produced it in the client's own log"
+    },
     {
       "type": "capture",
       "ref": "records 0xb_T0x18a6_R.bin, 0x38_T0x18a6_R.bin, 0x53_T0x18a6_R.bin and 0x68_T0x18a6_R.bin, 40 bytes each, at seq 0x0b, 0x38, 0x53 and 0x68. Their bodies are byte-identical except the final byte, which is 01, 02, 03, 04 in that order"
@@ -77,10 +89,6 @@
     {
       "type": "capture",
       "ref": "the 8-byte value 9c fa 58 61 78 14 69 f2 sits at offset 0x18 here and at 0x54 in the level-info record 0x10_T0x663_R.bin, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00"
-    },
-    {
-      "type": "atlas",
-      "ref": "research/derived/wire-type-names.json reports no name for slot 6310, and a direct dump of that GUID's surroundings shows only pointer qwords before it, so the name is not recoverable from .rdata adjacency and this concept stays unnamed on purpose"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

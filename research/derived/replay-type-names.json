@@ -1,0 +1,423 @@
+{
+  "$comment": "Every wire type that appears in the official 1.365 replay (services/world/replay/messages-redacted.txt), resolved to a name through the client's own registration hook on build 30fe6461. This is the message set a private server actually has to encode; the full 7052-entry type table is mostly irrelevant. Regenerate with: python ef.py re message-names <wires>. 'ambiguous' lists extra names the same GUID also resolved to, which means the walk found more than one hook record and the first is not necessarily the owner.",
+  "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "replay_records": 177,
+  "distinct_types": 40,
+  "named": 40,
+  "types": [
+    {
+      "wire": "0x3",
+      "index": 3,
+      "records": 1,
+      "guid": "104145A7-FF95-44F1-9468-21FB41C8AC2B",
+      "name": "RegistrationResponseMsg",
+      "trait": "REPClient",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x8",
+      "index": 8,
+      "records": 79,
+      "guid": "8A40AEC2-AE07-4F92-9BF3-78FC0CC94FDF",
+      "name": "ReplicatedStateBundle",
+      "trait": "Hub",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x13",
+      "index": 19,
+      "records": 1,
+      "guid": "0B826B33-89F5-49E0-B8CB-FE4433427778",
+      "name": "RegistrationRequestV3Msg",
+      "trait": "REPClient",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0xa4",
+      "index": 164,
+      "records": 2,
+      "guid": "E3578B38-69AD-4C13-A7DD-3FFF752D98AA",
+      "name": "ClientAddEntryMsg",
+      "trait": "ClientActorRoutingAuthorizationTrait",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x14f",
+      "index": 335,
+      "records": 4,
+      "guid": "038CD847-0653-4243-9A26-936E3BD7F312",
+      "name": "TimeSynchMsg",
+      "trait": "REPClient",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x15d",
+      "index": 349,
+      "records": 20,
+      "guid": "6A379FB8-0BDD-43A1-AB3E-9843D7BE8CD3",
+      "name": "PingMsg",
+      "trait": "REPClient",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x1be",
+      "index": 446,
+      "records": 1,
+      "guid": "1E718638-0A57-4C40-A31D-E2A3B44245E7",
+      "name": "CoatlicueTimingConfigurationConnectedMsg",
+      "trait": "CoatlicueClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x40a",
+      "index": 1034,
+      "records": 1,
+      "guid": "979E13FB-7A0A-4DDC-922B-D042E16E0BE4",
+      "name": "CalendarConnectedMsg",
+      "trait": "CoatlicueClientMessages",
+      "ambiguous": [
+        "CoatlicueTimingConfigurationConnectedMsg"
+      ],
+      "result": "named"
+    },
+    {
+      "wire": "0x5b2",
+      "index": 1458,
+      "records": 4,
+      "guid": "298436A9-06D0-4BDA-8DD9-0708B36E7374",
+      "name": "ObjectivesComponentServerFacet_UpdateTrackedObjectives",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x635",
+      "index": 1589,
+      "records": 5,
+      "guid": "01346CCD-785E-448D-A429-4B281972B1D7",
+      "name": "ActionListComponentServerFacet_ReceiveInputFromClient",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x651",
+      "index": 1617,
+      "records": 1,
+      "guid": "21207525-B448-4193-AACA-83D4F847929F",
+      "name": "ReceivePlayerSpawnPointMsg",
+      "trait": "ClientViewListenerTrait",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x65c",
+      "index": 1628,
+      "records": 1,
+      "guid": "169443E0-A508-4653-B437-49B7A195F69C",
+      "name": "PlayerManagerSelfIdentificationMsg",
+      "trait": "ClientMessagesTrait",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x663",
+      "index": 1635,
+      "records": 2,
+      "guid": "45918D03-02E7-42A4-8A30-1B205F8C37FE",
+      "name": "LevelInfoChangedMsg",
+      "trait": "ClientMessagesTrait",
+      "ambiguous": [
+        "State"
+      ],
+      "result": "named"
+    },
+    {
+      "wire": "0x66b",
+      "index": 1643,
+      "records": 1,
+      "guid": "1505D3B1-754A-45E8-8865-B3DAA4B4B7B2",
+      "name": "VoiceChatComponentServerFacet_RegisterVoiceChatService",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x8e6",
+      "index": 2278,
+      "records": 1,
+      "guid": "8C39E814-EBFF-48DC-9CFC-CDB0080A300F",
+      "name": "ContractsComponentClientFacet_OnLookupContractsByParticipant",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x9d3",
+      "index": 2515,
+      "records": 1,
+      "guid": "C3AB71F9-3530-41A2-8EDC-A417400F5532",
+      "name": "PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x9fc",
+      "index": 2556,
+      "records": 1,
+      "guid": "D61428C7-6D83-4DCC-B28C-705C6CE16C8A",
+      "name": "ContractsComponentServerFacet_LookupContractsByParticipant",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0xa95",
+      "index": 2709,
+      "records": 1,
+      "guid": "CB4BA5E5-1D70-4B33-81AA-A045BEBA4706",
+      "name": "ObjectivesComponentServerFacet_SetObjectiveAutoPinning",
+      "trait": "ClientMessages",
+      "ambiguous": [
+        "ObjectivesComponentClientFacet_OnObjectiveWarning"
+      ],
+      "result": "named"
+    },
+    {
+      "wire": "0xca4",
+      "index": 3236,
+      "records": 1,
+      "guid": "F725B229-7E4B-4446-8BC2-FD6A54E92A9C",
+      "name": "EventNotificationComponentClientFacet_SyncNotifications",
+      "trait": "ClientMessages",
+      "ambiguous": [
+        "EventNotificationComponentServerFacet_NotificationSent"
+      ],
+      "result": "named"
+    },
+    {
+      "wire": "0xf7f",
+      "index": 3967,
+      "records": 1,
+      "guid": "8950B8C3-339D-4B05-92BC-7C4CF54FB872",
+      "name": "PlayerComponentServerFacet_OnCullLimitPctChangeRequest",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x101a",
+      "index": 4122,
+      "records": 1,
+      "guid": "702F8589-BC11-47C9-8425-47A78B09E0B5",
+      "name": "SpectatedPlayerComponentServerFacet_SetIsPublic",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x101d",
+      "index": 4125,
+      "records": 1,
+      "guid": "E3262DD9-73FA-4895-A567-1C1637574323",
+      "name": "ChatComponentServerFacet_SetProfanityFilterEnabled",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x102e",
+      "index": 4142,
+      "records": 1,
+      "guid": "5D87AA99-1815-4D49-845B-BB29D1607887",
+      "name": "SocialComponentServerFacet_RequestStreamerModeDataSync",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x102f",
+      "index": 4143,
+      "records": 1,
+      "guid": "81EAD9F2-4838-490C-BD12-E9D78B98075F",
+      "name": "SocialComponentServerFacet_SendAvailableTitlesToClient",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x1033",
+      "index": 4147,
+      "records": 1,
+      "guid": "8FA38DAE-941A-4FA2-99D8-40820F27871E",
+      "name": "SocialComponentClientFacet_ReceiveAvailableTitles",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x1067",
+      "index": 4199,
+      "records": 1,
+      "guid": "09FF1758-EBFD-4EFC-B133-DB18F814C973",
+      "name": "VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x1096",
+      "index": 4246,
+      "records": 1,
+      "guid": "49A52E21-1EFC-4501-B58D-3D14E6B04236",
+      "name": "TimeComponentClientFacet_SyncTimeChange",
+      "trait": "ClientMessages",
+      "ambiguous": [
+        "TimeComponentClientFacet_SyncDayPhase"
+      ],
+      "result": "named"
+    },
+    {
+      "wire": "0x1097",
+      "index": 4247,
+      "records": 1,
+      "guid": "DEEBDC36-DEA0-4852-84F6-A63ABEA5E8BA",
+      "name": "TimeComponentClientFacet_SyncDayPhase",
+      "trait": "ClientMessages",
+      "ambiguous": [
+        "TimeComponentClientFacet_SyncTimeAndPhase"
+      ],
+      "result": "named"
+    },
+    {
+      "wire": "0x1098",
+      "index": 4248,
+      "records": 1,
+      "guid": "5AFEA411-9BF6-4DBE-AF48-B8CB7EE0F6A3",
+      "name": "TimeComponentServerFacet_SyncToClient",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x10b0",
+      "index": 4272,
+      "records": 1,
+      "guid": "6E9C33D1-48F0-45FF-977E-0DF99D687B84",
+      "name": "TraversalComponentServerFacet_SyncIsAutoTraversalEnabled",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x12f6",
+      "index": 4854,
+      "records": 1,
+      "guid": "6E2A29B1-AF9E-441C-8A71-67C409FDEEBC",
+      "name": "PlayerComponentServerFacet_OnTelemetryOptionsDataChanged",
+      "trait": "ClientMessages",
+      "ambiguous": [
+        "ChargeComponentReplicatedState"
+      ],
+      "result": "named"
+    },
+    {
+      "wire": "0x136a",
+      "index": 4970,
+      "records": 1,
+      "guid": "F8B391FF-9D75-4BD3-8BC1-3CBE1B0850FA",
+      "name": "GameModeParticipantComponentClientFacet_OnLeftQueueForGameModeMsg",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x143d",
+      "index": 5181,
+      "records": 1,
+      "guid": "971DDBB2-67DB-4BEB-9632-85851D0EE00E",
+      "name": "PlayerComponentServerFacet_OnAckLevelInfoChanged",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x16a0",
+      "index": 5792,
+      "records": 2,
+      "guid": "0E1245B4-B51A-47CB-8907-B6203F0759A2",
+      "name": "InventoriesComponentClientFacet_OnQueryInventories",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x187c",
+      "index": 6268,
+      "records": 1,
+      "guid": "CC6E0819-6FE0-4036-8F56-E8A47468331C",
+      "name": "MountComponentServerFacet_OnMountDashToggleChanged",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x187f",
+      "index": 6271,
+      "records": 1,
+      "guid": "F56E3380-24B5-4676-80F1-91FE2DA66B2D",
+      "name": "MountComponentServerFacet_OnMountSlowWalkChanged",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x18a6",
+      "index": 6310,
+      "records": 4,
+      "guid": "D33230C8-9B7C-4B25-AFAA-254F8875A606",
+      "name": "GridTrackingComponentClientFacet_UpdatePhasing",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x192c",
+      "index": 6444,
+      "records": 1,
+      "guid": "9FF57F0B-9AE9-4A69-9EBF-1BAB649EE271",
+      "name": "SocialComponentServerFacet_RequestCrossplayPermissionsDataSync",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x1a59",
+      "index": 6745,
+      "records": 3,
+      "guid": "B42B3E49-B674-405C-A6AD-0CC5A8E368BA",
+      "name": "GridTrackingComponentServerFacet_ClientAckPhasingUpdate",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    },
+    {
+      "wire": "0x1b88",
+      "index": 7048,
+      "records": 23,
+      "guid": "AA0A0B64-475A-4828-A050-7B1A3F045493",
+      "name": "GlobalStorageComponentClientFacet_ReceiveStorageSearchItems",
+      "trait": "ClientMessages",
+      "ambiguous": [],
+      "result": "named"
+    }
+  ]
+}

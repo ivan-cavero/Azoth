@@ -42,6 +42,10 @@
     "pak-read": {
       "path": "pak/pakread.py",
       "kind": "pak"
+    },
+    "message-names": {
+      "path": "type/message-names.py",
+      "kind": "type"
     }
   },
   "files": {
@@ -216,6 +220,10 @@
     "common": {
       "path": "common.py",
       "kind": "shared"
+    },
+    "message-names": {
+      "path": "type/message-names.py",
+      "kind": "type"
     }
   }
 }

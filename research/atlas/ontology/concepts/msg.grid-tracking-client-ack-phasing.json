@@ -1,0 +1,39 @@
+{
+  "uid": "msg.grid-tracking-client-ack-phasing",
+  "kind": "message",
+  "name": "GridTrackingComponentServerFacet_ClientAckPhasingUpdate",
+  "aliases": ["wire:0x1a59"],
+  "summary": "The client's acknowledgement of a phasing update. It is the counterpart of msg.grid-tracking-update-phasing: the server pushes 0x18a6, the client answers 0x1a59. The captured replay contains no instance of it, so a replayed session cannot answer it.",
+  "purpose": "Acknowledge a phasing update for the grid-tracking component, so the server knows the client applied it.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the client has applied a GridTrackingComponentClientFacet_UpdatePhasing"],
+    "if_absent": "the server never learns the update was applied. What that costs on the client side is unknown, and the replay's silence here is NOT a defect: a *ServerFacet_* message is a setter or an ack, and many are answered by replicated state rather than by a typed reply"
+  },
+  "wire": { "id": "0x1a59", "direction": "C2S", "transport": "rep" },
+  "relations": [
+    { "op": "consumes", "to": "msg.grid-tracking-update-phasing" }
+  ],
+  "confidence": "semantics",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "registration hook on build 30fe6461, reversed walk: GUID B42B3E49-B674-405C-A6AD-0CC5A8E368BA (typeIndex[6745]) is the braced uppercase string at .rdata 0x14801a2f8; its lea site sits in the per-message type-record function 0x1416d5540; that function's caller 0x14152d160 is the lambda body; that caller's record 0x148025718 holds slot 1 = 0x14152d1f0; and 0x14152d1f0 is lea rax,[0x14a158610]; ret where 0x14a158610 is the TypeDescriptor .?AV<lambda_1>@?1???$InstallRegistrationHook@VGridTrackingComponentServerFacet_ClientAckPhasingUpdate@ClientMessages@Javelin@@@Hub@Amazon@@YA_NXZ@"
+    },
+    {
+      "type": "atlas",
+      "ref": "reproduce with `python ef.py re message-names 0x1a59`; --check first proves the method on 0x663 and 0x65c"
+    },
+    {
+      "type": "live",
+      "ref": "measured 2026-10-26 in .azoth/logs/runs/run-20261026-1460-ladder: the world logged inbound-request-coverage with no_replay_response [\"0x1a59\"], so the 1.460 client does send this type during world entry and the captured 1.365 replay never does"
+    },
+    {
+      "type": "atlas",
+      "ref": "the name is a third independent check on msg.grid-tracking-update-phasing: two messages of the same component, one ClientFacet and one ServerFacet, named UpdatePhasing and ClientAckPhasingUpdate"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}
