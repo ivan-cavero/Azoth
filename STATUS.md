@@ -16,10 +16,8 @@ Steam (`patch-dtls-disk.py restore`, then `apply` at `0x145DCF9F5`) and reproduc
 
 ## Measured run, 2026-10-26 10:00
 
-The first live ladder on 1.460, launched **without** the Frida patch set: the
-`-Watch` set kills the client inside `frida-agent.dll_unloaded` at `0x9c7e0`,
-`0xc0000005`, the execute-after-unload race already on record. Natural ladder, no
-forced gate. Evidence in `.azoth/logs/runs/run-20261026-1460-ladder/`.
+Launched without the patch set, which is what the run below records. Evidence in
+`.azoth/logs/runs/run-20261026-1460-ladder/`.
 
 ```
 09:59:55  Disconnected              -> QueryGameUpdateCheck
@@ -34,16 +32,17 @@ forced gate. Evidence in `.azoth/logs/runs/run-20261026-1460-ladder/`.
 10:02:14  WaitingForPlayerSpawn     -> Disconnected
 ```
 
-**Rung 15 is confirmed on 1.460**, and it closed itself with no forced gate.
-**Auth is no longer the wall**: the persona login completes, the gateway answers
-tokens and entitlements, and the client renders the character screen
-(`Azoth_Dev`, Windsward).
+**Rung 15 is confirmed on 1.460** and closed itself with no forced gate. **Auth is no
+longer the wall**: the persona login completes and the client renders character select.
 
-**The wall is rung 17.** The world sent the spawn six times — `0x8` bundles of
-exactly **46,407 bytes** (seq 86, 89, 90, 91, 102, 108) — and the client never
-logged `player spawn succeeds`; its state machine timed out after ~120 s. So the
-captured spawn satisfies 1.400 but not 1.460. The older note that this ladder
-reached `InGame` on 1.460 does not reproduce; what reproduces is the sequence above.
+**Rung 17 is passed and the world renders** (2026-10-26). The 120 s timeout was never
+the bundle: `ClientContext::Initialize` self-cleans when a predicate returns 0, so
+every bundle was dropped with `clientContext == nullptr`. The world-phase patch set
+fixes that — and the 1.460 ladder runs **never applied it**, because the launcher only
+runs it under `-Watch`. With `python scripts/session/private-run.py --settle 55` plus
+`AZOTH_REPLAY_LOCAL_PLAYER_UUID=character` (read at import: restart the world), one run
+gives `player spawn succeeds`, `InGame`, **26 `Slice:` lines**, 0 `Cleanup()`, 0 errors,
+and Windsward on screen with the player possessed.
 
 ## Named, 2026-10-26
 
@@ -68,10 +67,11 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Name the last field that blocks the port.** Types are settled (3,390 named) and the
-delta format is measured: a payload opens with a presence mask, so an unset field is
-*absent*, not stale. One thing blocks a Rust position encoder — the wire encoding of
-the absolute quad. The client reads floats at `member+0x10`, the payload holds f32-BE
+**Name the last field that blocks the port.** The ladder is no longer the wall, so the
+remaining work is naming, then Rust. Types are settled (3,390 named) and the delta
+format is measured: a payload opens with a presence mask, so an unset field is
+*absent*, not stale. One field still blocks a Rust position encoder — the wire encoding
+of the absolute quad. The client reads floats at `member+0x10`, the payload holds f32-BE
 at +20, and how one becomes the other is unrecovered. Start there.
 
 ## Do not

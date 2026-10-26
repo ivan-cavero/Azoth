@@ -404,6 +404,109 @@ bytes was acknowledged and never delivered when sent as one datagram
 50 Hz tick. The datagram ceiling is 1200 bytes. Above the path MTU a lost
 fragment loses the whole datagram.
 
+## Rung 17 is passed, and the wall was never the bundle
+
+Measured 2026-10-26, build `30fe6461`, and it corrects the previous section.
+
+**The client reaches `InGame`.** The exact sequence from `Game.log`, with the
+world-phase patches applied:
+
+```
+16:38:29.674  StartREPConnection            -> WaitingForREPConnection
+16:38:29.736  WaitingForREPConnection       -> WaitingForActorGameConnection
+16:38:29.869  WaitingForActorGameConnection -> WaitingForSpawnPoint
+16:38:29.903  WaitingForSpawnPoint          -> WaitingForPlayerSpawn
+16:38:30.304  [ClientContext] Initialize()
+16:38:30.337  Loading level NewWorld_VitaeEterna
+16:38:30.787  player spawn succeeds, in game
+16:38:30.787  WaitingForPlayerSpawn         -> InGame
+```
+
+Counted over the whole run: `Initialize()` **3**, `Cleanup()` **0**, `player spawn
+succeeds` **1**, `new state InGame` **1**, and **0** `Failed to unmarshal`, **0**
+`ValidationError`, **0** `transportError`, **0** `OnConnectionFail`. The
+`connection_player_timeout` that the previous section called the wall is absent.
+
+**Why the earlier run failed, and why the diagnosis was already written down.**
+`levers.md` recorded this on 2026-09-27: `LoadContextAndLevel` reads a virtual
+predicate and hands its result to `ClientContext::Initialize` as the 7th argument,
+and `Initialize` **self-cleans when that value is 0** -- the `Initialize()` log and
+the `Cleanup()` log are separated only by that one flag. The predicate returns 0, so
+the context died in the same millisecond and every state bundle was dropped with
+`clientContext == nullptr`. The fix is
+`services/launcher/runtime-tools/patch-predicate-flag.py`, which forces the flag to
+1 and NOPs the failure branch.
+
+So the mechanism was known, documented and shipped. What was missing is that the
+1.460 ladder runs **never applied it**. Proven rather than assumed: every launcher
+log under `.azoth/logs/` from those runs contains **zero** `predicate flag` lines,
+because `Start-NwPrivate.ps1` only runs the patch set under `-Watch`, and the runs
+were launched without it.
+
+**Rung 17 was therefore never a protocol problem.** The captured spawn record is
+fine, all 48 fragments are fine, and the delta format question is unrelated to
+whether the client ever applies them. The client was discarding the bundle for a
+reason that had nothing to do with its contents.
+
+**A defect found and fixed on the way.** `scripts/session/private-run.py` -- the
+script that performs exactly this sequence -- died on
+`ModuleNotFoundError: No module named 'winwindow'`. Its `winwindow` import resolves
+against `scripts/gui/`, but the script lives in `scripts/session/`, and the file
+moved without the path following it. Nothing had run it since, so nobody noticed.
+Fixed by adding `scripts/gui` to `sys.path`. Without that one-line fix the whole
+sequence below cannot be reproduced.
+
+**The distinction that has to survive, and it did.** `InGame` is a state machine, not
+a picture. The first patched run reported `InGame` while the world **never rendered**:
+the tool's own verdict was "0 `[WARNING] Slice:` lines after 90s; the client is most
+likely hung on a loading screen. Do NOT treat this as a rendered world", and a
+screenshot showed a black screen with only the debug HUD. The acceptance criterion is
+therefore the `Slice:` count, not the state name.
+
+**Both gates are now open, measured in one run.** After restarting the world with
+`AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`:
+
+| Check | Result |
+| --- | --- |
+| `player spawn succeeds` | 1 |
+| `new state InGame` | 1 |
+| `[WARNING] Slice:` lines | **26** |
+| `Cleanup()` | **0** |
+| `Failed to unmarshal` / `ValidationError` / `transportError` / `OnConnectionFail` | **0** |
+
+The tool's verdict for that run was "InGame reached, world streaming (26 slice lines),
+player possessed", and a screenshot shows the town of Windsward with the local player
+in third person and the debug HUD reporting `RTT 0.000 ms`, `Input Latency 0.000 ms`,
+`228 UPD` in and `56 UPD` out. So this is a rendered, possessed world, not a state
+machine reporting success over a black screen.
+
+**The second lever, which is what opened the render gate.** `levers.md` records
+`AZOTH_REPLAY_LOCAL_PLAYER_UUID=character` as the possession fix and as gate 6: the
+client's local-player gate compares the UUID in a `PlayerComponentClientFacet` against
+the character UUID in its local option store, and only a match lets the manager context
+be set. That lever defaults to **`off`** in `rep.py` and is read **at import**, so
+turning it on requires restarting the world, not just setting it in a shell. Setting it
+in the shell before `python ef.py dev`, and confirming it in the world's own `config`
+event (`replay_local_player_uuid: character`), is what turned the first patched run's
+black screen into the rendered world above.
+
+**The third thing, and it is a timing fact rather than a lever.**
+`scripts/session/private-run.py` waits a fixed **20 s** after the window appears before
+sending the splash Space, then a `--settle` window before patching. On 1.460 those 20 s
+land on the **title screen**, which ignores the scan code, so the Space is wasted and
+every later click lands on a client that never left the title; the symptom is
+`Unable to call JavelinGame::RequestHandleLoginSteps - Auth manager does not exist`,
+which reads like an auth failure and is not one. With `--settle 55` the client reached
+character select and the click path worked. The failure is silent -- the script cannot
+tell a title screen from character select -- so a screenshot is the only honest check.
+
+**What this means for the project.** The ladder is not the wall any more, and the
+remaining work is naming field layouts and then writing Rust, not unblocking the
+transport. Two things must stay true for that to hold: the world-phase patch set must
+be applied (it is, via `private-run.py`), and the world must be started with the
+identity lever (it is not a default). A run without either reproduces the old failure
+and will look like a protocol bug.
+
 ## The 48 spawn fragments, named
 
 The spawn record's fragment boundaries were closed as underdetermined from the
@@ -560,6 +663,16 @@ state the client is holding, and that encoder is the real work item. It is not
 blocked by naming; it is blocked by the format, which is a different thing.
 
 ## Rung 17: the client accepts the record and waits
+
+> **SUPERSEDED 2026-10-26 -- rung 17 is passed.** Everything in this section is
+> still true about the run it was measured on, but that run launched the client and
+> clicked Play **without the world-phase patch set**. With the patches applied at
+> character select, the same build reaches `player spawn succeeds` and `new state
+> InGame`. The wall was never the bundle's contents: it was
+> `ClientContext::Initialize` self-cleaning because the predicate returned 0, which
+> dropped every bundle with `clientContext == nullptr`. Read the section below for
+> the diagnosis of the unpatched run, and "Rung 17 is passed, and the wall was never
+> the bundle" for the correction.
 
 The open question after the spawn fragments were named was whether the client
 **rejects** the captured spawn or **accepts it and waits** for something. The

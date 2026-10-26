@@ -78,6 +78,10 @@ PLAY_Y_FRAC = 662 / 768
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# `winwindow` lives in scripts/gui/, not beside this file. When this script sat in
+# scripts/ the parent path was enough; the move to scripts/session/ broke the import
+# and nothing ran it in between, so the failure was silent until now.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "gui"))
 from winwindow import game_windows  # noqa: E402
 
 user32 = ctypes.windll.user32
