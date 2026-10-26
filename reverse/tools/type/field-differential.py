@@ -45,10 +45,33 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "services" / "world" / "src"))
 
-from azoth_world.javelin import alc  # noqa: E402
+from azoth_world.javelin import alc, varint  # noqa: E402
 from azoth_world.javelin.bundle import read_type_marker  # noqa: E402
 from azoth_world.javelin.frame import parse_datagram, parse_envelope  # noqa: E402
 from azoth_world.javelin.lz4 import decompress_lz4_block  # noqa: E402
+
+
+def _channel1_body(payload: bytes) -> bytes | None:
+    """Body of a channel-1 typed record, or None if this is not one.
+
+    The container marker sits at offset 24 normally, and at **26** when the record opens
+    with an `ff ff` prefix -- measured 2026-10-26 on a live movement session, where 7 of
+    60 channel-1 records carried the prefix and `alc.split_container` rejected every one
+    of them because it only knows offset 24. That rejection is silent at the call site:
+    the caller catches the error, counts a non-match, and reports a corpus that appears
+    to contain almost no input stream. It contained the grown bodies all along.
+    """
+    for marker in (alc.CONTAINER_MARKER, alc.CONTAINER_MARKER + 2):
+        if payload[marker : marker + 2] != b"\x00\x01":
+            continue
+        try:
+            type_id, body_offset = varint.decode(payload, marker + 2)
+        except Exception:
+            return None
+        if type_id == alc.INPUT_STREAM_TYPE:
+            return payload[body_offset:]
+        return None
+    return None
 
 
 def iter_bodies(corpus: Path, want: int, *, event: str = "app-data"):
@@ -56,9 +79,9 @@ def iter_bodies(corpus: Path, want: int, *, event: str = "app-data"):
 
     Two container shapes are handled because the client uses both: channel-0 records
     start with the `00 01` typed marker and their type is a prefix varint, while
-    channel-1 records carry the type inside a container that `alc.split_container`
-    already parses. Guessing one shape and skipping the other is how a tool silently
-    returns nothing.
+    channel-1 records carry the type inside a container whose marker moves by two bytes
+    when the record is prefixed. Guessing one shape and skipping the other is how a tool
+    silently returns nothing.
     """
     seen = 0
     with corpus.open(encoding="utf-8", errors="replace") as handle:
@@ -85,14 +108,11 @@ def iter_bodies(corpus: Path, want: int, *, event: str = "app-data"):
             for message in parsed.messages:
                 payload = bytes(message.payload)
                 seen += 1
-                # channel 1: the input stream's own container
-                try:
-                    _target, type_id, body_bytes = alc.split_container(payload)
-                    if type_id == want:
-                        yield body_bytes
+                channel1 = _channel1_body(payload)
+                if channel1 is not None:
+                    if want == alc.INPUT_STREAM_TYPE:
+                        yield channel1
                     continue
-                except Exception:
-                    pass
                 # channel 0: the typed-stream marker
                 try:
                     type_id, offset = read_type_marker(payload)

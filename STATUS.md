@@ -67,12 +67,12 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Capture a corpus the measurer can use.** `ef.py re field-differential` is built and
-works, but the replay cannot feed it — its state records are byte-identical on every
-repeat, so every offset reads as constant. The live `0x635` stream gave 936 bodies, 926
-distinct, all 65 bytes with 9 varying offsets — the *small* form; the in-world body grows
-past 154 bytes and that shape was not in the log. Next: capture an in-world movement
-session and point the measurer at the long form.
+**Record bodies directly instead of reading the world log.** A live movement session gave
+a defect and no table: the container marker moves from 24 to 26 when a record carries an
+`ff ff` prefix (fixed, with tests), and the log misses messages — 3,810 lines say
+`channel: 1` while re-parsing yields 60. Slicing from the log's own `records` list matches
+byte-exactly, so that is the reliable path. Grown bodies exist (91…372 B) once per length,
+and a differential needs many of one size. Recording each `0x635` body unblocks it.
 
 ## Do not
 

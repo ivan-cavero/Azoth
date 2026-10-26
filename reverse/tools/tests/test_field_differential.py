@@ -7,7 +7,7 @@ bodies (inventing bytes that are not on the wire), that treats a 200-byte body's
 tail as a constant, or that reports "no variation" as success when it means the corpus
 was a replayed capture.
 
-These tests pin the three behaviours that decide whether a report is trustworthy, using
+These tests pin the behaviours that decide whether a report is trustworthy, using
 hand-built bodies where the right answer is known rather than measured.
 """
 
@@ -72,14 +72,66 @@ class VariabilityTest(unittest.TestCase):
         self.assertFalse(any(c["varies"] for c in report["columns"]))
         self.assertEqual(self.tool.regions(report["columns"]), [(0, 2, False)])
 
-    def test_the_type_marker_is_read_off_the_wire_not_assumed(self):
-        """Guard the extraction contract: body offsets start after the marker."""
+
+class PrefixedContainerTest(unittest.TestCase):
+    """The container marker moves by two bytes when the record carries an ff ff prefix.
+
+    Measured 2026-10-26 on a live movement session: 7 of 60 channel-1 records had the
+    prefix and `alc.split_container` rejected every one, because it only knows offset 24.
+    The rejection is silent at the call site -- caught, counted as a non-match, reported as
+    a corpus with almost no input stream -- which is the failure these tests exist to stop.
+    """
+
+    PREFIX = b"\xff\xff"
+    FILLER = bytes([0x11])
+    BODY = bytes([0xAA, 0xBB])
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tool = load_tool()
+
+    def _container(self, *, prefixed: bool) -> bytes:
+        from azoth_world.javelin.bundle import encode_type_marker
+
+        # The marker sits at 24 normally and at 26 when an `ff ff` prefix precedes the
+        # container, so the payload is two bytes longer -- the prefix displaces it rather
+        # than sitting inside the existing 24 bytes.
+        #
+        # `encode_type_marker` already emits the `00 01` marker followed by the prefix
+        # varint, so it must NOT be preceded by a separate marker; doing that builds a
+        # payload with two markers and no container decoder can read it.
+        marker_at = 26 if prefixed else 24
+        head = bytearray(marker_at)
+        if prefixed:
+            head[0:2] = self.PREFIX
+            head[2:marker_at] = self.FILLER * (marker_at - 2)
+        else:
+            head[0:marker_at] = self.FILLER * marker_at
+        return bytes(head) + encode_type_marker(0x635) + self.BODY
+
+    def test_marker_at_24_is_read(self):
+        body = self.tool._channel1_body(self._container(prefixed=False))
+        self.assertIsNotNone(body, "unprefixed container must be recognised")
+        self.assertTrue(body.endswith(self.BODY))
+
+    def test_marker_at_26_with_prefix_is_read(self):
+        body = self.tool._channel1_body(self._container(prefixed=True))
+        self.assertIsNotNone(body, "ff-prefixed container must be recognised too")
+        self.assertTrue(body.endswith(self.BODY))
+
+    def test_a_different_type_is_not_mistaken_for_the_stream(self):
+        from azoth_world.javelin.bundle import encode_type_marker
+
+        payload = bytes(24) + encode_type_marker(0x663) + bytes([0x01])
+        self.assertIsNone(self.tool._channel1_body(payload))
+
+    def test_the_type_marker_is_read_off_the_wire(self):
         from azoth_world.javelin.bundle import encode_type_marker, read_type_marker
 
-        payload = encode_type_marker(0x635) + b"\xde\xad\xbe\xef"
+        payload = encode_type_marker(0x635) + bytes([0xDE, 0xAD])
         type_id, offset = read_type_marker(payload)
         self.assertEqual(type_id, 0x635)
-        self.assertEqual(payload[offset:], b"\xde\xad\xbe\xef")
+        self.assertEqual(payload[offset:], bytes([0xDE, 0xAD]))
 
 
 class CatalogTest(unittest.TestCase):

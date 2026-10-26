@@ -1073,6 +1073,46 @@ Measured on that stream (`--min-samples 200`, whole `world.log`): 936 bodies of 
 is a starting point, not an answer: the tool finds where variability *starts and stops*,
 and naming those runs needs a sample that changes one field while everything else holds.
 
+**The first real capture attempt produced a defect and no table.** A live in-world session
+was driven end to end (movement held on W, A and D; the player visibly moved -- the HUD
+showed `2991 uid` and an overweight notice), and 6.3 MB of new log came out of it. Three
+things were learned and none of them is a field table.
+
+1. **The container marker moves by two bytes, and that silently hid the whole stream.**
+   `alc.split_container` requires the `00 01` marker at offset 24. On a channel-1 record
+   that opens with an `ff ff` prefix the marker is at **26**, so the repo's own decoder
+   rejected 7 of 60 records and the tool recorded them as "not this type". The catch is
+   what makes it dangerous: the error is caught, counted, and reported as a corpus that
+   contains almost no input stream. `field-differential.py` now tries both offsets, and
+   three tests pin it.
+
+2. **The log does not record every message.** 3,810 lines in that window carry
+   `"channel": 1`, but re-parsing their datagrams yields only **60** channel-1 messages.
+   The log's own `records` list is authoritative -- the server wrote it from the datagram
+   it parsed -- and slicing a datagram with it reproduces the payload byte-exactly
+   (checked: `equal=True` against `parse_datagram` on a 114-byte datagram), but the
+   re-parse disagrees on 3,750 lines. **So the corpus must be sliced from the log's
+   metadata, not re-decoded**, and until that is settled no count from this window can be
+   trusted.
+
+3. **The grown body exists but is rare in this window.** Bodies of 65 bytes dominate
+   (53 of 57 recovered); the grown forms appear once each at 91, 110, 119, 137, 152, 242
+   and 372 bytes. One sample per length is not a differential -- it is a single datum.
+   The reason is mundane: the client was in the world for about three minutes and moving
+   for seconds of that, and the body only carries a position past a size threshold the
+   roadmap records as ~280 bytes.
+
+**What this changes.** The measurer is not the bottleneck; **the capture is**. Getting a
+usable field table needs a session that produces *many* bodies of *one* grown size, which
+means either a long movement session or an instrument that records the bodies directly
+rather than relying on the world's log. That instrument is the next thing to build, and it
+is a small probe, not a research question.
+
+One correct negative fell out for free: across all 57 recovered bodies, the position
+marker `3d 4c cc cd` appears **zero** times. Whatever the grown `0x635` bodies carry, it is
+not the position in the form `alc.py` looks for -- which is consistent with the atlas's own
+note that the marker locator was validated on the *small* form.
+
 Two limits worth stating before anyone builds on this. The 65-byte bodies are the **small**
 form; the roadmap records the in-world body growing to 93 and past 154 bytes, so the rich
 form was not in this corpus and its extraction path is still unexercised. And constant
