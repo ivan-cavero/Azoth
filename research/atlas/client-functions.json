@@ -1513,5 +1513,32 @@
     "va": "0x14087b5c0-0x14087b766",
     "build_sha256": "8654f01d324636d9f74f1c793b0cc4a417c3c5fa9847d9913c358ca29e0fdc8e",
     "what": "The prefix-varint reader on 1.400. Historical for the installed build; use prefix_varint_reader_1460."
+  },
+  "level_info_handler_1460": {
+    "va": "0x146447ac0",
+    "end": "0x146447f4f",
+    "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+    "what": "MEASURED 2026-10-26 by decompilation. The 1.460 LevelInfoChangedMsg (0x663) handler. It reads exactly THREE struct offsets and nothing else: +0xa1 (one byte, passed to FUN_1463e5570 and logged), +0xa2 (one byte, gates a state transition that can force the FSM to 0xd), and +0xa8 (eight bytes, compared against the cached value at component -0x7f8 and returned early on match -- the dedup key). It then passes the whole message to FUN_146403a70. CONSEQUENCE: the level name, the level path and the context key are the only values the client acts on. Everything else in the 106-byte body is carried and ignored, so a private server may encode those bytes as captured constants without the client noticing.",
+    "found_by": "python ef.py re decompile --target 0x146447ac0; va from meanings.md's level-info row"
+  },
+  "level_info_struct_converter_1460": {
+    "va": "0x146403a70",
+    "end": "0x146403b58",
+    "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+    "what": "MEASURED 2026-10-26. Copies a decoded LevelInfoChangedMsg into the component struct field by field, which PROVES the struct field order that meanings.md previously only inferred: +0x00 and +0x28 are std::string (copied via FUN_1402b0720 with the capacity at +0x18/+0x40), +0x50..+0x5c are four u32 copied individually, +0x60 is u64, +0x68 is a std::function copied via FUN_141608020 with the vtable slot at +0x98, +0xa0..+0xa3 are four u8, +0xa8 is u64. This is the function that settles wire-to-struct correspondence; the handler above does not read the fields.",
+    "found_by": "python ef.py re decompile --target 0x146403a70; caller of it is the handler"
+  },
+  "level_info_apply_1460": {
+    "va": "0x146411a10",
+    "end": "0x146411c7b",
+    "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+    "what": "MEASURED 2026-10-26. Copy/move assignment for the LevelInfo component struct, called by the 0x663 handler with the handler's temporary. It is NOT a reader: like FUN_146403a70 it copies all five field groups verbatim, so it settles nothing about semantics. Its value is negative evidence -- the whole chain from the wire to the component is copies, which is why decompilation alone could never name the four u32 and a live measurement was required.",
+    "found_by": "python ef.py re decompile --target 0x146411a10; called from FUN_146447ac0 line 49"
+  },
+  "level_info_struct_live_1460": {
+    "va": "reverse/probes/client/frida-levelinfo-struct.py",
+    "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+    "what": "MEASURED LIVE 2026-10-26 on the running 1.460 client, entering the world. Hooks FUN_146447ac0 and reads args[1] (the decoded struct). Result: +0x00 = 'NewWorld_VitaeEterna' (size 20), +0x28 = 'coatlicue/NewWorld_VitaeEterna' (size 30), +0x50/0x54/0x58/0x5c = 0x45000000 / 0x41800000 / 0x463FC000 / 0x46202800 = the floats 2048.0 / 16.0 / 12272.0 / 10250.0, +0x60 = 0, +0xa0..+0xa3 = [1,1,1,0], +0xa8 = 831069611151 = 0xC17F9BE48F. PROOF OF BYTE ORDER: the record holds the same four u32 with the bytes reversed, and the handler copies verbatim, so the swap happens in the deserializer. PROOF OF THE FLAG OFFSET: [1,1,1,0] occurs at exactly one offset in the whole 110-byte record, 0x62, which splits the old 10-byte tag block at 0x5c into 6 unnamed bytes plus the four flags. Control that failed and is recorded so it is not repeated: calling FUN_140fddfa0 from inside the handler raises 'access violation accessing 0x900000001' because the holder is not valid during world load; call it from a settled tick instead.",
+    "found_by": "python -u reverse/probes/client/frida-levelinfo-struct.py --wait 420; capture .azoth/captures/probes/levelinfo-struct.json"
   }
 }

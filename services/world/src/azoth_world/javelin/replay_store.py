@@ -101,12 +101,18 @@ def remap_replay_identity(
 # (the string `LastSpawnedBotCharacterId` sits three names before that GUID at
 # 0x1480041e0/0x148004200); that heuristic is disproven by the control, because
 # research/derived/wire-type-names.json gives the proven LevelInfoChangedMsg GUID
-# no name at all. So filling this slot does target player identity.
+# no name at all. (That file is the retired adjacency heuristic; the hook-based
+# research/derived/replay-type-names.json does name it, 40/40 of the replay.)
+# So filling this slot does target player identity.
 #
-# The 0x65c record has a separate binary GUID field. Unlike the ASCII UUID slots
-# above, it is not a character/session string in the capture; it is left as
-# sixteen zero bytes by redaction. Keep this target explicit and preserve the
-# source message unless the exact slot is zero.
+# The 0x65c record has TWO separate binary GUID fields, both left as sixteen
+# zero bytes by redaction (measured 2026-10-26): this prefix slot at record
+# 0x05 and a second at record 0x3192, the last 16 bytes of the record. Both are
+# preceded by the byte 0x05, so the message plausibly carries two identity
+# slots of the same shape. This target fills only the prefix one; nothing
+# fills the tail one, and which of the two the client consumes is unmeasured.
+# Keep this target explicit and preserve the source message unless the exact
+# slot is zero.
 REPLAY_SELFIDENT_GUID_TARGET = (0x06, 0x065C, 0x05, 16)
 # The capture repeats seq 0x663 at 0x4d with the same context key. After the
 # first context load consumes that key, the duplicate is ignored by the

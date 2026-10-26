@@ -77,8 +77,8 @@ Naming a field removes it from this list. None of these ids is a gameplay noun.
 | `flow.region.captured-body` | Login, entitlements, world list, and ticket JSON that still copies an official response | unknown bodies |
 | `flow.world-entry.rung.registration.body` | Registration response, wire type `0x3`, 88 bytes. **Parsed**: typed header, `u32` zero, `0x0b`, 8 bytes, 32 redacted bytes, then the 36-byte server version string `#[RETAIL].Javelin.<version>`, then `01 00 00 01`. The version string is the named field; the rest has no second signal. | version string verified, rest partial |
 | `flow.world-entry.rung.greetings.body` | GridMate greeting. Not a game event. | partial |
-| `flow.world-entry.rung.self-identification.body` | The 21 bytes the lab carries, against a real record that is **12,706 bytes**. The wire type is now settled (`0x65c`, measured through the registration hook with a validated control), so what is left is only the body: its size does not match the `0x38`-byte struct under any integer element count (off by one byte), the field order is unproven, and the vector's meaning is unread. The only live test of the 21-byte body raised an access violation on 1.400. | wire type verified, body unproven |
-| `flow.world-entry.rung.level-info.unexplained` | The part of `LevelInfoChangedMsg` (`0x663`) that is not the level name, the level path, or the client context key: the four 4-byte groups at `0x38`, the zero `u64` at `0x48`, the four bytes at `0x50`, the four bytes at `0x54`, and the ten bytes at `0x5c`. The whole 106-byte body is now laid out to the byte, and the two records in the official replay are byte-identical. What stays unnamed is only these, and the handler reads none of them. **`0x54` is not a per-record nonce** — see the layout below. | body laid out, five field groups unnamed |
+| `flow.world-entry.rung.self-identification.body` | The 21 bytes the lab carries, against a real record that is **12,706 bytes**, now laid out to the byte (2026-10-26): **135-byte prefix + a 56 x 56 grid of big-endian `u32` (12,544 bytes) + 27-byte tail**, which sums to the record exactly. Proven three ways that agree cell for cell: a live Frida probe read the decoded `std::vector<u32>` span as 12,544 with `struct+0x00 = 56`; the record's `0xFFFFFFFF` runs sit on a **224-byte row lattice** (56 runs, one per row, at phase `0x87`); and **56 of 56 rows** begin with an empty cell. Cells are a small enum -- only eight distinct values, `0xFFFFFFFF` (1,716, empty) plus big-endian `0`..`6` -- and the wire is **big-endian** while the struct is host little-endian, measured by matching the probe's cells `0..23` against the record bytes. The earlier "off by exactly one byte" is **withdrawn**: it was the modulo-4 remainder of a wrong model, and there is no orphan byte. The grid's *semantics* remain unnamed. | body layout measured end to end; grid semantics unnamed |
+| `flow.world-entry.rung.level-info.unexplained` | **Measured live on 1.460, 2026-10-26** by reading the decoded struct out of `FUN_146447ac0`. Named and closed: the two strings are `NewWorld_VitaeEterna` (size 20) and `coatlicue/NewWorld_VitaeEterna` (size 30); the four `u32` at `0x38/0x3c/0x40/0x44` are **floats to the client** (the struct holds `0x45000000` etc. while the record holds the bytes reversed, so the byte swap happens in the deserializer, not the handler) and equal 2048.0, 16.0, 12272.0, 10250.0; the dedup key at struct `+0xa8` is `0xC17F9BE48F` = `record[0x66:0x6e]` big-endian, confirming the wire→struct link for the one field the lab already rewrites; and struct `+0xa0..+0xa3` = `[1,1,1,0]`, which occurs at exactly one offset in the record (`0x62`), so the old 10-byte "tag block" at `0x5c` is really 6 unnamed bytes plus those four flags. **Still unnamed:** what the four floats describe. The geometric reading (`2048/16 = 128`, `12272/16 = 767`) suggested world coordinates and that is now **refuted**: across 7,216 position samples the player sits at x 9023..9362, y 2743..3027, z 58..88, and 12272/10250 are outside every range. The `u64` at `0x48`, the 6 bytes at `0x5c` and the `0x50` flags remain unnamed. Only `+0xa1`, `+0xa2` and `+0xa8` are ever read by the client. | floats proven and coordinates refuted; three groups still unnamed |
 | `flow.world-entry.rung.spawn.body` | Spawn record id 1. The record and its payload layout are now verified against the official replay; what stays unnamed is the interior of the 48 fragments. | layout verified, fragments unknown |
 | `flow.world-entry.rung.state-stream.body` | The resend of that spawn, about once a second. The quiet cable is measured. The body is the spawn. | measured effect |
 | `flow.world-entry.presence.fields` | Add-actor fanout. The head is a proven 16-byte fixed read but not a proven ActorGuid, and the tail offsets are known while their meanings are not. | partial |
@@ -170,11 +170,11 @@ with the names the fixed scanner now resolves:
 | 0x04 | R | `0x40a` | 76 | `CalendarConnectedMsg` |
 | 0x05 | R | `0x1be` | 76 | `CoatlicueTimingConfigurationConnectedMsg` |
 | 0x06 | R | `0x65c` | 12,706 | `PlayerManagerSelfIdentificationMsg` (measured 2026-10-25; the earlier `LastSpawnedBotCharacterId` was an adjacency error, see "Next meaning to earn") |
-| 0x07 | R | `0x651` | 4 | unnamed |
+| 0x07 | R | `0x651` | 4 | `ReceivePlayerSpawnPointMsg` (named 2026-10-26; body is the typed header alone) |
 | 0x08 | R | `0xa4` | 20 | `ClientAddEntryMsg` |
 | 0x09 | R | `0xca4` | 102 | `EventNotificationComponentClientFacet_SyncNotifications` |
 | 0x0a | R | `0x14f` | 12 | `TimeSynchMsg` |
-| 0x0b | R | `0x18a6` | 40 | unnamed |
+| 0x0b | R | `0x18a6` | 40 | `GridTrackingComponentClientFacet_UpdatePhasing` (named 2026-10-26) |
 | 0x0c | R | `0x1b88` | 42 | `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems` |
 
 Two things follow. The client speaks first, with a 2,750-byte V3 registration
@@ -204,11 +204,31 @@ means the evidence points at it without closing it.
 | 13 | `StartREPConnection` | DTLS | client opens the socket | — | — | — | named |
 | 14 | `WaitingForREPConnection` | REP | **client sends first** | `0x13` | `RegistrationRequestV3Msg` | 2,750 | verified |
 | 14→15 | | REP | server answers | `0x3` | `RegistrationResponseMsg` | 88 | verified |
-| 15 | `WaitingForActorGameConnection` | Carrier | **the actor game connection reaches state 2** | — | — | — | verified |
-| 16 | `WaitingForSpawnPoint` | Carrier | `[carrier+0xBC8]` becomes set | `0x663` | `LevelInfoChangedMsg` | 110 | handler and body verified |
-| 17 | `WaitingForPlayerSpawn` | Carrier | `[carrier+0x252]` becomes set | `0x8` | `ReceiveStateBundle` | 46,407 | layout verified, fragments closed |
-| 18 | `InGame` | REP | the 1 Hz state stream | `0x8` ongoing | `ReceiveStateBundle` | 7,167 | measured effect |
+| 15 | `WaitingForActorGameConnection` | Carrier | **the actor game connection reaches state 2** | — | — | — | verified, and measured live on 1.460 |
+| 16 | `WaitingForSpawnPoint` | Carrier | `[carrier+0xBC8]` becomes set | `0x663` | `LevelInfoChangedMsg` | 110 | handler and body verified; measured live on 1.460 |
+| 17 | `WaitingForPlayerSpawn` | Carrier | `[carrier+0x252]` becomes set | `0x8` | `ReplicatedStateBundle` | 46,407 | **the wall on 1.460**: the bundle arrives and the client still times out |
+| 18 | `InGame` | REP | the 1 Hz state stream | `0x8` ongoing | `ReplicatedStateBundle` | 7,167 | measured effect on 1.400; NOT reached on 1.460 |
 | after | presence | REP | server adds actors | `0x79` | `AddActorMessage` | — | head 16 B verified |
+
+**`0x8` is `ReplicatedStateBundle`, not `ReceiveStateBundle`.** Corrected 2026-10-26
+by the registration hook: GUID for `typeIndex[8]` resolves to
+`ReplicatedStateBundle` on trait `Amazon::Hub`, and `ReceiveStateBundle` appears
+nowhere in the 1.460 trait registry (`aoi-trait-registry.json`). The old name is
+still in older prose, in `client-functions.json` and in the lab's own log strings;
+those are not evidence and should not be treated as a competing claim. The
+authoritative name is this row. Reproduce with `python ef.py re message-names 0x8`.
+
+**Measured on 1.460, 2026-10-26** (`builds.json`, session
+`.azoth/logs/runs/run-20261026-1460-ladder`): rungs 14, 15, 16 and 17 are all
+reached by the client itself, with no forced gate. Rung 15 closed the way the
+row says it should, `WaitingForREPConnection` -> `WaitingForActorGameConnection`
+followed by `actor game connection succeeds`. Rung 17 is where it stops: the
+world sent the 46,407-byte bundle six times (seq 86, 89, 90, 91, 102, 108) and
+the client never logged `player spawn succeeds`; at 10:02:13 it gave up on its
+own schedule, `State(WaitingForPlayerSpawn) is timeout : frames 10,
+currentTimeoutIntervalCount 2`. So the captured spawn that satisfied 1.400 does
+not satisfy 1.460, and the open question is the interior of the bundle, not the
+transport.
 
 ### `0x663` laid out to the byte
 
@@ -216,21 +236,84 @@ The two `LevelInfoChangedMsg` records in the official 1.365 replay (seq `0x10` a
 seq `0x4d`) are **byte-identical**, 110 bytes including the 4-byte typed header.
 The body is 106 bytes:
 
-| Offset | Size | Bytes, identical in both records |
-| --- | --- | --- |
-| `0x00` | 4 | `00 01 a3 19` typed header, prefix varint 1635 |
-| `0x04` | 21 | `azstr` 20 = `NewWorld_VitaeEterna` |
-| `0x19` | 31 | `azstr` 30 = `coatlicue/NewWorld_VitaeEterna` |
-| `0x38` | 4 | `45 00 00 00` |
-| `0x3c` | 4 | `41 80 00 00` |
-| `0x40` | 4 | `46 3f c0 00` |
-| `0x44` | 4 | `46 20 28 00` |
-| `0x48` | 8 | zero |
-| `0x50` | 4 | `01 01 00 00` |
-| `0x54` | 4 | `9c fa 58 61` |
-| `0x58` | 4 | `78 14 69 f2` |
-| `0x5c` | 10 | `65 03 00 00 00 00 01 01 01 00` |
-| `0x66` | 8 | `00 00 00 c1 7f 9b e4 8f` — the client context key |
+**These are RECORD offsets, and that base matters.** A note here briefly re-based this
+table to body offsets and declared the old one "shifted +4"; that was wrong and is
+withdrawn. The record base is what the rest of the system uses —
+`replay_store.REPLAY_FRESH_LEVELINFO_TARGET` is `(0x4D, 0x0663, 0x66, 8)` and
+`REPLAY_CAPTURED_LEVELINFO_KEY` is exactly `record[0x66:0x6e]` — and the table sums to
+**110**, the full record, not 106. Both are right; they are different bases. Never
+quote these numbers without saying which base.
+
+| Record offset | Size | Bytes, identical in both records | Field |
+| --- | --- | --- | --- |
+| `0x00` | 4 | `00 01 a3 19` | typed header, prefix varint 1635 |
+| `0x04` | 21 | `14` + `NewWorld_VitaeEterna` | `azstr` 20, the level name |
+| `0x19` | 31 | `1e` + `coatlicue/NewWorld_VitaeEterna` | `azstr` 30, the level path |
+| `0x38` | 4 | `45 00 00 00` | `be_f32` **2048.0** |
+| `0x3c` | 4 | `41 80 00 00` | `be_f32` **16.0** |
+| `0x40` | 4 | `46 3f c0 00` | `be_f32` **12272.0** |
+| `0x44` | 4 | `46 20 28 00` | `be_f32` **10250.0** |
+| `0x48` | 8 | zero | unnamed `u64` |
+| `0x50` | 4 | `01 01 00 00` | unnamed. **Not** a `be_f32` (it would read `1.7e-38`), and **not** the struct's four `u8`: those are the four bytes at `0x62` (below). Which struct slot this field reaches is unmeasured |
+| `0x54` | 8 | `9c fa 58 61 78 14 69 f2` | the session nonce |
+| `0x5c` | 6 | `65 03 00 00 00 00` | unnamed |
+| `0x62` | 4 | `01 01 01 00` | **the four `u8` the struct calls `+0xa0..+0xa3`** — measured, exact, unique in the record |
+| `0x66` | 8 | `00 00 00 c1 7f 9b e4 8f` | the client context key |
+
+**Measured live on 1.460, 2026-10-26** — `reverse/probes/client/frida-levelinfo-struct.py`
+read the decoded struct out of `FUN_146447ac0` (`args[1]`, the second argument) while the
+client entered the world. Everything below is read from that struct, not inferred.
+
+*The four values are floats to the client, and the swap is proven.* The struct holds
+`0x45000000`, `0x41800000`, `0x463FC000`, `0x46202800` — i.e. **2048.0, 16.0, 12272.0,
+10250.0** — while the record holds those same bytes in the opposite order. The handler
+copies verbatim (`*(u32*)(dst+0x50) = *(u32*)(src+0x50)`), so the **byte swap happens in
+the deserializer**, before the handler. That closes the question the bytes alone could
+not: the big-endian reading is what the client believes.
+
+*The strings are measured, not inferred.* `+0x00` is `NewWorld_VitaeEterna` (size 20) and
+`+0x28` is `coatlicue/NewWorld_VitaeEterna` (size 30) — exactly the `azstr` payloads at
+record `0x04` and `0x19`.
+
+*The dedup key is measured end to end.* `+0xa8` = `831069611151` = `0xC17F9BE48F` =
+`record[0x66:0x6e]` read big-endian. This is the field the handler compares against the
+cached value, and it is the same constant the lab already uses
+(`REPLAY_CAPTURED_LEVELINFO_KEY`), so the wire→struct link for that field is now
+confirmed rather than assumed.
+
+*The flags are measured, and they moved a row.* `+0xa0..+0xa3` = `[1, 1, 1, 0]`, and that
+exact 4-byte sequence occurs at **one** offset in the whole record: `0x62`. So the bytes
+the table used to call a single 10-byte "tag block" at `0x5c` are really **6 unnamed
+bytes followed by the four flags**. `+0xa0` and `+0xa1` and `+0xa2` are all `1`, which is
+why the `+0xa2` state-transition branch fires on this record; `+0xa3` is `0`.
+
+*What the four floats are is still unnamed, and one reading is now refuted.* The pair is
+geometric (`2048 / 16 = 128` exactly, `12272 / 16 = 767` exactly), which suggested
+12272 and 10250 were world coordinates. **They are not the player's position.** Across
+7,216 position samples already on disk the local player sits at x 9023..9362, y
+2743..3027, z 58..88; 12272 and 10250 fall outside every one of those ranges. Whatever
+they describe, it is not where the player is. Naming them would still be a guess, so
+they stay unnamed — but the coordinate hypothesis is retired, not merely unproven.
+
+*A control that failed, recorded so nobody repeats it.* The probe also tried to call the
+client's own position accessor (`FUN_140fddfa0`) inside the handler. It raised
+`access violation accessing 0x900000001`: the handler runs while the world is still
+loading, so the holder is not valid yet. That call must be made from a settled tick, not
+from inside a message handler. It does not affect the struct reading, which succeeded.
+
+**What the handler actually consumes, decompiled 2026-10-26.** `FUN_146447ac0`
+(`0x146447ac0-0x146447f4f`) reads exactly three struct offsets and nothing else:
+`+0xa1` (one byte, logged), `+0xa2` (one byte, gates a state transition), and
+`+0xa8` (eight bytes, compared against the cached value — the dedup key). It then hands
+the whole message to `FUN_146403a70`, which copies it field by field into the component
+struct and in doing so **proves the field order**: `0x20` string, `0x28` string,
+`0x50..0x5c` four `u32`, `0x60` `u64`, `0x68` `std::function`, `0xa0..0xa3` four
+`u8`, `0xa8` `u64`.
+
+So the level name, the level path and the context key are the only three values the
+client acts on. Everything else is carried and ignored — which is why Rust may encode
+them as the captured constants once this row says so, and why leaving them unnamed
+does not block anything.
 
 Two corrections this settles:
 
@@ -310,7 +393,7 @@ named reason each.
 | --- | --- | --- | --- |
 | Registration response | `WaitingForREPConnection` (14) → `WaitingForActorGameConnection` (15) | Wire type `0x3`, 88 bytes, **parsed on the 1.365 replay** (`0x1_T0x3_R.bin`): `00 01 03`, `u32` zero at `0x03`, `0x0b` at `0x07`, 8 bytes at `0x08`, 32 redacted bytes at `0x10`, then the 36-byte ASCII string `#[RETAIL].Javelin.1.365.6031.6006993` at `0x30`, then `01 00 00 01` at `0x54`. The handler `FUN_1464768a0` on `30fe6461…` (vtable slot `0x148503e28`) logs `received registration response from REP`, passes the message to a virtual setter labelled **`Server version`**, and then copies the client's own version string into the same slot. Two independent signals therefore agree: the handler names the field, and the captured body contains it. The server reports its own build, and in that capture server and client agreed at 1.365, so a 1.460 client should be told `#[RETAIL].Javelin.1.460.6033.6024067`. This rung is a version handshake, not a gameplay body. | version string verified |
 | Greetings | GridMate peer handshake | A **Carrier command**, not an application message: `Cmd_Greetings` = command byte 1 inside a Carrier record. It has no type-table slot, the 1.460 image contains no `Greeting` string at all, and the 1.365 replay has no record for it among its 177. The ladder's first typed exchange is the client's `RegistrationRequestV3Msg`, not a greeting. | transport-level, no typed record |
-| Self identification | `WaitingForREPConnection`/`WaitingForActorGameConnection` (15) → `WaitingForSpawnPoint` (16) | `PlayerManagerSelfIdentificationMsg`. The client handler is `FUN_146455ec0` on SHA-256 `30fe6461…`: it logs `PlayerManagerSelfIdentification`, returns early when the game or client-SDK pointer is null, copies the message into the player-manager component, sets an identified flag at component `-0x7f0`, and either spawns from the debug cvars or delegates to `FUN_14167cc70`. Its decoded struct is `0x38` bytes: `0x00` u32, `0x08` `std::vector<u32>` (24 bytes), `0x28` u8, `0x2c` u64, `0x34` u32. Only `0x28` is named: non-zero switches placement to the debug cvars and skips the real spawn. `0x00`, the vector, the u64 and the u32 are copied into component slots that nothing ever reads. The message is registered in `Javelin::ClientMessagesTrait`, the same trait as `LevelInfoChangedMsg`, which is a proven typed message, so trait membership does not settle its wire type. **Nothing about the wire is proven.** The 21-byte body the lab carries is a reconstruction, and its only live test was a two-rung SelfIdent+LevelInfo burst that raised an access violation at `0x146b6f1be` on 1.400 (2026-09-18), which is why `POST_V3_ENABLED = False` in `rep.py`; it has never been shown to advance the rung on its own. The competing `0x65c` candidate is now **eliminated**: wire `0x65c` is `LastSpawnedBotCharacterId` (slot 1628, GUID `169443e0-…`, with the name NUL-padded immediately before the GUID at `.rdata` 0x1480041e0/0x148004200), so the 12,706-byte grid the replay carries is bot spawn data and the lever that filled its GUID was retargeting a bot id. What remains is `0x5d1`, whose type-table GUID `60a51dfc-…` is unnamed and which the 1.365 replay does not contain at all. | handler decompiled and struct named; wire type and body both unproven |
+| Self identification | `WaitingForREPConnection`/`WaitingForActorGameConnection` (15) -> `WaitingForSpawnPoint` (16) | `PlayerManagerSelfIdentificationMsg`. The client handler is `FUN_146455ec0` on SHA-256 `30fe6461...`: it logs `PlayerManagerSelfIdentification`, returns early when the game or client-SDK pointer is null, copies the message into the player-manager component, sets an identified flag at component `-0x7f0`, and either spawns from the debug cvars or delegates to `FUN_14167cc70`. Its decoded struct is `0x38` bytes: `0x00` u32, `0x08` `std::vector<u32>` (24 bytes), `0x28` u8, `0x2c` u64, `0x34` u32. Only `0x28` is named: non-zero switches placement to the debug cvars and skips the real spawn. **The body is now measured** (2026-10-26): a 135-byte prefix, a **56 x 56 grid of big-endian `u32`** (12,544 bytes) whose cells are an 8-value enum with `0xFFFFFFFF` = empty, and a 27-byte tail; `struct+0x00` is 56, the grid side, and the vector holds 3,136 elements. Two 16-byte GUIDs are redacted (prefix `0x05`, tail `0x3192`) and only the prefix one has a lever. The grid's meaning is unnamed. The message is registered in `Javelin::ClientMessagesTrait`, the same trait as `LevelInfoChangedMsg`. (Superseded text removed 2026-10-26: this paragraph used to say `0x65c` was `LastSpawnedBotCharacterId`, and later that the wire order was open by one byte -- the first was the adjacency defect corrected in `b7d106e`, the second was a wrong model now replaced by measurement.) | handler, struct and body measured; grid semantics unnamed |
 | Level info | `WaitingForSpawnPoint` (16) → `WaitingForPlayerSpawn` (17) | `LevelInfoChangedMsg`, wire type `0x663`. The handler is `FUN_146447ac0` on `30fe6461…`, the next virtual slot in the same vtable as the self-identification handler, and it reads only three struct offsets: `+0xa1`, which it logs as `levelInfo.m_clientContextInstanceId`, `+0xa2`, and `+0xa8`, which it compares against the slot it cached last time and **returns early when they match**. The body is parsed end to end on the 1.365 replay record `0x10_T0x663_R.bin`, 110 bytes: `00 01 a3 19`, `14`+`NewWorld_VitaeEterna`, `1e`+`coatlicue/NewWorld_VitaeEterna`, four big-endian floats `2048.0 / 16.0 / 12272.0 / 10250.0` at `0x38`, `u64` zero at `0x48`, `01 01 00 00` at `0x50`, an 8-byte per-record nonce at `0x54`, `65 03 00 00 00 00 01 01 01 00` at `0x5c`, and the 8-byte `level_context_key` `00 00 00 c1 7f 9b e4 8f` at `0x66`. The key is named: it is the dedup key, proven by the early return above and independently by the lab's own capture note that a repeated `0x663` with the same key is ignored. | partial, measured |
 | Spawn | `WaitingForPlayerSpawn` (17) → `InGame` (18) | Record type `0x8`, record id 1, 48 fragments, 46,393 payload bytes. **Measured on the 1.365 replay** (`0x6c_T0x8_R.bin`, 46,407 bytes total): `00 01 08` then a run of `01`/`00` flags to `0x0b`, then the varint `d9 a9 05` = 46,393, and exactly that many bytes follow. The payload is `[record_id = 1][fragment_count = 0x30 = 48][48 fragments]`, where a fragment is `[varint key][varint type_index][payload]` with **no length field**. Verified offsets inside the payload: `actor_id` 16 bytes at 29,731 (preceded at 29,727 by `00 00 00 02`), `position_x` BE f32 at 38,332 = 9343.6416, `position_y` BE f32 at 38,336 = 2786.7327. The actor id bytes match the constant the deleted crate pinned, byte for byte, and the 1,802 redacted bytes match its declared redaction count. The capture carries this same record **24 times** and all 24 payloads are byte-identical, so it is fully static. What is **not** recovered is the 48 fragment boundaries, and that question is now **closed by demonstration**: on the small variant (record id 1, 9 fragments, 7,152 bytes) the same walk is exhaustive, and it admits exactly one path — a degenerate one with two zero-length fragments and a 6,983-byte tail. The constraints are insufficient, not merely expensive. | layout verified, fragments closed as underdetermined |
 | State stream | keeps the connection indicator quiet | The **ongoing** variant: record id 1 at 7,167 bytes with a fragment count byte of 9, carried at seq 0x73, 0x98, 0x9a, 0x9c and 0x9e. Its head is `00 01 08 01 <seq> 01 01 01 01 00 00 <len varint> 01 09`. It carries no position at all, which is why the spawn record is the server's only lever on where a player starts. The spawn itself is re-sent 24 times byte-identically, so the stream is a verbatim repeat rather than an update. | measured effect, unknown body |
@@ -410,7 +493,7 @@ So the tail of both messages is `[4 flag bytes][8-byte nonce][65 03 00 00 00 00]
 `869` as a little-endian `u32`, which reads like a version or protocol tag; that
 is a candidate, not a name.
 
-### `0x18a6` is a periodic counter
+### `0x18a6` is `GridTrackingComponentClientFacet_UpdatePhasing`
 
 Four instances, 40 bytes each, at seq `0x0b`, `0x38`, `0x53` and `0x68`. The body
 is identical except the **last byte**, which increments: `01`, `02`, `03`, `04`.
@@ -418,6 +501,206 @@ That is a sequence number, so this is a keepalive rather than an event. Its
 16-byte id is `f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a`, which is **not**
 the player's actor id; as a GUID with the first three fields little-endian it is
 `57EDCBF8-8BC6-F418-BF85-314BBC4A951A`.
+
+**The wire type is now named.** GUID `D33230C8-9B7C-4B25-AFAA-254F8875A606`
+(`typeIndex[6310]`), and the registration hook resolves it to
+`GridTrackingComponentClientFacet_UpdatePhasing@ClientMessages@Javelin`:
+
+| Step | Evidence |
+| --- | --- |
+| GUID string | `.rdata` `0x14802c838` = `{D33230C8-9B7C-4B25-AFAA-254F8875A606}`, uppercase and braced |
+| `lea` site | `0x1416d53f1` inside `0x1416d5340-0x1416d5538`, the per-message type-record function |
+| lambda body | one caller of that function, `0x14153aa00` |
+| record | `0x148029878`, `rec[1]` = `0x14153aab0` |
+| thunk | `0x14153aab0` = `lea rax,[0x14a157630]; ret` |
+| TypeDescriptor | `0x14a157630` = `.?AV<lambda_1>@?1???$InstallRegistrationHook@VGridTrackingComponentClientFacet_UpdatePhasing@ClientMessages@Javelin@@@Hub@Amazon@@YA_NXZ@` |
+
+Three independent signals agree. The name string is also in the image at
+`.rdata` `0x14802c7e0`, `0x59` bytes before its own GUID, so this is one of the
+rare cases where the adjacency heuristic happens to be right too. And the name
+is one of the five live facet names the official 1.460 session logged
+(`builds.json`, `rmi_names`), measured on a different run of the same build.
+The trait is `Javelin::ClientMessages` per `aoi-trait-registry.json`, which is
+the client-facing set.
+
+What the fields mean is **not** settled by the name. The body still carries the
+shared nonce block above, and the counter is a sequence number whose start value
+is unknown. The name says what the client does with the record (phasing update
+for the grid-tracking component); it does not name the 16-byte id at `0x04`.
+
+### `0x651` is `ReceivePlayerSpawnPointMsg`, a message with no body
+
+One instance, 4 bytes: `00 01 91 19`. That is the typed header and nothing else,
+so its body is zero length. A message that carries no data is a signal, and at seq
+`0x07` it sits between the registration rungs and the rest of the handshake.
+
+**The wire type is now named.** GUID `21207525-B448-4193-AACA-83D4F847929F`
+(`typeIndex[1617]`), and the registration hook resolves it to
+`ReceivePlayerSpawnPointMsg@ClientViewListenerTrait@Javelin`:
+
+| Step | Evidence |
+| --- | --- |
+| GUID string | `.rdata` `0x14802b000` = `21207525-b448-4193-aaca-83d4f847929f`, plain and lowercase |
+| `lea` site | `0x1416f3ff1` inside `0x1416f3f40-0x1416f4138`, the per-message type-record function |
+| lambda body | one caller of that function, `0x1414e9550` |
+| record | `0x14800fe90`, `rec[1]` = `0x1414e9600` |
+| thunk | `0x1414e9600` = `lea rax,[0x14a15aa90]; ret` |
+| TypeDescriptor | `0x14a15aa90` = `.?AV<lambda_1>@?1???$InstallRegistrationHook@VReceivePlayerSpawnPointMsg@ClientViewListenerTrait@Javelin@@@Hub@Amazon@@YA_NXZ@` |
+
+This one has **two** signals only, and that is the honest count: the TypeDescriptor
+(the compiler wrote the name) and the trait registry, which independently reads the
+same mangled hook name out of `.rdata`. The adjacency heuristic gives it **no** name
+at all — the GUID is a lone lowercase run with no printable neighbour — so the one
+method known to be broken is silent here rather than agreeing, and this name rests
+on the hook alone.
+
+It also fits the ladder without being used as evidence for itself: the rung it sits
+under is `WaitingForSpawnPoint` (16), and its trait is `ClientViewListenerTrait`, the
+listener side rather than the player-manager side. A zero-length "spawn point is
+ready" signal arriving after registration and before level info is exactly the shape
+rung 16 needs.
+
+**What this does not prove.** `0x651` is *not* the message that moves the client out
+of rung 15. `STATUS.md` records that the actor game connection reaching state 2 does
+that, and this record arrives after registration, at the same rung, as a
+notification. Sending it does not substitute for the transport work. And the body is
+empty, so there is no field to name: the whole record is the name.
+
+### Method note: the reversed walk
+
+Both names above were produced by walking the chain in `commit b7d106e` **backwards**,
+from the GUID string to the name. That direction is worth recording because it is the
+one that generalises: given any wire type, read its `typeIndex` GUID, find the GUID
+string in `.rdata`, take its `lea` sites, resolve the containing function, take that
+function's callers, and read the thunk in the caller's record. It is the same chain,
+so a name found this way is exactly as strong as one found forwards.
+
+The two controls were re-run first and both reproduce: `0x663` →
+`LevelInfoChangedMsg` and `0x65c` → `PlayerManagerSelfIdentificationMsg`. A GUID whose
+`lea` site is in a function with **no** hook record returns nothing rather than a
+guess, which is what happens for `0x18a6`'s second `lea` site at `0x14175a75b`.
+
+**It is now a tool, not a procedure.** `python ef.py re message-names <wire…>` runs the
+walk for any type id, and `--check` refuses to work if the two controls stop
+resolving. Two details cost real time and are worth not rediscovering:
+
+* The GUID text must be searched in **both cases and both forms**. `0x663`'s is plain
+  uppercase, `0x65c`'s is plain lowercase, `0x18a6`'s and `0x1a59`'s are braced
+  uppercase. Missing the plain-lowercase form silently dropped the `0x65c` control.
+* `PE.xrefs_to_va` walks `.text` in Python and measured **5.07 s per wire type**,
+  which is 595 minutes for the whole table. One `lea` map built once with
+  `bytes.find` brings it to 210 ms per type. Same answers, 24× faster.
+
+### `0x1a59` is the ACK of the phasing update
+
+The client sends `0x1a59` during world entry and the replay cannot answer it
+(`inbound-request-coverage` → `no_replay_response: ["0x1a59"]`). It is
+`GridTrackingComponentServerFacet_ClientAckPhasingUpdate` on trait
+`Javelin::ClientMessages` (GUID `B42B3E49-B674-405C-A6AD-0CC5A8E368BA`,
+`typeIndex[6745]`; record fn `0x1416d5540`, lambda `0x14152d160`, thunk
+`0x14152d1f0`, TD `0x14a158610`).
+
+So it pairs with `0x18a6` `GridTrackingComponentClientFacet_UpdatePhasing`: the
+server pushes a phasing update, the client acknowledges it. That is a third
+independent check on the `0x18a6` name — two messages of the same component, one
+`ClientFacet` and one `ServerFacet`, named `UpdatePhasing` and `ClientAckPhasingUpdate`.
+
+**But the missing reply is not what blocks rung 17**, and the lab's own comment says
+so: `inbound-request-coverage` is "a report, not a verdict", and many
+`*ServerFacet_*` messages are setters answered by replicated state rather than by a
+typed reply. Treating `no_replay_response` as a defect is the same class of error as
+reading a capture as permission to send.
+
+### `0x65c` body: measured — a 135-byte prefix, a 56x56 grid, a 27-byte tail
+
+Measured 2026-10-26 on build `30fe6461…` by two independent methods that agree
+**cell for cell**: static byte analysis of the official replay, and a live Frida probe
+that read the decoded struct straight out of `FUN_146455ec0` on the running 1.460
+client (`reverse/probes/client/frida-selfident-struct.py`, output
+`.azoth/captures/probes/selfident-struct.json`).
+
+The accounting is exact, and it is the whole record:
+
+```text
+135 (prefix) + 12,544 (grid) + 27 (tail) = 12,706
+```
+
+| Record offset | Size | Field |
+| --- | --- | --- |
+| `0x00` | 4 | typed header, prefix varint `9c 19` = 1628 = `0x65c` |
+| `0x04` | 1 | `05` |
+| `0x05` | 16 | **redacted** — GUID #1 (this is what `AZOTH_REPLAY_SELFIDENT_GUID` fills) |
+| `0x15` | 4 | `58 61 78 14` = big-endian `0x14786158`, a VA into the image's `.rdata` |
+| `0x19` | 107 | measured data, unnamed; ends in a run of zeros from `0x5d` |
+| `0x84` | 1 | `38` = **56**, the grid side |
+| `0x85` | 2 | `80 31`, unexplained |
+| `0x87` | 12,544 | **the grid: 56 x 56 big-endian `u32` cells** |
+| `0x3187` | 10 | zero |
+| `0x3191` | 1 | `05` |
+| `0x3192` | 16 | **redacted** — GUID #2 |
+
+**The grid is proven three ways, and the three agree.**
+
+1. *Live, from the client.* The decoded struct's `std::vector<u32>` at struct `+0x08`
+   has a byte span of **12,544**, and `struct+0x00` is **56**. Only element width 4
+   makes the span an exact square of that `u32` (`56 x 56 x 4 = 12,544`).
+2. *Static, from the record.* The row stride is **224 bytes = 56 x 4**, and every
+   `0xFFFFFFFF` run in the record sits on that lattice: **56 runs at phase 135**
+   (`= 0x87`), i.e. exactly one per row.
+3. *Row shape.* **56 of 56 rows begin with an empty cell.** A 56-wide lattice whose
+   every row starts empty is not a coincidence of a large buffer.
+
+**Cell values.** There are only **eight distinct values** in all 3,136 cells:
+
+| Big-endian value | Count | Meaning |
+| --- | --- | --- |
+| `0xFFFFFFFF` | 1,716 | empty / unset |
+| `0` | 208 | unnamed state |
+| `1` | 192 | unnamed state |
+| `2` | 200 | unnamed state |
+| `3` | 200 | unnamed state |
+| `4` | 196 | unnamed state |
+| `5` | 192 | unnamed state |
+| `6` | 232 | unnamed state |
+
+So a cell is a **small enum with 7 states plus an empty sentinel**, not an id, a
+pointer, or a float. The distribution is close to uniform across the seven states,
+which is a property of *this* record and must not be generalised — real terrain would
+not be that even.
+
+**The wire is big-endian and the struct is host little-endian.** This is measured, not
+assumed: the probe read cells `0..19` as `0xFFFFFFFF` and cells `20..23` as `2`, while
+the record holds `0xFFFFFFFF x 20` followed by `00 00 00 02`. Reading those record
+bytes as big-endian reproduces the probe's numbers exactly; reading them as
+little-endian would give `33,554,432`. Any future encoder must write these cells
+big-endian.
+
+**Two corrections this measurement forces.**
+
+*The "off by exactly one byte" is withdrawn, and so is the model behind it.* The body
+is not `[u32][count][vector][u8][u64][u32]` filling 12,702 bytes; it is a 131-byte
+prefix, the grid, and a 27-byte tail. The old arithmetic, `(12702 - 17 - 5) / 4 =
+3170.0`, looked exact only because 12,681 happens to be 1 more than a multiple of 4.
+**That remainder was arithmetic noise from a wrong model, not a real orphan byte** —
+which is why no amount of further arithmetic on this record could place it. It is now
+placed by measurement: there is no orphan byte, and the vector has **3,136** elements,
+not 3,170.
+
+*There are two redacted 16-byte GUIDs, not one.* `levers.md` and the comment on
+`REPLAY_SELFIDENT_GUID_TARGET` both speak of "a separate binary GUID field" in the
+singular. The record redacts **32** bytes in two blocks: `0x05..0x14` (prefix) and
+`0x3192..0x31a1` (tail, the last 16 bytes of the record). The lever targets
+`(0x06, 0x065C, 0x05, 16)`, which is the prefix block and is correct, but **the tail
+GUID is filled by nothing**. Both blocks are preceded by the same byte `05`, so the
+message plausibly carries two identity slots of the same shape; which one the client
+actually consumes is not measured.
+
+**What is still unnamed.** The grid's *semantics*. Three independent signals pin its
+shape, offset, endianness and value set, and none of them says what a cell of state 3
+means. Naming it would be a guess, so it stays unnamed; the row below records the
+constraint instead. What the message *does* consume is unchanged and still narrow: the
+handler reads only struct `+0xa1`, `+0xa2` and `+0xa8`, and only the `u8` at `+0x28`
+gates the debug-cvar spawn path.
 
 ### The 36-byte identity block and the `58 61 78 14` tag
 
@@ -435,12 +718,6 @@ offset 57. The layout is the same in all three:
 4b 6f 8f 07 86 d6 8b f3 ae 45`, and the tag is the same 4 bytes in all three. A
 private server that echoes a captured record keeps these consistent for free; one
 that composes messages has to know what they are, and nobody does yet.
-
-### `0x651` is a message with no body
-
-One instance, 4 bytes: `00 01 91 19`. That is the typed header and nothing else,
-so its body is zero length. A message that carries no data is a signal, and at seq
-`0x07` it sits between the registration rungs and the rest of the handshake.
 
 ## Presence
 
