@@ -995,6 +995,71 @@ reached that path.** Hooks firing is evidence the probe works, never evidence th
 client entered the state under test. The parent caught this only by checking the log's
 size (50 KB against 206 KB for the reference run) and grepping for the ladder states.
 
+## Field names are in the binary, but names are not encodings
+
+Measured 2026-10-26, chasing the question "we have the replay, can we get the layouts for all
+185 types instead of 6?" The answer is partly yes, and the part that is no is the part that
+matters.
+
+**Yes: a replicated-state class's field names are in `.rdata`, and they are recoverable.**
+`ALCReplicatedState`'s 62 fields appear as a contiguous block of NUL-terminated identifiers at
+`0x148100c94..0x148101040` -- `idRel`, `timeOffsetRel`, `worldPosRel`, `rotation`, `idAbs`,
+`timeOffsetAbs`, `worldPosAbs`, `quantization`, and 40 more. This is not a guess from naming
+style: those strings are independently corroborated by the measurements that named the position
+field and the flags, and the block is terminated by the next class's data.
+
+The mechanism, verified end to end on that one class:
+
+```
+type vtable 0x148100b10  +0xb8  ->  allocator 0x142a3bff0
+allocator                        lea's the class-name string 0x1480fffa0 ("ALCReplicatedState")
+allocator                        calls 0x142a36d50 at site 0x142a3c0fb
+0x142a36d50                      lea's each field-name string, one per member
+```
+
+Extracted from that constructor: 49 distinct identifiers, including every field name that was
+measured independently. So the field table of a class is readable from its constructor, and the
+constructor is reachable from the allocator, which is reachable from the vtable slot `+0xb8`.
+
+**No: it does not generalise by running the same walk for every class.** The image holds **136**
+distinct `*ReplicatedState` class-name strings. Applying that exact chain to all of them links
+**one** -- `ALCReplicatedState`. Field-table construction is therefore not uniform across these
+classes: most either build their members somewhere else, share a generic path, or do not carry a
+named field block at all.
+
+Two extraction attempts are recorded because both failed for instructive reasons, and the second
+is a trap worth remembering:
+
+1. A first pass searched for `<ClassName>Allocator` strings. Only `ALCReplicatedStateAllocator`
+   exists, so this finds exactly one class and looks like success.
+2. A second pass used a regex requiring four or more characters before `ReplicatedState`, which
+   **silently excluded `ALCReplicatedState` itself** -- `ALC` is three characters. The scan then
+   reported zero matches while the hand-verified chain worked, which reads like a broken method
+   rather than a broken regex. `{4,60}` should have been `{0,60}`.
+
+`research/derived/field-tables.json` carries the raw material: **1,154** functions that reference
+at least 8 distinct identifier strings, with their identifier sets, **26,300** distinct strings
+in total. That is a genuine asset -- a field name can now be grepped to the function that builds
+its table -- but it is a candidate pool, not an answer.
+
+**And the distinction that actually reframes the question.** A field NAME is not a field
+ENCODING. Even for `ALCReplicatedState`, where all 62 names are known, the presence mask is
+measured and the `worldPosAbs` delta formula is closed, the wire encoding of the other **61**
+fields is unknown: each is read and written through its own per-field-type codec
+(`+0x18` present?, `+0x28` write, `+0x30` read). So "6 of 185" is not primarily a naming gap. It
+is a **per-field codec** gap, and its size is roughly 185 types times dozens of fields each.
+
+That is why extracting every name would not move the number much. It would make each codec
+*findable* -- a named field tells you which codec to hook -- but the codecs still have to be
+measured one at a time, and a name alone composes no bytes.
+
+**What this implies for the plan, stated plainly.** Naming the types was the cheap half. What a
+composing server needs is per-field encode/decode, and the only routes to that are (a) decompile
+each field codec, or (b) measure it empirically -- and (b) is now possible in a way it was not
+before, because the presence mask tells you which fields a given body carries, so two bodies of
+the same type that differ in one field differ in exactly one field's bytes. That differential
+method is the next thing worth building; it is a tool, not a session.
+
 ## The three types the replay used to have no name for
 
 `scan-wire-names.py` names a wire type by pairing it with a printable run in

@@ -67,12 +67,12 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Write the Rust wire crate.** The naming phase is done for everything a first crate
-needs: 3,390 types named, the delta format measured (a payload opens with a presence
-mask, so an unset field is *absent*, not stale), and the position quad closed — x/y are
-`f32` big-endian on the wire, z is client-derived, and the delta is
-`scale * (2*byte - 255) / 255`. Start `everfall-wire` with `LevelInfoChangedMsg` and
-the `worldPosAbs` fragment, testing the meaning against the captured bytes.
+**Build the differential field measurer.** The gap is not names but per-field encodings:
+6 of 185 wire types are laid out to the byte, and even `ALCReplicatedState` — 62 field
+names known, mask measured — has 61 fields with unknown wire encoding. The route is open
+because the presence mask says which fields a body carries, so two bodies of one type
+differing in a single field differ in that field's bytes only. Acceptance: recover one
+unknown field's encoding, checked against a second body.
 
 ## Do not
 
