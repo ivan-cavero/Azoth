@@ -131,6 +131,43 @@ def pointer_sites(pe: PE, value: int) -> list[int]:
         i = pe.data.find(needle, i + 1)
     return out
 
+# A registration table is a run of 48-byte rows. Each row starts with the
+# registration lambda's own address, and carries that row's type-descriptor
+# thunk at +0x08.
+TABLE_ROW = 48
+
+def entry_descriptor(pe: PE, record_va: int, lambda_va: int) -> int | None:
+    """The descriptor thunk of the ONE table row that belongs to this lambda.
+
+    WHY THIS EXISTS. `resolve` used to read eight consecutive qwords from the
+    table base and treat each as a descriptor of the type being named. A table
+    holds many rows, so that reports the neighbours' types too, and 796 of the
+    7,052 wire types came out with two or more names for one GUID.
+
+    The row that owns a lambda is the one whose first qword IS that lambda, and
+    its own descriptor is that row's second qword. Measured on build 30fe6461:
+    applied to all 796 ambiguous types it returns exactly one name for every
+    one; on the 2,594 previously-unambiguous types it agrees with the slot scan
+    2,576 times and never contradicts it (the other 18 are misses, where this
+    returns None and the caller must fall back); and on the 7 replay types with
+    independently known names it is correct 7/7, including `0x663` =
+    `LevelInfoChangedMsg`, proven separately by decompiling its handler.
+
+    It is therefore a tie-breaker, not a replacement: a None here means "this
+    row layout did not apply", not "this type has no name".
+    """
+    fo = pe.va_to_foff(record_va)
+    if fo is None:
+        return None
+    for row in range(64):
+        base = fo + TABLE_ROW * row
+        if base + TABLE_ROW > len(pe.data):
+            break
+        first, descriptor = struct.unpack_from("<QQ", pe.data, base)
+        if first == lambda_va:
+            return descriptor
+    return None
+
 
 def thunk_target(pe: PE, va: int) -> int | None:
     """`lea rax,[rip+disp32]; ret` -> the address it loads."""
@@ -203,6 +240,7 @@ def resolve(px: PEx, calls: dict[int, list[int]], leas: dict[int, list[int]],
         return row
 
     names: list[dict] = []
+    entry_names: list[dict] = []
     for guid_va, variant in hits:
         for site_va in leas.get(guid_va, []):
             rng = px.func_at(site_va)
@@ -239,6 +277,29 @@ def resolve(px: PEx, calls: dict[int, list[int]], leas: dict[int, list[int]],
                                 "mangled": mangled,
                             }
                         )
+                    # Tie-breaker: the row that owns this lambda, not its
+                    # neighbours. See entry_descriptor for the evidence.
+                    own = entry_descriptor(pe, record_va, lam)
+                    own_td = thunk_target(pe, own) if own else None
+                    if own_td is not None:
+                        own_mangled = type_descriptor_name(pe, own_td)
+                        own_parsed = message_from_mangled(own_mangled or "")
+                        if own_parsed:
+                            entry_names.append(
+                                {
+                                    "name": own_parsed[0],
+                                    "trait": own_parsed[1],
+                                    "guid_string": f"0x{guid_va:x}",
+                                    "guid_form": variant,
+                                    "record_fn": f"0x{record_fn:x}",
+                                    "lambda": f"0x{lam:x}",
+                                    "record": f"0x{record_va:x}",
+                                    "slot": -1,
+                                    "thunk": f"0x{own:x}",
+                                    "type_descriptor": f"0x{own_td:x}",
+                                    "mangled": own_mangled,
+                                }
+                            )
     # Deduplicate: one GUID can be reachable from more than one site.
     seen, unique = set(), []
     for n in names:
@@ -246,8 +307,22 @@ def resolve(px: PEx, calls: dict[int, list[int]], leas: dict[int, list[int]],
             continue
         seen.add(n["name"])
         unique.append(n)
-    row["names"] = unique
-    row["result"] = "named" if unique else "no-hook-record"
+    # A single owner wins over the slot scan. More than one distinct owner means
+    # the table layout did not resolve here, and the candidate list is honest.
+    entry_seen, entry_unique = set(), []
+    for n in entry_names:
+        if n["name"] in entry_seen:
+            continue
+        entry_seen.add(n["name"])
+        entry_unique.append(n)
+    if len(entry_unique) == 1:
+        row["resolution"] = "entry-match"
+        row["candidates"] = [n["name"] for n in unique]
+        row["names"] = entry_unique
+    else:
+        row["resolution"] = "slot-scan" if unique else "none"
+        row["names"] = unique
+    row["result"] = "named" if row["names"] else "no-hook-record"
     return row
 
 
