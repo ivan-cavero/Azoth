@@ -1,0 +1,596 @@
+{
+  "$comment": "The 48 fragments of the spawn record (state bundle type 0x8, record id 1, 46,393 payload bytes), named. Boundaries measured live 2026-10-18 and stored in .azoth/captures/probes/frag-spawn.jsonl (25 byte-identical copies); the capture is gitignored, so this file is the committed record of it. A fragment's second varint is a type-table index, which is why the wire-type naming tool resolves it. Regenerate with `python ef.py re message-names` over the type indices below, or see meanings.md 'The 48 spawn fragments, named'.",
+  "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "record": {
+    "type": 8,
+    "record_id": 1,
+    "fragment_count": 48,
+    "payload_bytes": 46393
+  },
+  "distinct_type_indices": 47,
+  "named": 48,
+  "ambiguous": [
+    3652,
+    3681
+  ],
+  "fragments": [
+    {
+      "n": 1,
+      "key": 71,
+      "type_index": 4878,
+      "type_guid": "02C9E1DC-F013-4B1F-BFAA-6314278984D5",
+      "name": "MusicalPerformancePlayerComponentReplicatedState",
+      "name_candidates": [
+        "MusicalPerformancePlayerComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 2
+    },
+    {
+      "n": 2,
+      "key": 10,
+      "type_index": 3829,
+      "type_guid": "2205CFE8-2403-42C7-81F7-5DEDB58E9ECE",
+      "name": "ObjectiveInteractorComponentReplicatedState",
+      "name_candidates": [
+        "ObjectiveInteractorComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 25
+    },
+    {
+      "n": 3,
+      "key": 27,
+      "type_index": 129,
+      "type_guid": "464EBD37-105F-4790-8C59-C46EBB4C57A6",
+      "name": "AttributeComponentReplicatedState",
+      "name_candidates": [
+        "AttributeComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 171
+    },
+    {
+      "n": 4,
+      "key": 31,
+      "type_index": 1927,
+      "type_guid": "058AD715-52F1-4DEE-8E9E-059319B6EDD3",
+      "name": "ReactionTrackingReplicatedState",
+      "name_candidates": [
+        "ReactionTrackingReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 280
+    },
+    {
+      "n": 5,
+      "key": 45,
+      "type_index": 2932,
+      "type_guid": "6D45EB20-95FE-4420-96C5-3F9367A3FC5C",
+      "name": "CooldownTimersComponentReplicatedState",
+      "name_candidates": [
+        "CooldownTimersComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 320
+    },
+    {
+      "n": 6,
+      "key": 56,
+      "type_index": 3147,
+      "type_guid": "F5398BCB-8AF9-47C7-84C6-B8AFBF249F34",
+      "name": "GuildsComponentReplicatedState",
+      "name_candidates": [
+        "GuildsComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 6233
+    },
+    {
+      "n": 7,
+      "key": 12,
+      "type_index": 1195,
+      "type_guid": "6C597946-2506-4385-8FB4-882FB6A98D5D",
+      "name": "PlayerAppearanceComponentReplicatedState",
+      "name_candidates": [
+        "PlayerAppearanceComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 6247
+    },
+    {
+      "n": 8,
+      "key": 76,
+      "type_index": 1755,
+      "type_guid": "EF1A20F2-F6CF-439F-A1AC-63460F803134",
+      "name": "ContainerComponentReplicatedState",
+      "name_candidates": [
+        "ContainerComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 6275
+    },
+    {
+      "n": 9,
+      "key": 67,
+      "type_index": 3681,
+      "type_guid": "F7B56641-F8C3-41A9-83B2-13AC4F9843F9",
+      "name": "ProgressionPointReplicatedState",
+      "name_candidates": [
+        "ProgressionPointReplicatedState",
+        "ProgressionComponentServerFacet_Debug_ModifyExp"
+      ],
+      "name_ambiguous": true,
+      "off_in_payload": 6285
+    },
+    {
+      "n": 10,
+      "key": 51,
+      "type_index": 1994,
+      "type_guid": "CE526687-CA4B-4647-A599-EC026FDC0C6D",
+      "name": "GroupsComponentReplicatedState",
+      "name_candidates": [
+        "GroupsComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11039
+    },
+    {
+      "n": 11,
+      "key": 55,
+      "type_index": 4176,
+      "type_guid": "92FE39A5-1948-4EE4-A49F-B02EA344DC57",
+      "name": "SocialReplicatedState",
+      "name_candidates": [
+        "SocialReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11086
+    },
+    {
+      "n": 12,
+      "key": 43,
+      "type_index": 1525,
+      "type_guid": "DDD46896-8DAD-4EE5-836E-341A72D44403",
+      "name": "StatMultiplierTableComponentReplicatedState",
+      "name_candidates": [
+        "StatMultiplierTableComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11101
+    },
+    {
+      "n": 13,
+      "key": 50,
+      "type_index": 4321,
+      "type_guid": "B84EBDAF-8450-4C65-B345-3B02B892F05C",
+      "name": "WaypointsComponentReplicatedState",
+      "name_candidates": [
+        "WaypointsComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11633
+    },
+    {
+      "n": 14,
+      "key": 60,
+      "type_index": 3786,
+      "type_guid": "C3F8F5F5-5D8E-45A0-890C-36B9B0183C8E",
+      "name": "CurrencyComponentReplicatedState",
+      "name_candidates": [
+        "CurrencyComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11650
+    },
+    {
+      "n": 15,
+      "key": 19,
+      "type_index": 3133,
+      "type_guid": "FEAFABE8-6219-4C4A-9269-261D1E76878E",
+      "name": "EntitlementComponentReplicatedState",
+      "name_candidates": [
+        "EntitlementComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11663
+    },
+    {
+      "n": 16,
+      "key": 41,
+      "type_index": 15,
+      "type_guid": "0E721C70-2CDB-4E85-BAE4-D545FDC6D25B",
+      "name": "VitalsComponentReplicatedState",
+      "name_candidates": [
+        "VitalsComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11678
+    },
+    {
+      "n": 17,
+      "key": 9,
+      "type_index": 3935,
+      "type_guid": "BDDDA784-A6E7-416B-A041-449920D90FB6",
+      "name": "PlayerComponentReplicatedState",
+      "name_candidates": [
+        "PlayerComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11747
+    },
+    {
+      "n": 18,
+      "key": 35,
+      "type_index": 3765,
+      "type_guid": "E1EBCA63-1759-477C-BBE7-61B8A471F5BB",
+      "name": "ItemSkinningComponentReplicatedState",
+      "name_candidates": [
+        "ItemSkinningComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11838
+    },
+    {
+      "n": 19,
+      "key": 13,
+      "type_index": 603,
+      "type_guid": "27830472-00A7-4204-A0BC-D1179F6EE4A2",
+      "name": "AudioProxyComponentReplicatedState",
+      "name_candidates": [
+        "AudioProxyComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11859
+    },
+    {
+      "n": 20,
+      "key": 77,
+      "type_index": 2938,
+      "type_guid": "37F7555D-8476-410A-9753-850945075374",
+      "name": "GlobalStorageComponentReplicatedState",
+      "name_candidates": [
+        "GlobalStorageComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 11865
+    },
+    {
+      "n": 21,
+      "key": 29,
+      "type_index": 6234,
+      "type_guid": "B5E124FB-D4D1-4479-9A0B-3623BEF6EF0B",
+      "name": "InstancedSlayerScriptReplicatedState",
+      "name_candidates": [
+        "InstancedSlayerScriptReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 12518
+    },
+    {
+      "n": 22,
+      "key": 61,
+      "type_index": 1755,
+      "type_guid": "EF1A20F2-F6CF-439F-A1AC-63460F803134",
+      "name": "ContainerComponentReplicatedState",
+      "name_candidates": [
+        "ContainerComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 12531
+    },
+    {
+      "n": 23,
+      "key": 0,
+      "type_index": 10,
+      "type_guid": "203DC8C7-0C60-454B-A46F-566114314B84",
+      "name": "GdeMetadataReplicatedState",
+      "name_candidates": [
+        "GdeMetadataReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 29707
+    },
+    {
+      "n": 24,
+      "key": 74,
+      "type_index": 5691,
+      "type_guid": "DEE6E179-3D80-4160-9BAD-CC5DA6B60C46",
+      "name": "TransmogComponentReplicatedState",
+      "name_candidates": [
+        "TransmogComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 29747
+    },
+    {
+      "n": 25,
+      "key": 42,
+      "type_index": 4297,
+      "type_guid": "4A6A34E3-FE18-4746-972D-D48DCE3DB1E3",
+      "name": "StaminaComponentReplicatedState",
+      "name_candidates": [
+        "StaminaComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 31129
+    },
+    {
+      "n": 26,
+      "key": 47,
+      "type_index": 1652,
+      "type_guid": "3729094D-0FBA-4DCF-B191-7E9E53AA9B85",
+      "name": "ManaComponentReplicatedState",
+      "name_candidates": [
+        "ManaComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 31158
+    },
+    {
+      "n": 27,
+      "key": 39,
+      "type_index": 5620,
+      "type_guid": "2C20C9F7-2500-496A-89E2-5ADA1053B5C2",
+      "name": "MountComponentReplicatedState",
+      "name_candidates": [
+        "MountComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 31179
+    },
+    {
+      "n": 28,
+      "key": 33,
+      "type_index": 982,
+      "type_guid": "756DEAE5-A1F0-4863-BE20-B44D871C46A1",
+      "name": "LootTrackerComponentReplicatedState",
+      "name_candidates": [
+        "LootTrackerComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 31238
+    },
+    {
+      "n": 29,
+      "key": 49,
+      "type_index": 3152,
+      "type_guid": "80A502FD-67EB-4A1B-87E3-B85004919249",
+      "name": "FactionComponentReplicatedState",
+      "name_candidates": [
+        "FactionComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 31294
+    },
+    {
+      "n": 30,
+      "key": 62,
+      "type_index": 3183,
+      "type_guid": "B258A60E-FC21-40CF-8B86-57B7F6083D32",
+      "name": "PaperdollComponentReplicatedState",
+      "name_candidates": [
+        "PaperdollComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 31307
+    },
+    {
+      "n": 31,
+      "key": 5,
+      "type_index": 3290,
+      "type_guid": "737D86A4-B063-49C1-AE69-E9EFA8ED11EC",
+      "name": "PlayerTimeComponentReplicatedState",
+      "name_candidates": [
+        "PlayerTimeComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 33357
+    },
+    {
+      "n": 32,
+      "key": 57,
+      "type_index": 1566,
+      "type_guid": "01CEFF40-344D-4B55-9879-BA0D55C50312",
+      "name": "ChatReplicatedState",
+      "name_candidates": [
+        "ChatReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 33386
+    },
+    {
+      "n": 33,
+      "key": 68,
+      "type_index": 497,
+      "type_guid": "8B6ADD1E-927D-42BF-B2C7-C9D1665AB82D",
+      "name": "GameEventComponentReplicatedState",
+      "name_candidates": [
+        "GameEventComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 33395
+    },
+    {
+      "n": 34,
+      "key": 4,
+      "type_index": 2406,
+      "type_guid": "7DD20E73-9E5C-4753-8B94-2AEF87A82D37",
+      "name": "PlayerArenaReplicatedState",
+      "name_candidates": [
+        "PlayerArenaReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 33404
+    },
+    {
+      "n": 35,
+      "key": 20,
+      "type_index": 3652,
+      "type_guid": "305FCFBB-3FD0-49BB-841B-14EF372C6469",
+      "name": "PlayerHomeComponentReplicatedState",
+      "name_candidates": [
+        "PlayerHomeComponentReplicatedState",
+        "RespawnInfo"
+      ],
+      "name_ambiguous": true,
+      "off_in_payload": 33467
+    },
+    {
+      "n": 36,
+      "key": 16,
+      "type_index": 11,
+      "type_guid": "01B0664B-3AB6-44A6-87E3-8C69D40E0365",
+      "name": "ALCReplicatedState",
+      "name_candidates": [
+        "ALCReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 38310
+    },
+    {
+      "n": 37,
+      "key": 48,
+      "type_index": 5257,
+      "type_guid": "0EF6EEBD-CBBB-48EF-B88F-99BF2B0F8A1A",
+      "name": "ChargeComponentReplicatedState",
+      "name_candidates": [
+        "ChargeComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 38397
+    },
+    {
+      "n": 38,
+      "key": 32,
+      "type_index": 2895,
+      "type_guid": "733DD7CC-D17E-41DD-B0EA-0FB6D8E0939F",
+      "name": "MagicComponentReplicatedState",
+      "name_candidates": [
+        "MagicComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 38403
+    },
+    {
+      "n": 39,
+      "key": 46,
+      "type_index": 185,
+      "type_guid": "35877C3E-4EF8-43DD-ABE7-ABF35104F1B5",
+      "name": "AbilityComponentReplicatedState",
+      "name_candidates": [
+        "AbilityComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 38416
+    },
+    {
+      "n": 40,
+      "key": 14,
+      "type_index": 1528,
+      "type_guid": "F98E278D-6B34-4DEB-B0D7-3B6786988D65",
+      "name": "DamageReceiverComponentReplicatedState",
+      "name_candidates": [
+        "DamageReceiverComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 39405
+    },
+    {
+      "n": 41,
+      "key": 22,
+      "type_index": 3857,
+      "type_guid": "036365F4-A485-439D-8A3F-C51DFF6123B4",
+      "name": "ObjectivesComponentReplicatedState",
+      "name_candidates": [
+        "ObjectivesComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 39415
+    },
+    {
+      "n": 42,
+      "key": 1,
+      "type_index": 6951,
+      "type_guid": "63AD3B5A-3E2E-4923-ACCD-1DA221431EE0",
+      "name": "PointsAccumulatorComponentReplicatedState",
+      "name_candidates": [
+        "PointsAccumulatorComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 41210
+    },
+    {
+      "n": 43,
+      "key": 65,
+      "type_index": 911,
+      "type_guid": "9D621862-D7F9-44B0-9A64-E3ED8A154AE1",
+      "name": "CategoricalProgressionReplicatedState",
+      "name_candidates": [
+        "CategoricalProgressionReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 41231
+    },
+    {
+      "n": 44,
+      "key": 66,
+      "type_index": 3210,
+      "type_guid": "44528310-AAA5-4E1B-B8C1-68135B81CD06",
+      "name": "AchievementComponentReplicatedState",
+      "name_candidates": [
+        "AchievementComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 42228
+    },
+    {
+      "n": 45,
+      "key": 2,
+      "type_index": 5437,
+      "type_guid": "A7933D94-4E0B-4711-BE2D-EA22000CCF06",
+      "name": "ItemManagementComponentReplicatedState",
+      "name_candidates": [
+        "ItemManagementComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 44255
+    },
+    {
+      "n": 46,
+      "key": 34,
+      "type_index": 4913,
+      "type_guid": "CCEA2E6C-2C3E-4A7F-97A7-C5CB86167960",
+      "name": "RewardTrackComponentReplicatedState",
+      "name_candidates": [
+        "RewardTrackComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 45760
+    },
+    {
+      "n": 47,
+      "key": 70,
+      "type_index": 899,
+      "type_guid": "3529CE4B-E0EF-40C5-AF11-5165DA637303",
+      "name": "ProgressionComponentReplicatedState",
+      "name_candidates": [
+        "ProgressionComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 46286
+    },
+    {
+      "n": 48,
+      "key": 44,
+      "type_index": 4236,
+      "type_guid": "E36B9CC4-082E-40F0-BA4F-5C5BE9CD3C16",
+      "name": "StatusEffectsComponentReplicatedState",
+      "name_candidates": [
+        "StatusEffectsComponentReplicatedState"
+      ],
+      "name_ambiguous": false,
+      "off_in_payload": 46304
+    }
+  ]
+}

@@ -79,7 +79,7 @@ Naming a field removes it from this list. None of these ids is a gameplay noun.
 | `flow.world-entry.rung.greetings.body` | GridMate greeting. Not a game event. | partial |
 | `flow.world-entry.rung.self-identification.body` | The 21 bytes the lab carries, against a real record that is **12,706 bytes**, now laid out to the byte (2026-10-26): **135-byte prefix + a 56 x 56 grid of big-endian `u32` (12,544 bytes) + 27-byte tail**, which sums to the record exactly. Proven three ways that agree cell for cell: a live Frida probe read the decoded `std::vector<u32>` span as 12,544 with `struct+0x00 = 56`; the record's `0xFFFFFFFF` runs sit on a **224-byte row lattice** (56 runs, one per row, at phase `0x87`); and **56 of 56 rows** begin with an empty cell. Cells are a small enum -- only eight distinct values, `0xFFFFFFFF` (1,716, empty) plus big-endian `0`..`6` -- and the wire is **big-endian** while the struct is host little-endian, measured by matching the probe's cells `0..23` against the record bytes. The earlier "off by exactly one byte" is **withdrawn**: it was the modulo-4 remainder of a wrong model, and there is no orphan byte. The grid's *semantics* remain unnamed. | body layout measured end to end; grid semantics unnamed |
 | `flow.world-entry.rung.level-info.unexplained` | **Measured live on 1.460, 2026-10-26** by reading the decoded struct out of `FUN_146447ac0`. Named and closed: the two strings are `NewWorld_VitaeEterna` (size 20) and `coatlicue/NewWorld_VitaeEterna` (size 30); the four `u32` at `0x38/0x3c/0x40/0x44` are **floats to the client** (the struct holds `0x45000000` etc. while the record holds the bytes reversed, so the byte swap happens in the deserializer, not the handler) and equal 2048.0, 16.0, 12272.0, 10250.0; the dedup key at struct `+0xa8` is `0xC17F9BE48F` = `record[0x66:0x6e]` big-endian, confirming the wire→struct link for the one field the lab already rewrites; and struct `+0xa0..+0xa3` = `[1,1,1,0]`, which occurs at exactly one offset in the record (`0x62`), so the old 10-byte "tag block" at `0x5c` is really 6 unnamed bytes plus those four flags. **Still unnamed:** what the four floats describe. The geometric reading (`2048/16 = 128`, `12272/16 = 767`) suggested world coordinates and that is now **refuted**: across 7,216 position samples the player sits at x 9023..9362, y 2743..3027, z 58..88, and 12272/10250 are outside every range. The `u64` at `0x48`, the 6 bytes at `0x5c` and the `0x50` flags remain unnamed. Only `+0xa1`, `+0xa2` and `+0xa8` are ever read by the client. | floats proven and coordinates refuted; three groups still unnamed |
-| `flow.world-entry.rung.spawn.body` | Spawn record id 1. The record and its payload layout are now verified against the official replay; what stays unnamed is the interior of the 48 fragments. | layout verified, fragments unknown |
+| `flow.world-entry.rung.spawn.body` | Spawn record id 1. The record and its payload layout are verified against the official replay, and **all 48 fragments are now named** (2026-10-26): a fragment's second varint is a type-table index and the registration hook names it, giving 47 distinct types, every one a `*ReplicatedState`. The boundaries, previously closed as underdetermined from the bytes, were measured live. See "The 48 spawn fragments, named". | layout verified, all 48 fragments named |
 | `flow.world-entry.rung.state-stream.body` | The resend of that spawn, about once a second. The quiet cable is measured. The body is the spawn. | measured effect |
 | `flow.world-entry.presence.fields` | Add-actor fanout. The head is a proven 16-byte fixed read but not a proven ActorGuid, and the tail offsets are known while their meanings are not. | partial |
 
@@ -379,8 +379,8 @@ reason matters more than the status:
   player's 16-byte actor id and arrives immediately before level info, but it is a
   precondition for the spawn rather than the transition.
 - **17** — the record and its payload layout are verified, including the actor id
-  at 29,731 and the position at 38,332/38,336. The 48 fragment boundaries are
-  closed as underdetermined; see the spawn row.
+  at 29,731 and the position at 38,332/38,336. The 48 fragment boundaries are now
+  measured live and all 48 fragments are named; see the spawn row.
 - **presence** — `AddActorMessage` is wire `0x79`, not `0x449`, and its head is a
   proven 16-byte fixed read that is *not* proven to be an actor id.
 
@@ -395,7 +395,7 @@ named reason each.
 | Greetings | GridMate peer handshake | A **Carrier command**, not an application message: `Cmd_Greetings` = command byte 1 inside a Carrier record. It has no type-table slot, the 1.460 image contains no `Greeting` string at all, and the 1.365 replay has no record for it among its 177. The ladder's first typed exchange is the client's `RegistrationRequestV3Msg`, not a greeting. | transport-level, no typed record |
 | Self identification | `WaitingForREPConnection`/`WaitingForActorGameConnection` (15) -> `WaitingForSpawnPoint` (16) | `PlayerManagerSelfIdentificationMsg`. The client handler is `FUN_146455ec0` on SHA-256 `30fe6461...`: it logs `PlayerManagerSelfIdentification`, returns early when the game or client-SDK pointer is null, copies the message into the player-manager component, sets an identified flag at component `-0x7f0`, and either spawns from the debug cvars or delegates to `FUN_14167cc70`. Its decoded struct is `0x38` bytes: `0x00` u32, `0x08` `std::vector<u32>` (24 bytes), `0x28` u8, `0x2c` u64, `0x34` u32. Only `0x28` is named: non-zero switches placement to the debug cvars and skips the real spawn. **The body is now measured** (2026-10-26): a 135-byte prefix, a **56 x 56 grid of big-endian `u32`** (12,544 bytes) whose cells are an 8-value enum with `0xFFFFFFFF` = empty, and a 27-byte tail; `struct+0x00` is 56, the grid side, and the vector holds 3,136 elements. Two 16-byte GUIDs are redacted (prefix `0x05`, tail `0x3192`) and only the prefix one has a lever. The grid's meaning is unnamed. The message is registered in `Javelin::ClientMessagesTrait`, the same trait as `LevelInfoChangedMsg`. (Superseded text removed 2026-10-26: this paragraph used to say `0x65c` was `LastSpawnedBotCharacterId`, and later that the wire order was open by one byte -- the first was the adjacency defect corrected in `b7d106e`, the second was a wrong model now replaced by measurement.) | handler, struct and body measured; grid semantics unnamed |
 | Level info | `WaitingForSpawnPoint` (16) → `WaitingForPlayerSpawn` (17) | `LevelInfoChangedMsg`, wire type `0x663`. The handler is `FUN_146447ac0` on `30fe6461…`, the next virtual slot in the same vtable as the self-identification handler, and it reads only three struct offsets: `+0xa1`, which it logs as `levelInfo.m_clientContextInstanceId`, `+0xa2`, and `+0xa8`, which it compares against the slot it cached last time and **returns early when they match**. The body is parsed end to end on the 1.365 replay record `0x10_T0x663_R.bin`, 110 bytes: `00 01 a3 19`, `14`+`NewWorld_VitaeEterna`, `1e`+`coatlicue/NewWorld_VitaeEterna`, four big-endian floats `2048.0 / 16.0 / 12272.0 / 10250.0` at `0x38`, `u64` zero at `0x48`, `01 01 00 00` at `0x50`, an 8-byte per-record nonce at `0x54`, `65 03 00 00 00 00 01 01 01 00` at `0x5c`, and the 8-byte `level_context_key` `00 00 00 c1 7f 9b e4 8f` at `0x66`. The key is named: it is the dedup key, proven by the early return above and independently by the lab's own capture note that a repeated `0x663` with the same key is ignored. | partial, measured |
-| Spawn | `WaitingForPlayerSpawn` (17) → `InGame` (18) | Record type `0x8`, record id 1, 48 fragments, 46,393 payload bytes. **Measured on the 1.365 replay** (`0x6c_T0x8_R.bin`, 46,407 bytes total): `00 01 08` then a run of `01`/`00` flags to `0x0b`, then the varint `d9 a9 05` = 46,393, and exactly that many bytes follow. The payload is `[record_id = 1][fragment_count = 0x30 = 48][48 fragments]`, where a fragment is `[varint key][varint type_index][payload]` with **no length field**. Verified offsets inside the payload: `actor_id` 16 bytes at 29,731 (preceded at 29,727 by `00 00 00 02`), `position_x` BE f32 at 38,332 = 9343.6416, `position_y` BE f32 at 38,336 = 2786.7327. The actor id bytes match the constant the deleted crate pinned, byte for byte, and the 1,802 redacted bytes match its declared redaction count. The capture carries this same record **24 times** and all 24 payloads are byte-identical, so it is fully static. What is **not** recovered is the 48 fragment boundaries, and that question is now **closed by demonstration**: on the small variant (record id 1, 9 fragments, 7,152 bytes) the same walk is exhaustive, and it admits exactly one path — a degenerate one with two zero-length fragments and a 6,983-byte tail. The constraints are insufficient, not merely expensive. | layout verified, fragments closed as underdetermined |
+| Spawn | `WaitingForPlayerSpawn` (17) → `InGame` (18) | Record type `0x8`, record id 1, 48 fragments, 46,393 payload bytes. **Measured on the 1.365 replay** (`0x6c_T0x8_R.bin`, 46,407 bytes total): `00 01 08` then a run of `01`/`00` flags to `0x0b`, then the varint `d9 a9 05` = 46,393, and exactly that many bytes follow. The payload is `[record_id = 1][fragment_count = 0x30 = 48][48 fragments]`, where a fragment is `[varint key][varint type_index][payload]` with **no length field**. Verified offsets inside the payload: `actor_id` 16 bytes at 29,731 (preceded at 29,727 by `00 00 00 02`), `position_x` BE f32 at 38,332 = 9343.6416, `position_y` BE f32 at 38,336 = 2786.7327. The actor id bytes match the constant the deleted crate pinned, byte for byte, and the 1,802 redacted bytes match its declared redaction count. The capture carries this same record **24 times** and all 24 payloads are byte-identical, so it is fully static. The 48 fragment boundaries are **not** derivable from the bytes -- a byte walk on the small variant (record id 1, 9 fragments, 7,152 bytes) is exhaustive and admits only a degenerate path, so the constraints are insufficient, not merely expensive. They were **measured live** instead (2026-10-18, 25 identical copies), and every fragment is now named by its type index; see "The 48 spawn fragments, named". The position sits in fragment 36, `ALCReplicatedState`. | layout verified, all 48 fragments named |
 | State stream | keeps the connection indicator quiet | The **ongoing** variant: record id 1 at 7,167 bytes with a fragment count byte of 9, carried at seq 0x73, 0x98, 0x9a, 0x9c and 0x9e. Its head is `00 01 08 01 <seq> 01 01 01 01 00 00 <len varint> 01 09`. It carries no position at all, which is why the spawn record is the server's only lever on where a player starts. The spawn itself is re-sent 24 times byte-identically, so the stream is a verbatim repeat rather than an update. | measured effect, unknown body |
 
 Chunking is a transport fact, not a game fact. A record bigger than about 256
@@ -403,6 +403,105 @@ bytes was acknowledged and never delivered when sent as one datagram
 (measured 2026-09-24). The working cut is 1100 byte chunks, one chunk per
 50 Hz tick. The datagram ceiling is 1200 bytes. Above the path MTU a lost
 fragment loses the whole datagram.
+
+## The 48 spawn fragments, named
+
+The spawn record's fragment boundaries were closed as underdetermined from the
+bytes, and that stands: a fragment has no length field, so a byte walk needs the
+type schema it is trying to recover. The boundaries were measured live instead
+(`frag-spawn.jsonl`, 25 copies of the record, all byte-identical), and once the
+boundaries exist the fragment's second varint turns out to be a **type-table
+index**, which the registration hook can name.
+
+All 48 fragments are named, over 47 distinct type indices, because keys 61 and 76
+both carry type 1755. Every one is a `*ReplicatedState`, which is what a state
+bundle fragment has to be, and that is the cross-check: 47 unrelated indices all
+landing on replicated-state descriptors cannot be coincidence.
+
+| n | key | type | name | offset |
+| --- | --- | --- | --- | --- |
+| 1 | 71 | 4878 | `MusicalPerformancePlayerComponentReplicatedState` | 2 |
+| 2 | 10 | 3829 | `ObjectiveInteractorComponentReplicatedState` | 25 |
+| 3 | 27 | 129 | `AttributeComponentReplicatedState` | 171 |
+| 4 | 31 | 1927 | `ReactionTrackingReplicatedState` | 280 |
+| 5 | 45 | 2932 | `CooldownTimersComponentReplicatedState` | 320 |
+| 6 | 56 | 3147 | `GuildsComponentReplicatedState` | 6,233 |
+| 7 | 12 | 1195 | `PlayerAppearanceComponentReplicatedState` | 6,247 |
+| 8 | 76 | 1755 | `ContainerComponentReplicatedState` | 6,275 |
+| 9 | 67 | 3681 | `ProgressionPointReplicatedState` * | 6,285 |
+| 10 | 51 | 1994 | `GroupsComponentReplicatedState` | 11,039 |
+| 11 | 55 | 4176 | `SocialReplicatedState` | 11,086 |
+| 12 | 43 | 1525 | `StatMultiplierTableComponentReplicatedState` | 11,101 |
+| 13 | 50 | 4321 | `WaypointsComponentReplicatedState` | 11,633 |
+| 14 | 60 | 3786 | `CurrencyComponentReplicatedState` | 11,650 |
+| 15 | 19 | 3133 | `EntitlementComponentReplicatedState` | 11,663 |
+| 16 | 41 | 15 | `VitalsComponentReplicatedState` | 11,678 |
+| 17 | 9 | 3935 | `PlayerComponentReplicatedState` | 11,747 |
+| 18 | 35 | 3765 | `ItemSkinningComponentReplicatedState` | 11,838 |
+| 19 | 13 | 603 | `AudioProxyComponentReplicatedState` | 11,859 |
+| 20 | 77 | 2938 | `GlobalStorageComponentReplicatedState` | 11,865 |
+| 21 | 29 | 6234 | `InstancedSlayerScriptReplicatedState` | 12,518 |
+| 22 | 61 | 1755 | `ContainerComponentReplicatedState` | 12,531 |
+| 23 | 0 | 10 | `GdeMetadataReplicatedState` | 29,707 |
+| 24 | 74 | 5691 | `TransmogComponentReplicatedState` | 29,747 |
+| 25 | 42 | 4297 | `StaminaComponentReplicatedState` | 31,129 |
+| 26 | 47 | 1652 | `ManaComponentReplicatedState` | 31,158 |
+| 27 | 39 | 5620 | `MountComponentReplicatedState` | 31,179 |
+| 28 | 33 | 982 | `LootTrackerComponentReplicatedState` | 31,238 |
+| 29 | 49 | 3152 | `FactionComponentReplicatedState` | 31,294 |
+| 30 | 62 | 3183 | `PaperdollComponentReplicatedState` | 31,307 |
+| 31 | 5 | 3290 | `PlayerTimeComponentReplicatedState` | 33,357 |
+| 32 | 57 | 1566 | `ChatReplicatedState` | 33,386 |
+| 33 | 68 | 497 | `GameEventComponentReplicatedState` | 33,395 |
+| 34 | 4 | 2406 | `PlayerArenaReplicatedState` | 33,404 |
+| 35 | 20 | 3652 | `PlayerHomeComponentReplicatedState` * | 33,467 |
+| 36 | 16 | 11 | `ALCReplicatedState` | 38,310 |
+| 37 | 48 | 5257 | `ChargeComponentReplicatedState` | 38,397 |
+| 38 | 32 | 2895 | `MagicComponentReplicatedState` | 38,403 |
+| 39 | 46 | 185 | `AbilityComponentReplicatedState` | 38,416 |
+| 40 | 14 | 1528 | `DamageReceiverComponentReplicatedState` | 39,405 |
+| 41 | 22 | 3857 | `ObjectivesComponentReplicatedState` | 39,415 |
+| 42 | 1 | 6951 | `PointsAccumulatorComponentReplicatedState` | 41,210 |
+| 43 | 65 | 911 | `CategoricalProgressionReplicatedState` | 41,231 |
+| 44 | 66 | 3210 | `AchievementComponentReplicatedState` | 42,228 |
+| 45 | 2 | 5437 | `ItemManagementComponentReplicatedState` | 44,255 |
+| 46 | 34 | 4913 | `RewardTrackComponentReplicatedState` | 45,760 |
+| 47 | 70 | 899 | `ProgressionComponentReplicatedState` | 46,286 |
+| 48 | 44 | 4236 | `StatusEffectsComponentReplicatedState` | 46,304 |
+
+`*` The naming tool attributes every slot of a hook record to the GUID that record
+references, so a record holding more than one hook yields more than one name for
+the same GUID. Types 3652 and 3681 are the only two such rows here
+(`PlayerHomeComponentReplicatedState`/`RespawnInfo` and
+`ProgressionPointReplicatedState`/`ProgressionComponentServerFacet_Debug_ModifyExp`).
+A fragment carries a replicated state by construction, so the `*ReplicatedState`
+candidate is the one listed. The ambiguity is a limitation of the tool, not a GUID
+shared by two types.
+
+Two things this settles and one it opens.
+
+Settled: the position is in fragment 36, which is `ALCReplicatedState`, not
+`PositionInTheWorldReplicatedState`. That type exists in the same table at index
+13, and **no fragment in this record carries type 13**. Verified against the
+replay's own bytes: fragment 36 starts at 38,310 with the header `10 0b` (key 16,
+type 11), and 38,332 holds `46 11 fe 91 45 2e 2b b9` = 9343.6416 / 2786.7327. So
+the local player's authoritative position arrives inside the Actor Local Control
+state, which is consistent with the 2026-10-18 negative: a record-1 bundle
+carrying only that one fragment did not reposition the player, because the client
+takes the record as a unit.
+
+Settled: the fragment type index and the wire type index are the same namespace.
+That is what makes the naming mechanical, and it is why `ef.py re message-names`
+works on a fragment list without a new tool.
+
+Open: the atlas used to record that only 1 of 48 fragments had a name
+(`telemetry`). That was the adjacency heuristic failing on these descriptors, not
+the descriptors being unnameable. Every name above comes from the registration
+hook.
+
+The same table is committed machine-readable as
+`research/derived/spawn-fragments.json`, because the capture it comes from is
+gitignored and would otherwise be the only record.
 
 ## The three types the replay used to have no name for
 
