@@ -235,6 +235,12 @@
           "range": "143f993f0-143f993f8"
         }
       ]
+    },
+    {
+      "name": "interaction",
+      "title": "In-world UI systems: character/equipment, party marks, chat, mount, store, auction, journal, map, crafting",
+      "targets": [],
+      "note": "Entry points and their wire types are measured and filed in research/atlas/meanings.md under 'The interaction contract'; the field layouts are not. Plan and order: research/docs/INTERACTION-DECOMP-PLAN.md. Add targets by resolving each message name to its serializer with `re pe str <MsgName>` then `re xref`/`re pe callers`, and record the VA here. First target: the writer of 0x5de AttributeComponentServerFacet_RequestSpendAttributePoints, because it is provokable from a panel the current replay already renders."
     }
   ]
 }
