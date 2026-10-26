@@ -49,6 +49,36 @@ SC_D = 0x20
 SC_SPACE = 0x39
 SC_Q = 0x10
 SC_E = 0x12
+SC_TAB = 0x0F
+SC_I = 0x17
+SC_K = 0x25
+SC_R = 0x13
+SC_F = 0x21
+SC_C = 0x2E
+SC_1 = 0x02
+SC_3 = 0x04
+SC_TILDE = 0x29
+SC_COMMA = 0x33
+SC_LSHIFT = 0x2A
+SC_NUMPAD1 = 0x4F
+SC_NUMPAD2 = 0x50
+SC_M = 0x32
+SC_J = 0x24
+SC_O = 0x18
+SC_P = 0x19
+SC_I = 0x17
+SC_L = 0x26
+SC_N = 0x31
+SC_U = 0x16
+SC_Y = 0x15
+SC_B = 0x30
+SC_X = 0x2D
+SC_G = 0x22
+SC_F3 = 0x3D
+SC_F4 = 0x3E
+SC_F6 = 0x40
+SC_F9 = 0x43
+SC_F11 = 0x57
 
 # Each entry: (label, what to do, seconds). `hold` holds one scan code; `idle` sends
 # nothing; `tap` presses and releases quickly.
@@ -65,6 +95,97 @@ PLANS: dict[str, list[tuple[str, str, int]]] = {
         ("idle-mid", "idle", 5),
         ("jump", f"tap:{SC_SPACE}", 2),
         ("idle-end", "idle", 6),
+    ],
+    # The in-world UI surfaces: every key here is the one the client's own profile binds
+    # (`research/derived/input-contract.json`), so a segment that produces no traffic is a
+    # finding about the game, not about the harness having pressed the wrong key.
+    #
+    # Shape of the plan, and why it is shaped this way:
+    #   * two idle baselines at each end, so a type that merely drifts over time is not
+    #     mistaken for an action-correlated one;
+    #   * "open" and "open-idle" are separate segments: the open request and the panel's
+    #     own periodic refresh are different messages, and merging them hides both;
+    #   * each surface is opened AND closed, so `appeared` and `vanished` both have a
+    #     window to fire in;
+    #   * keys 1-9 are pressed twice with different context (once bare, once with the
+    #     dialogue window open), because the same key serves a dialogue option and a
+    #     consumable quickslot and the traffic is what tells them apart.
+    "interact": [
+        ("idle-before", "idle", 6),
+        ("inventory-open", f"tap:{SC_TAB}", 3),
+        ("inventory-open-idle", "idle", 5),
+        ("inventory-close", f"tap:{SC_TAB}", 3),
+        ("idle-after-inventory", "idle", 4),
+        ("skills-open", f"tap:{SC_K}", 3),
+        ("skills-open-idle", "idle", 5),
+        ("skills-close", f"tap:{SC_K}", 3),
+        ("idle-mid", "idle", 4),
+        ("sheathe", f"hold:{SC_TILDE}", 3),
+        ("draw", f"hold:{SC_TILDE}", 3),
+        ("idle-before-abilities", "idle", 4),
+        ("ability-1", f"tap:{SC_Q}", 3),
+        ("ability-2", f"tap:{SC_R}", 3),
+        ("ability-3", f"tap:{SC_F}", 3),
+        ("dodge", f"tap:{SC_LSHIFT}", 3),
+        ("idle-after-abilities", "idle", 4),
+        ("loadout-1", f"tap:{SC_NUMPAD1}", 3),
+        ("loadout-2", f"tap:{SC_NUMPAD2}", 3),
+        ("idle-after-loadout", "idle", 4),
+        ("consumable-3", f"tap:{SC_3}", 3),
+        ("interact", f"tap:{SC_E}", 3),
+        ("interact-idle", "idle", 5),
+        ("dialogue-option-1", f"tap:{SC_1}", 3),
+        ("idle-end", "idle", 6),
+    ],
+    # The surfaces that cannot be driven by a key alone: an NPC conversation that is not
+    # where the character stands, the crafting bench, the trading post, and the auction
+    # house all need a mouse on a coordinate that expires. This plan therefore does nothing
+    # but mark windows, and the operator drives the client during them. It exists so the
+    # analysis can be run over mouse work with the same instrument instead of a second,
+    # differently shaped one.
+    "ui-manual": [
+        ("idle-before", "idle", 5),
+        ("manual-npc-interact", "idle", 12),
+        ("manual-dialogue-open", "idle", 10),
+        ("manual-dialogue-choose", "idle", 10),
+        ("idle-mid", "idle", 5),
+        ("manual-inventory-click-equip", "idle", 12),
+        ("manual-inventory-unequip", "idle", 12),
+        ("idle-mid-2", "idle", 5),
+        ("manual-craft-open", "idle", 12),
+        ("manual-craft-make", "idle", 12),
+        ("idle-mid-3", "idle", 5),
+        ("manual-trading-post-open", "idle", 12),
+        ("manual-trading-post-buy", "idle", 12),
+        ("idle-end", "idle", 5),
+    ],
+    # The panels whose content is NOT local. The inventory renders from state the replay
+    # already gave it, which is why it sent nothing; these panels cannot render without
+    # asking the server, so they are the ones that should produce requests. Each is opened
+    # AND closed so the request and the dismiss land in separate windows.
+    "panels": [
+        ("idle-before", "idle", 5),
+        ("map-open", f"tap:{SC_M}", 4),
+        ("map-close", f"tap:{SC_M}", 3),
+        ("journal-open", f"tap:{SC_J}", 4),
+        ("journal-close", f"tap:{SC_J}", 3),
+        ("social-open", f"tap:{SC_O}", 4),
+        ("social-close", f"tap:{SC_O}", 3),
+        ("guild-open", f"tap:{SC_F4}", 4),
+        ("guild-close", f"tap:{SC_F4}", 3),
+        ("seasons-open", f"tap:{SC_F9}", 4),
+        ("seasons-close", f"tap:{SC_F9}", 3),
+        ("token-open", f"tap:{SC_F11}", 4),
+        ("token-close", f"tap:{SC_F11}", 3),
+        ("warboard-open", f"tap:{SC_N}", 4),
+        ("warboard-close", f"tap:{SC_N}", 3),
+        ("raid-open", f"tap:{SC_L}", 4),
+        ("raid-close", f"tap:{SC_L}", 3),
+        ("emote-open", f"tap:{SC_P}", 4),
+        ("emote-close", f"tap:{SC_P}", 3),
+        ("equipset-open", f"tap:{SC_COMMA}", 4),
+        ("equipset-close", f"tap:{SC_COMMA}", 3),
+        ("idle-after", "idle", 6),
     ],
 }
 
