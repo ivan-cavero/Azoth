@@ -41,6 +41,66 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LOCAL_STATE = REPO_ROOT / ".azoth"
+RUNTIME_EXE = REPO_ROOT / "private-client" / "runtime" / "Bin64" / "NewWorld.exe"
+
+
+def runtime_build_sha256() -> str:
+    """SHA-256 of the exe the launcher actually runs, or "" when it is not there.
+
+    WHY A PROBE NEEDS THIS. A probe hardcodes virtual addresses, and a VA is
+    only meaningful for the build it was derived on. Hooking an address that
+    belongs to a different build does not fail: ``Interceptor.attach`` succeeds
+    on any address, the hooks fire for unrelated code, and the capture looks
+    like a successful measurement of the wrong thing. Measured 2026-10-26: the
+    three VAs in ``frida-fragment-grammar.py`` were derived on 1.400
+    (``8654f01d``), and on 1.460 (``30fe6461``) the byte at ``0x14087b5c0`` is
+    the start of ``movhps/movaps/mulps`` float arithmetic, not the varint branch
+    ladder those hooks assume.
+
+    Hashes the private copy, not the Steam install: the copy is what gets
+    launched, and it differs from the install by the DTLS bypass, so its hash is
+    the only one that describes the running code.
+    """
+    import hashlib
+
+    if not RUNTIME_EXE.is_file():
+        return ""
+    digest = hashlib.sha256()
+    with RUNTIME_EXE.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def require_build(expected_sha256: str, probe: str) -> None:
+    """Refuse to attach unless the running exe is the build the VAs belong to.
+
+    Fails closed when the exe cannot be read, because "I could not check" and
+    "the build is right" are different answers and only one of them is safe.
+    """
+    if not expected_sha256:
+        raise SystemExit(
+            f"{probe}: this probe records NO build claim for its virtual addresses, "
+            "so there is nothing to verify them against. A VA is only meaningful "
+            "for the build it was derived on, and hooking another build's address "
+            "succeeds silently while measuring unrelated code. Re-derive the VAs, "
+            "or record the build's runtime SHA-256 in the probe."
+        )
+    actual = runtime_build_sha256()
+    if not actual:
+        raise SystemExit(
+            f"{probe}: cannot read {RUNTIME_EXE}, so the build behind its virtual "
+            "addresses cannot be confirmed. Refusing to attach."
+        )
+    if actual != expected_sha256:
+        raise SystemExit(
+            f"{probe}: build mismatch.\n"
+            f"  probe's VAs were derived on {expected_sha256}\n"
+            f"  the exe that would be launched is {actual}\n"
+            "Re-derive the VAs against this build before trusting any capture: a "
+            "hook on an address from another build attaches successfully and "
+            "measures unrelated code."
+        )
 
 
 def project_log(name: str) -> Path:

@@ -36,7 +36,21 @@ import time
 
 import frida
 
-from _paths import probe_capture, safe_shutdown
+from _paths import probe_capture, require_build, safe_shutdown
+
+# EMPTY ON PURPOSE -- THIS PROBE IS STALE AND MUST NOT RUN AS IS.
+#
+# Its three VAs were derived on 1.400 and are not valid on 1.460: the byte at
+# 0x14087b5c0 in the current build is the start of movhps/movaps/mulps float
+# arithmetic, not the varint branch ladder these hooks assume. No hash of the 1.400
+# runtime copy was ever recorded, so this probe cannot state a build it can verify
+# against, and require_build() refuses to attach without one. A hook on a stale
+# address succeeds silently and measures unrelated code -- that is the failure this
+# guard exists to prevent, so the honest state is "refuse" rather than a guess.
+#
+# To use it again: re-derive the three VAs against the target build, then set this
+# to that build's runtime SHA-256 (private-client/runtime/Bin64/NewWorld.exe).
+PROBE_BUILD_SHA256 = ""
 
 JS = r"""
 const mod = Process.findModuleByName('NewWorld.exe');
@@ -143,6 +157,7 @@ def main() -> int:
                         help="leave the client running on exit (orderly detach) instead of "
                              "ending it; the default kill is safer")
     args = parser.parse_args()
+    require_build(PROBE_BUILD_SHA256, "frida-fragment-grammar")
     out_path = probe_capture(args.out)
     device = frida.get_local_device()
     session = None
