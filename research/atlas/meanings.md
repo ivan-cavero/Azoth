@@ -648,6 +648,63 @@ independently on `ObjectivesComponentServerFacet_UpdateTrackedObjectives` →
 `0x5b2` (TD `0x14a1d8d50`, thunk `0x1439ee500`, body `0x1439ee450` → `0x143a3da80`,
 `lea` at `0x143a3db31` → `0x148255808` = `298436a9-…`).
 
+### One GUID, one row: the ambiguity was the tool
+
+The first full sweep named 3,390 of the 7,052 type-table entries but reported **796
+of them with two or more names for one GUID** -- 23% of everything named. That
+looked like the client reusing a GUID, or the table genuinely being many-to-one. It
+was a defect in the reader.
+
+The registration table is a run of **48-byte rows**. Each row begins with the
+address of the registration lambda that owns it, and carries that row's
+type-descriptor thunk at `+0x08`. The tool used to read eight consecutive qwords
+from the **table base** and treat each as a descriptor of the type being named, so
+a row's answer included its neighbours'. Almost every ambiguous type resolved to
+exactly the pair *slot 1* and *slot 7* -- `+0x08` and `+0x08+48` -- which is one
+row and the next one. That uniformity is what gave the defect away: a real
+many-to-one mapping would not land on two fixed offsets.
+
+The rule that fixes it: the row owning a lambda is the row whose first qword **is**
+that lambda, and its own descriptor is that row's second qword. Measured on build
+`30fe6461`:
+
+| Check | Result |
+| --- | --- |
+| The 796 ambiguous types, re-resolved | **796/796** return exactly one name |
+| The 2,594 previously-unambiguous types | **2,576 agree, 18 return nothing, 0 contradict** |
+| The 7 replay types with independently known names | **7/7 correct** |
+
+The third row is the one that makes this a measurement instead of a tidy-up, and
+`0x663` is inside it: the tie-breaker returns `LevelInfoChangedMsg` alone, where the
+old slot scan also offered `State` -- and `LevelInfoChangedMsg` is proven
+independently by decompiling that message's handler, not by this tool.
+
+The 18 misses matter and are why the rule is a **tie-breaker, not a replacement**.
+When the row layout does not apply it returns nothing (for instance `0x96`
+`UnregisterProxyMsg`, whose owning row's descriptor thunk is not the
+`lea rax,[rip]; ret` shape the resolver expects), and the caller falls back to the
+slot scan. So the rule can only ever *narrow* a set of candidates, never remove a
+name that the slot scan had alone. Uniqueness on its own would have been easy to
+fake by picking a wrong-but-consistent row; that is exactly what the fallback and
+the ground-truth set exist to prevent.
+
+One caveat that falls out of the fix and should not be read past. The type table
+holds **trait** registrations as well as message ones, and the mangled name spells
+which: `InstallRegistrationHook<VPersistenceRestoreListenerTrait@…>` takes a trait as
+its template argument, while `InstallRegistrationHook<VLevelInfoChangedMsg@…>` takes a
+message. The tie-breaker can therefore return a name ending in `Trait` for a wire
+number -- `0x19` comes out `PersistenceRestoreListenerTrait`, where the slot scan had
+offered `AckMovementMsg`. Both are real entries in the table; which one owns that GUID
+is **not established**, and the ground-truth set of seven contains no such case, so the
+7/7 result says nothing about it. Until a case like that is settled independently, a
+row whose answer ends in `Trait` should be read as "this GUID belongs to a trait
+registration, or to the message the slot scan offered" and not as a decision.
+
+What this changes for the Rust port: the type table can be read as a map from wire
+number to one name, with the candidate list retained beside it as provenance
+(`resolution: entry-match` versus `slot-scan`). What it does **not** change: these
+are names for types, not field layouts. A named type still has an unmeasured body.
+
 ### `CoatlicueClientMessages`, fully resolved
 
 | Member | Wire | Index |
