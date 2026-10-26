@@ -1665,6 +1665,363 @@ real values is the work. Changing the client later, so we can speak a clearer
 protocol, is a second project and does not replace this one. The stock client
 stays the test that preservation works.
 
+## The interaction contract: what the client asks for, per surface
+
+Measured 2026-10-26 on build `30fe6461…` (1.460.6033.6024067), live, in world, with
+the player possessed. Evidence: `.azoth/tmp/segments-interact.json` and
+`.azoth/tmp/segments-panels.json` (the labelled plans),
+`research/derived/interact-segments.json` and `research/derived/panels-segments.json`
+(per-window type counts), `research/derived/interact-field-map.json` (the byte map), and
+`research/derived/input-contract.json` (the client's own bindings and message families).
+
+This section exists because "what does the client expect" was being asked with two wrong
+instruments. `field-differential --segments` asks *which byte offset changed*, and on a
+live session motion dominates every answer. A hand-curated list of surfaces asks *what I
+think the game contains*, and the first version of that list missed the map, the journal,
+the social panel, guilds, season rewards, tokens, emotes, the warboard, raids, equipment
+sets, fishing and housing. The client already knows its own surfaces; both instruments
+below derive from the binary instead of guessing.
+
+### The instrument
+
+| Command | What it answers |
+| --- | --- |
+| `python ef.py re input-contract --surfaces` | every UI surface the client's own action names imply, with its keys and its message families |
+| `python ef.py re input-contract --check` | the measured bindings, as a regression test |
+| `python ef.py run capture-segments --plan interact` / `--plan panels` | drives one labelled window per surface, using those keys |
+| `python ef.py re segment-types --corpus … --segments …` | per-window wire-type counts, named, with `--offset` to read only the new tail |
+
+Keys are not guesses. `research/derived/input-contract.json` resolves them from
+`libs/config/defaultprofile.xml` and its includes inside `SharedDataStrm-part4.pak`, and
+joins them to `research/derived/wire-type-names.json`. Measured bindings this rests on:
+inventory=`tab`, skills=`k`, map=`m`, journal=`j`, social=`o`, guilds=`f4`, season
+rewards=`f9`, tokens=`f11`, emotes=`p`, warboard=`n`, raid=`l`, equipment sets=`,`
+interact=`e`, abilities=`q`/`r`/`f`, rune=`g`, sheathe=`tilde`, loadouts=numpad 1-9,
+mount=`x`, fishing=`f3`, camp=`y`, PvP flag=`u`, dodge=`lshift`, dialogue=`1`..`9`,`0`.
+
+The action lists say what state a press needs before it means anything:
+`playerinput_interact` gates on `IfHasValidInteraction` **and** `IfInput ui_interact`, so a
+failed interact with nothing targeted is expected, not a defect. `playerinput_gather`
+gates on `IfIsGathering`; `playerinput_craft` on `IfShouldCraft`.
+
+### The derived surface inventory
+
+`input-contract --surfaces` yields **21 UI surfaces** from the client's own action names,
+joined to **179 component facet families** carrying **1,148 client→server messages**. The
+ones that resolve, by name, with the message count a server has to implement:
+
+| Surface | Key | Family | Client→server messages |
+| --- | --- | --- | --- |
+| Map | `m` | TerritoryInteractor, Aoi *(inferred)* | 46 |
+| Social | `o` | Social | 45 |
+| Journal | `j` | Objectives, Contracts *(inferred)* | 41 |
+| Guild | `f4` | Guilds | 36 |
+| Skills | `k` | Ability, Attribute, ProgressionPoint, CategoricalProgression *(inferred)* | 33 |
+| Season rewards | `f9` | SeasonsRewards | 32 |
+| Map objectives | `i` | Objectives | 27 |
+| Equipment sets | `,` | Paperdoll *(inferred)* | 24 |
+| Tokens | `f11` | Entitlement *(inferred)* | 18 |
+| Chat panel | gamepad | Chat | 15 |
+| Transmog | gamepad | Transmog | 12 |
+| Inventory | `tab` | Inventories | 11 |
+| Fishing bait | `e` | Fishing | 11 |
+| Crafting tree | gamepad | Crafting | 11 |
+| Raid | `l` | RaidSetup | 3 |
+| Warboard | `n` | Warboard | 0 |
+
+`family_source` in the JSON distinguishes a name match (`derived`) from a judgement call
+(`inferred`). Four surfaces resolve to **no** family at all — `FilterPopup`, `Menu`,
+`MicrophoneOnControllerUI`, `MicrophoneOffControllerUI` — and those four really are local
+UI with no server contract.
+
+**A correction, because the first version of this section got the reading backwards.** It
+concluded that a surface emitting no traffic was a *local* surface. That is a non sequitur:
+a silent window means the panel had **no state to ask for**, not that the panel has no
+server contract. The proof is in this same log — `RequestBatchCreateGuildInvites` was sent
+when the player actually invited somebody, not when the guild panel was merely opened, and
+`RequestExecuteTradingPostTransaction` was sent when the trading post was actually used.
+Every menu the request named is server-backed, and the table below is the contract, not the
+traffic:
+
+| Menu | Server-side messages | Families |
+| --- | --- | --- |
+| Map (incl. party marks) | **105** | TerritoryInteractor, TerritoryDetector, Aoi, **Groups** |
+| Character (gear, attributes, weapon skills, mastery) | **83** | Paperdoll, Attribute, Ability, Progression, ProgressionPoint, CategoricalProgression, Vitals |
+| Season & activities | **72** | SeasonsRewards, RewardTrack, GameModeParticipant |
+| Social / chat / voice | **68** | Social, Chat, VoiceChat |
+| Party & party marks | **54** | Groups |
+| Journal | **51** | Objectives, Contracts, ObjectiveInteractor |
+| Company (create, manage, invite) | **36** | Guilds |
+| Inventory & storage | **36** | Inventories, GlobalStorage, Container |
+| Store / tokens | **20** | Entitlement, PlayerAppearance |
+| Auction (trading post) | **16** | CurrencyConversion, P2PTrade, PlayerTrade |
+| Mount | **12** | Mount |
+| Craft / salvage | **11** | Crafting |
+
+564 client→server messages behind twelve menus. Concrete ones, with wire types:
+`GuildsComponentServerFacet_RequestBatchCreateGuildInvites` `0x28`,
+`RequestRespondToGuildInvite` `0x76`, `RequestGetGuilds` `0xe37`;
+`GroupsComponentServerFacet_RequestPing` `0x967`, `RequestTargetPing` `0xda2`,
+`CancelTargetPing` `0xda3`, `RequestAllActivityJoinableLobbyCounts` `0x1555`;
+`MountComponentServerFacet_SummonMount` `0x1676`, `DismissMount` `0x1677`,
+`OnEnableMounts` `0xacc` — having a mount at all is the server enabling it;
+`SeasonsRewardsComponentServerFacet_RequestRedeemSeasonsReward` `0x15eb`,
+`ActivitiesRequestNewCard` `0x160f`, `ActivitiesRequestReroll` `0x1610`;
+`EntitlementComponentServerFacet_InitializeTransaction` `0xc36`,
+`RequestServerGetEntitlements` `0xc2e`;
+`CurrencyConversionComponentServerFacet_RequestExecuteTradingPostTransaction` `0x1b7`;
+`PaperdollComponentServerFacet_ServerEquipItem` `0xf37`, `ServerUnequipItem` `0x658`,
+`ServerEquipAllItems` `0x158b`, `UnequipAllItems` `0x1743`, `RequestSwitchToLoadout` `0x160`,
+`ToggleSheath` `0xf3b`;
+`AttributeComponentServerFacet_RequestSpendAttributePoints` `0x5de`;
+`AbilityComponentServerFacet_RequestApplyAbilityPoints` `0xb29`,
+`RequestChangeMappedAbility` `0xa8d`;
+`ProgressionPointComponentServerFacet_RequestAssignPoolPoints` `0x458`;
+`CraftingComponentServerFacet_SetCraftingDetails` `0xbb5`, `InitiateSalvage` `0x6c5`,
+`SalvageItemsInInventory` `0x182c`.
+
+### What the client sent per key press, and what that does NOT mean
+
+A 25-window plan and a 22-window plan, 2,172 + 2,893 records. Every window is the input
+stream and the heartbeat, and almost nothing else:
+
+| Surface | Key | Typed messages sent while the panel is open and idle |
+| --- | --- | --- |
+| inventory open / close | `tab` | none |
+| skills panel open / close | `k` | none |
+| sheathe / draw | `tilde` | none |
+| abilities 1, 2, 3 | `q`, `r`, `f` | none |
+| dodge | `lshift` | none |
+| loadout 1, 2 | numpad `1`, `2` | none |
+| consumable | `3` | none |
+| interact | `e` | none |
+| dialogue option 1 | `1` | none |
+| map open / close | `m` | none |
+| warboard, raid, equipment sets | `n`, `l`, `,` | none |
+
+**"None while idle" is the whole claim.** Opening a panel asks nothing; *using* it asks.
+The same log holds the counter-evidence for every one of these surfaces, from sessions on
+this machine where the UI was actually driven:
+
+| Sent | Wire | When | The surface |
+| --- | --- | --- | --- |
+| `GuildsComponentServerFacet_RequestBatchCreateGuildInvites` | `0x28` | 18:16 | company: inviting a player |
+| `GuildsComponentServerFacet_RequestGetGuilds` | `0xe37` | 20:52 | company: the panel asking for the list |
+| `GroupsComponentServerFacet_RequestRemoveRaidMember` | `0x1557` | 20:52 | party management |
+| `CurrencyConversionComponentServerFacet_RequestExecuteTradingPostTransaction` | `0x1b7` | 19:42 | auction / trading post |
+| `P2PTradeComponentServerFacet_UpdateOfferedCoin` | `0x7a` | 17:48 | player trade |
+| `TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock` | `0x8f9` | 20:52 | the map |
+| `TerritoryDetectorComponentServerFacet_AttemptTerritoryExit` | `0x1910` | 19:01 | the map |
+| `ProgressionComponentServerFacet_Debug_ClearRestedExp` | `0x188` | 17:59 | character progression |
+| `CategoricalProgressionComponentServerFacet_DebugSetProgressionRank` | `0x2b` | 18:16 | weapon mastery |
+| `ContractsComponentServerFacet_LookupContractsByParticipant` | `0x9fc` | 20:52 | journal / contracts |
+| `ObjectivesComponentServerFacet_SetObjectiveAutoPinning` | `0xa95` | 20:52 | journal |
+| `ChatComponentServerFacet_AddSubscription` | `0x55` | 19:42 | chat |
+| `MountComponentServerFacet_OnMountDashToggleChanged` | `0x187c` | 20:52 | mount |
+
+The design consequence is the important part: **a panel's contract is what it sends when
+the player acts inside it, and opening it is not acting.** A session that only opens panels
+measures the idle path, which is the path with no requests. To measure a surface's request
+bytes, the surface has to be *used* — and most of those paths need state the replay does not
+have (a guild that exists, a mount the server enabled, an auction listing), which is why the
+request map above is built from the registry and only *confirmed*, not discovered, by
+traffic.
+
+### The map opens, draws, and — while idle — asks for nothing
+
+This had to be checked before "none" could be reported, because a key that misses and a
+panel with nothing to ask look identical in a log. Measured: pressing `m` renders the
+complete town map with its legend, icons and filters, and the client emits **no message at
+all** in that window.
+
+That is not evidence the map is local. The map's *geometry* is local — it is drawn from
+world state the replay already delivered — but the map's *contents* are not: the family
+behind it carries **105** client→server messages, including
+`TerritoryInteractorComponentServerFacet` (43), `TerritoryDetectorComponentServerFacet`,
+and `GroupsComponentServerFacet_RequestPing` `0x967` / `RequestTargetPing` `0xda2` for the
+party marks. And the log proves the client speaks them: `AttemptTerritoryUnlock` `0x8f9`
+and `AttemptTerritoryExit` `0x1910` were both sent in earlier sessions on this machine.
+
+The reading that survives both measurements: **the map draws from replicated state and
+asks for updates on the events it cares about.** A server needs to deliver the world state
+and to answer the territory and party-mark messages; it does not need a "get map" endpoint.
+
+### `0xa39` is the screen-transition message, and it carries the screen id
+
+`ObjectivesComponentServerFacet_NotifyOpenUiScreen` fired 20 times across the panel plan and
+its distribution tracks the panel, not the key. Decoded to the byte — 48-byte payload,
+container `[crc32][u32 0x28][16-byte player UUID]`, then `00 01` + `b9 28` (prefix varint
+`0xa39`), then a 20-byte body:
+
+```
+body[0:8]   = 18 0f 8d 4e 57 36 97 c6    constant across every record
+body[8:16]  = the first 8 bytes of the player UUID, REVERSED
+body[16:20] = a screen id
+```
+
+The chronological sequence is the contract, and it is self-consistent:
+
+| Time | Screen id | Window | Reading |
+| --- | --- | --- | --- |
+| 21:15:33 | `93adaabb` | idle-before | the screen the player was already on |
+| 21:15:38 | `a1126b78` | map-close | **HUD** |
+| 21:15:41 | `002f27e8` | journal-open | |
+| 21:15:41 | `6cb0696c` ×2 | journal-open | journal is two screens (map + list) |
+| 21:15:45 | `a1126b78` | journal-open | back to HUD |
+| 21:15:49 | `1fe4393e` | social-open | |
+| 21:15:53 | `a1126b78` | social-open | HUD |
+| 21:15:57 | `75407dab` | guild-open | |
+| 21:16:01 | `a1126b78` | guild-close | HUD |
+| 21:16:04 | `6282c070` | guild-close | |
+| 21:16:05 | `6282c070` | seasons-open | season rewards |
+| 21:16:08 | `a1126b78` | seasons-open | HUD |
+| 21:16:12 | `ea562b4e` | token-open | |
+| 21:16:16 | `a1126b78` | token-open | HUD |
+| 21:16:35 | `278d2a6b` | emote-open | |
+| 21:16:39 | `a1126b78` | emote-open | HUD |
+
+`a1126b78` is the HUD: it appears after **every** dismissal, 8 times. Each panel transition
+is a pair — a panel id, then the HUD id. The ids are not CRC32 or FNV-1a of any panel name
+tried (32 names × 3 hashes × 6 affixes): they are runtime screen-class identifiers, so
+**measured** for the values and **unknown** for how the client derives them.
+
+The map, warboard, raid and equipment-set windows produced **no** `0xa39` at all, which
+matches the earlier result: those panels are local.
+
+### The asymmetry that decides the server architecture
+
+Counted per family from the registry. A `ServerFacet` message is one the client sends; a
+`ClientFacet` message is the server's answer. Several families have **no answer at all**:
+
+| Family | Client sends | Server replies | Consequence |
+| --- | --- | --- | --- |
+| `Conversation` | 7 | **0** | state only |
+| `Attribute` | 5 | **0** | `RequestSpendAttributePoints` `0x5de`, `RequestRefundSpentPoints` `0x969` — confirmed by replicated state |
+| `Progression` | 5 | **0** | state only |
+| `ProgressionPoint` | 9 | **0** | `RequestAssignPoolPoints` `0x458` |
+| `CategoricalProgression` | 13 | **0** | weapon mastery, territory standing, faction |
+| `Ability` | 6 | 1 | `RequestApplyAbilityPoints` `0xb29`, `RequestChangeMappedAbility` `0xa8d` → only `MasteryTreeRespecResponse` `0xb2a` |
+| `Inventories` | 11 | 2 | `QueryInventories` `0x169d`, `GetItems` |
+| `Paperdoll` | 24 | 5 | loadout add/save/remove, `OnEquipItemFail` |
+| `Crafting` | 11 | 2 | `SetCraftingDetails`, `InitiateSalvage` |
+| `GlobalStorage` | 15 | 4 | the storage search family |
+| `PTrade` | 6 | 9 | player trade is symmetric |
+| `Contracts` | 14 | 16 | the only genuinely request/response family |
+
+**This is the single most useful architectural fact in the section.** For attributes,
+progression, skill points, conversation and the entire categorical progression tree, the
+server implements the request handler and then **changes replicated state**; there is no
+reply message to send, because the client never registers one. A server that waits to
+"answer" those requests will wait forever, and a server that only replays state without
+handling `0x5de`/`0xb29` will silently discard the player's spend.
+
+### The keys DO arrive, and the UI DOES work
+
+This had to be ruled out before any negative above could be written, because "no traffic"
+and "the harness pressed into the void" look identical in a log.
+
+| Check | Result |
+| --- | --- |
+| `bmp-diff` before/after `tab` | **78.22% of pixels changed**, motion ratio 0.99x |
+| the inventory panel | renders, item grid populated from the replay |
+| a click on a gem | opens its tooltip with `Soltar`/`Dividir`/`Enlazar al chat` |
+| a double-click on the weapons row | no visible change, no typed message |
+| the character panel | renders **239 attribute points available**, with `+` buttons per attribute |
+| a click on a `+` | no counter change, no typed message |
+| `m` | renders the full town map, no typed message |
+
+So: the window takes focus, `SendInput` scan codes reach it, panels open, and local UI works
+with **no server round-trip at all**. Equipping and spending a point emitted nothing and
+changed nothing — consistent with both being server-confirmed, but that is the
+**hypothesis**, not the measurement. The measurement is "no typed request, and no visible
+change from a click at that coordinate"; whether the click landed on the `+` is not proven,
+so the attribute result is recorded as **partial**, not measured.
+
+### The channel-1 body changes SHAPE with the UI, not with the key
+
+The one structural positive. The ALC body (`0x635`,
+`ActionListComponentServerFacet_ReceiveInputFromClient`) is **not a fixed layout**. Its
+length and its position-marker offset take a small set of stable values that track what the
+player is looking at:
+
+| Player state | Body length | `3d 4c cc cd` at | Share in its window |
+| --- | --- | --- | --- |
+| idle, walking, combat, any key press | **283** | **91** | 100% of every idle window |
+| inventory open | **298** | **94** | 99/99 |
+| skills panel open | **298** | **94** | 100/100 |
+| panel being opened (burst) | 298..370 | 94 | 22/61 |
+| panel being closed (burst) | 293..323 | 91 | 60/80 |
+
+The 15-byte growth is inserted **before** the position marker, so every absolute offset
+after it shifts by 3 — and the tail stays anchored to the end of the body. That single fact
+explains the trap the first pass fell into: a naive byte-by-byte map reported **133
+offsets** as "different with a panel open", and they were one shifted region, not 133
+fields. Any tool that compares `0x635` bodies without grouping by shape is measuring its
+own misalignment.
+
+**The panel flag is the inventory's, not "a panel"'s.** Searching every from-end offset for
+one that separates a surface from all 23 other windows:
+
+| Surface | From-end offsets that separate it | Value |
+| --- | --- | --- |
+| inventory open | **2** (`b[-10]`, `b[-54]`) | `0x04`; every other window `0x00` (or `0x2c` mid-transition) |
+| skills panel open | **0** | — |
+
+So "a panel is open" is **not** a field in this message. Inventory-open is, and it is
+`0x04` at from-end offset 54. Validated on two windows that are **not** part of the plan
+(the ad-hoc manual clicks at 20:58): 120/120 and 180/180 bodies carried `(298, 94)` with
+`b[-54]=0x04`, reproducing the signature independently.
+
+Evidence word: **measured** for the shapes, the offsets and the inventory flag;
+**unknown** for what the 15 inserted bytes mean, and for whether the flag is a bitfield or
+an enum that happens to be `4`.
+
+### The trap, written down because it cost a pass
+
+An offset is only a candidate field when it is **constant inside every segment and differs
+between them**. Applying that rule strictly to the 20 windows that share the modal
+`(283, 91)` shape yields **9** offsets — and all 9 differ only for `idle-before`, the first
+window, which is a position drift at the start of the run. Zero of them separate the keys.
+That is the honest answer for key-driven input: at this level of the protocol, pressing
+`q` or `tab` is **not** distinguishable in the idle body. Whatever distinguishes them is
+either in the 15-byte UI block or in the encoding of the record, not in a per-key byte.
+
+A second trap, in the same family: a `0xa39` payload has its type marker at offset **24**,
+not 0, because the client wraps it in its own container. Reading only offset 0 reports
+zero records for a type that is present 20 times.
+
+### The whole inbound set of that session, for the record
+
+34 channel-0 types and 5 channel-1 types. The ones a server must answer for the surfaces
+above, with names:
+
+| Wire | Name |
+| --- | --- |
+| `0xf82` | `PlayerComponentServerFacet_RequestSetIsLookingThroughLoadout` |
+| `0xa39` | `ObjectivesComponentServerFacet_NotifyOpenUiScreen` |
+| `0xe37` | `GuildsComponentServerFacet_RequestGetGuilds` |
+| `0x1574` | `GuildsComponentServerFacet_*` (sent once, on the guild panel) |
+| `0x5b2` | *(unnamed — still, see the naming caveat below)* |
+| `0x183` | `GlobalStorageComponentServerFacet_SetReplicateStorage` |
+| `0x3e6` | `ActionListComponentServerFacet_SetInputsThrottled` |
+| `0x9d3` | `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient` |
+
+Note `0xf82`: it fires on panel **close**, not open. That is a measured negative for the
+obvious guess ("opening the inventory tells the server") and a real one for the contract:
+the message is `RequestSetIsLookingThroughLoadout`, and the client sends it when the panel
+that looks through the loadout is dismissed.
+
+The registry has a full facet for every surface in the request —
+`InventoriesComponentServerFacet_QueryInventories`/`GetItems`,
+`PaperdollComponentServerFacet_RequestAddLoadout`/`RequestSavePaperdollToLoadout`,
+`AbilityComponentServerFacet_RequestApplyAbilityPoints`/`RequestChangeMappedAbility`,
+`AttributeComponentServerFacet_RequestSpendAttributePoints`,
+`CraftingComponentServerFacet_SetCraftingDetails`/`InitiateSalvage`,
+`PTradeComponentServerFacet_*`, `ConversationComponentServerFacet_RequestConversationTopicFromClient`.
+The client sent **none** of them in these sessions. A named facet is not a used facet, and
+this is the evidence: the surface exists in the binary and the client never speaks it,
+because the replay never gave it the state that would make the UI live.
+
 ## Next meaning to earn
 
 The handler is settled. `FUN_146455ec0` on build `30fe6461…` is the client's

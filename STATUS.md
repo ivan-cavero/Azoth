@@ -19,18 +19,10 @@ Steam (`patch-dtls-disk.py restore`, then `apply` at `0x145DCF9F5`) and reproduc
 Launched without the patch set, which is what the run below records. Evidence in
 `.azoth/logs/runs/run-20261026-1460-ladder/`.
 
-```
-09:59:55  Disconnected              -> QueryGameUpdateCheck
-10:00:12  ObtainREPRequirements     -> StartREPConnection
-10:00:12  StartREPConnection        -> WaitingForREPConnection        (14)
-10:00:13  WaitingForREPConnection   -> WaitingForActorGameConnection  (15)  PASSES
-10:00:13  actor game connection succeeds
-10:00:13  WaitingForActorGameConnection -> WaitingForSpawnPoint       (16)  PASSES
-10:00:13  spawn point found         -> WaitingForPlayerSpawn          (17)
-10:01:51  OnCampfireLoginComplete, login successful, ownership=permanent
-10:02:13  State(WaitingForPlayerSpawn) is timeout: frames 10, count 2
-10:02:14  WaitingForPlayerSpawn     -> Disconnected
-```
+Rungs 14→17 in order: `StartREPConnection` → `WaitingForREPConnection` → (15)
+`WaitingForActorGameConnection` → (16) `WaitingForSpawnPoint` → (17)
+`WaitingForPlayerSpawn`, then `OnCampfireLoginComplete, ownership=permanent`, then
+`State(WaitingForPlayerSpawn) is timeout: frames 10` → `Disconnected`.
 
 **Rung 15 is confirmed on 1.460** and closed itself with no forced gate. **Auth is no
 longer the wall**: the persona login completes and the client renders character select.
@@ -67,12 +59,20 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Give the movement-correlated offsets a meaning.** The segmented capture works: an
-8-action plan yields **43 offsets that are constant standing and vary while strafing**
-(323-byte body), including `0x6a/0x6c/0x6d` next to the position pair at `0x65..0x6c`.
-No offset holds a different-but-steady value across segments, so no flag flips yet. Next:
-a plan that isolates a flag rather than a motion — sitting, sheathing a weapon, opening the
-inventory — since those change state instead of position.
+**Name the fields of `0x5de`, the first interaction message.** The flag hunt this file asked
+for is done, and it came back negative in a useful way: opening the inventory or the skills
+panel, sheathing, `q`/`r`/`f`, `lshift`, numpad loadouts, `e`, `1` send **no typed message at
+all**, and the ALC body's change is structural, not per-key — **283 bytes with the position
+marker at 91 idle, 298 with it at 94 when a panel is open**, so the 15-byte growth shifts
+everything after it by 3. That is why a byte map reported 133 "fields" that were one region.
+
+The twelve menus a player names are all server-backed: **564 client→server messages** across
+179 facet families. `AttributeComponentServerFacet_RequestSpendAttributePoints` `0x5de` goes
+first because the character panel already renders 239 points with `+` buttons in a session
+that runs today, and because `Attribute` has **zero** reply messages — the server confirms by
+changing replicated state.
+
+Plan, order and per-system method: `research/docs/INTERACTION-DECOMP-PLAN.md`.
 
 ## Do not
 
