@@ -1,0 +1,3095 @@
+{
+ "type": "0x635",
+ "segments": [
+  "draw",
+  "idle-after-loadout",
+  "idle-before-abilities",
+  "idle-end",
+  "idle-mid",
+  "interact-idle",
+  "inventory-open-idle",
+  "skills-open-idle"
+ ],
+ "body_width": 298,
+ "differing": [
+  {
+   "off": 27,
+   "values": {
+    "idle-before-abilities": 51,
+    "idle-after-loadout": 55,
+    "idle-end": 58
+   },
+   "samples": {
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 52,
+   "values": {
+    "idle-mid": 38,
+    "draw": 39,
+    "idle-before-abilities": 39,
+    "idle-after-loadout": 41,
+    "interact-idle": 42,
+    "idle-end": 43
+   },
+   "samples": {
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 66,
+   "values": {
+    "inventory-open-idle": 224,
+    "skills-open-idle": 224,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 68,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 255,
+    "draw": 255,
+    "idle-before-abilities": 255,
+    "idle-after-loadout": 255,
+    "interact-idle": 255,
+    "idle-end": 255
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 69,
+   "values": {
+    "inventory-open-idle": 16,
+    "skills-open-idle": 16,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 71,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 72,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 8,
+    "draw": 8,
+    "idle-before-abilities": 8,
+    "idle-after-loadout": 8,
+    "interact-idle": 8,
+    "idle-end": 8
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 75,
+   "values": {
+    "inventory-open-idle": 8,
+    "skills-open-idle": 8,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 76,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 4,
+    "draw": 4,
+    "idle-before-abilities": 4,
+    "idle-after-loadout": 4,
+    "interact-idle": 4,
+    "idle-end": 4
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 77,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 255,
+    "draw": 255,
+    "idle-before-abilities": 255,
+    "idle-after-loadout": 255,
+    "interact-idle": 255,
+    "idle-end": 255
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 78,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 79,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 4,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 80,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 85,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 87,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 88,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 89,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 91,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 61,
+    "draw": 61,
+    "idle-before-abilities": 61,
+    "idle-after-loadout": 61,
+    "interact-idle": 61,
+    "idle-end": 61
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 92,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 76,
+    "draw": 76,
+    "idle-before-abilities": 76,
+    "idle-after-loadout": 76,
+    "interact-idle": 76,
+    "idle-end": 76
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 93,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 204,
+    "draw": 204,
+    "idle-before-abilities": 204,
+    "idle-after-loadout": 204,
+    "interact-idle": 204,
+    "idle-end": 204
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 94,
+   "values": {
+    "inventory-open-idle": 61,
+    "skills-open-idle": 61,
+    "idle-mid": 205,
+    "draw": 205,
+    "idle-before-abilities": 205,
+    "idle-after-loadout": 205,
+    "interact-idle": 205,
+    "idle-end": 205
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 95,
+   "values": {
+    "inventory-open-idle": 76,
+    "skills-open-idle": 76,
+    "idle-mid": 192,
+    "draw": 192,
+    "idle-before-abilities": 192,
+    "idle-after-loadout": 192,
+    "interact-idle": 192,
+    "idle-end": 192
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 96,
+   "values": {
+    "inventory-open-idle": 204,
+    "skills-open-idle": 204,
+    "idle-mid": 71,
+    "draw": 71,
+    "idle-before-abilities": 71,
+    "idle-after-loadout": 71,
+    "interact-idle": 71,
+    "idle-end": 71
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 97,
+   "values": {
+    "inventory-open-idle": 205,
+    "skills-open-idle": 205,
+    "idle-mid": 158,
+    "draw": 158,
+    "idle-before-abilities": 158,
+    "idle-after-loadout": 158,
+    "interact-idle": 158,
+    "idle-end": 158
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 98,
+   "values": {
+    "inventory-open-idle": 192,
+    "skills-open-idle": 192,
+    "idle-mid": 29,
+    "draw": 29,
+    "idle-before-abilities": 29,
+    "idle-after-loadout": 29,
+    "interact-idle": 29,
+    "idle-end": 29
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 99,
+   "values": {
+    "inventory-open-idle": 71,
+    "skills-open-idle": 71,
+    "idle-mid": 62,
+    "draw": 62,
+    "idle-before-abilities": 62,
+    "idle-after-loadout": 62,
+    "interact-idle": 62,
+    "idle-end": 62
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 100,
+   "values": {
+    "inventory-open-idle": 158,
+    "skills-open-idle": 158,
+    "idle-mid": 40,
+    "draw": 40,
+    "idle-before-abilities": 40,
+    "idle-after-loadout": 40,
+    "interact-idle": 40,
+    "idle-end": 40
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 101,
+   "values": {
+    "inventory-open-idle": 29,
+    "skills-open-idle": 29,
+    "idle-mid": 195,
+    "draw": 195,
+    "idle-before-abilities": 195,
+    "idle-after-loadout": 195,
+    "interact-idle": 195,
+    "idle-end": 195
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 102,
+   "values": {
+    "inventory-open-idle": 62,
+    "skills-open-idle": 62,
+    "idle-mid": 84,
+    "draw": 84,
+    "idle-before-abilities": 84,
+    "idle-after-loadout": 84,
+    "interact-idle": 84,
+    "idle-end": 84
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 103,
+   "values": {
+    "inventory-open-idle": 50,
+    "skills-open-idle": 40,
+    "idle-mid": 70,
+    "draw": 70,
+    "idle-before-abilities": 70,
+    "idle-after-loadout": 70,
+    "interact-idle": 70,
+    "idle-end": 70
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 104,
+   "values": {
+    "inventory-open-idle": 184,
+    "skills-open-idle": 195,
+    "idle-mid": 18,
+    "draw": 18,
+    "idle-before-abilities": 18,
+    "idle-after-loadout": 18,
+    "interact-idle": 18,
+    "idle-end": 18
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 105,
+   "values": {
+    "inventory-open-idle": 195,
+    "skills-open-idle": 86,
+    "idle-mid": 59,
+    "draw": 59,
+    "idle-before-abilities": 59,
+    "idle-after-loadout": 59,
+    "interact-idle": 59,
+    "idle-end": 59
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 106,
+   "values": {
+    "inventory-open-idle": 70,
+    "skills-open-idle": 70,
+    "idle-mid": 91,
+    "draw": 91,
+    "idle-before-abilities": 91,
+    "idle-after-loadout": 91,
+    "interact-idle": 91,
+    "idle-end": 91
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 107,
+   "values": {
+    "inventory-open-idle": 18,
+    "skills-open-idle": 18,
+    "idle-mid": 69,
+    "draw": 69,
+    "idle-before-abilities": 69,
+    "idle-after-loadout": 69,
+    "interact-idle": 69,
+    "idle-end": 69
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 108,
+   "values": {
+    "inventory-open-idle": 58,
+    "skills-open-idle": 59,
+    "idle-mid": 44,
+    "draw": 44,
+    "idle-before-abilities": 44,
+    "idle-after-loadout": 44,
+    "interact-idle": 44,
+    "idle-end": 44
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 109,
+   "values": {
+    "inventory-open-idle": 99,
+    "skills-open-idle": 68,
+    "idle-mid": 41,
+    "draw": 41,
+    "idle-before-abilities": 41,
+    "idle-after-loadout": 41,
+    "interact-idle": 41,
+    "idle-end": 41
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 110,
+   "values": {
+    "inventory-open-idle": 69,
+    "skills-open-idle": 69,
+    "idle-mid": 250,
+    "draw": 250,
+    "idle-before-abilities": 250,
+    "idle-after-loadout": 250,
+    "interact-idle": 250,
+    "idle-end": 250
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 112,
+   "values": {
+    "inventory-open-idle": 22,
+    "skills-open-idle": 57,
+    "idle-mid": 52,
+    "draw": 52,
+    "idle-before-abilities": 52,
+    "idle-after-loadout": 52,
+    "interact-idle": 52,
+    "idle-end": 52
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 113,
+   "values": {
+    "inventory-open-idle": 21,
+    "skills-open-idle": 193,
+    "idle-mid": 3,
+    "draw": 3,
+    "idle-before-abilities": 3,
+    "idle-after-loadout": 3,
+    "interact-idle": 3,
+    "idle-end": 3
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 114,
+   "values": {
+    "inventory-open-idle": 43,
+    "skills-open-idle": 44,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 115,
+   "values": {
+    "inventory-open-idle": 253,
+    "skills-open-idle": 62,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 116,
+   "values": {
+    "inventory-open-idle": 3,
+    "skills-open-idle": 3,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 117,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 1,
+    "draw": 1,
+    "idle-before-abilities": 1,
+    "idle-after-loadout": 1,
+    "interact-idle": 1,
+    "idle-end": 1
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 118,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 1,
+    "draw": 1,
+    "idle-before-abilities": 1,
+    "idle-after-loadout": 1,
+    "interact-idle": 1,
+    "idle-end": 1
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 120,
+   "values": {
+    "inventory-open-idle": 1,
+    "skills-open-idle": 1,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 121,
+   "values": {
+    "inventory-open-idle": 1,
+    "skills-open-idle": 1,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 122,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 38,
+    "draw": 39,
+    "idle-before-abilities": 39,
+    "idle-after-loadout": 41,
+    "interact-idle": 42,
+    "idle-end": 43
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 124,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 19,
+    "draw": 19,
+    "idle-before-abilities": 19,
+    "idle-after-loadout": 19,
+    "interact-idle": 19,
+    "idle-end": 19
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 127,
+   "values": {
+    "inventory-open-idle": 19,
+    "skills-open-idle": 19,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 132,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 255,
+    "draw": 255,
+    "idle-before-abilities": 255,
+    "idle-after-loadout": 255,
+    "interact-idle": 255,
+    "idle-end": 255
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 133,
+   "values": {
+    "inventory-open-idle": 224,
+    "skills-open-idle": 224,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 136,
+   "values": {
+    "inventory-open-idle": 16,
+    "skills-open-idle": 16,
+    "idle-mid": 8,
+    "draw": 8,
+    "idle-before-abilities": 8,
+    "idle-after-loadout": 8,
+    "interact-idle": 8,
+    "idle-end": 8
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 138,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 139,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 140,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 4,
+    "draw": 4,
+    "idle-before-abilities": 4,
+    "idle-after-loadout": 4,
+    "interact-idle": 4,
+    "idle-end": 4
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 141,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 255,
+    "draw": 255,
+    "idle-before-abilities": 255,
+    "idle-after-loadout": 255,
+    "interact-idle": 255,
+    "idle-end": 255
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 142,
+   "values": {
+    "inventory-open-idle": 8,
+    "skills-open-idle": 8,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 145,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 146,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 4,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 147,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 149,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 151,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 152,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 153,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 154,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 155,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 3,
+    "draw": 3,
+    "idle-before-abilities": 3,
+    "idle-after-loadout": 3,
+    "interact-idle": 3,
+    "idle-end": 3
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 156,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 0,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 157,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 158,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 159,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 1,
+    "draw": 1,
+    "idle-before-abilities": 1,
+    "idle-after-loadout": 1,
+    "interact-idle": 1,
+    "idle-end": 1
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 160,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 161,
+   "values": {
+    "inventory-open-idle": 3,
+    "skills-open-idle": 3,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 163,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 38,
+    "draw": 39,
+    "idle-before-abilities": 39,
+    "idle-after-loadout": 41,
+    "interact-idle": 42,
+    "idle-end": 43
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 165,
+   "values": {
+    "inventory-open-idle": 1,
+    "skills-open-idle": 1,
+    "idle-mid": 19,
+    "draw": 19,
+    "idle-before-abilities": 19,
+    "idle-after-loadout": 19,
+    "interact-idle": 19,
+    "idle-end": 19
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 171,
+   "values": {
+    "inventory-open-idle": 19,
+    "skills-open-idle": 19,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 173,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 255,
+    "draw": 255,
+    "idle-before-abilities": 255,
+    "idle-after-loadout": 255,
+    "interact-idle": 255,
+    "idle-end": 255
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 177,
+   "values": {
+    "inventory-open-idle": 224,
+    "skills-open-idle": 224,
+    "idle-mid": 8,
+    "draw": 8,
+    "idle-before-abilities": 8,
+    "idle-after-loadout": 8,
+    "interact-idle": 8,
+    "idle-end": 8
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 180,
+   "values": {
+    "inventory-open-idle": 16,
+    "skills-open-idle": 16,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 181,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 4,
+    "draw": 4,
+    "idle-before-abilities": 4,
+    "idle-after-loadout": 4,
+    "interact-idle": 4,
+    "idle-end": 4
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 186,
+   "values": {
+    "inventory-open-idle": 8,
+    "skills-open-idle": 8,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 189,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 190,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 4,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 191,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 192,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 193,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 194,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 195,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 196,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 3,
+    "draw": 3,
+    "idle-before-abilities": 3,
+    "idle-after-loadout": 3,
+    "interact-idle": 3,
+    "idle-end": 3
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 199,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 200,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 0,
+    "idle-mid": 1,
+    "draw": 1,
+    "idle-before-abilities": 1,
+    "idle-after-loadout": 1,
+    "interact-idle": 1,
+    "idle-end": 1
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 201,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 202,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 203,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 204,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 38,
+    "draw": 39,
+    "idle-before-abilities": 39,
+    "idle-after-loadout": 41,
+    "interact-idle": 42,
+    "idle-end": 43
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 206,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 19,
+    "draw": 19,
+    "idle-before-abilities": 19,
+    "idle-after-loadout": 19,
+    "interact-idle": 19,
+    "idle-end": 19
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 209,
+   "values": {
+    "inventory-open-idle": 1,
+    "skills-open-idle": 1,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 215,
+   "values": {
+    "inventory-open-idle": 19,
+    "skills-open-idle": 19,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 218,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 8,
+    "draw": 8,
+    "idle-before-abilities": 8,
+    "idle-after-loadout": 8,
+    "interact-idle": 8,
+    "idle-end": 8
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 221,
+   "values": {
+    "inventory-open-idle": 224,
+    "skills-open-idle": 224,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 222,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 4,
+    "draw": 4,
+    "idle-before-abilities": 4,
+    "idle-after-loadout": 4,
+    "interact-idle": 4,
+    "idle-end": 4
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 223,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 255,
+    "draw": 255,
+    "idle-before-abilities": 255,
+    "idle-after-loadout": 255,
+    "interact-idle": 255,
+    "idle-end": 255
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 224,
+   "values": {
+    "inventory-open-idle": 16,
+    "skills-open-idle": 16,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 226,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 230,
+   "values": {
+    "inventory-open-idle": 8,
+    "skills-open-idle": 8,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 231,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 233,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 234,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 4,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 235,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 236,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 237,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 3,
+    "draw": 3,
+    "idle-before-abilities": 3,
+    "idle-after-loadout": 3,
+    "interact-idle": 3,
+    "idle-end": 3
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 241,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 1,
+    "draw": 1,
+    "idle-before-abilities": 1,
+    "idle-after-loadout": 1,
+    "interact-idle": 1,
+    "idle-end": 1
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 243,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 244,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 0,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 245,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 38,
+    "draw": 39,
+    "idle-before-abilities": 39,
+    "idle-after-loadout": 41,
+    "interact-idle": 42,
+    "idle-end": 43
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 247,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 19,
+    "draw": 19,
+    "idle-before-abilities": 19,
+    "idle-after-loadout": 19,
+    "interact-idle": 19,
+    "idle-end": 19
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 248,
+   "values": {
+    "inventory-open-idle": 128,
+    "skills-open-idle": 128,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 249,
+   "values": {
+    "inventory-open-idle": 3,
+    "skills-open-idle": 3,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 253,
+   "values": {
+    "inventory-open-idle": 1,
+    "skills-open-idle": 1,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 255,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 255,
+    "draw": 255,
+    "idle-before-abilities": 255,
+    "idle-after-loadout": 255,
+    "interact-idle": 255,
+    "idle-end": 255
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 259,
+   "values": {
+    "inventory-open-idle": 19,
+    "skills-open-idle": 19,
+    "idle-mid": 8,
+    "draw": 8,
+    "idle-before-abilities": 8,
+    "idle-after-loadout": 8,
+    "interact-idle": 8,
+    "idle-end": 8
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 262,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 263,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 4,
+    "draw": 4,
+    "idle-before-abilities": 4,
+    "idle-after-loadout": 4,
+    "interact-idle": 4,
+    "idle-end": 4
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 264,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 255,
+    "draw": 255,
+    "idle-before-abilities": 255,
+    "idle-after-loadout": 255,
+    "interact-idle": 255,
+    "idle-end": 255
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 265,
+   "values": {
+    "inventory-open-idle": 224,
+    "skills-open-idle": 224,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 268,
+   "values": {
+    "inventory-open-idle": 16,
+    "skills-open-idle": 16,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 270,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 272,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 2,
+    "draw": 2,
+    "idle-before-abilities": 2,
+    "idle-after-loadout": 2,
+    "interact-idle": 2,
+    "idle-end": 2
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 274,
+   "values": {
+    "inventory-open-idle": 8,
+    "skills-open-idle": 8,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 275,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 276,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 277,
+   "values": {
+    "inventory-open-idle": 2,
+    "skills-open-idle": 2,
+    "idle-mid": 128,
+    "draw": 128,
+    "idle-before-abilities": 128,
+    "idle-after-loadout": 128,
+    "interact-idle": 128,
+    "idle-end": 128
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 278,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 4,
+    "idle-mid": 3,
+    "draw": 3,
+    "idle-before-abilities": 3,
+    "idle-after-loadout": 3,
+    "interact-idle": 3,
+    "idle-end": 3
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 279,
+   "values": {
+    "inventory-open-idle": 255,
+    "skills-open-idle": 255,
+    "idle-mid": 0,
+    "draw": 0,
+    "idle-before-abilities": 0,
+    "idle-after-loadout": 0,
+    "interact-idle": 0,
+    "idle-end": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 282,
+   "values": {
+    "inventory-open-idle": 0,
+    "skills-open-idle": 0,
+    "idle-mid": 1,
+    "draw": 1,
+    "idle-before-abilities": 1,
+    "idle-after-loadout": 1,
+    "interact-idle": 1,
+    "idle-end": 1
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298,
+    "idle-mid": 283,
+    "draw": 283,
+    "idle-before-abilities": 283,
+    "idle-after-loadout": 283,
+    "interact-idle": 283,
+    "idle-end": 283
+   }
+  },
+  {
+   "off": 288,
+   "values": {
+    "inventory-open-idle": 4,
+    "skills-open-idle": 0
+   },
+   "samples": {
+    "inventory-open-idle": 298,
+    "skills-open-idle": 298
+   }
+  }
+ ]
+}

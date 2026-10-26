@@ -50,6 +50,14 @@
     "field-differential": {
       "path": "type/field-differential.py",
       "kind": "type"
+    },
+    "segment-types": {
+      "path": "type/segment-types.py",
+      "kind": "type"
+    },
+    "input-contract": {
+      "path": "pak/input-contract.py",
+      "kind": "pak"
     }
   },
   "files": {
@@ -232,6 +240,14 @@
     "field-differential": {
       "path": "type/field-differential.py",
       "kind": "type"
+    },
+    "segment-types": {
+      "path": "type/segment-types.py",
+      "kind": "type"
+    },
+    "input-contract": {
+      "path": "pak/input-contract.py",
+      "kind": "pak"
     }
   }
 }

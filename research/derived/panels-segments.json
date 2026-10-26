@@ -1,0 +1,300 @@
+{
+ "corpus": ".azoth\\logs\\world.log",
+ "corpus_offset": 675558152,
+ "records": 2893,
+ "records_outside_windows": 993,
+ "segments": [
+  "idle-before",
+  "map-open",
+  "map-close",
+  "journal-open",
+  "journal-close",
+  "social-open",
+  "social-close",
+  "guild-open",
+  "guild-close",
+  "seasons-open",
+  "seasons-close",
+  "token-open",
+  "token-close",
+  "warboard-open",
+  "warboard-close",
+  "raid-open",
+  "raid-close",
+  "emote-open",
+  "emote-close",
+  "equipset-open",
+  "equipset-close",
+  "idle-after"
+ ],
+ "per_segment": {
+  "idle-before": {
+   "0x635": 115,
+   "0xe37": 20,
+   "0x15d": 5,
+   "0xa39": 1
+  },
+  "map-open": {
+   "0x635": 79,
+   "0x15d": 4
+  },
+  "map-close": {
+   "0x635": 60,
+   "0x15d": 3,
+   "0xa39": 1
+  },
+  "journal-open": {
+   "0x635": 98,
+   "0x15d": 5,
+   "0xa39": 4
+  },
+  "journal-close": {
+   "0x635": 61,
+   "0x15d": 3
+  },
+  "social-open": {
+   "0x635": 100,
+   "0x15d": 5,
+   "0xa39": 2
+  },
+  "social-close": {
+   "0x635": 60,
+   "0x15d": 3,
+   "0xa39": 2
+  },
+  "guild-open": {
+   "0x635": 80,
+   "0x15d": 4,
+   "0x1574": 1,
+   "0xa39": 1
+  },
+  "guild-close": {
+   "0x635": 80,
+   "0x15d": 4,
+   "0xa39": 3
+  },
+  "seasons-open": {
+   "0x635": 79,
+   "0x15d": 4,
+   "0xa39": 2
+  },
+  "seasons-close": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "token-open": {
+   "0x635": 100,
+   "0x15d": 5,
+   "0xa39": 2
+  },
+  "token-close": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "warboard-open": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "warboard-close": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "raid-open": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "raid-close": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "emote-open": {
+   "0x635": 100,
+   "0x15d": 5,
+   "0xa39": 2
+  },
+  "emote-close": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "equipset-open": {
+   "0x635": 80,
+   "0x15d": 3
+  },
+  "equipset-close": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "idle-after": {
+   "0x635": 120,
+   "0x15d": 6
+  }
+ },
+ "segment_names": {
+  "idle-before": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg",
+   "0xe37": "GuildsComponentServerFacet_RequestGetGuilds",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen"
+  },
+  "map-open": {
+   "0x15d": "PingMsg",
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient"
+  },
+  "map-close": {
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "journal-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen"
+  },
+  "journal-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "social-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x15d": "PingMsg"
+  },
+  "social-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen"
+  },
+  "guild-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x1574": "GuildsComponentClientFacet_OnGetGuildTreasuryFailedMsg",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x15d": "PingMsg"
+  },
+  "guild-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x15d": "PingMsg"
+  },
+  "seasons-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x15d": "PingMsg"
+  },
+  "seasons-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "token-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x15d": "PingMsg"
+  },
+  "token-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "warboard-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "warboard-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "raid-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "raid-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "emote-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x15d": "PingMsg"
+  },
+  "emote-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "equipset-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "equipset-close": {
+   "0x15d": "PingMsg",
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient"
+  },
+  "idle-after": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  }
+ },
+ "appeared": [
+  {
+   "wire_type": "0xe37",
+   "name": "GuildsComponentServerFacet_RequestGetGuilds",
+   "total": 20,
+   "present_in": {
+    "idle-before": 20
+   },
+   "absent_in": [
+    "map-open",
+    "map-close",
+    "journal-open",
+    "journal-close",
+    "social-open",
+    "social-close",
+    "guild-open",
+    "guild-close",
+    "seasons-open",
+    "seasons-close",
+    "token-open",
+    "token-close",
+    "warboard-open",
+    "warboard-close",
+    "raid-open",
+    "raid-close",
+    "emote-open",
+    "emote-close",
+    "equipset-open",
+    "equipset-close",
+    "idle-after"
+   ]
+  },
+  {
+   "wire_type": "0xa39",
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "total": 20,
+   "present_in": {
+    "idle-before": 1,
+    "map-close": 1,
+    "journal-open": 4,
+    "social-open": 2,
+    "social-close": 2,
+    "guild-open": 1,
+    "guild-close": 3,
+    "seasons-open": 2,
+    "token-open": 2,
+    "emote-open": 2
+   },
+   "absent_in": [
+    "map-open",
+    "journal-close",
+    "seasons-close",
+    "token-close",
+    "warboard-open",
+    "warboard-close",
+    "raid-open",
+    "raid-close",
+    "emote-close",
+    "equipset-open",
+    "equipset-close",
+    "idle-after"
+   ]
+  }
+ ],
+ "vanished": [],
+ "plan": "panels"
+}

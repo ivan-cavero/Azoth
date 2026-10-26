@@ -1,0 +1,321 @@
+{
+ "corpus": ".azoth\\logs\\world.log",
+ "corpus_offset": 636705415,
+ "records": 2172,
+ "records_outside_windows": 119,
+ "segments": [
+  "idle-before",
+  "inventory-open",
+  "inventory-open-idle",
+  "inventory-close",
+  "idle-after-inventory",
+  "skills-open",
+  "skills-open-idle",
+  "skills-close",
+  "idle-mid",
+  "sheathe",
+  "draw",
+  "idle-before-abilities",
+  "ability-1",
+  "ability-2",
+  "ability-3",
+  "dodge",
+  "idle-after-abilities",
+  "loadout-1",
+  "loadout-2",
+  "idle-after-loadout",
+  "consumable-3",
+  "interact",
+  "interact-idle",
+  "dialogue-option-1",
+  "idle-end"
+ ],
+ "per_segment": {
+  "idle-before": {
+   "0x635": 129,
+   "0x15d": 6,
+   "0xa39": 1,
+   "0xf82": 1
+  },
+  "inventory-open": {
+   "0x635": 61,
+   "0x15d": 3
+  },
+  "inventory-open-idle": {
+   "0x635": 99,
+   "0x15d": 5
+  },
+  "inventory-close": {
+   "0x635": 80,
+   "0x15d": 4,
+   "0xf82": 3,
+   "0xa39": 1
+  },
+  "idle-after-inventory": {
+   "0x635": 80,
+   "0x15d": 4,
+   "0xa39": 1
+  },
+  "skills-open": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "skills-open-idle": {
+   "0x635": 100,
+   "0x15d": 5
+  },
+  "skills-close": {
+   "0x635": 60,
+   "0x15d": 3,
+   "0xa39": 1
+  },
+  "idle-mid": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "sheathe": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "draw": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "idle-before-abilities": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "ability-1": {
+   "0x635": 80,
+   "0x15d": 3
+  },
+  "ability-2": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "ability-3": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "dodge": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "idle-after-abilities": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "loadout-1": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "loadout-2": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "idle-after-loadout": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "consumable-3": {
+   "0x635": 80,
+   "0x15d": 4
+  },
+  "interact": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "interact-idle": {
+   "0x635": 100,
+   "0x15d": 5
+  },
+  "dialogue-option-1": {
+   "0x635": 60,
+   "0x15d": 3
+  },
+  "idle-end": {
+   "0x635": 120,
+   "0x15d": 6
+  }
+ },
+ "segment_names": {
+  "idle-before": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0xf82": "PlayerComponentServerFacet_RequestSetIsLookingThroughLoadout"
+  },
+  "inventory-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "inventory-open-idle": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "inventory-close": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0xf82": "PlayerComponentServerFacet_RequestSetIsLookingThroughLoadout",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x15d": "PingMsg"
+  },
+  "idle-after-inventory": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg",
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen"
+  },
+  "skills-open": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "skills-open-idle": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "skills-close": {
+   "0xa39": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "idle-mid": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "sheathe": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "draw": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "idle-before-abilities": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "ability-1": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "ability-2": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "ability-3": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "dodge": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "idle-after-abilities": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "loadout-1": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "loadout-2": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "idle-after-loadout": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "consumable-3": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "interact": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "interact-idle": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "dialogue-option-1": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  },
+  "idle-end": {
+   "0x635": "ActionListComponentServerFacet_ReceiveInputFromClient",
+   "0x15d": "PingMsg"
+  }
+ },
+ "appeared": [
+  {
+   "wire_type": "0xa39",
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "total": 4,
+   "present_in": {
+    "idle-before": 1,
+    "inventory-close": 1,
+    "idle-after-inventory": 1,
+    "skills-close": 1
+   },
+   "absent_in": [
+    "inventory-open",
+    "inventory-open-idle",
+    "skills-open",
+    "skills-open-idle",
+    "idle-mid",
+    "sheathe",
+    "draw",
+    "idle-before-abilities",
+    "ability-1",
+    "ability-2",
+    "ability-3",
+    "dodge",
+    "idle-after-abilities",
+    "loadout-1",
+    "loadout-2",
+    "idle-after-loadout",
+    "consumable-3",
+    "interact",
+    "interact-idle",
+    "dialogue-option-1",
+    "idle-end"
+   ]
+  },
+  {
+   "wire_type": "0xf82",
+   "name": "PlayerComponentServerFacet_RequestSetIsLookingThroughLoadout",
+   "total": 4,
+   "present_in": {
+    "idle-before": 1,
+    "inventory-close": 3
+   },
+   "absent_in": [
+    "inventory-open",
+    "inventory-open-idle",
+    "idle-after-inventory",
+    "skills-open",
+    "skills-open-idle",
+    "skills-close",
+    "idle-mid",
+    "sheathe",
+    "draw",
+    "idle-before-abilities",
+    "ability-1",
+    "ability-2",
+    "ability-3",
+    "dodge",
+    "idle-after-abilities",
+    "loadout-1",
+    "loadout-2",
+    "idle-after-loadout",
+    "consumable-3",
+    "interact",
+    "interact-idle",
+    "dialogue-option-1",
+    "idle-end"
+   ]
+  }
+ ],
+ "vanished": [],
+ "plan": "interact"
+}
