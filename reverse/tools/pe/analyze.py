@@ -32,7 +32,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import default_paths  # noqa: E402
+from common import TOOLS, default_paths  # noqa: E402
 from decomp import (  # noqa: E402
     WORK,
     check_install,
@@ -43,8 +43,7 @@ from decomp import (  # noqa: E402
     pid_alive,
 )
 
-HERE = Path(__file__).resolve().parent
-JAVA_SRC = HERE / "ghidra" / "DisableSlowAnalyzers.java"
+JAVA_SRC = TOOLS / "ghidra" / "DisableSlowAnalyzers.java"
 CLASS = "DisableSlowAnalyzers.class"
 
 # A separate project, never the corpus one.

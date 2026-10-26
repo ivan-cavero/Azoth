@@ -46,20 +46,18 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import default_paths, decomp_work  # noqa: E402
+from common import REPO, TOOLS, default_paths, decomp_work  # noqa: E402
 from peutil import PEx  # noqa: E402
 
-HERE = Path(__file__).resolve().parent
-GHIDRA_DIR = HERE / "ghidra"
+GHIDRA_DIR = TOOLS / "ghidra"
 SYMBOLS_FILE = default_paths()["research"] / "atlas" / "client-functions.json"
 JAVA_SRC = GHIDRA_DIR / "DecompileTargets.java"
 CLASS_NAME = "DecompileTargets.class"
 
 def resolve_ghidra_home() -> Path:
     """Use the version pinned in the project toolchain lock."""
-    repo = Path(__file__).resolve().parents[2]
-    lock = json.loads((repo / "toolchain.lock.json").read_text(encoding="utf-8"))
-    tools_dir = Path(__file__).resolve().parents[2] / ".azoth" / "tools" / "ghidra"
+    lock = json.loads((REPO / "toolchain.lock.json").read_text(encoding="utf-8"))
+    tools_dir = REPO / ".azoth" / "tools" / "ghidra"
     version_dir = tools_dir / lock["tools"]["ghidra"]["version"]
     candidates = sorted(
         path
@@ -86,9 +84,8 @@ SERVER_LOG = WORK / "decomp-server.log"
 
 def resolve_jdk() -> Path:
     """Use the JDK pinned in the project toolchain lock."""
-    repo = Path(__file__).resolve().parents[2]
-    lock = json.loads((repo / "toolchain.lock.json").read_text(encoding="utf-8"))
-    version_dir = repo / ".azoth" / "tools" / "jdk" / lock["tools"]["jdk"]["version"]
+    lock = json.loads((REPO / "toolchain.lock.json").read_text(encoding="utf-8"))
+    version_dir = REPO / ".azoth" / "tools" / "jdk" / lock["tools"]["jdk"]["version"]
     local_jdks = sorted(version_dir.rglob("javac.exe")) if version_dir.is_dir() else []
     if local_jdks:
         return local_jdks[-1].parent.parent

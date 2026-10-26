@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import default_paths, decomp_corpus_dir, sha256_file  # noqa: E402
+from common import TOOLS, default_paths, decomp_corpus_dir, sha256_file  # noqa: E402
 from decomp import (  # noqa: E402
     CLASS_NAME,
     PROJECT_DIR,
@@ -36,8 +36,7 @@ from decomp import (  # noqa: E402
 )
 from peutil import PEx  # noqa: E402
 
-HERE = Path(__file__).resolve().parent
-JAVA_SRC = HERE / "ghidra" / "DecompileCorpus.java"
+JAVA_SRC = TOOLS / "ghidra" / "DecompileCorpus.java"
 CORPUS_CLASS = "DecompileCorpus.class"
 VERSION_NEEDLE = b"[RETAIL].Javelin."
 

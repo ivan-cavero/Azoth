@@ -31,8 +31,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from catalog import PE  # noqa: E402
 from common import default_paths  # noqa: E402
+from catalog import PE  # noqa: E402
 
 # modrm mod=00, rm=101 -> RIP-relative displacement follows
 RIP_MODRM = (0x05, 0x0D, 0x15, 0x1D, 0x25, 0x2D, 0x35, 0x3D)

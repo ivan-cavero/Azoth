@@ -22,8 +22,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from catalog import PE  # noqa: E402
 from common import default_paths  # noqa: E402
+from catalog import PE  # noqa: E402
 
 # [reg+8] = reg  (64-bit): REX.W 89 /r, mod=01, rm=reg, disp8=0x08
 # opcode 0x89; modrm = 01 reg(3) rm(3) with mod=01 => 0b01RRRmmm

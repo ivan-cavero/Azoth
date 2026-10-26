@@ -66,7 +66,7 @@ def _build_dll() -> Path | None:
     cxx = _find_cxx()
     if not cxx:
         return None
-    vendor = Path(__file__).resolve().parent / "vendor" / "ooz"
+    vendor = Path(__file__).resolve().parents[1] / "vendor" / "ooz"
     out = _dll_path()
     out.parent.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(

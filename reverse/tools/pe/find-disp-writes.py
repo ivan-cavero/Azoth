@@ -39,8 +39,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from catalog import PE  # noqa: E402
 from common import default_paths  # noqa: E402
+from catalog import PE  # noqa: E402
 
 # Operand access on the memory operand is what decides read vs write (capstone 5
 # reports it as a CS_AC_* bitmask on `op.access`).

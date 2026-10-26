@@ -34,12 +34,11 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from common import REPO, default_paths  # noqa: E402
 import decomp  # noqa: E402  (same tools directory, shares server + helpers)
-from common import default_paths  # noqa: E402
 from peutil import PEx  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "research" / "atlas" / "decomp-campaign.json"
+MANIFEST = REPO / "research" / "atlas" / "decomp-campaign.json"
 STATE = decomp.WORK / "campaign-state.json"
 OUT_DIR = decomp.WORK / "campaign"
 

@@ -6,10 +6,22 @@ import hashlib
 import json
 import os
 import re
+import sys
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+TOOLS = Path(__file__).resolve().parent
+REPO = TOOLS.parents[1]
+
+# Scripts live in kind folders (`pe/`, `corpus/`, `type/`, ...) and import across
+# them: `corpus/decomp.py` uses `peutil`, `pe/*.py` and `type/*.py` use `catalog`.
+# Appended, never inserted, so a kind folder cannot shadow the standard library.
+for _kind in sorted(TOOLS.iterdir()):
+    if _kind.is_dir() and not _kind.name.startswith(("_", ".")):
+        if str(_kind) not in sys.path:
+            sys.path.append(str(_kind))
 
 STEAM_APP_ID = "1063730"
 CHANNEL_CONFIG_URL = (

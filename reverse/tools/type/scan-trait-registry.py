@@ -47,7 +47,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import default_paths  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
+# The kind layout put this file one level deeper than the reorg assumed:
+# `parents[2]` is `reverse/`, so every path below resolved one level too high.
+ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / "research" / "atlas" / "aoi-trait-registry.json"
 
 # ?$InstallRegistrationHook@V<Message>@<Trait>@<SubNs>@@@<Ns>@<Root>@@YA_NXZ

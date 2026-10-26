@@ -19,8 +19,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from catalog import PE  # noqa: E402
 from common import default_paths, decomp_work  # noqa: E402
+from catalog import PE  # noqa: E402
 
 REX_W = (0x48, 0x4C, 0x49, 0x4D)
 

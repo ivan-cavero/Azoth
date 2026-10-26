@@ -101,10 +101,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from catalog import PE  # noqa: E402
 from common import default_paths  # noqa: E402
+from catalog import PE  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
+# The kind layout put this file one level deeper than the reorg assumed:
+# `parents[2]` is `reverse/`, so every path below resolved one level too high.
+ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / "research" / "derived" / "client-facet-factories.json"
 
 BUILD_SHA256 = "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033"

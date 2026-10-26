@@ -38,8 +38,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from catalog import PE  # noqa: E402
 from common import default_paths  # noqa: E402
+from catalog import PE  # noqa: E402
 
 NAME_RE = re.compile(rb"\.\?A([VUW][0-9]?)([^\x00]+?@@)\x00")
 OUT = default_paths()["research"] / "derived" / "rtti-classes.json"
