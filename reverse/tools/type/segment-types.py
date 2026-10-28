@@ -17,8 +17,10 @@ works with a capture-driven replay because the outbound direction is what is bei
 WHAT IT REPORTS
 ---------------
 For every segment: the total record count and a per-type count, each type carrying its name
-from `research/derived/wire-type-names.json` when one exists. Then it separates the types
-into three groups, because they mean different things:
+from `research/derived/message-names.json` -- the verified table built from the client's own
+registration hooks -- when one exists, and from `research/derived/wire-type-names.json` only
+for a wire the verified table leaves unnamed. Then it separates the types into three groups,
+because they mean different things:
 
   * `present everywhere`  -- traffic that runs whatever you do. Background. Ignore it.
   * `appeared`            -- zero in some segments, nonzero in others. THE INTERESTING SET:
@@ -58,16 +60,48 @@ from azoth_world.javelin.frame import parse_datagram, parse_envelope  # noqa: E4
 from azoth_world.javelin.lz4 import decompress_lz4_block  # noqa: E402
 
 NAMES_FILE = REPO / "research" / "derived" / "wire-type-names.json"
+# The verified table: the name the client's own registration hook recorded. NAMES_FILE is
+# produced by the adjacency heuristic `scan-wire-names.py`, which `research/atlas/meanings.md`
+# documents as disproven, so a verified name overrides it wherever the two disagree.
+VERIFIED_FILE = REPO / "research" / "derived" / "message-names.json"
 
 
-def load_names(path: Path = NAMES_FILE) -> dict[int, str]:
-    """wire type -> name, from the naming sweep. Absent file = no names, not an error."""
+def _read_json(path: Path) -> dict:
+    """A missing or malformed table yields no rows rather than an exception."""
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    return {row["wire_type"]: row["name"]
-            for row in document.get("names", []) if row.get("name")}
+
+
+def _wire_names(document: dict, verified: dict) -> dict[int, str]:
+    """wire type -> name, resolved in ONE place from the two tables.
+
+    The verified table carries the name the client's own registration hook recorded, so it
+    wins wherever it names a wire. The adjacency table's name is used only for a wire the
+    verified table leaves unnamed, so a wire is never dropped just because the verified table
+    is silent about it. The two tables have different shapes (`names[].wire_type`/`name` vs
+    `rows[].wire`/`names[0].name`).
+    """
+    names: dict[int, str] = {}
+    for row in document.get("names", []):
+        name = row.get("name")
+        if name:
+            names[row["wire_type"]] = name
+    for row in verified.get("rows", []):
+        named = row.get("names") or []
+        if named:
+            names[int(row["wire"], 16)] = named[0]["name"]
+    return names
+
+
+def load_names(path: Path = NAMES_FILE,
+               verified_path: Path = VERIFIED_FILE) -> dict[int, str]:
+    """wire type -> name, verified table first, the adjacency table as a per-wire fallback.
+
+    Absent file = no names, not an error.
+    """
+    return _wire_names(_read_json(path), _read_json(verified_path))
 
 
 def _decompress(envelope, body: bytes) -> bytes:
