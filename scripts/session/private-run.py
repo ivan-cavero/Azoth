@@ -36,6 +36,7 @@ import argparse
 import ctypes
 import ctypes.wintypes as wt
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -50,6 +51,21 @@ PYTHON = REPO / ".azoth" / "venv" / "Scripts" / "python.exe"
 PRIVATE = REPO / "private-client"
 
 GAME_LOG = Path(os.environ.get("LOCALAPPDATA", "")) / "AGS" / "New World" / "Game.log"
+
+# The world's log. It writes one `config` event per start, so the LAST one describes the
+# world this client is about to be launched against.
+WORLD_LOG = REPO / ".azoth" / "logs" / "world.log"
+# Only the tail is read: `ef.py dev` starts the world immediately before a run, so the
+# current config sits at the end of a log other sessions appended to (measured 2026-10-27:
+# 15 config events in one 136 MB file).
+CONFIG_TAIL_BYTES = 16 * 1024 * 1024
+# The replay levers the world must ACTUALLY be running with, by the key it logs.
+# `replay_local_player_uuid` is mandatory: measured 2026-10-27, a world started with
+# AZOTH_REPLAY_LOCAL_PLAYER_UUID unset logged `replay_local_player_uuid: off`, the client
+# then hung on the loading screen (0 `[WARNING] Slice:` lines) and the operator's screen
+# stayed black for the whole attempt. The lever is read by the WORLD process, so this is
+# checked from the world's own config, not from this process's environment.
+REQUIRED_WORLD_REPLAY = {"replay_local_player_uuid": "character"}
 
 # The client starts a fresh log on every launch by writing this line, i.e. it
 # TRUNCATES Game.log instead of appending (verified against two consecutive
@@ -441,6 +457,53 @@ def verdict(*, waited_for_render_s: float = 0.0) -> str:
     return "no InGame marker yet"
 
 
+def world_replay_config(path: Path = WORLD_LOG) -> dict | None:
+    """The world's most recent `config` event, or None when none is visible."""
+    if not path.is_file():
+        return None
+    with path.open("rb") as handle:
+        handle.seek(0, os.SEEK_END)
+        size = handle.tell()
+        handle.seek(max(0, size - CONFIG_TAIL_BYTES))
+        tail = handle.read()
+    last = None
+    for line in tail.split(b"\n"):
+        if b'"event": "config"' not in line:
+            continue
+        start = line.find(b"{")
+        if start < 0:
+            continue
+        try:
+            last = json.loads(line[start:].decode("utf-8", "replace"))
+        except ValueError:
+            continue
+    return last
+
+
+def preflight(path: Path = WORLD_LOG) -> str | None:
+    """A reason NOT to launch, or None when the world's replay config is sane.
+
+    Checked against the world's own `config` event rather than this process's environment,
+    because the levers are read by the world process; a world started without them is
+    exactly what black-screened a session on 2026-10-27.
+    """
+    config = world_replay_config(path)
+    if config is None:
+        return None  # no world config yet: nothing to contradict
+    wrong = [key for key, want in REQUIRED_WORLD_REPLAY.items() if config.get(key) != want]
+    if not wrong:
+        return None
+    detail = ", ".join(
+        f"{key}={config.get(key)!r} (want {REQUIRED_WORLD_REPLAY[key]!r})" for key in wrong
+    )
+    return (
+        f"world replay config is unsafe: {detail}. The client would hang on the loading "
+        "screen and leave the screen black. Restart the world with the mandatory lever "
+        "set, e.g. `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character .azoth/python/3.14.8/python.exe "
+        "ef.py dev`"
+    )
+
+
 def main() -> int:
     global GAME_LOG
 
@@ -474,6 +537,11 @@ def main() -> int:
     # Targeted mode: we know which process to drive, so every input and the
     # pre-patch check use that HWND instead of "the first New World window".
     targeted = args.pid is not None or args.instance > 1
+
+    problem = preflight()
+    if problem:
+        print(f"[run] FAIL: {problem}")
+        return 1
 
     if args.instance > 1:
         print(f"[run] client instance {args.instance}")
