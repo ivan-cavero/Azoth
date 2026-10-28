@@ -1937,6 +1937,98 @@ changed nothing — consistent with both being server-confirmed, but that is the
 change from a click at that coordinate"; whether the click landed on the `+` is not proven,
 so the attribute result is recorded as **partial**, not measured.
 
+### The first field layout: `0x5de`, decoded statically
+
+`AttributeComponentServerFacet_RequestSpendAttributePoints` (`0x5de`, type-table index
+1502, envelope prefix bytes `9e 17`) is the plan's first target, and its body is now read
+off both sides of the client's own codec. `re message-names 0x5de` resolves the
+registration record `0x1480b6f90`; its accessor `FUN_142784f30` stores a codec facet at
+`descriptor+0x48` whose vtable is `0x1480b7d28`. Facet slot `+0x20` (MARSHAL) is the thunk
+`0x1414c0730`, which tail-calls the message object's vtable (`0x1480b7508`) slot `+0x60` =
+`FUN_1427484d0`; facet slot `+0x28` (UNMARSHAL) constructs and reads through `FUN_1427486f0`
+and `FUN_142750870`. Writer and reader agree field for field.
+
+| # | Field | Codec | Object slot |
+| --- | --- | --- | --- |
+| 1 | `field_a` | `u64`, big-endian | `+0x08` |
+| 2 | `field_b` | `u64`, big-endian | `+0x10` |
+| 3 | attribute indices | prefix varint count, then count x `u32` BE, each <= 4 | `+0x40` |
+| 4 | points per attribute | prefix varint count, then count x `u32` BE, each <= 700 | `+0x20` |
+
+The bounds are the client's own asserts, read from the code: `FUN_141788630` refuses an
+index above 4 and `FUN_14279bb40` refuses a points value above 700. Both vectors are
+`AZStd` small vectors with room for 6 entries. The client builds the message in
+`FUN_142760cf0`, whose only static caller is `FUN_1427789a0`: it walks an attribute list (a
+count above 5 logs and returns) and hands over the two vectors plus two `u64` fields taken
+from the character component (`FUN_1416c1c40`, and `*(player+0x88)` via `FUN_1416be9f0`).
+The live `+` click does **not** reach that path — `FUN_1427789a0`, the builder and the
+writer each recorded 0 hits across the two live sessions — so `FUN_1427789a0`'s own UI
+trigger is still unidentified, and calling it "the character-panel path" was an inference
+the live result does not support. Those two `u64` are most likely a 16-byte character
+id; they are **named by position only and their semantic identity is not proven**.
+
+**What the server must do:** handle `0x5de`, then change the attribute replicated state;
+the `Attribute` family has zero reply messages, so nothing is sent back. **Evidence word:
+measured** — order and codec come from the writer and the reader independently, and a live
+record now matches them field for field (step 4 of `INTERACTION-DECOMP-PLAN.md` closed
+2026-10-27, below). Client build `30fe6461...`.
+
+**Live attempt, 2026-10-27 — negative, the click never reached the code.** One measured
+session on the same build reached the world (`player spawn succeeds`, `InGame`, 26 slice
+lines) and opened the `k` panel (`toggleSkillsComponent`, in-game title *Personaje*), whose
+ATRIBUTOS tab rendered **239 PUNTOS DISPONIBLES** with a `+` per attribute. Two left-clicks
+were sent at the FUERZA `+` centre (client-local `(531, 226)`, read off the shrink-image
+pipeline and mapped back through the window scale), one plain and one under a Frida hook.
+Neither produced a `0x5de`: `re segment-types` over the five click windows found only
+`0x635` and `0x15d`, and `re field-differential --type 0x5de` found **0 bodies**. A read-only
+Frida hook on the builder `FUN_142760cf0` and the writer `FUN_1427484d0` (both prologues
+valid) recorded **0 hits each** for the whole window, so the client never even composed the
+message. That resolves the 2026-10-26 ambiguity ("whether the click landed on the `+` is not
+proven") in the negative direction — the spend path was never entered, and the attribute
+stayed at 5 with 239 points still available. A click that does not reach the spend code
+cannot confirm the layout, so field-for-field step 4 stays open and the evidence word stays
+**partial**. Failed hypothesis: a plain `+` click on the replay-driven character panel
+reaches `FUN_142760cf0`; it does not. Evidence:
+`.azoth/logs/run-20261027-attr-spend-5de/`.
+
+**The real trigger, 2026-10-27 — the `+` never sends; `ApplyAttributeChanges` does.** The only construction path for a `0x5de` object is the builder `FUN_142760cf0` (it is the only `lea` of the message vtable `0x1480b7508` outside the message constructor). Its only static caller is `FUN_1427789a0`, whose only static caller is `FUN_142778890`, and that function sits in a method-table slot at `0x1480bb5c8` next to the string `AttributeComponentClientFacet`. `FUN_1427789a0`'s else branch logs `AttributeComponentClientFacet` plus `"Attempting to ApplyAttributeChanges from remote entity."`, which names it: it is the `AttributeRequestBus` method **`ApplyAttributeChanges`** (method string `0x14841b508`). The same bus exposes `AddPendingPointsToAttribute` (`0x14841b4b0`), `RemovePendingPointsFromAttribute` (`0x14841b488`), `CancelPendingAttributePoints` (`0x14841b4d0`), `ResetAllAttributePoints` (`0x14841b4f0`) and `AddAttributePointsToPool` (`0x14841b468`), and the HUD reads `Hud.LocalPlayer.Attributes.PendingPoints` / `UnspentPoints` / `SpentPoints` / `BonusPoints`. So the `+` control **stages pending points** and `0x5de` is composed only when the client **applies** the pending allocation. That explains both 2026-10-27 live sessions exactly: they clicked the `+` dead-centre and the builder and writer recorded 0 hits, because the `+` was never the sender. The next live provocation must drive the apply/confirm, not the `+`. **Not yet measured:** which UI control invokes `ApplyAttributeChanges`.
+
+**Live positive, 2026-10-27 — the APPLY step composes a real `0x5de`; evidence word now `measured`.** One measured session on build `30fe6461...` (world env: `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`, `AZOTH_REPLAY_STATE_STREAM=1`, `_SEQ=1`, `_MIN_SEQ=0x94`, `_ONLY_RECORD=1`, `_PERIOD_S=0.25`; world confirmed `state-stream-armed ... only_record 1, player_record 1, period_s 0.25`) drove the confirm. The character panel (`k`) rendered **239 PUNTOS DISPONIBLES**; a click on the FUERZA `+` staged one point (FUERZA 5→6, points 239→238) and activated the **`Asignar`** button, and a click on `Asignar` — the Confirm/Apply control that appears once pending points exist — fired, in the same instant, the read-only hooks: `FUN_1427789a0` (`ApplyAttributeChanges`) ×1, the builder `FUN_142760cf0` ×1 and the writer `FUN_1427484d0` ×1. The `+` alone fired none. On the wire the world logged `inbound-typed channel 0 type 0x5de type_dec 1502 size 54` at the exact apply time, and `re segment-types` over the session tail reported `0x5de` present only in the apply window (`AttributeComponentServerFacet_RequestSpendAttributePoints`, total 1). The record body (26 bytes, consumed exactly) is `0e 05 59 2a 1d 48 c4 17 | bf 85 31 4b bc 4a 95 1a | 01 00 00 00 02 | 01 00 00 00 01`: `field_a` u64 BE `0xe05592a1d48c417` and `field_b` u64 BE `0xbf85314bbc4a951a` (byte-identical to the builder's `*param_2`/`*param_3`), then a varint-counted u32 attribute-index vector `[2]` (≤4) and a varint-counted u32 points vector `[1]` (≤700) — the static layout **field for field**. `re field-differential --type 0x5de` used to return **0 bodies**: its channel-0 reader wanted the `00 01` marker at offset 0 while a client channel-0 record carries it at offset 24 (record header + 16-byte actor id == `1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0`). That was a tool gap, not a missing message, and it is **fixed (2026-10-27)**: `_channel0_body` now tries offset 0 then 24 (offset 0 first, so server records are unchanged — the 0x635 channel-1 path and its 20,000-body read are identical before and after), pinned by `reverse/tools/tests/test_field_differential.py::Channel0ClientRecordTest`, and `--type 0x5de` now returns the single 26-byte body. **Attribute index → attribute (settled 2026-10-27).** The wire index is the `CharacterAttributeType` enum. Its own name table — six `lea`s 15 bytes apart in one function (`0x144f48591`…), in the order `Constitution`, `Focus`, `Strength`, `Dexterity`, `Intelligence`, `NumAttributeTypes` — puts **Strength at 2**, which is exactly the index the live FUERZA click sent. So: **0 Constitution, 1 Focus, 2 Strength, 3 Dexterity, 4 Intelligence** (5 = `NumAttributeTypes`, the sentinel the `<=4` assert excludes). `Strength = 2` is measured (live); the other four follow from that name order and are consistent with it, not independently proven. Evidence: `.azoth/logs/run-20261027-attr-apply-5de/`.
+
+### The gate under the whole interaction contract: "local only GDE"
+
+The reason the `+` never sent anything is not `0x5de`-specific. The client refuses to send a wire type when the sending entity is a **local only** Game Data Entity, and that same guard sits in front of every client->server message. Measured on build `30fe6461...`:
+
+- The refusal string `"Can't send messages with a local only GDE"` (`0x148049360`) is referenced by **664 distinct `.pdata` functions**, so it is the shared send guard, not a per-message check.
+- The predicate is `func_0x000141721010` = `movzx eax, byte [entity+0x159]; ret`. A non-zero byte means local-only: the message is refused and only the log line is written.
+- In the `0x5de` builder `FUN_142760cf0` the guard is at `0x142760d29`; its else branch logs that string and returns without composing the message.
+
+So the blocker under `INTERACTION-DECOMP-PLAN.md` is one precondition, not 564 separate message contracts: **the local player's entity must be a server-backed GDE, not a local-only one, before any typed request can leave the client.** The atlas already names the state that establishes it: the record id **1** state bundle logs `Received new local player metadata, updating m_localPlayersServerGDERef` and writes `state+0x850/+0x870/+0x880` (see the local-player metadata entry in `client-functions.json`), and the recorded lever is the state stream restricted to that record (`AZOTH_REPLAY_STATE_STREAM=1`, `_SEQ=1`, `_MIN_SEQ=0x94`, `_ONLY_RECORD=1`, `_PERIOD_S=0.25`, on top of `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`). **Not yet measured:** whether delivering that record clears the `entity+0x159` byte. That is the next live check, and it is what would turn this negative into a positive.
+
+**Live check, 2026-10-27 (second session) — PARTIAL: the flag is clear, yet `+` still composes nothing.** One measured session on the same build `30fe6461...` changed exactly one variable vs the negative above: the state stream was restricted to the local-player record (`AZOTH_REPLAY_STATE_STREAM=1`, `_SEQ=1`, `_MIN_SEQ=0x94`, `_ONLY_RECORD=1`, `_PERIOD_S=0.25`, on top of `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`). The world confirmed the lever at arm time (`state-stream-armed: only_record 1, seqs 0x98/0x9a/0x9c/0x9e, period_s 0.25`) and sent the 7,168-byte record-1 bundles 2,490 times. A read-only Frida hook on the gate predicate `FUN_0x141721010` recorded `[entity+0x159]` on **every** call (~22/s, matching the `0x635` input-stream send rate, so the dominant `0x20369836830` pointer is the local player's send entity): **the byte was `0` for every observation** (distinct values `{0}`); the client also kept emitting typed client->server messages (`0x635` stream, `0xe37 GuildsComponentServerFacet_RequestGetGuilds`), so the guard was not refusing this session. **But the attribute `+` still produced no `0x5de`.** The FUERZA `+` was clicked dead-centre (client-local `(531, 231)`, geometry re-derived after the `ef.py shot` PNG was found to include a 38 px titlebar; click delivery proved with a control tab-switch that changed the panel), and the builder `FUN_142760cf0`, writer `FUN_1427484d0` and panel path `FUN_1427789a0` all recorded **0 hits**; `re segment-types` over the click windows found only `0x635` and `0x15d`, and `re field-differential --type 0x5de` found **0 bodies**. So clearing the local-only flag is **not sufficient**: the spend path is still never entered even with `entity+0x159 == 0`. The causation of the clear is also not isolated (the hook attached after spawn, so no non-zero->zero transition was captured; the flag is merely observed `0` in a session that delivered record 1). Evidence word stays **partial**. Failed hypothesis: clearing `entity+0x159` via the record-1 metadata bundle lets the `+` compose `0x5de`. Evidence: `.azoth/logs/run-20261027-attr-spend-5de-metadata/`.
+
+### The second field layout: `0xf37`, decoded statically
+
+`PaperdollComponentServerFacet_ServerEquipItem` (`0xf37`, GUID `073f09e7-18ec-4818-aa72-17639cb0fdb2`, type-table index 3895) is the plan's second target. Same method as `0x5de`, and it lands on the same generic marshal thunk. `re message-names 0xf37` resolves record `0x14851dbe8`; its accessor `FUN_1468134b0` stores the codec facet at descriptor+`0x48` with vtable `0x1485181c8`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x1465662a0`. That ctor sets the message object's vtable to `0x14852cb00` (its `+0x08` is the name accessor -> `"PaperdollComponentServerFacet_ServerEquipItem"`), so the writer is object vtable `+0x60` = `FUN_1465ad7e0` and the reader is `+0x68` = `FUN_1465ae570` (reading through `FUN_1465e7fe0`). Writer and reader agree field for field.
+
+| # | Field | Codec | Object slot |
+| --- | --- | --- | --- |
+| 1 | `field_a` | `u64`, big-endian | `+0x08` |
+| 2 | `field_b` | `u64`, big-endian | `+0x10` |
+| 3 | `field_c` | `u32` BE, an int in `[-1, 501]` (`FUN_142e6bae0`) | `+0x60` |
+| 4 | `field_d` | `u32` BE, validated by `FUN_142d94d20` | `+0x58` |
+| 5 | `field_e` | `u32` BE, validated by `FUN_142d94df0` | `+0x50` |
+| 6 | `field_f` | 16 raw bytes, written and read verbatim with no byte swap | `+0x40` |
+| 7 | `field_g` | `u8` bool (0/1) | `+0x30` |
+
+The body is 45 bytes; the head (`FUN_1414dbca0`, two `u64` BE) is the shared envelope head `0x5de` also uses, and the u32 writer is `FUN_140876e70` / reader `FUN_14087a3c0`. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. Next: provoke it live (equip an item), with the stage-to-apply and server-backed-entity lessons, then `re field-differential --type 0xf37`.
+
+**Live attempt, 2026-10-27 — negative: the equip was never composed.** One measured session on build `30fe6461...` reached the world with the server-backed-entity env used for the `0x5de` positive, opened the inventory and the equipment panels, and tried to equip an item. A read-only Frida hook on the writer `FUN_1465ad7e0`, the reader `FUN_1465ae570` and the shared marshal thunk `0x1414c0730` recorded **0 hits each** for the whole session (the same hook kept counting `thunk-other`, so the instrumentation was live), and no `0xf37` record appeared on the wire. So the equip path was never entered. Whether the replay's inventory holds an *equippable* item, and whether equipping needs a control this attempt did not reach, are both unknown; this is a negative on the provocation, not on the layout. Evidence word stays **partial**. Evidence: `.azoth/logs/run-20261027-equip-0xf37/`.
+
+**The real trigger, 2026-10-27 — a Paperdoll request-bus method behind a can-equip gate.** The only construction path for an `0xf37` object is the builder `FUN_146681060` (the second `lea` of the message vtable `0x14852cb00`; the first is the unmarshal ctor), and it carries the same `func_0x000141721010` local-only-GDE guard as `0x5de`. The builder names the fields it takes: `+0x08` and `+0x10` are the two `u64` entity head fields from `FUN_1416c1c40` and `FUN_1416be9f0` (identical to the `0x5de` head), `+0x40` is a **16-byte item id** from `FUN_145c495c0(itemDescriptor)`, `+0x30` is a bool passed on the stack, and `+0x60`/`+0x58`/`+0x50` are the caller's `(param_2, param_3, param_4)` — so the static layout's three trailing `u32` are the equip request's own parameters, not free fields. Its only caller is `FUN_1467a6f20`, which has **no direct callers**: it is a `PaperdollComponentServerFacet` vtable slot (`0x14853b838`, beside the `PaperdollComponentServerFacet` string) reached only through the request bus. Before composing, it runs a **can-equip gate** `FUN_14679da70` and refuses on several conditions (strings `"Unable to populate valid EquipItem request, make sure the player slice is setup"`, `"EquipItem while dead or in deaths door."`, `"ServerEquipItem did not succeed."`, `"PaperdollRequestBus"` `0x148554a08`). So `0xf37` is composed by the paperdoll/equip request path, not by a raw inventory click, and a refused equip never reaches the builder — consistent with the 2026-10-27 negative. **Not yet measured:** which UI control invokes that bus method.
+
+**Live attempt #2, 2026-10-27 — the can-equip gate was never reached; no `0xf37` composed (negative on the GESTURE side, not a gate refusal).** One measured session on build `30fe6461...` (private copy own SHA-256 `97f17df3...`), world env `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character` plus the restricted state stream (`_STATE_STREAM=1`, `_SEQ=1`, `_MIN_SEQ=0x94`, `_ONLY_RECORD=1`, `_PERIOD_S=0.25`; the world confirmed `state-stream-armed` at `21:24:42Z`, `only_record 1, player_record 1, period_s 0.25`), reached the world (`InGame reached, world streaming (26 slice lines), player possessed`). A read-only Frida hook on the **can-equip gate `FUN_14679da70`** (logging every hit and its return low byte, `0` = refuse), the **request-bus method `FUN_1467a6f20`**, the **builder `FUN_146681060`**, and the **writer `FUN_1465ad7e0`** recorded **0 hits on all four for the whole session** (`gate_refuse 0`, `gate_ok 0`), and **no `0xf37` record appeared on the wire** (`grep -c 0xf37 .azoth/logs/world.log` = 0). The gate therefore **did not refuse: it was never evaluated.** **Gestures probed:** the inventory (`tab`, 0.6 s hold) and the character sheet (`k`, 0.6 s hold) opened (frame diffs 77–83%); a **double-click** on an ARMAS weapon item *and* a **drag** of that item onto a paperdoll equipment slot (client `(1080,770) → (330,412)`) entered neither the request bus nor the gate. **Input is not the cause:** a control click on the FUERZA `+` (client `(423,182)`) on the same session incremented FUERZA 5→6 and PUNTOS DISPONIBLES 239→238, proving synthetic mouse reaches the UI and the coordinate map is exact. **Instrumentation is not the cause:** a second attach saw the shared marshal thunk `0x1414c0730` fire **239×/12 s** and read Frida hook stubs (`e9 …`) at both `FUN_14679da70` and `FUN_1467a6f20`, confirming those exact addresses were instrumented. So the failing side is the **trigger**: neither a `tab`-inventory double-click nor an inventory→paperdoll drag invokes the `PaperdollComponentServerFacet` equip request bus, so the can-equip gate is never consulted and its refusal strings never fire for these controls. Evidence word stays **partial** (still no live `0xf37` record; which UI control invokes the bus is unknown, and whether the replay inventory holds an *equippable* item is unproven). Failed hypothesis: an inventory item double-click, or a drag of an inventory item onto a paperdoll equipment slot, reaches the paperdoll equip request bus, which would let the gate separate a STATE refusal from a GESTURE miss. Evidence: `.azoth/logs/run-20261027-equip-gate-0xf37/`.
+
 ### The channel-1 body changes SHAPE with the UI, not with the key
 
 The one structural positive. The ALC body (`0x635`,
