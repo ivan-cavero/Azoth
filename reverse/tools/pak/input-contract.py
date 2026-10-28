@@ -18,9 +18,10 @@ Three shipped sources, joined:
   * `sharedassets/springboardentitites/playerdata/cage/playerinput_*.actionlist` -- the
     conditions that gate an action on game state (`IfInput InputName="ui_interact"`,
     `IfIsGathering`, `IfShouldCraft`, ...);
-  * `research/derived/wire-type-names.json` -- every message this build registers, with its
-    wire type. `XComponentServerFacet_M` is what the CLIENT SENDS; `XComponentClientFacet_M`
-    is what the SERVER sends.
+  * `research/derived/message-names.json` -- the verified wire -> name table, built from the
+    client's own registration hooks; `research/derived/wire-type-names.json` supplies a name
+    only for a wire the verified table leaves unnamed. `XComponentServerFacet_M` is what the
+    CLIENT SENDS; `XComponentClientFacet_M` is what the SERVER sends.
 
 The join is the client's own naming, not a guess: the action `toggleSeasonsRewardsComponent`
 and the family `SeasonsRewardsComponent` are the same word, so a surface derived from the
@@ -68,6 +69,10 @@ ACTIONLIST_DIR = "sharedassets/springboardentitites/playerdata/cage/"
 
 REPO = Path(__file__).resolve().parents[3]
 NAMES_FILE = REPO / "research" / "derived" / "wire-type-names.json"
+# The verified table: the name the client's own registration hook recorded. NAMES_FILE is
+# produced by the adjacency heuristic `scan-wire-names.py`, which `research/atlas/meanings.md`
+# documents as disproven, so a verified name overrides it wherever the two disagree.
+VERIFIED_FILE = REPO / "research" / "derived" / "message-names.json"
 
 # Every action list the client ships for the player. Reading them all is cheaper than
 # deciding which ones matter, and the gate is what makes a key press meaningful.
@@ -224,30 +229,54 @@ def _parse_actionlist(text: str) -> list[dict]:
     return conditions
 
 
-def load_registry(path: Path = NAMES_FILE) -> dict[str, dict]:
+def _read_json(path: Path) -> dict:
+    """A missing or malformed table yields no rows rather than an exception."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _wire_names(document: dict, verified: dict) -> dict[int, str]:
+    """wire type -> name, resolved in ONE place from the two tables.
+
+    The verified table carries the name the client's own registration hook recorded, so it
+    wins wherever it names a wire. The adjacency table's name is used only for a wire the
+    verified table leaves unnamed, so a wire is never dropped just because the verified table
+    is silent about it. The two tables have different shapes (`names[].wire_type`/`name` vs
+    `rows[].wire`/`names[0].name`).
+    """
+    names: dict[int, str] = {}
+    for row in document.get("names", []):
+        name = row.get("name")
+        if name:
+            names[row["wire_type"]] = name
+    for row in verified.get("rows", []):
+        named = row.get("names") or []
+        if named:
+            names[int(row["wire"], 16)] = named[0]["name"]
+    return names
+
+
+def load_registry(path: Path = NAMES_FILE,
+                  verified_path: Path = VERIFIED_FILE) -> dict[str, dict]:
     """Component family -> {"server": [...], "client": [...]} from the wire-type registry.
 
     The split matters and is the whole point of the join: a `ServerFacet` message is one the
     CLIENT sends and the server must answer; a `ClientFacet` message is one the SERVER sends.
     Conflating them is how a "contract" ends up describing the wrong direction.
     """
-    try:
-        document = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
+    names = _wire_names(_read_json(path), _read_json(verified_path))
     families: dict[str, dict] = {}
     pattern = re.compile(r"^(?P<fam>.+?)Component(?P<side>Server|Client)Facet_(?P<method>.+)$")
-    for row in document.get("names", []):
-        name = row.get("name")
-        if not name:
-            continue
+    for wire_type, name in names.items():
         match = pattern.match(name)
         if not match:
             continue
         family = match.group("fam")
         side = "server" if match.group("side") == "Server" else "client"
         bucket = families.setdefault(family, {"server": [], "client": []})
-        bucket[side].append({"wire_type": f"0x{row['wire_type']:x}",
+        bucket[side].append({"wire_type": f"0x{wire_type:x}",
                              "method": match.group("method"), "name": name})
     for bucket in families.values():
         for side in ("server", "client"):
