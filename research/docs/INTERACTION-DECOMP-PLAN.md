@@ -48,6 +48,8 @@ is how a layout ends up wrong in the atlas.
 | 4 | **Confirm on bytes** | a live session that drives the surface, then `re segment-types --offset` to pull the record, then compare field by field | A layout that has not been matched against a real record is a guess. This step is the evidence word *measured*; without it the row is *partial*. |
 | 5 | **File it** | `research/atlas/meanings.md` (row with build SHA-256 and the evidence word) + `client-functions.json` (the function) | The atlas is the contract. A function decompiled and not filed is not understanding. |
 
+The wire numbers in this plan are binary-verified with `re message-names`; four of the plan's labels were corrected on 2026-10-28 (see the wire-label audit table in `../atlas/meanings.md` § *Wire-label audit of the interaction plan (2026-10-28)*).
+
 The codec per field is the part that bites: each field goes through its own reader, and the
 prefix varint (`FUN_14087b760`, recorded as `prefix_varint_reader_1460`) is the marshalling
 primitive called from 853 sites. Layouts therefore have to be read as *"varint, then a
@@ -70,7 +72,7 @@ point with their wire types, **how to make the client emit them**, and what bloc
 - Family `Groups` (54 client→server).
 - Entry points: `GroupsComponentServerFacet_RequestPing` `0x967`,
   `RequestTargetPing` `0xda2`, `CancelPing` `0xd9e`, `CancelTargetPing` `0xda3`,
-  `RequestRemoveRaidMember` `0x1557` (measured in a live session),
+  `RequestRemoveRaidMember` `0xdac` (measured in a live session),
   `RequestAllActivityJoinableLobbyCounts` `0x1555`.
 - Provoke: form a party, then place a target tag on the map (`b` + a tag while a party
   exists). The 8-byte target id and the tag enum are the fields to earn.
@@ -110,8 +112,8 @@ point with their wire types, **how to make the client emit them**, and what bloc
 - Families `Paperdoll` (24), `Attribute` (5), `Ability` (6), `Progression` (5),
   `ProgressionPoint` (9), `CategoricalProgression` (13), `Vitals` (21).
 - Entry points: `PaperdollComponentServerFacet_ServerEquipItem` `0xf37`,
-  `ServerUnequipItem` `0x658`, `UnequipAllItems` `0x1743`,
-  `RequestSwitchToLoadout` `0x160`, `ToggleSheath` `0xf3b`;
+  `ServerUnequipItem` `0xf38`, `UnequipAllItems` `0x4e5`,
+  `RequestSwitchToLoadout` `0x1542`, `ToggleSheath` `0xf3b`;
   `AttributeComponentServerFacet_RequestSpendAttributePoints` `0x5de`;
   `AbilityComponentServerFacet_RequestApplyAbilityPoints` `0xb29`,
   `RequestChangeMappedAbility` `0xa8d`;
@@ -157,7 +159,7 @@ cost:
 1. **`Attribute.RequestSpendAttributePoints` `0x5de`.** One message, provokable today from
    a panel already on screen, and the confirmation path is replicated state rather than a
    reply. It is the first contract that can be closed end to end.
-2. **`Paperdoll.ServerEquipItem` `0xf37` / `ServerUnequipItem` `0x658`.** Equipment is the
+2. **`Paperdoll.ServerEquipItem` `0xf37` / `ServerUnequipItem` `0xf38`.** Equipment is the
    most requested behaviour and the largest family after the map.
 3. **`Groups.RequestTargetPing` `0xda2`.** Party marks; small, and it proves the party
    state model.
