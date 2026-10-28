@@ -19,18 +19,21 @@ HOW IT DECODES
 `parse_datagram`. Calling `parse_datagram` on the truncated `raw` field fails
 (`payload truncated: need 2048 bits, have 896`), which is why this uses `raw_full`.
 
-NAMES COME FROM THREE REGISTRIES, IN THIS ORDER
-===============================================
-1. `research/derived/wire-type-names.json` -- the build's own type table, named from the
-   brace-wrapped `<Name>\\0...\\0<GUID>` descriptor form in `.rdata` (2201 of 7052 named).
-2. `research/atlas/javelin-messages.json` -- the hand-curated Javelin message registry
-   (name + GUID + wire index), by wire index and by GUID.
-3. `research/atlas/az-type-registry.json` -- every AZ type the build registers, by GUID.
+NAMES COME FROM TWO TABLES, VERIFIED FIRST
+==========================================
+1. `research/derived/message-names.json` -- the verified table, built from the client's own
+   registration hook. Its name wins wherever it names a wire.
+2. `research/derived/wire-type-names.json` -- the build's own type table, named from the
+   brace-wrapped `<Name>\\0...\\0<GUID>` descriptor form in `.rdata`. It is produced by the
+   adjacency heuristic `scan-wire-names.py`, which `research/atlas/meanings.md` documents as
+   disproven: of the wires both tables name, 620 disagree. It supplies a name only for a wire
+   the verified table leaves unnamed, so a wire is never dropped just because the verified
+   table is silent about it.
 
-A type that none of the three can name is reported as `?` rather than guessed: several wire
-types are not Javelin-typed at all and belong to another registry (the Carrier/system channel
-carries a 4-byte non-typed record, and the client's V3 re-registration is not in the type
-table). Each row keeps the GUID it decoded, so an unnamed type is still addressable.
+A type neither table names is reported as `?` rather than guessed: several wire types are not
+Javelin-typed at all and belong to another registry (the Carrier/system channel carries a
+4-byte non-typed record, and the client's V3 re-registration is not in the type table). Each
+row keeps the `wire-type-names.json` GUID, so an unnamed type is still addressable.
 
 CLASSIFICATION
 ==============
@@ -70,8 +73,10 @@ from azoth_world.javelin.bundle import read_type_marker  # noqa: E402
 from azoth_world.rep import parse_datagram, parse_envelope  # noqa: E402
 
 NAMES = ROOT / "research" / "derived" / "wire-type-names.json"
-JAVELIN = ROOT / "research" / "atlas" / "javelin-messages.json"
-AZ_REGISTRY = ROOT / "research" / "atlas" / "az-type-registry.json"
+# The verified table: the name the client's own registration hook recorded. NAMES is
+# produced by the adjacency heuristic `scan-wire-names.py`, which `research/atlas/meanings.md`
+# documents as disproven, so a verified name overrides it wherever the two disagree.
+VERIFIED = ROOT / "research" / "derived" / "message-names.json"
 
 # Wire ids with a fixed, measured role that is not in any name registry.
 TRANSPORT_TYPES = {349}          # PingMsg, answered by the transport layer
@@ -79,50 +84,51 @@ INPUT_STREAM_TYPES = {1589}      # ActionListComponentServerFacet_ReceiveInputFr
 V3_REGISTRATION_TYPES = {19}     # RegistrationRequestV3Msg (the client's V3 re-registration)
 
 
-def _load_names() -> dict[int, dict]:
-    """wire type -> {name, source, guid}. First source that names it wins."""
-    out: dict[int, dict] = {}
-    if NAMES.is_file():
-        data = json.loads(NAMES.read_text(encoding="utf-8"))
-        for row in data["names"]:
-            out[row["wire_type"]] = {
-                "name": row.get("name"),
-                "source": row.get("source"),
-                "guid": row.get("guid"),
-            }
-    # Javelin registry: fill gaps by wire index and by GUID.
-    if JAVELIN.is_file():
-        data = json.loads(JAVELIN.read_text(encoding="utf-8"))
-        by_guid = {}
-        for row in data.get("messages", []):
-            guid = str(row.get("guid") or "").lower()
-            if guid:
-                by_guid[guid] = row["name"]
-            wire = row.get("wire_type")
-            if wire is not None and not out.get(wire, {}).get("name"):
-                out.setdefault(wire, {"guid": None})["name"] = row["name"]
-                out[wire]["source"] = "javelin-registry"
-        for wire, row in out.items():
-            if not row.get("name"):
-                guid = str(row.get("guid") or "").lower()
-                if guid in by_guid:
-                    row["name"] = by_guid[guid]
-                    row["source"] = "javelin-registry"
-    # AZ registry: last resort, by GUID.
-    if AZ_REGISTRY.is_file():
-        data = json.loads(AZ_REGISTRY.read_text(encoding="utf-8"))
-        by_guid = {}
-        for entry in data.get("types", []):
-            guid = str(entry.get("guid") or "").lower()
-            if guid and entry.get("name"):
-                by_guid.setdefault(guid, entry["name"])
-        for row in out.values():
-            if not row.get("name"):
-                guid = str(row.get("guid") or "").lower()
-                if guid in by_guid:
-                    row["name"] = by_guid[guid]
-                    row["source"] = "az-registry"
-    return out
+def _read_json(path: Path) -> dict:
+    """A missing or malformed table yields no rows rather than an exception."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _wire_names(document: dict, verified: dict) -> dict[int, str]:
+    """wire type -> name, resolved in ONE place from the two tables.
+
+    The verified table carries the name the client's own registration hook recorded, so it
+    wins wherever it names a wire. The adjacency table's name is used only for a wire the
+    verified table leaves unnamed, so a wire is never dropped just because the verified table
+    is silent about it. The two tables have different shapes (`names[].wire_type`/`name` vs
+    `rows[].wire`/`names[0].name`).
+    """
+    names: dict[int, str] = {}
+    for row in document.get("names", []):
+        name = row.get("name")
+        if name:
+            names[row["wire_type"]] = name
+    for row in verified.get("rows", []):
+        named = row.get("names") or []
+        if named:
+            names[int(row["wire"], 16)] = named[0]["name"]
+    return names
+
+
+def _load_names(path: Path = NAMES,
+                verified_path: Path = VERIFIED) -> dict[int, dict]:
+    """wire type -> {name, source, guid}. The name is resolved verified-first in
+    `_wire_names`; `source` and `guid` still come from the adjacency table, which lists every
+    wire, including the ones neither table names.
+    """
+    document = _read_json(path)
+    names = _wire_names(document, _read_json(verified_path))
+    return {
+        row["wire_type"]: {
+            "name": names.get(row["wire_type"]),
+            "source": row.get("source"),
+            "guid": row.get("guid"),
+        }
+        for row in document.get("names", [])
+    }
 
 
 def classify(wire_type: int, channel: int, name: str | None) -> str:
