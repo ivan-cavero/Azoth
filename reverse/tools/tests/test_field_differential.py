@@ -134,6 +134,57 @@ class PrefixedContainerTest(unittest.TestCase):
         self.assertEqual(payload[offset:], bytes([0xDE, 0xAD]))
 
 
+class Channel0ClientRecordTest(unittest.TestCase):
+    """A CLIENT channel-0 typed record carries the marker at offset 24, not at 0.
+
+    Measured 2026-10-27 on the first live `0x5de` record. The payload is
+    `c81159f8 0000002e <16-byte actor id> 00 01 9e 17 <body>`, so the typed marker sits at
+    offset 24 (an 8-byte header plus a 16-byte actor id). `iter_bodies` only ever read
+    offset 0, so `--type 0x5de` reported 0 bodies while the world log held the message and
+    the world's own parser logged `inbound-typed channel 0 type 0x5de`. The offset-0 read
+    is right for a server-side record and must keep working; these tests pin both.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tool = load_tool()
+
+    def _client_record(self, type_id: int, body: bytes) -> bytes:
+        from azoth_world.javelin.bundle import encode_type_marker
+
+        header = bytes([0xC8, 0x11, 0x59, 0xF8]) + (len(body) + 20).to_bytes(4, "little")
+        actor = bytes(range(16))
+        return header + actor + encode_type_marker(type_id) + body
+
+    def test_marker_at_24_is_read_for_a_client_record(self):
+        payload = self._client_record(0x5DE, b"\xAA\xBB")
+        found = self.tool._channel0_body(payload)
+        self.assertIsNotNone(found, "a client record's marker at offset 24 must be read")
+        type_id, body = found
+        self.assertEqual(type_id, 0x5DE)
+        self.assertEqual(body, b"\xAA\xBB")
+
+    def test_marker_at_zero_still_works(self):
+        from azoth_world.javelin.bundle import encode_type_marker
+
+        type_id, body = self.tool._channel0_body(
+            encode_type_marker(0x635) + b"\x01\x02"
+        )
+        self.assertEqual(type_id, 0x635)
+        self.assertEqual(body, b"\x01\x02")
+
+    def test_offset_zero_wins_when_both_are_present(self):
+        """A server record with the marker at 0 must not be re-read from offset 24."""
+        from azoth_world.javelin.bundle import encode_type_marker
+
+        payload = encode_type_marker(0x663) + bytes(20) + encode_type_marker(0x5DE)
+        type_id, _ = self.tool._channel0_body(payload)
+        self.assertEqual(type_id, 0x663)
+
+    def test_a_payload_with_no_marker_is_none(self):
+        self.assertIsNone(self.tool._channel0_body(bytes([0x11] * 40)))
+
+
 class CompressionDetectionTest(unittest.TestCase):
     """`CarrierEnvelope` has no `compressed` attribute, and believing it did cost 98%.
 

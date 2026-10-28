@@ -46,7 +46,6 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "services" / "world" / "src"))
 
 from azoth_world.javelin import alc, varint  # noqa: E402
-from azoth_world.javelin.bundle import read_type_marker  # noqa: E402
 from azoth_world.javelin.frame import parse_datagram, parse_envelope  # noqa: E402
 from azoth_world.javelin.lz4 import decompress_lz4_block  # noqa: E402
 
@@ -90,14 +89,37 @@ def _channel1_body(payload: bytes) -> bytes | None:
     return None
 
 
+def _channel0_body(payload: bytes) -> tuple[int, bytes] | None:
+    """`(type_id, body)` of a channel-0 typed record, or None when it has no marker.
+
+    The typed marker is at offset 0 for a record the lab composes, but a CLIENT channel-0
+    record prefixes it with an 8-byte header and a 16-byte actor id, so the marker sits at
+    offset 24. Measured 2026-10-27 on the first live `0x5de` record, whose payload is
+    `c81159f8 0000002e <16-byte actor id> 00 01 9e 17 <26-byte body>`. Reading only offset
+    0 dropped every client record: the world log held `0x5de` (the world's own parser
+    logged `inbound-typed channel 0 type 0x5de`) while `--type 0x5de` reported 0 bodies.
+    Offset 0 is tried first, so a server-side record is read exactly as before.
+    """
+    for marker in (0, alc.CONTAINER_MARKER):
+        if len(payload) < marker + 3 or payload[marker : marker + 2] != b"\x00\x01":
+            continue
+        try:
+            type_id, offset = varint.decode(payload, marker + 2)
+        except Exception:
+            continue
+        return type_id, payload[offset:]
+    return None
+
+
 def iter_bodies(corpus: Path, want: int, *, event: str = "app-data", timestamps: bool = False):
     """Yield body bytes for every message of `want` found in a world-log corpus.
 
     Two container shapes are handled because the client uses both: channel-0 records
-    start with the `00 01` typed marker and their type is a prefix varint, while
-    channel-1 records carry the type inside a container whose marker moves by two bytes
-    when the record is prefixed. Guessing one shape and skipping the other is how a tool
-    silently returns nothing.
+    carry the `00 01` typed marker followed by a prefix-varint type, and channel-1 records
+    carry the type inside a container whose marker moves by two bytes when the record is
+    prefixed. On channel 0 the marker is at offset 0 for a record the lab composes but at
+    offset 24 for a CLIENT record, so both offsets are tried (see `_channel0_body`).
+    Guessing one shape and skipping the other is how a tool silently returns nothing.
 
     `timestamps=True` yields `(ts, body)` instead, where `ts` is the log line's own
     UTC stamp. That is what makes segment attribution possible: the driver records the
@@ -133,13 +155,13 @@ def iter_bodies(corpus: Path, want: int, *, event: str = "app-data", timestamps:
                     if want == alc.INPUT_STREAM_TYPE:
                         yield (ts, channel1) if timestamps else channel1
                     continue
-                # channel 0: the typed-stream marker
-                try:
-                    type_id, offset = read_type_marker(payload)
-                except Exception:
+                # channel 0: the typed marker (offset 0 or 24, see _channel0_body).
+                found = _channel0_body(payload)
+                if found is None:
                     continue
+                type_id, body = found
                 if type_id == want:
-                    yield (ts, payload[offset:]) if timestamps else payload[offset:]
+                    yield (ts, body) if timestamps else body
     if seen == 0:
         raise SystemExit(f"no {event} records decoded from {corpus}")
 
