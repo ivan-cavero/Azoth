@@ -2261,6 +2261,16 @@ names are not in the neighbourhood of the plan's wire — the ±4 rows around `0
 full type table and confirmed with a direct `re message-names` on the wire named in the
 last column; no name is guessed.
 
+**Root cause (reported, not fixed in code).** All four wrong labels come from
+`research/derived/wire-type-names.json`, the table produced by the adjacency heuristic
+`reverse/tools/scan-wire-names.py` that this atlas already documents as **disproven**, and
+they are inherited by `research/derived/input-contract.json` because it joins its message
+families to that file's names; the client's own registration hook, `re message-names`
+(`research/derived/message-names.json`), is **measured** correct for all four. Therefore
+any derived table that resolves a wire to a NAME through `wire-type-names.json` may be
+wrong and must be checked against `re message-names` before it is used to aim a probe or
+write a server.
+
 ### The channel-1 body changes SHAPE with the UI, not with the key
 
 The one structural positive. The ALC body (`0x635`,
