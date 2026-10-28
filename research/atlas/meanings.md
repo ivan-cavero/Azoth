@@ -2091,6 +2091,118 @@ The body is 25 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) th
 
 The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37`, `0xda2`, `0x55` and `0x1676` also use. The writer is the head writer reached through a `jmp` thunk and the reader `FUN_14259f180` calls only the head reader `FUN_14150e670`, with no extra codec; there is no third field on either side. **This differs from its `0x5de` sibling:** `0x5de` (`RequestSpendAttributePoints`) carried two varint-counted `u32` vectors (attribute indices `<= 4`, then points `<= 700`) and its body was 26 bytes, but the refund sibling carries no vectors at all - it is a parameterless 16-byte head-only request. The writer (thunk `0x14259f170`) and reader (`0x14259f180`) are literally the same pair `0x1676` uses. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x969` as a 16-byte body - read the two `u64` BE head fields and nothing else - then refund the spent attribute points in replicated state; the `Attribute` family has zero reply messages, so nothing is sent back.
 
+### `0x658` is a mis-map: it resolves to the Javelin trait `IGritComponentListener`, so the decode target is the real `ServerUnequipItem` at `0xf38`
+
+The plan (`research/docs/INTERACTION-DECOMP-PLAN.md`) lists the entry point
+`PaperdollComponentServerFacet_ServerUnequipItem` at wire `0x658`, and the derived tables
+(`research/derived/wire-type-names.json` source `az-registry`, `input-contract.json`)
+repeat it. **The client's own registration contradicts it.** `re message-names 0x658`
+resolves index 1624 (GUID `9842bde5-2a7d-4388-b128-524347a9e18e`) to
+`IGritComponentListener`, a **Javelin trait, not a `ClientMessages` type** (registration
+lambda mangled `InstallRegistrationHook@VIGritComponentListener@Javelin@@...`, trait
+`Javelin`). Its registration record `0x14680a4b0` installs a codec facet at descriptor+
+`0x48` with vtable `0x148517878`, whose slot `+0x20` is `0x140294a00` - **not** the shared
+marshal thunk `0x1414c0730` - and whose slot `+0x28` is `0x146564450`, which is **not
+inside any `.pdata` function**. Wire `0x658` therefore has no `ClientMessages` writer/reader
+and no field layout to read, so it is left out of the decode set on that ground alone. Its
+sibling pair confirms the swap: `re message-names 0xf38` (index 3896, GUID
+`8282246d-7664-4676-a8ce-05e04a9daacd`, one row above the already-decoded `0xf37`)
+resolves to `PaperdollComponentServerFacet_ServerUnequipItem` through the same
+`entry-match` path, and `wire-type-names.json` independently carries index 3896 =
+`ServerUnequipItem` from the `rdata` source. The next subsection decodes that real
+`ServerUnequipItem`.
+
+### The field layout of `0xf38` (Paperdoll ServerUnequipItem), decoded statically
+
+This is the sibling the plan means by its `0x658` line (see the mis-map note above):
+`PaperdollComponentServerFacet_ServerUnequipItem` at wire **`0xf38`** (GUID
+`8282246d-7664-4676-a8ce-05e04a9daacd`, type-table index 3896), decoded with the same
+method as `0x5de`, `0xf37`, `0xda2`, `0x55`, `0x1676`, `0x1b7` and `0x969`. `re
+message-names 0xf38` resolves the registration record `0x1468138b0` (GUID string
+`0x148518a28`); it stores a codec facet at descriptor+`0x48` with vtable `0x148518b58`,
+whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp
+[rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x1465686f0`. That ctor sets
+the message object's vtable to `0x148518918` (its `+0x08` is the name accessor
+`0x146567640`, bytes `48 8d 05 89 13 fb 01 c3`, a `lea rax,[rip+0x1fb1389]` ->
+`"PaperdollComponentServerFacet_ServerUnequipItem"` at `0x1485189d0`), so the writer is
+object vtable `+0x60` = `FUN_146566a10` and the reader is `+0x68` = `FUN_1465672f0`
+(reading the tail through `FUN_1465e7d70`). Writer and reader agree field for field.
+
+| # | Field | Codec | Object slot |
+| --- | --- | --- | --- |
+| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 3 | `field_c` | `u32` BE (`FUN_140876e70` writer / `FUN_14087a3c0` reader), validated by `FUN_142d94d20` | `+0x2c` |
+| 4 | `field_d` | `u32` BE (same codec pair), an int in `[-1, 501]` (`FUN_142e6bae0`) | `+0x28` |
+| 5 | `field_e` | `u32` BE (same codec pair), validated by `FUN_142d94df0` | `+0x24` |
+| 6 | `field_f` | `u8` bool (0/1), raw 1-byte block (writer stream vtable `+0x40`, reader `FUN_1408787b0`), must be `< 2` | `+0x20` |
+
+The body is 29 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) that
+`0x5de`, `0xf37`, `0xda2`, `0x55`, `0x1676`, `0x1b7` and `0x969` also use, then three
+`u32` BE in the writer's order `+0x2c`, `+0x28`, `+0x24`, then one bool byte. The reader
+runs the three `u32` through the same validators and stores them at the same slots in the
+same order (`FUN_142d94d20`->`+0x2c`, `FUN_142e6bae0`->`+0x28`, `FUN_142d94df0`->`+0x24`,
+bool->`+0x20`), so nothing is swapped; the `u32` reader is `FUN_14087a3c0` and the reader
+head is `FUN_14150e670`. Two extra calls in both halves
+(`FUN_141626440`/`FUN_141651260`) are a local AZStd copy-construct and destroy of the
+message's own `+0x20` member, not wire codec.
+
+**It does NOT share `0xf37`'s shape.** The equip sibling `0xf37` was 45 bytes and carried a
+**16-byte raw item-id block** at `+0x40` (written verbatim, no byte swap) plus its bool at
+`+0x30`; the unequip sibling has **no raw block**, its bool sits at `+0x20`, and it
+identifies what to remove by the three `u32` (its own slots `+0x2c`/`+0x28`/`+0x24`)
+rather than by an item id. Both use the same three range validators, but unequip orders
+them `FUN_142d94d20`, `FUN_142e6bae0`, `FUN_142d94df0` whereas equip ordered them
+`FUN_142e6bae0`, `FUN_142d94d20`, `FUN_142d94df0`. **Evidence word: partial** - the order
+and the codec come from the writer and the reader independently, but no live record has
+been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the
+server must do:** handle inbound `0xf38` as a 29-byte body - the two `u64` BE head fields,
+then three `u32` BE, then one bool byte - then remove the identified item in replicated
+state, since a wrong length desynchronizes the stream.
+
+### The field layout of `0x169d` (Inventories QueryInventories), decoded statically
+
+`InventoriesComponentServerFacet_QueryInventories` (`0x169d`, GUID
+`5042e9de-567c-45eb-a112-829e68a7c263`, type-table index 5789) is decoded with the same
+method as `0x5de`, `0xf37`, `0xda2`, `0x55`, `0x1676`, `0x1b7` and `0x969`, and
+`re message-names 0x169d` confirms the name (entry-match). It resolves the registration
+record `0x143617b30` (GUID string `0x148201738`); that record stores a codec facet at
+descriptor+`0x48` with vtable `0x148200370`, whose slot `+0x20` (MARSHAL) is the shared
+thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL)
+is the ctor `0x1435f0110`. That ctor sets the message object's vtable to `0x148201650`
+(its `+0x08` is the name accessor `0x1435f48d0`, bytes `48 8d 05 29 ce c0 04 c3`, a
+`lea rax,[rip+0x4c0ce29]` -> `"InventoriesComponentServerFacet_QueryInventories"` at
+`0x148201700`), so the writer is object vtable `+0x60` = `FUN_1435f4700` and the reader is
+`+0x68` = `FUN_1435f47a0`. Writer and reader agree field for field.
+
+| # | Field | Codec | Object slot |
+| --- | --- | --- | --- |
+| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 3 | `field_c` | `u32` BE (`FUN_140876e70` writer / `FUN_14087a3c0` reader) | `+0x88` |
+| 4 | `field_d` | nested container (see below): presence byte, prefix-varint vector of `0x58`-byte string pairs, one string, one `u32` BE | `+0x20` |
+
+`field_d` is **not a scalar**, which is why this body is variable-length while every other
+decoded sibling so far is fixed-size. The writer `FUN_141725e20(msg+0x20)` and the reader
+`FUN_1417af5b0(msg+0x20)` agree on its shape: (a) one byte via the stream vtable `+0x40`
+telling whether an AZStd ref-object pointer is present (`FUN_1415a4920` / `FUN_1417b2e70`;
+the reader's byte must be `< 2`); (b) a **prefix-varint count** (`FUN_140877b10` writer /
+`FUN_14087b760` reader) of `0x58`-byte items, each carrying two length-prefixed byte
+strings at item+`0x08` and item+`0x30` (`FUN_140876f20` writer / `FUN_14087a570` reader, a
+prefix-varint length then raw bytes); (c) one length-prefixed byte string at container+
+`0x38`; (d) one `u32` BE at container+`0x60`. The count is bounded by `0x2000001` on both
+sides, and the empty/overflow branch writes a zero count.
+
+The shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) is the same one `0x5de`, `0xf37`,
+`0xda2`, `0x55`, `0x1676`, `0x1b7` and `0x969` use; the `u32` writer is `FUN_140876e70`
+and the reader head is `FUN_14150e670`. **Evidence word: partial** - the order and the
+codec come from the writer and the reader independently, but no live record has been
+matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server
+must do:** handle inbound `0x169d` by reading the two `u64` BE head fields, then one `u32`
+BE, then the nested container (one presence byte, a varint count of `0x58`-byte string
+pairs, one string, one `u32` BE), then change the inventory replicated state; a wrong
+length desynchronizes the stream.
+
 ### The channel-1 body changes SHAPE with the UI, not with the key
 
 The one structural positive. The ALC body (`0x635`,
