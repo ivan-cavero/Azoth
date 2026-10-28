@@ -6594,6 +6594,16 @@
    ],
    "client": [
     {
+     "wire_type": "0x784",
+     "method": "DisplayImmuneText",
+     "name": "DamageReceiverComponentClientFacet_DisplayImmuneText"
+    },
+    {
+     "wire_type": "0x8aa",
+     "method": "HandleMeleeDamage",
+     "name": "DamageReceiverComponentClientFacet_HandleMeleeDamage"
+    },
+    {
      "wire_type": "0x817",
      "method": "OnDamageDealt",
      "name": "DamageReceiverComponentClientFacet_OnDamageDealt"
@@ -6613,7 +6623,7 @@
      "name": "GameMasterComponentServerFacet_RemoveSubscriptionFromRemotePlayerInventory"
     },
     {
-     "wire_type": "0xb45",
+     "wire_type": "0xcae",
      "method": "ResetClaimOwnership",
      "name": "GameMasterComponentServerFacet_ResetClaimOwnership"
     },
@@ -6638,6 +6648,11 @@
      "name": "GameMasterComponentServerFacet_SubscribeToRemotePlayerInventory"
     },
     {
+     "wire_type": "0x9f7",
+     "method": "TeleportPlayerToCurrentLocation",
+     "name": "GameMasterComponentServerFacet_TeleportPlayerToCurrentLocation"
+    },
+    {
      "wire_type": "0x1a6d",
      "method": "TeleportPlayerToMeByCharacterId",
      "name": "GameMasterComponentServerFacet_TeleportPlayerToMeByCharacterId"
@@ -6651,6 +6666,11 @@
    "client": [
     {
      "wire_type": "0xcb5",
+     "method": "OnWarDataReceived",
+     "name": "GameMasterComponentClientFacet_OnWarDataReceived"
+    },
+    {
+     "wire_type": "0x147a",
      "method": "OnWarDataReceived",
      "name": "GameMasterComponentClientFacet_OnWarDataReceived"
     },
@@ -6711,154 +6731,18 @@
    ],
    "client": []
   },
-  "Vitals": {
-   "server": [
+  "AutoSpell": {
+   "server": [],
+   "client": [
     {
-     "wire_type": "0x10cf",
-     "method": "DebugRequestRevive",
-     "name": "VitalsComponentServerFacet_DebugRequestRevive"
-    },
-    {
-     "wire_type": "0x39",
-     "method": "DebugRequestSuicide",
-     "name": "VitalsComponentServerFacet_DebugRequestSuicide"
-    },
-    {
-     "wire_type": "0x180e",
-     "method": "Debug_IgnorePvpDamageBalance",
-     "name": "VitalsComponentServerFacet_Debug_IgnorePvpDamageBalance"
-    },
-    {
-     "wire_type": "0x10d9",
-     "method": "Debug_OnTakeHealth",
-     "name": "VitalsComponentServerFacet_Debug_OnTakeHealth"
-    },
-    {
-     "wire_type": "0x14b2",
-     "method": "Debug_ReApplyBuffBucketOverrides",
-     "name": "VitalsComponentServerFacet_Debug_ReApplyBuffBucketOverrides"
-    },
-    {
-     "wire_type": "0x10dd",
-     "method": "Debug_RequestSyncStatusModVitalsData",
-     "name": "VitalsComponentServerFacet_Debug_RequestSyncStatusModVitalsData"
-    },
-    {
-     "wire_type": "0x1010",
-     "method": "Debug_SetReceivingModifiedDamage",
-     "name": "VitalsComponentServerFacet_Debug_SetReceivingModifiedDamage"
-    },
-    {
-     "wire_type": "0x377",
-     "method": "Debug_ToggleInfiniteDeathsDoor",
-     "name": "VitalsComponentServerFacet_Debug_ToggleInfiniteDeathsDoor"
-    },
-    {
-     "wire_type": "0x10d6",
-     "method": "RegisterListener",
-     "name": "VitalsComponentServerFacet_RegisterListener"
+     "wire_type": "0xb2f",
+     "method": "OnLifetimeExpire",
+     "name": "AutoSpellComponentClientFacet_OnLifetimeExpire"
     },
     {
      "wire_type": "0x26",
-     "method": "RequestDamageSelf",
-     "name": "VitalsComponentServerFacet_RequestDamageSelf"
-    },
-    {
-     "wire_type": "0x43d",
-     "method": "RequestDamageSelf",
-     "name": "VitalsComponentServerFacet_RequestDamageSelf"
-    },
-    {
-     "wire_type": "0x561",
-     "method": "RequestDoAfflictionDamage",
-     "name": "VitalsComponentServerFacet_RequestDoAfflictionDamage"
-    },
-    {
-     "wire_type": "0xf7e",
-     "method": "RequestResetDeathsDoorDelay",
-     "name": "VitalsComponentServerFacet_RequestResetDeathsDoorDelay"
-    },
-    {
-     "wire_type": "0x1885",
-     "method": "RequestSetCurrentHealth",
-     "name": "VitalsComponentServerFacet_RequestSetCurrentHealth"
-    },
-    {
-     "wire_type": "0x5c",
-     "method": "RequestSetInvulnerability",
-     "name": "VitalsComponentServerFacet_RequestSetInvulnerability"
-    },
-    {
-     "wire_type": "0x132c",
-     "method": "RequestSetStatMaxValue",
-     "name": "VitalsComponentServerFacet_RequestSetStatMaxValue"
-    },
-    {
-     "wire_type": "0x837",
-     "method": "RequestSetStatValue",
-     "name": "VitalsComponentServerFacet_RequestSetStatValue"
-    },
-    {
-     "wire_type": "0xf39",
-     "method": "RequestSuicide",
-     "name": "VitalsComponentServerFacet_RequestSuicide"
-    },
-    {
-     "wire_type": "0x199d",
-     "method": "ResetPrimaryStats",
-     "name": "VitalsComponentServerFacet_ResetPrimaryStats"
-    },
-    {
-     "wire_type": "0x175",
-     "method": "RestoreSnapshot",
-     "name": "VitalsComponentServerFacet_RestoreSnapshot"
-    },
-    {
-     "wire_type": "0xe19",
-     "method": "SaveSnapshot",
-     "name": "VitalsComponentServerFacet_SaveSnapshot"
-    }
-   ],
-   "client": [
-    {
-     "wire_type": "0x10ba",
-     "method": "ClientSyncDeathRecap",
-     "name": "VitalsComponentClientFacet_ClientSyncDeathRecap"
-    },
-    {
-     "wire_type": "0x1371",
-     "method": "ClientSyncDeathRecapForAllGameModeParticipants",
-     "name": "VitalsComponentClientFacet_ClientSyncDeathRecapForAllGameModeParticipants"
-    },
-    {
-     "wire_type": "0x144d",
-     "method": "ClientSyncDeathRecapForAllGameModeParticipants",
-     "name": "VitalsComponentClientFacet_ClientSyncDeathRecapForAllGameModeParticipants"
-    },
-    {
-     "wire_type": "0x10a0",
-     "method": "Debug_SyncStatusModVitalsData",
-     "name": "VitalsComponentClientFacet_Debug_SyncStatusModVitalsData"
-    },
-    {
-     "wire_type": "0x1a88",
-     "method": "NotifyDamageNumberBusOnTrueDamageReceived",
-     "name": "VitalsComponentClientFacet_NotifyDamageNumberBusOnTrueDamageReceived"
-    },
-    {
-     "wire_type": "0xe11",
-     "method": "OnDamage",
-     "name": "VitalsComponentClientFacet_OnDamage"
-    },
-    {
-     "wire_type": "0xa53",
-     "method": "OnEnteredDeathsDoorInSiegeWarfare",
-     "name": "VitalsComponentClientFacet_OnEnteredDeathsDoorInSiegeWarfare"
-    },
-    {
-     "wire_type": "0x537",
-     "method": "OnRequestRevive",
-     "name": "VitalsComponentClientFacet_OnRequestRevive"
+     "method": "OnSpellCast",
+     "name": "AutoSpellComponentClientFacet_OnSpellCast"
     }
    ]
   },
@@ -6970,6 +6854,11 @@
      "name": "GuildsComponentServerFacet_RequestDepositGuildTreasuryFunds"
     },
     {
+     "wire_type": "0x2b8",
+     "method": "RequestEditGuildIcon",
+     "name": "GuildsComponentServerFacet_RequestEditGuildIcon"
+    },
+    {
      "wire_type": "0xd14",
      "method": "RequestEditGuildMOTD",
      "name": "GuildsComponentServerFacet_RequestEditGuildMOTD"
@@ -7013,6 +6902,11 @@
      "wire_type": "0xe31",
      "method": "RequestListGuildsByName",
      "name": "GuildsComponentServerFacet_RequestListGuildsByName"
+    },
+    {
+     "wire_type": "0x1574",
+     "method": "RequestRefreshGuildData",
+     "name": "GuildsComponentServerFacet_RequestRefreshGuildData"
     },
     {
      "wire_type": "0x9b5",
@@ -7082,7 +6976,7 @@
      "name": "GuildsComponentClientFacet_OnEditGuildNameFailedMsg"
     },
     {
-     "wire_type": "0x1574",
+     "wire_type": "0x28b",
      "method": "OnGetGuildTreasuryFailedMsg",
      "name": "GuildsComponentClientFacet_OnGetGuildTreasuryFailedMsg"
     },
@@ -7251,6 +7145,11 @@
      "name": "CategoricalProgressionComponentServerFacet_DebugMaxTerritoryStanding"
     },
     {
+     "wire_type": "0xba5",
+     "method": "DebugMaxTradeskills",
+     "name": "CategoricalProgressionComponentServerFacet_DebugMaxTradeskills"
+    },
+    {
      "wire_type": "0xfc2",
      "method": "DebugMaxWeaponMastery",
      "name": "CategoricalProgressionComponentServerFacet_DebugMaxWeaponMastery"
@@ -7271,7 +7170,7 @@
      "name": "CategoricalProgressionComponentServerFacet_DebugSetProgressionRank"
     },
     {
-     "wire_type": "0xba5",
+     "wire_type": "0x17c0",
      "method": "DebugWritePersistenceToFile",
      "name": "CategoricalProgressionComponentServerFacet_DebugWritePersistenceToFile"
     }
@@ -7506,6 +7405,182 @@
     }
    ]
   },
+  "Vitals": {
+   "server": [
+    {
+     "wire_type": "0x10cf",
+     "method": "DebugRequestRevive",
+     "name": "VitalsComponentServerFacet_DebugRequestRevive"
+    },
+    {
+     "wire_type": "0x10ce",
+     "method": "DebugRequestSuicide",
+     "name": "VitalsComponentServerFacet_DebugRequestSuicide"
+    },
+    {
+     "wire_type": "0x3f5",
+     "method": "DebugSetInvincible",
+     "name": "VitalsComponentServerFacet_DebugSetInvincible"
+    },
+    {
+     "wire_type": "0x180e",
+     "method": "Debug_IgnorePvpDamageBalance",
+     "name": "VitalsComponentServerFacet_Debug_IgnorePvpDamageBalance"
+    },
+    {
+     "wire_type": "0x10d9",
+     "method": "Debug_OnTakeHealth",
+     "name": "VitalsComponentServerFacet_Debug_OnTakeHealth"
+    },
+    {
+     "wire_type": "0x14b2",
+     "method": "Debug_ReApplyBuffBucketOverrides",
+     "name": "VitalsComponentServerFacet_Debug_ReApplyBuffBucketOverrides"
+    },
+    {
+     "wire_type": "0x10dd",
+     "method": "Debug_RequestSyncStatusModVitalsData",
+     "name": "VitalsComponentServerFacet_Debug_RequestSyncStatusModVitalsData"
+    },
+    {
+     "wire_type": "0x1b77",
+     "method": "Debug_RequestVitalsDifficulty",
+     "name": "VitalsComponentServerFacet_Debug_RequestVitalsDifficulty"
+    },
+    {
+     "wire_type": "0x1010",
+     "method": "Debug_SetReceivingModifiedDamage",
+     "name": "VitalsComponentServerFacet_Debug_SetReceivingModifiedDamage"
+    },
+    {
+     "wire_type": "0x377",
+     "method": "Debug_ToggleInfiniteDeathsDoor",
+     "name": "VitalsComponentServerFacet_Debug_ToggleInfiniteDeathsDoor"
+    },
+    {
+     "wire_type": "0xeef",
+     "method": "OnRequestRevive",
+     "name": "VitalsComponentServerFacet_OnRequestRevive"
+    },
+    {
+     "wire_type": "0x10d6",
+     "method": "RegisterListener",
+     "name": "VitalsComponentServerFacet_RegisterListener"
+    },
+    {
+     "wire_type": "0x43d",
+     "method": "RequestDamageSelf",
+     "name": "VitalsComponentServerFacet_RequestDamageSelf"
+    },
+    {
+     "wire_type": "0x561",
+     "method": "RequestDoAfflictionDamage",
+     "name": "VitalsComponentServerFacet_RequestDoAfflictionDamage"
+    },
+    {
+     "wire_type": "0xd7a",
+     "method": "RequestResetDeathsDoorDelay",
+     "name": "VitalsComponentServerFacet_RequestResetDeathsDoorDelay"
+    },
+    {
+     "wire_type": "0xfb3",
+     "method": "RequestResetInvulnerability",
+     "name": "VitalsComponentServerFacet_RequestResetInvulnerability"
+    },
+    {
+     "wire_type": "0x1885",
+     "method": "RequestSetCurrentHealth",
+     "name": "VitalsComponentServerFacet_RequestSetCurrentHealth"
+    },
+    {
+     "wire_type": "0x5c",
+     "method": "RequestSetInvulnerability",
+     "name": "VitalsComponentServerFacet_RequestSetInvulnerability"
+    },
+    {
+     "wire_type": "0x10cd",
+     "method": "RequestSetStatMaxValue",
+     "name": "VitalsComponentServerFacet_RequestSetStatMaxValue"
+    },
+    {
+     "wire_type": "0x837",
+     "method": "RequestSetStatValue",
+     "name": "VitalsComponentServerFacet_RequestSetStatValue"
+    },
+    {
+     "wire_type": "0xf39",
+     "method": "RequestSuicide",
+     "name": "VitalsComponentServerFacet_RequestSuicide"
+    },
+    {
+     "wire_type": "0x10dc",
+     "method": "ResetPrimaryStats",
+     "name": "VitalsComponentServerFacet_ResetPrimaryStats"
+    },
+    {
+     "wire_type": "0x10db",
+     "method": "RestoreSnapshot",
+     "name": "VitalsComponentServerFacet_RestoreSnapshot"
+    },
+    {
+     "wire_type": "0x160",
+     "method": "SaveSnapshot",
+     "name": "VitalsComponentServerFacet_SaveSnapshot"
+    },
+    {
+     "wire_type": "0x10d8",
+     "method": "UnregisterListener",
+     "name": "VitalsComponentServerFacet_UnregisterListener"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x10cb",
+     "method": "ClientSyncDeathRecap",
+     "name": "VitalsComponentClientFacet_ClientSyncDeathRecap"
+    },
+    {
+     "wire_type": "0x1371",
+     "method": "ClientSyncDeathRecapForAllGameModeParticipants",
+     "name": "VitalsComponentClientFacet_ClientSyncDeathRecapForAllGameModeParticipants"
+    },
+    {
+     "wire_type": "0x10a0",
+     "method": "Debug_SyncStatusModVitalsData",
+     "name": "VitalsComponentClientFacet_Debug_SyncStatusModVitalsData"
+    },
+    {
+     "wire_type": "0x1b76",
+     "method": "Debug_SyncVitalsSifficulty",
+     "name": "VitalsComponentClientFacet_Debug_SyncVitalsSifficulty"
+    },
+    {
+     "wire_type": "0x1495",
+     "method": "NotifyDamageNumberBusOnTrueDamageReceived",
+     "name": "VitalsComponentClientFacet_NotifyDamageNumberBusOnTrueDamageReceived"
+    },
+    {
+     "wire_type": "0xe11",
+     "method": "OnDamage",
+     "name": "VitalsComponentClientFacet_OnDamage"
+    },
+    {
+     "wire_type": "0xa53",
+     "method": "OnEnteredDeathsDoorInSiegeWarfare",
+     "name": "VitalsComponentClientFacet_OnEnteredDeathsDoorInSiegeWarfare"
+    },
+    {
+     "wire_type": "0x10ca",
+     "method": "OnHealedPlayer",
+     "name": "VitalsComponentClientFacet_OnHealedPlayer"
+    },
+    {
+     "wire_type": "0x537",
+     "method": "OnRequestRevive",
+     "name": "VitalsComponentClientFacet_OnRequestRevive"
+    }
+   ]
+  },
   "P2PTrade": {
    "server": [
     {
@@ -7532,6 +7607,11 @@
      "wire_type": "0x7a",
      "method": "UpdateOfferedCoin",
      "name": "P2PTradeComponentServerFacet_UpdateOfferedCoin"
+    },
+    {
+     "wire_type": "0x59d",
+     "method": "UpdateOfferedItems",
+     "name": "P2PTradeComponentServerFacet_UpdateOfferedItems"
     }
    ],
    "client": [
@@ -7571,7 +7651,7 @@
      "name": "P2PTradeComponentClientFacet_OnTradeSessionStarted"
     },
     {
-     "wire_type": "0x59d",
+     "wire_type": "0x109d",
      "method": "OnUpdateOfferedCoinResponse",
      "name": "P2PTradeComponentClientFacet_OnUpdateOfferedCoinResponse"
     },
@@ -7579,72 +7659,6 @@
      "wire_type": "0x2b0",
      "method": "OnUpdateOfferedItemsResponse",
      "name": "P2PTradeComponentClientFacet_OnUpdateOfferedItemsResponse"
-    }
-   ]
-  },
-  "PlayerArena": {
-   "server": [
-    {
-     "wire_type": "0x17aa",
-     "method": "DebugAdvanceEncounterToNextState",
-     "name": "PlayerArenaComponentServerFacet_DebugAdvanceEncounterToNextState"
-    },
-    {
-     "wire_type": "0x1acc",
-     "method": "DebugResetEncounters",
-     "name": "PlayerArenaComponentServerFacet_DebugResetEncounters"
-    },
-    {
-     "wire_type": "0x39e",
-     "method": "ForfeitArena",
-     "name": "PlayerArenaComponentServerFacet_ForfeitArena"
-    },
-    {
-     "wire_type": "0x19ee",
-     "method": "NotifyPlayerOfFtueQTECompletion",
-     "name": "PlayerArenaComponentServerFacet_NotifyPlayerOfFtueQTECompletion"
-    },
-    {
-     "wire_type": "0x13ad",
-     "method": "RequestRemoteEnterDungeon",
-     "name": "PlayerArenaComponentServerFacet_RequestRemoteEnterDungeon"
-    },
-    {
-     "wire_type": "0x13af",
-     "method": "RequestRemoteInteract",
-     "name": "PlayerArenaComponentServerFacet_RequestRemoteInteract"
-    },
-    {
-     "wire_type": "0x3b2",
-     "method": "TeleportIntoDungeon",
-     "name": "PlayerArenaComponentServerFacet_TeleportIntoDungeon"
-    }
-   ],
-   "client": [
-    {
-     "wire_type": "0x81",
-     "method": "OnArenaActivated",
-     "name": "PlayerArenaComponentClientFacet_OnArenaActivated"
-    },
-    {
-     "wire_type": "0x960",
-     "method": "OnArenaActivated",
-     "name": "PlayerArenaComponentClientFacet_OnArenaActivated"
-    },
-    {
-     "wire_type": "0x1a78",
-     "method": "OnDungeonActivateRemoteResult",
-     "name": "PlayerArenaComponentClientFacet_OnDungeonActivateRemoteResult"
-    },
-    {
-     "wire_type": "0x1ad0",
-     "method": "OnEnterDungeonRequestIgnoredMsg",
-     "name": "PlayerArenaComponentClientFacet_OnEnterDungeonRequestIgnoredMsg"
-    },
-    {
-     "wire_type": "0x13ae",
-     "method": "OnRemoteInteractResult",
-     "name": "PlayerArenaComponentClientFacet_OnRemoteInteractResult"
     }
    ]
   },
@@ -7671,7 +7685,7 @@
      "name": "TwitchComponentServerFacet_RequestJoinableSubArmies"
     },
     {
-     "wire_type": "0x7ab",
+     "wire_type": "0xae1",
      "method": "RevokeTwitchUserValidation",
      "name": "TwitchComponentServerFacet_RevokeTwitchUserValidation"
     },
@@ -7684,6 +7698,11 @@
      "wire_type": "0xa08",
      "method": "SetOverrideUserId",
      "name": "TwitchComponentServerFacet_SetOverrideUserId"
+    },
+    {
+     "wire_type": "0xc33",
+     "method": "SetStreamerTagByStringId",
+     "name": "TwitchComponentServerFacet_SetStreamerTagByStringId"
     },
     {
      "wire_type": "0x1062",
@@ -7772,14 +7791,24 @@
   "Character": {
    "server": [
     {
+     "wire_type": "0x16f2",
+     "method": "DebugChangeCharacterCollider",
+     "name": "CharacterComponentServerFacet_DebugChangeCharacterCollider"
+    },
+    {
      "wire_type": "0x97",
      "method": "DebugRequestDisableCollision",
      "name": "CharacterComponentServerFacet_DebugRequestDisableCollision"
     },
     {
-     "wire_type": "0x6aa",
+     "wire_type": "0xeb",
      "method": "DebugRequestEnableCollision",
      "name": "CharacterComponentServerFacet_DebugRequestEnableCollision"
+    },
+    {
+     "wire_type": "0x7fe",
+     "method": "DebugSetStepping",
+     "name": "CharacterComponentServerFacet_DebugSetStepping"
     },
     {
      "wire_type": "0x72f",
@@ -7787,7 +7816,18 @@
      "name": "CharacterComponentServerFacet_DebugUnregisterFromGrid"
     }
    ],
-   "client": []
+   "client": [
+    {
+     "wire_type": "0x701",
+     "method": "RequestDisableCollision",
+     "name": "CharacterComponentClientFacet_RequestDisableCollision"
+    },
+    {
+     "wire_type": "0x7f7",
+     "method": "RequestEnableCollision",
+     "name": "CharacterComponentClientFacet_RequestEnableCollision"
+    }
+   ]
   },
   "BehaviorTree": {
    "server": [
@@ -7807,7 +7847,7 @@
      "name": "BehaviorTreeComponentServerFacet_DebugPositionSelection"
     },
     {
-     "wire_type": "0x459",
+     "wire_type": "0x160e",
      "method": "DebugSetBehaviorTreeNodeOverrideFlag",
      "name": "BehaviorTreeComponentServerFacet_DebugSetBehaviorTreeNodeOverrideFlag"
     },
@@ -7830,6 +7870,11 @@
      "wire_type": "0x90f",
      "method": "StepTreeUpdate",
      "name": "BehaviorTreeComponentServerFacet_StepTreeUpdate"
+    },
+    {
+     "wire_type": "0x459",
+     "method": "UnregisterClientForDebugSnapshots",
+     "name": "BehaviorTreeComponentServerFacet_UnregisterClientForDebugSnapshots"
     }
    ],
    "client": [
@@ -7898,6 +7943,11 @@
   "Ability": {
    "server": [
     {
+     "wire_type": "0x67e",
+     "method": "DebugRequestAddAbilityPoints",
+     "name": "AbilityComponentServerFacet_DebugRequestAddAbilityPoints"
+    },
+    {
      "wire_type": "0x1a87",
      "method": "Debug_IgnorePvpCooldownBalance",
      "name": "AbilityComponentServerFacet_Debug_IgnorePvpCooldownBalance"
@@ -7916,6 +7966,11 @@
      "wire_type": "0xa8d",
      "method": "RequestChangeMappedAbility",
      "name": "AbilityComponentServerFacet_RequestChangeMappedAbility"
+    },
+    {
+     "wire_type": "0x47e",
+     "method": "RequestChangeSelectedTable",
+     "name": "AbilityComponentServerFacet_RequestChangeSelectedTable"
     },
     {
      "wire_type": "0xba",
@@ -7962,6 +8017,11 @@
      "wire_type": "0x106d",
      "method": "ReportError",
      "name": "VoiceChatComponentServerFacet_ReportError"
+    },
+    {
+     "wire_type": "0x7ab",
+     "method": "RequestEchoChannelUri",
+     "name": "VoiceChatComponentServerFacet_RequestEchoChannelUri"
     },
     {
      "wire_type": "0x106c",
@@ -8126,7 +8186,7 @@
      "name": "SocialComponentServerFacet_ClearNewTitles"
     },
     {
-     "wire_type": "0x19f3",
+     "wire_type": "0x15a7",
      "method": "DebugAcceptAllFriendInvites",
      "name": "SocialComponentServerFacet_DebugAcceptAllFriendInvites"
     },
@@ -8151,6 +8211,16 @@
      "name": "SocialComponentServerFacet_DebugForceEndWar"
     },
     {
+     "wire_type": "0x1035",
+     "method": "DebugLockAllDebugTitles",
+     "name": "SocialComponentServerFacet_DebugLockAllDebugTitles"
+    },
+    {
+     "wire_type": "0x1034",
+     "method": "DebugLockTitle",
+     "name": "SocialComponentServerFacet_DebugLockTitle"
+    },
+    {
      "wire_type": "0x1991",
      "method": "DebugNotifyEarlyRelocate",
      "name": "SocialComponentServerFacet_DebugNotifyEarlyRelocate"
@@ -8164,6 +8234,11 @@
      "wire_type": "0x1a04",
      "method": "DebugRequestAddPlatformFriend",
      "name": "SocialComponentServerFacet_DebugRequestAddPlatformFriend"
+    },
+    {
+     "wire_type": "0x1a02",
+     "method": "DebugRequestPlatformFriendsList",
+     "name": "SocialComponentServerFacet_DebugRequestPlatformFriendsList"
     },
     {
      "wire_type": "0x19f0",
@@ -8191,12 +8266,12 @@
      "name": "SocialComponentServerFacet_DebugSetP2PCommunicationRestriction"
     },
     {
-     "wire_type": "0x1a01",
+     "wire_type": "0x19e0",
      "method": "DebugSetViewPresenceRestriction",
      "name": "SocialComponentServerFacet_DebugSetViewPresenceRestriction"
     },
     {
-     "wire_type": "0x1a02",
+     "wire_type": "0x19e4",
      "method": "DebugSetVoiceCommunicationRestriction",
      "name": "SocialComponentServerFacet_DebugSetVoiceCommunicationRestriction"
     },
@@ -8209,6 +8284,11 @@
      "wire_type": "0xc8b",
      "method": "DebugUnlockTitle",
      "name": "SocialComponentServerFacet_DebugUnlockTitle"
+    },
+    {
+     "wire_type": "0x19f3",
+     "method": "GetServerVpcValues",
+     "name": "SocialComponentServerFacet_GetServerVpcValues"
     },
     {
      "wire_type": "0x1041",
@@ -8226,12 +8306,12 @@
      "name": "SocialComponentServerFacet_OnBlocklistChanged"
     },
     {
-     "wire_type": "0x113",
-     "method": "RequestClearSocialBlock",
-     "name": "SocialComponentServerFacet_RequestClearSocialBlock"
+     "wire_type": "0x1a01",
+     "method": "RequestAddPlatformFriendsToOnlineStateChangeListener",
+     "name": "SocialComponentServerFacet_RequestAddPlatformFriendsToOnlineStateChangeListener"
     },
     {
-     "wire_type": "0x196a",
+     "wire_type": "0xad2",
      "method": "RequestClearSocialBlock",
      "name": "SocialComponentServerFacet_RequestClearSocialBlock"
     },
@@ -8239,6 +8319,11 @@
      "wire_type": "0x192c",
      "method": "RequestCrossplayPermissionsDataSync",
      "name": "SocialComponentServerFacet_RequestCrossplayPermissionsDataSync"
+    },
+    {
+     "wire_type": "0xb68",
+     "method": "RequestDeclareWar",
+     "name": "SocialComponentServerFacet_RequestDeclareWar"
     },
     {
      "wire_type": "0x64a",
@@ -8281,17 +8366,17 @@
      "name": "SocialComponentServerFacet_RequestPlayerPhaseId"
     },
     {
-     "wire_type": "0x1035",
+     "wire_type": "0x103f",
      "method": "RequestRemoveAllFriendInvites",
      "name": "SocialComponentServerFacet_RequestRemoveAllFriendInvites"
     },
     {
-     "wire_type": "0x1034",
+     "wire_type": "0x103e",
      "method": "RequestRemoveAllFriends",
      "name": "SocialComponentServerFacet_RequestRemoveAllFriends"
     },
     {
-     "wire_type": "0x6c9",
+     "wire_type": "0x640",
      "method": "RequestReportPlayer",
      "name": "SocialComponentServerFacet_RequestReportPlayer"
     },
@@ -8311,7 +8396,7 @@
      "name": "SocialComponentServerFacet_RequestSetPronounType"
     },
     {
-     "wire_type": "0x640",
+     "wire_type": "0x9aa",
      "method": "RequestSetTitle",
      "name": "SocialComponentServerFacet_RequestSetTitle"
     },
@@ -8336,7 +8421,7 @@
      "name": "SocialComponentServerFacet_SendDebugTitlesToClient"
     },
     {
-     "wire_type": "0x1050",
+     "wire_type": "0xaef",
      "method": "SetSocialBlock",
      "name": "SocialComponentServerFacet_SetSocialBlock"
     }
@@ -8351,6 +8436,11 @@
      "wire_type": "0x19f1",
      "method": "DebugOnPrivacySettingsUpdate",
      "name": "SocialComponentClientFacet_DebugOnPrivacySettingsUpdate"
+    },
+    {
+     "wire_type": "0x19f2",
+     "method": "DebugOnReceiveServerPrivacySettings",
+     "name": "SocialComponentClientFacet_DebugOnReceiveServerPrivacySettings"
     },
     {
      "wire_type": "0x18fe",
@@ -8403,6 +8493,11 @@
      "name": "SocialComponentClientFacet_OnFriendInviteRejected"
     },
     {
+     "wire_type": "0x113",
+     "method": "OnLandClaimAttacked",
+     "name": "SocialComponentClientFacet_OnLandClaimAttacked"
+    },
+    {
      "wire_type": "0xaf3",
      "method": "OnLockedLandClaimTaken",
      "name": "SocialComponentClientFacet_OnLockedLandClaimTaken"
@@ -8413,7 +8508,7 @@
      "name": "SocialComponentClientFacet_OnPhaseInviteAcceptedResponse"
     },
     {
-     "wire_type": "0xb68",
+     "wire_type": "0x19ff",
      "method": "OnPlatformFriendOnlineStateChange",
      "name": "SocialComponentClientFacet_OnPlatformFriendOnlineStateChange"
     },
@@ -8438,6 +8533,11 @@
      "name": "SocialComponentClientFacet_OnTitleUnlock"
     },
     {
+     "wire_type": "0xe01",
+     "method": "OnTitlesUnlock",
+     "name": "SocialComponentClientFacet_OnTitlesUnlock"
+    },
+    {
      "wire_type": "0x3ad",
      "method": "OnWarDeclarationFailed",
      "name": "SocialComponentClientFacet_OnWarDeclarationFailed"
@@ -8448,12 +8548,17 @@
      "name": "SocialComponentClientFacet_OnWarRequestErrorMessage"
     },
     {
+     "wire_type": "0x6c9",
+     "method": "OnWarRequestPending",
+     "name": "SocialComponentClientFacet_OnWarRequestPending"
+    },
+    {
      "wire_type": "0xc1",
      "method": "OnWarRequestSuccessful",
      "name": "SocialComponentClientFacet_OnWarRequestSuccessful"
     },
     {
-     "wire_type": "0xd4d",
+     "wire_type": "0x1028",
      "method": "OnWaveRequestReceived",
      "name": "SocialComponentClientFacet_OnWaveRequestReceived"
     },
@@ -8468,7 +8573,7 @@
      "name": "SocialComponentClientFacet_OnWaveTimedOut"
     },
     {
-     "wire_type": "0xe01",
+     "wire_type": "0x102c",
      "method": "PlayerDataResponse",
      "name": "SocialComponentClientFacet_PlayerDataResponse"
     },
@@ -8483,9 +8588,19 @@
      "name": "SocialComponentClientFacet_PlayersPhaseIdResponse"
     },
     {
+     "wire_type": "0x196a",
+     "method": "PrimaryGridPhaseShuttingDown",
+     "name": "SocialComponentClientFacet_PrimaryGridPhaseShuttingDown"
+    },
+    {
      "wire_type": "0x1033",
      "method": "ReceiveAvailableTitles",
      "name": "SocialComponentClientFacet_ReceiveAvailableTitles"
+    },
+    {
+     "wire_type": "0xd4d",
+     "method": "ReceiveDebugTitles",
+     "name": "SocialComponentClientFacet_ReceiveDebugTitles"
     },
     {
      "wire_type": "0x18f4",
@@ -8593,6 +8708,11 @@
      "name": "ContractsComponentServerFacet_DebugUpdateContractDuration"
     },
     {
+     "wire_type": "0x1487",
+     "method": "InitiateServerTransferCheck",
+     "name": "ContractsComponentServerFacet_InitiateServerTransferCheck"
+    },
+    {
      "wire_type": "0xb9f",
      "method": "LookupContracts",
      "name": "ContractsComponentServerFacet_LookupContracts"
@@ -8623,6 +8743,11 @@
      "name": "ContractsComponentServerFacet_SetDebugSendContractEventsToClient"
     },
     {
+     "wire_type": "0x1623",
+     "method": "TestMakeGoodWorldTransfer",
+     "name": "ContractsComponentServerFacet_TestMakeGoodWorldTransfer"
+    },
+    {
      "wire_type": "0x1609",
      "method": "TransferContract",
      "name": "ContractsComponentServerFacet_TransferContract"
@@ -8651,6 +8776,11 @@
     },
     {
      "wire_type": "0x27a",
+     "method": "OnCreateContract",
+     "name": "ContractsComponentClientFacet_OnCreateContract"
+    },
+    {
+     "wire_type": "0x1454",
      "method": "OnCreateContract",
      "name": "ContractsComponentClientFacet_OnCreateContract"
     },
@@ -8710,7 +8840,7 @@
      "name": "ContractsComponentClientFacet_OnSearchContracts"
     },
     {
-     "wire_type": "0x1487",
+     "wire_type": "0x1606",
      "method": "OnTransferContract",
      "name": "ContractsComponentClientFacet_OnTransferContract"
     }
@@ -8754,7 +8884,7 @@
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestCompleteProject"
     },
     {
-     "wire_type": "0xae5",
+     "wire_type": "0x14cc",
      "method": "DEBUG_RequestDistributePooledEarnings",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestDistributePooledEarnings"
     },
@@ -8779,7 +8909,7 @@
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestResetFactionInfluence"
     },
     {
-     "wire_type": "0xade",
+     "wire_type": "0x9fe",
      "method": "DEBUG_RequestServerSideDebugData",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestServerSideDebugData"
     },
@@ -8824,7 +8954,7 @@
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestSyncFactionInfluenceValues"
     },
     {
-     "wire_type": "0xae0",
+     "wire_type": "0x14cd",
      "method": "DEBUG_RequestSyncGovernanceBrokerData",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestSyncGovernanceBrokerData"
     },
@@ -8834,12 +8964,17 @@
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestTransferOwnership"
     },
     {
+     "wire_type": "0xae5",
+     "method": "DEBUG_SendRaidInvites",
+     "name": "TerritoryInteractorComponentServerFacet_DEBUG_SendRaidInvites"
+    },
+    {
      "wire_type": "0x86b",
      "method": "DEBUG_SetRemainingTerritoryEffectTime",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_SetRemainingTerritoryEffectTime"
     },
     {
-     "wire_type": "0xaa6",
+     "wire_type": "0xab6",
      "method": "DEBUG_SetTaxOrFee",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_SetTaxOrFee"
     },
@@ -8869,6 +9004,11 @@
      "name": "TerritoryInteractorComponentServerFacet_RequestKickPlayer"
     },
     {
+     "wire_type": "0xae0",
+     "method": "RequestLeave",
+     "name": "TerritoryInteractorComponentServerFacet_RequestLeave"
+    },
+    {
      "wire_type": "0x68c",
      "method": "RequestMovePlayer",
      "name": "TerritoryInteractorComponentServerFacet_RequestMovePlayer"
@@ -8884,7 +9024,7 @@
      "name": "TerritoryInteractorComponentServerFacet_RequestRemoteInteract"
     },
     {
-     "wire_type": "0x9d7",
+     "wire_type": "0xadd",
      "method": "RequestRemovePlayerFromRoster",
      "name": "TerritoryInteractorComponentServerFacet_RequestRemovePlayerFromRoster"
     },
@@ -8902,6 +9042,11 @@
      "wire_type": "0x6bf",
      "method": "RequestSetGroupData",
      "name": "TerritoryInteractorComponentServerFacet_RequestSetGroupData"
+    },
+    {
+     "wire_type": "0xade",
+     "method": "RequestSetPlayerPermissions",
+     "name": "TerritoryInteractorComponentServerFacet_RequestSetPlayerPermissions"
     },
     {
      "wire_type": "0xf6",
@@ -8932,6 +9077,11 @@
      "wire_type": "0x74f",
      "method": "RequestSwapPlayers",
      "name": "TerritoryInteractorComponentServerFacet_RequestSwapPlayers"
+    },
+    {
+     "wire_type": "0x9d7",
+     "method": "SetTaxOrFee",
+     "name": "TerritoryInteractorComponentServerFacet_SetTaxOrFee"
     }
    ],
    "client": [
@@ -8981,6 +9131,11 @@
      "name": "TerritoryInteractorComponentClientFacet_OnSignupCountReceived"
     },
     {
+     "wire_type": "0xaa6",
+     "method": "OnSignupListReceived",
+     "name": "TerritoryInteractorComponentClientFacet_OnSignupListReceived"
+    },
+    {
      "wire_type": "0x879",
      "method": "OnSignupResponseReceived",
      "name": "TerritoryInteractorComponentClientFacet_OnSignupResponseReceived"
@@ -8996,11 +9151,6 @@
     },
     {
      "wire_type": "0xd4e",
-     "method": "RequestReplyToInvite",
-     "name": "PlayerGenericInviteComponentServerFacet_RequestReplyToInvite"
-    },
-    {
-     "wire_type": "0xd50",
      "method": "RequestReplyToInvite",
      "name": "PlayerGenericInviteComponentServerFacet_RequestReplyToInvite"
     },
@@ -9086,7 +9236,7 @@
      "name": "GroupsComponentServerFacet_DebugForceGroupPristine"
     },
     {
-     "wire_type": "0xcad",
+     "wire_type": "0x14f4",
      "method": "DebugGroupFinderFailConversion",
      "name": "GroupsComponentServerFacet_DebugGroupFinderFailConversion"
     },
@@ -9101,7 +9251,7 @@
      "name": "GroupsComponentServerFacet_DebugGroupFinderFailUpdateMember"
     },
     {
-     "wire_type": "0x894",
+     "wire_type": "0x708",
      "method": "DebugJoinRaid",
      "name": "GroupsComponentServerFacet_DebugJoinRaid"
     },
@@ -9146,7 +9296,7 @@
      "name": "GroupsComponentServerFacet_RequestConfirmConvertGroupFinderGroupToGroup"
     },
     {
-     "wire_type": "0xd87",
+     "wire_type": "0x69",
      "method": "RequestConfirmGroupFinderApplicationInvite",
      "name": "GroupsComponentServerFacet_RequestConfirmGroupFinderApplicationInvite"
     },
@@ -9171,6 +9321,11 @@
      "name": "GroupsComponentServerFacet_RequestDeclineConvertGroupFinderGroupToGroup"
     },
     {
+     "wire_type": "0xcad",
+     "method": "RequestDeclineGroupFinderApplicationInvite",
+     "name": "GroupsComponentServerFacet_RequestDeclineGroupFinderApplicationInvite"
+    },
+    {
      "wire_type": "0x47b",
      "method": "RequestGetGroupFinderGroup",
      "name": "GroupsComponentServerFacet_RequestGetGroupFinderGroup"
@@ -9181,9 +9336,14 @@
      "name": "GroupsComponentServerFacet_RequestGetGroupFinderGroupList"
     },
     {
-     "wire_type": "0x68d",
+     "wire_type": "0x1577",
      "method": "RequestGetGroupFinderGroupListUnfiltered",
      "name": "GroupsComponentServerFacet_RequestGetGroupFinderGroupListUnfiltered"
+    },
+    {
+     "wire_type": "0xda4",
+     "method": "RequestGroupInvite",
+     "name": "GroupsComponentServerFacet_RequestGroupInvite"
     },
     {
      "wire_type": "0x14c5",
@@ -9194,6 +9354,11 @@
      "wire_type": "0xdaa",
      "method": "RequestInitiateKickVotePlayer",
      "name": "GroupsComponentServerFacet_RequestInitiateKickVotePlayer"
+    },
+    {
+     "wire_type": "0x1557",
+     "method": "RequestJoinableLobbyCountsForActivity",
+     "name": "GroupsComponentServerFacet_RequestJoinableLobbyCountsForActivity"
     },
     {
      "wire_type": "0xdab",
@@ -9246,12 +9411,12 @@
      "name": "GroupsComponentServerFacet_RequestRemoveMemberFromGroupFinderGroup"
     },
     {
-     "wire_type": "0x1557",
+     "wire_type": "0xdac",
      "method": "RequestRemoveRaidMember",
      "name": "GroupsComponentServerFacet_RequestRemoveRaidMember"
     },
     {
-     "wire_type": "0x441",
+     "wire_type": "0xda7",
      "method": "RequestReplyToGroupInvite",
      "name": "GroupsComponentServerFacet_RequestReplyToGroupInvite"
     },
@@ -9271,6 +9436,11 @@
      "name": "GroupsComponentServerFacet_RequestSetGroupLeader"
     },
     {
+     "wire_type": "0x894",
+     "method": "RequestSetGroupName",
+     "name": "GroupsComponentServerFacet_RequestSetGroupName"
+    },
+    {
      "wire_type": "0xdb3",
      "method": "RequestSetGroupObjective",
      "name": "GroupsComponentServerFacet_RequestSetGroupObjective"
@@ -9279,6 +9449,11 @@
      "wire_type": "0x976",
      "method": "RequestSetRaidMemberPermission",
      "name": "GroupsComponentServerFacet_RequestSetRaidMemberPermission"
+    },
+    {
+     "wire_type": "0x18a1",
+     "method": "RequestStartAbandonGameMode",
+     "name": "GroupsComponentServerFacet_RequestStartAbandonGameMode"
     },
     {
      "wire_type": "0xdb6",
@@ -9296,7 +9471,7 @@
      "name": "GroupsComponentServerFacet_RequestTargetPing"
     },
     {
-     "wire_type": "0x1553",
+     "wire_type": "0xb38",
      "method": "RequestUpdateGroupFinderGroup",
      "name": "GroupsComponentServerFacet_RequestUpdateGroupFinderGroup"
     },
@@ -9306,7 +9481,7 @@
      "name": "GroupsComponentServerFacet_RequestUpdateMemberInGroupFinderGroup"
     },
     {
-     "wire_type": "0x47f",
+     "wire_type": "0xd8f",
      "method": "RequestWithdrawInvites",
      "name": "GroupsComponentServerFacet_RequestWithdrawInvites"
     }
@@ -9323,12 +9498,17 @@
      "name": "GroupsComponentClientFacet_OnAbandonGameModeVoteStarted"
     },
     {
+     "wire_type": "0x1553",
+     "method": "OnAllActivityJoinableLobbyCountsReceived",
+     "name": "GroupsComponentClientFacet_OnAllActivityJoinableLobbyCountsReceived"
+    },
+    {
      "wire_type": "0x14bd",
      "method": "OnConvertToRaidVoteEnded",
      "name": "GroupsComponentClientFacet_OnConvertToRaidVoteEnded"
     },
     {
-     "wire_type": "0x40d",
+     "wire_type": "0x14bf",
      "method": "OnConvertToRaidVoteInitiated",
      "name": "GroupsComponentClientFacet_OnConvertToRaidVoteInitiated"
     },
@@ -9353,6 +9533,11 @@
      "name": "GroupsComponentClientFacet_OnGroupFinderAddMemberSuccess"
     },
     {
+     "wire_type": "0xd9d",
+     "method": "OnGroupFinderApplicationAccepted",
+     "name": "GroupsComponentClientFacet_OnGroupFinderApplicationAccepted"
+    },
+    {
      "wire_type": "0xba9",
      "method": "OnGroupFinderApplicationRejected",
      "name": "GroupsComponentClientFacet_OnGroupFinderApplicationRejected"
@@ -9373,9 +9558,19 @@
      "name": "GroupsComponentClientFacet_OnGroupFinderConvertToGroupFailed"
     },
     {
+     "wire_type": "0x441",
+     "method": "OnGroupFinderCreateGroupFailed",
+     "name": "GroupsComponentClientFacet_OnGroupFinderCreateGroupFailed"
+    },
+    {
      "wire_type": "0xd2e",
      "method": "OnGroupFinderCreateGroupSuccess",
      "name": "GroupsComponentClientFacet_OnGroupFinderCreateGroupSuccess"
+    },
+    {
+     "wire_type": "0x14ae",
+     "method": "OnGroupFinderDeclineApplicationInvite",
+     "name": "GroupsComponentClientFacet_OnGroupFinderDeclineApplicationInvite"
     },
     {
      "wire_type": "0x292",
@@ -9388,6 +9583,11 @@
      "name": "GroupsComponentClientFacet_OnGroupFinderDeclineApplicationInviteSuccess"
     },
     {
+     "wire_type": "0x6c2",
+     "method": "OnGroupFinderGetGroupFailed",
+     "name": "GroupsComponentClientFacet_OnGroupFinderGetGroupFailed"
+    },
+    {
      "wire_type": "0xd86",
      "method": "OnGroupFinderGetGroupListFailed",
      "name": "GroupsComponentClientFacet_OnGroupFinderGetGroupListFailed"
@@ -9396,6 +9596,11 @@
      "wire_type": "0xd85",
      "method": "OnGroupFinderGetGroupListSuccess",
      "name": "GroupsComponentClientFacet_OnGroupFinderGetGroupListSuccess"
+    },
+    {
+     "wire_type": "0x7da",
+     "method": "OnGroupFinderGetGroupSuccess",
+     "name": "GroupsComponentClientFacet_OnGroupFinderGetGroupSuccess"
     },
     {
      "wire_type": "0x1477",
@@ -9433,6 +9638,11 @@
      "name": "GroupsComponentClientFacet_OnGroupFinderRemoveApplicationSuccess"
     },
     {
+     "wire_type": "0x40d",
+     "method": "OnGroupFinderRemoveGroupFailed",
+     "name": "GroupsComponentClientFacet_OnGroupFinderRemoveGroupFailed"
+    },
+    {
      "wire_type": "0xd83",
      "method": "OnGroupFinderRemoveGroupSuccess",
      "name": "GroupsComponentClientFacet_OnGroupFinderRemoveGroupSuccess"
@@ -9446,6 +9656,11 @@
      "wire_type": "0xd9a",
      "method": "OnGroupFinderRemoveMemberSuccess",
      "name": "GroupsComponentClientFacet_OnGroupFinderRemoveMemberSuccess"
+    },
+    {
+     "wire_type": "0xd87",
+     "method": "OnGroupFinderSubmitApplicationFailed",
+     "name": "GroupsComponentClientFacet_OnGroupFinderSubmitApplicationFailed"
     },
     {
      "wire_type": "0x35d",
@@ -9473,7 +9688,7 @@
      "name": "GroupsComponentClientFacet_OnGroupFinderUpdateMemberSuccess"
     },
     {
-     "wire_type": "0x7da",
+     "wire_type": "0x14bc",
      "method": "OnInitiateConvertToRaidFailed",
      "name": "GroupsComponentClientFacet_OnInitiateConvertToRaidFailed"
     },
@@ -9508,6 +9723,16 @@
      "name": "GroupsComponentClientFacet_OnReceivedGameInviteErrorMessage"
     },
     {
+     "wire_type": "0x68d",
+     "method": "OnReceivedGroupInviteRemoved",
+     "name": "GroupsComponentClientFacet_OnReceivedGroupInviteRemoved"
+    },
+    {
+     "wire_type": "0x14a3",
+     "method": "OnReceivedGroupMemberRemoved",
+     "name": "GroupsComponentClientFacet_OnReceivedGroupMemberRemoved"
+    },
+    {
      "wire_type": "0x2cb",
      "method": "OnReceivedPreRaidStatus",
      "name": "GroupsComponentClientFacet_OnReceivedPreRaidStatus"
@@ -9528,9 +9753,14 @@
      "name": "GroupsComponentClientFacet_OnSiegeWarfareCompleted"
     },
     {
-     "wire_type": "0xda4",
+     "wire_type": "0x14be",
      "method": "OnSubmitConvertToRaidVoteFailed",
      "name": "GroupsComponentClientFacet_OnSubmitConvertToRaidVoteFailed"
+    },
+    {
+     "wire_type": "0x47f",
+     "method": "OnSubmitKickVoteFailed",
+     "name": "GroupsComponentClientFacet_OnSubmitKickVoteFailed"
     },
     {
      "wire_type": "0x1955",
@@ -9550,11 +9780,6 @@
      "wire_type": "0x2d5",
      "method": "DebugAddFakeHouseData",
      "name": "HousingPlotComponentServerFacet_DebugAddFakeHouseData"
-    },
-    {
-     "wire_type": "0x581",
-     "method": "DebugBuyHome",
-     "name": "HousingPlotComponentServerFacet_DebugBuyHome"
     },
     {
      "wire_type": "0xb47",
@@ -9582,7 +9807,7 @@
      "name": "HousingPlotComponentServerFacet_DebugForcePeacockScoresRecalculation"
     },
     {
-     "wire_type": "0xbe6",
+     "wire_type": "0x1737",
      "method": "DebugReloadAllHouses",
      "name": "HousingPlotComponentServerFacet_DebugReloadAllHouses"
     },
@@ -9612,14 +9837,14 @@
      "name": "HousingPlotComponentServerFacet_DebugRequestDestroyHouse"
     },
     {
-     "wire_type": "0xbef",
+     "wire_type": "0xe66",
      "method": "DebugRequestGetMonikerKey",
      "name": "HousingPlotComponentServerFacet_DebugRequestGetMonikerKey"
     },
     {
-     "wire_type": "0xe66",
-     "method": "DebugRequestGetMonikerKey",
-     "name": "HousingPlotComponentServerFacet_DebugRequestGetMonikerKey"
+     "wire_type": "0xe67",
+     "method": "DebugRequestPeacockTimeRemaining",
+     "name": "HousingPlotComponentServerFacet_DebugRequestPeacockTimeRemaining"
     },
     {
      "wire_type": "0xe64",
@@ -9627,7 +9852,7 @@
      "name": "HousingPlotComponentServerFacet_DebugRequestPingHouse"
     },
     {
-     "wire_type": "0x37c",
+     "wire_type": "0x1600",
      "method": "DebugRequestSetTerritoryStanding",
      "name": "HousingPlotComponentServerFacet_DebugRequestSetTerritoryStanding"
     },
@@ -9713,7 +9938,7 @@
      "name": "BotComponentServerFacet_DeleteGuild"
     },
     {
-     "wire_type": "0x9ee",
+     "wire_type": "0x9c7",
      "method": "DestroyDungeon",
      "name": "BotComponentServerFacet_DestroyDungeon"
     },
@@ -9721,6 +9946,11 @@
      "wire_type": "0x6f0",
      "method": "GetByContent",
      "name": "BotComponentServerFacet_GetByContent"
+    },
+    {
+     "wire_type": "0xa22",
+     "method": "GetByOrdering",
+     "name": "BotComponentServerFacet_GetByOrdering"
     },
     {
      "wire_type": "0x177",
@@ -9748,7 +9978,12 @@
      "name": "BotComponentServerFacet_ReceiveBotLocationRequestFromMyClient"
     },
     {
-     "wire_type": "0x9ec",
+     "wire_type": "0x9ee",
+     "method": "ReceiveClientHeartbeatResponse",
+     "name": "BotComponentServerFacet_ReceiveClientHeartbeatResponse"
+    },
+    {
+     "wire_type": "0x9f1",
      "method": "ReceiveMessageCountsRequestFromMyClient",
      "name": "BotComponentServerFacet_ReceiveMessageCountsRequestFromMyClient"
     },
@@ -9833,6 +10068,11 @@
      "name": "BotComponentServerFacet_ServerPublishCharacterSocialData"
     },
     {
+     "wire_type": "0x9ec",
+     "method": "ServerRegisterBot",
+     "name": "BotComponentServerFacet_ServerRegisterBot"
+    },
+    {
      "wire_type": "0x177e",
      "method": "ServerReportBotTaskEnd",
      "name": "BotComponentServerFacet_ServerReportBotTaskEnd"
@@ -9856,6 +10096,11 @@
      "wire_type": "0x6fd",
      "method": "ServerRequestGridSpace",
      "name": "BotComponentServerFacet_ServerRequestGridSpace"
+    },
+    {
+     "wire_type": "0x975",
+     "method": "ServerRequestPath",
+     "name": "BotComponentServerFacet_ServerRequestPath"
     },
     {
      "wire_type": "0x9f9",
@@ -10075,7 +10320,7 @@
      "name": "BotComponentClientFacet_RemoteScriptDebugVictimStart"
     },
     {
-     "wire_type": "0x975",
+     "wire_type": "0x1a64",
      "method": "RemoteScriptDebugVictimStep",
      "name": "BotComponentClientFacet_RemoteScriptDebugVictimStep"
     },
@@ -10094,9 +10339,14 @@
   "Aoi": {
    "server": [
     {
-     "wire_type": "0x6d4",
+     "wire_type": "0x283",
      "method": "DebugAssignGridLayer",
      "name": "AoiComponentServerFacet_DebugAssignGridLayer"
+    },
+    {
+     "wire_type": "0x406",
+     "method": "DebugResetAoiTracking",
+     "name": "AoiComponentServerFacet_DebugResetAoiTracking"
     },
     {
      "wire_type": "0x7e5",
@@ -10114,6 +10364,11 @@
      "wire_type": "0x7e7",
      "method": "RequestDebugGridDataResponse",
      "name": "AoiComponentClientFacet_RequestDebugGridDataResponse"
+    },
+    {
+     "wire_type": "0x7e9",
+     "method": "RequestDebugGridLayerListResponse",
+     "name": "AoiComponentClientFacet_RequestDebugGridLayerListResponse"
     }
    ]
   },
@@ -10196,6 +10451,11 @@
      "name": "GritComponentServerFacet_EnableReplication"
     },
     {
+     "wire_type": "0x10ba",
+     "method": "ForceServerSyncRequestedFromClient",
+     "name": "GritComponentServerFacet_ForceServerSyncRequestedFromClient"
+    },
+    {
      "wire_type": "0x5d7",
      "method": "ReceiveImGuiCompDataChangeFromClient",
      "name": "GritComponentServerFacet_ReceiveImGuiCompDataChangeFromClient"
@@ -10203,7 +10463,17 @@
    ],
    "client": [
     {
-     "wire_type": "0xf3e",
+     "wire_type": "0x100e",
+     "method": "ClientForceSyncServerState",
+     "name": "GritComponentClientFacet_ClientForceSyncServerState"
+    },
+    {
+     "wire_type": "0x6d7",
+     "method": "ClientForceSyncServerStateRemote",
+     "name": "GritComponentClientFacet_ClientForceSyncServerStateRemote"
+    },
+    {
+     "wire_type": "0x1b8",
      "method": "ClientSyncServerState",
      "name": "GritComponentClientFacet_ClientSyncServerState"
     }
@@ -10237,6 +10507,16 @@
      "name": "MetaAchievementComponentServerFacet_DEBUG_ServerSetMetaAchievementProgress"
     },
     {
+     "wire_type": "0xed5",
+     "method": "DEBUG_UnlockSteamAchievements",
+     "name": "MetaAchievementComponentServerFacet_DEBUG_UnlockSteamAchievements"
+    },
+    {
+     "wire_type": "0xec8",
+     "method": "RequestGetCompletedMetaAchievementsForAccount",
+     "name": "MetaAchievementComponentServerFacet_RequestGetCompletedMetaAchievementsForAccount"
+    },
+    {
      "wire_type": "0x271",
      "method": "RequestUnlockMetaAchievementForAccount",
      "name": "MetaAchievementComponentServerFacet_RequestUnlockMetaAchievementForAccount"
@@ -10264,7 +10544,7 @@
    ],
    "client": [
     {
-     "wire_type": "0xec8",
+     "wire_type": "0x193d",
      "method": "ClientFixupPlatformAchievements",
      "name": "MetaAchievementComponentClientFacet_ClientFixupPlatformAchievements"
     },
@@ -10299,7 +10579,7 @@
      "name": "MetaAchievementComponentClientFacet_ClientReceiveMetaAchievementsSummaryInformation"
     },
     {
-     "wire_type": "0xed5",
+     "wire_type": "0x193e",
      "method": "ClientUnlockPlatformAchievements",
      "name": "MetaAchievementComponentClientFacet_ClientUnlockPlatformAchievements"
     },
@@ -10374,6 +10654,11 @@
      "name": "DarknessControllerComponentServerFacet_RegisterClientForDebug"
     },
     {
+     "wire_type": "0x3e5",
+     "method": "ResetAndSetupForNewCycleDebug",
+     "name": "DarknessControllerComponentServerFacet_ResetAndSetupForNewCycleDebug"
+    },
+    {
      "wire_type": "0x91b",
      "method": "ResetAndSetupForNewCycleDebug",
      "name": "DarknessControllerComponentServerFacet_ResetAndSetupForNewCycleDebug"
@@ -10402,157 +10687,6 @@
     }
    ]
   },
-  "Paperdoll": {
-   "server": [
-    {
-     "wire_type": "0x100e",
-     "method": "DebugConsumeLoadedAmmo",
-     "name": "PaperdollComponentServerFacet_DebugConsumeLoadedAmmo"
-    },
-    {
-     "wire_type": "0x3f5",
-     "method": "DebugForceItemFixed",
-     "name": "PaperdollComponentServerFacet_DebugForceItemFixed"
-    },
-    {
-     "wire_type": "0x8aa",
-     "method": "DebugSetDurability",
-     "name": "PaperdollComponentServerFacet_DebugSetDurability"
-    },
-    {
-     "wire_type": "0x17ec",
-     "method": "DebugSetIgnoreDurabilityLoss",
-     "name": "PaperdollComponentServerFacet_DebugSetIgnoreDurabilityLoss"
-    },
-    {
-     "wire_type": "0x6d7",
-     "method": "DebugSetLoadedAmmo",
-     "name": "PaperdollComponentServerFacet_DebugSetLoadedAmmo"
-    },
-    {
-     "wire_type": "0x15cb",
-     "method": "RequestAddItemToLoadouts",
-     "name": "PaperdollComponentServerFacet_RequestAddItemToLoadouts"
-    },
-    {
-     "wire_type": "0x1541",
-     "method": "RequestAddLoadout",
-     "name": "PaperdollComponentServerFacet_RequestAddLoadout"
-    },
-    {
-     "wire_type": "0x1533",
-     "method": "RequestRemoveAllItemsFromLoadout",
-     "name": "PaperdollComponentServerFacet_RequestRemoveAllItemsFromLoadout"
-    },
-    {
-     "wire_type": "0x1d9",
-     "method": "RequestRemoveItemFromLoadout",
-     "name": "PaperdollComponentServerFacet_RequestRemoveItemFromLoadout"
-    },
-    {
-     "wire_type": "0x1543",
-     "method": "RequestRemoveLoadout",
-     "name": "PaperdollComponentServerFacet_RequestRemoveLoadout"
-    },
-    {
-     "wire_type": "0x156f",
-     "method": "RequestRenameLoadout",
-     "name": "PaperdollComponentServerFacet_RequestRenameLoadout"
-    },
-    {
-     "wire_type": "0x15ca",
-     "method": "RequestSetIsLoadoutPanelOpen",
-     "name": "PaperdollComponentServerFacet_RequestSetIsLoadoutPanelOpen"
-    },
-    {
-     "wire_type": "0x160",
-     "method": "RequestSwitchToLoadout",
-     "name": "PaperdollComponentServerFacet_RequestSwitchToLoadout"
-    },
-    {
-     "wire_type": "0x1483",
-     "method": "ServerCycleWeapon",
-     "name": "PaperdollComponentServerFacet_ServerCycleWeapon"
-    },
-    {
-     "wire_type": "0x158b",
-     "method": "ServerEquipAllItems",
-     "name": "PaperdollComponentServerFacet_ServerEquipAllItems"
-    },
-    {
-     "wire_type": "0xf37",
-     "method": "ServerEquipItem",
-     "name": "PaperdollComponentServerFacet_ServerEquipItem"
-    },
-    {
-     "wire_type": "0x658",
-     "method": "ServerUnequipItem",
-     "name": "PaperdollComponentServerFacet_ServerUnequipItem"
-    },
-    {
-     "wire_type": "0xf38",
-     "method": "ServerUnequipItem",
-     "name": "PaperdollComponentServerFacet_ServerUnequipItem"
-    },
-    {
-     "wire_type": "0x1ac5",
-     "method": "ServerUseItem",
-     "name": "PaperdollComponentServerFacet_ServerUseItem"
-    },
-    {
-     "wire_type": "0x175a",
-     "method": "SetHidingSkinOnSlot",
-     "name": "PaperdollComponentServerFacet_SetHidingSkinOnSlot"
-    },
-    {
-     "wire_type": "0x14b6",
-     "method": "SetPreviewActive",
-     "name": "PaperdollComponentServerFacet_SetPreviewActive"
-    },
-    {
-     "wire_type": "0xec0",
-     "method": "SetWeaponMannequinTags",
-     "name": "PaperdollComponentServerFacet_SetWeaponMannequinTags"
-    },
-    {
-     "wire_type": "0xf3b",
-     "method": "ToggleSheath",
-     "name": "PaperdollComponentServerFacet_ToggleSheath"
-    },
-    {
-     "wire_type": "0x1743",
-     "method": "UnequipAllItems",
-     "name": "PaperdollComponentServerFacet_UnequipAllItems"
-    }
-   ],
-   "client": [
-    {
-     "wire_type": "0xe6a",
-     "method": "DebugSyncAverageArmorGS",
-     "name": "PaperdollComponentClientFacet_DebugSyncAverageArmorGS"
-    },
-    {
-     "wire_type": "0xf7f",
-     "method": "HandleThrowableWarningExpire",
-     "name": "PaperdollComponentClientFacet_HandleThrowableWarningExpire"
-    },
-    {
-     "wire_type": "0xe2a",
-     "method": "OnEquipItemFail",
-     "name": "PaperdollComponentClientFacet_OnEquipItemFail"
-    },
-    {
-     "wire_type": "0xf40",
-     "method": "PlayItemSoundFromRoot",
-     "name": "PaperdollComponentClientFacet_PlayItemSoundFromRoot"
-    },
-    {
-     "wire_type": "0x1671",
-     "method": "SendLoadoutStatusNotification",
-     "name": "PaperdollComponentClientFacet_SendLoadoutStatusNotification"
-    }
-   ]
-  },
   "PlayerHousing": {
    "server": [
     {
@@ -10564,6 +10698,11 @@
      "wire_type": "0xe75",
      "method": "ClientRequestAbandonHome",
      "name": "PlayerHousingComponentServerFacet_ClientRequestAbandonHome"
+    },
+    {
+     "wire_type": "0xe74",
+     "method": "ClientRequestBuyHome",
+     "name": "PlayerHousingComponentServerFacet_ClientRequestBuyHome"
     },
     {
      "wire_type": "0x1a2d",
@@ -10581,14 +10720,14 @@
      "name": "PlayerHousingComponentServerFacet_ClientRequestExitPlot"
     },
     {
-     "wire_type": "0x99e",
+     "wire_type": "0xe80",
      "method": "ClientRequestFastTravelHome",
      "name": "PlayerHousingComponentServerFacet_ClientRequestFastTravelHome"
     },
     {
-     "wire_type": "0xe80",
-     "method": "ClientRequestFastTravelHome",
-     "name": "PlayerHousingComponentServerFacet_ClientRequestFastTravelHome"
+     "wire_type": "0x581",
+     "method": "ClientRequestFastTravelTerritory",
+     "name": "PlayerHousingComponentServerFacet_ClientRequestFastTravelTerritory"
     },
     {
      "wire_type": "0xe81",
@@ -10599,6 +10738,11 @@
      "wire_type": "0xe85",
      "method": "ClientRequestInteractingPlotAdditionalInfo",
      "name": "PlayerHousingComponentServerFacet_ClientRequestInteractingPlotAdditionalInfo"
+    },
+    {
+     "wire_type": "0xe84",
+     "method": "ClientRequestPayTaxes",
+     "name": "PlayerHousingComponentServerFacet_ClientRequestPayTaxes"
     },
     {
      "wire_type": "0x1572",
@@ -10626,6 +10770,11 @@
      "name": "PlayerHousingComponentServerFacet_DebugClearStanding"
     },
     {
+     "wire_type": "0x12fb",
+     "method": "DebugDumpHousingInfo",
+     "name": "PlayerHousingComponentServerFacet_DebugDumpHousingInfo"
+    },
+    {
      "wire_type": "0x12f9",
      "method": "DebugForceHandshake",
      "name": "PlayerHousingComponentServerFacet_DebugForceHandshake"
@@ -10649,6 +10798,11 @@
      "wire_type": "0xe7c",
      "method": "EnterPlot",
      "name": "PlayerHousingComponentServerFacet_EnterPlot"
+    },
+    {
+     "wire_type": "0xe7e",
+     "method": "ExitPlot",
+     "name": "PlayerHousingComponentServerFacet_ExitPlot"
     },
     {
      "wire_type": "0xe92",
@@ -10703,9 +10857,19 @@
      "name": "PlayerHousingComponentClientFacet_FastTravelRequestFailed"
     },
     {
+     "wire_type": "0x37c",
+     "method": "MoveItemResult",
+     "name": "PlayerHousingComponentClientFacet_MoveItemResult"
+    },
+    {
      "wire_type": "0xe6c",
      "method": "OnHouseInfoResponse",
      "name": "PlayerHousingComponentClientFacet_OnHouseInfoResponse"
+    },
+    {
+     "wire_type": "0x99e",
+     "method": "OnHousingItemInteractBeginRemoteClient",
+     "name": "PlayerHousingComponentClientFacet_OnHousingItemInteractBeginRemoteClient"
     },
     {
      "wire_type": "0xa7c",
@@ -10728,7 +10892,7 @@
      "name": "PlayerHousingComponentClientFacet_PayTaxRequestFinished"
     },
     {
-     "wire_type": "0xe7e",
+     "wire_type": "0xe6b",
      "method": "PlaceNewItemResult",
      "name": "PlayerHousingComponentClientFacet_PlaceNewItemResult"
     },
@@ -10736,6 +10900,11 @@
      "wire_type": "0x1a8c",
      "method": "PreloadFastTravelLocation",
      "name": "PlayerHousingComponentClientFacet_PreloadFastTravelLocation"
+    },
+    {
+     "wire_type": "0xbe6",
+     "method": "RemoveItemResult",
+     "name": "PlayerHousingComponentClientFacet_RemoveItemResult"
     },
     {
      "wire_type": "0x126b",
@@ -10746,11 +10915,6 @@
      "wire_type": "0x126f",
      "method": "SendHouseRecoveredNotification",
      "name": "PlayerHousingComponentClientFacet_SendHouseRecoveredNotification"
-    },
-    {
-     "wire_type": "0xe67",
-     "method": "SendHouseRefundedNotification",
-     "name": "PlayerHousingComponentClientFacet_SendHouseRefundedNotification"
     },
     {
      "wire_type": "0xe94",
@@ -10787,6 +10951,352 @@
      "wire_type": "0x165",
      "method": "ReceiveAISpawnManagerDebugInfo",
      "name": "PlayerPositionTrackingComponentClientFacet_ReceiveAISpawnManagerDebugInfo"
+    }
+   ]
+  },
+  "Player": {
+   "server": [
+    {
+     "wire_type": "0xf83",
+     "method": "ChangePlayerBackstory",
+     "name": "PlayerComponentServerFacet_ChangePlayerBackstory"
+    },
+    {
+     "wire_type": "0xe98",
+     "method": "DebugCancelTeleportRequest",
+     "name": "PlayerComponentServerFacet_DebugCancelTeleportRequest"
+    },
+    {
+     "wire_type": "0x1bf",
+     "method": "DebugDespawnGhostClient",
+     "name": "PlayerComponentServerFacet_DebugDespawnGhostClient"
+    },
+    {
+     "wire_type": "0x41b",
+     "method": "DebugFillAllInventories",
+     "name": "PlayerComponentServerFacet_DebugFillAllInventories"
+    },
+    {
+     "wire_type": "0x199d",
+     "method": "DebugForceTokenRefresh",
+     "name": "PlayerComponentServerFacet_DebugForceTokenRefresh"
+    },
+    {
+     "wire_type": "0x1a88",
+     "method": "DebugForceTokenRevoke",
+     "name": "PlayerComponentServerFacet_DebugForceTokenRevoke"
+    },
+    {
+     "wire_type": "0x15b4",
+     "method": "DebugForceUpdateDailyWarCount",
+     "name": "PlayerComponentServerFacet_DebugForceUpdateDailyWarCount"
+    },
+    {
+     "wire_type": "0x159a",
+     "method": "DebugMakePVPInactive",
+     "name": "PlayerComponentServerFacet_DebugMakePVPInactive"
+    },
+    {
+     "wire_type": "0x793",
+     "method": "DebugOrphanGhostClient",
+     "name": "PlayerComponentServerFacet_DebugOrphanGhostClient"
+    },
+    {
+     "wire_type": "0x12c8",
+     "method": "DebugReportAnalyticsSnapshot",
+     "name": "PlayerComponentServerFacet_DebugReportAnalyticsSnapshot"
+    },
+    {
+     "wire_type": "0x12ea",
+     "method": "DebugRequestAccountAge",
+     "name": "PlayerComponentServerFacet_DebugRequestAccountAge"
+    },
+    {
+     "wire_type": "0x1385",
+     "method": "DebugRequestKick",
+     "name": "PlayerComponentServerFacet_DebugRequestKick"
+    },
+    {
+     "wire_type": "0x3c1",
+     "method": "DebugRequestOverpopulationTeleportMetadata",
+     "name": "PlayerComponentServerFacet_DebugRequestOverpopulationTeleportMetadata"
+    },
+    {
+     "wire_type": "0x17a5",
+     "method": "DebugRequestReconnectCrossWorld",
+     "name": "PlayerComponentServerFacet_DebugRequestReconnectCrossWorld"
+    },
+    {
+     "wire_type": "0x13b1",
+     "method": "DebugRequestSendMessageOfSize",
+     "name": "PlayerComponentServerFacet_DebugRequestSendMessageOfSize"
+    },
+    {
+     "wire_type": "0xf75",
+     "method": "DebugRequestTeleport",
+     "name": "PlayerComponentServerFacet_DebugRequestTeleport"
+    },
+    {
+     "wire_type": "0x1595",
+     "method": "DebugResetPVPActiveTimer",
+     "name": "PlayerComponentServerFacet_DebugResetPVPActiveTimer"
+    },
+    {
+     "wire_type": "0xe20",
+     "method": "DebugSendLevelInfo",
+     "name": "PlayerComponentServerFacet_DebugSendLevelInfo"
+    },
+    {
+     "wire_type": "0x12ed",
+     "method": "DebugSetAccountAge",
+     "name": "PlayerComponentServerFacet_DebugSetAccountAge"
+    },
+    {
+     "wire_type": "0x1671",
+     "method": "DebugSetHomeWorldId",
+     "name": "PlayerComponentServerFacet_DebugSetHomeWorldId"
+    },
+    {
+     "wire_type": "0x1743",
+     "method": "DebugSetMatchId",
+     "name": "PlayerComponentServerFacet_DebugSetMatchId"
+    },
+    {
+     "wire_type": "0x1653",
+     "method": "DebugSetSrcWorldId",
+     "name": "PlayerComponentServerFacet_DebugSetSrcWorldId"
+    },
+    {
+     "wire_type": "0xf87",
+     "method": "DebugSpawnGhostClient",
+     "name": "PlayerComponentServerFacet_DebugSpawnGhostClient"
+    },
+    {
+     "wire_type": "0x803",
+     "method": "DebugTriggerOverpopulationTeleport",
+     "name": "PlayerComponentServerFacet_DebugTriggerOverpopulationTeleport"
+    },
+    {
+     "wire_type": "0x135a",
+     "method": "DebugTriggerPersistenceEmergency",
+     "name": "PlayerComponentServerFacet_DebugTriggerPersistenceEmergency"
+    },
+    {
+     "wire_type": "0x143d",
+     "method": "OnAckLevelInfoChanged",
+     "name": "PlayerComponentServerFacet_OnAckLevelInfoChanged"
+    },
+    {
+     "wire_type": "0x1999",
+     "method": "OnClientAuthTokenCompleted",
+     "name": "PlayerComponentServerFacet_OnClientAuthTokenCompleted"
+    },
+    {
+     "wire_type": "0xf7f",
+     "method": "OnCullLimitPctChangeRequest",
+     "name": "PlayerComponentServerFacet_OnCullLimitPctChangeRequest"
+    },
+    {
+     "wire_type": "0x12a4",
+     "method": "OnReplicationDataCaptureAction",
+     "name": "PlayerComponentServerFacet_OnReplicationDataCaptureAction"
+    },
+    {
+     "wire_type": "0x446",
+     "method": "OnSetBandwidthModeRequest",
+     "name": "PlayerComponentServerFacet_OnSetBandwidthModeRequest"
+    },
+    {
+     "wire_type": "0x12f6",
+     "method": "OnTelemetryOptionsDataChanged",
+     "name": "PlayerComponentServerFacet_OnTelemetryOptionsDataChanged"
+    },
+    {
+     "wire_type": "0x1961",
+     "method": "RequestClearGatherBan",
+     "name": "PlayerComponentServerFacet_RequestClearGatherBan"
+    },
+    {
+     "wire_type": "0xf74",
+     "method": "RequestGmPermissions",
+     "name": "PlayerComponentServerFacet_RequestGmPermissions"
+    },
+    {
+     "wire_type": "0x9af",
+     "method": "RequestImmediateOverpopulationTeleport",
+     "name": "PlayerComponentServerFacet_RequestImmediateOverpopulationTeleport"
+    },
+    {
+     "wire_type": "0x175",
+     "method": "RequestRandomRespawn",
+     "name": "PlayerComponentServerFacet_RequestRandomRespawn"
+    },
+    {
+     "wire_type": "0x792",
+     "method": "RequestRespawn",
+     "name": "PlayerComponentServerFacet_RequestRespawn"
+    },
+    {
+     "wire_type": "0xf80",
+     "method": "RequestServerReport",
+     "name": "PlayerComponentServerFacet_RequestServerReport"
+    },
+    {
+     "wire_type": "0x1956",
+     "method": "RequestSetIsArmorDyeingOpen",
+     "name": "PlayerComponentServerFacet_RequestSetIsArmorDyeingOpen"
+    },
+    {
+     "wire_type": "0x17b2",
+     "method": "RequestSetIsChangingMount",
+     "name": "PlayerComponentServerFacet_RequestSetIsChangingMount"
+    },
+    {
+     "wire_type": "0x18f8",
+     "method": "RequestSetIsInMountAttachmentMode",
+     "name": "PlayerComponentServerFacet_RequestSetIsInMountAttachmentMode"
+    },
+    {
+     "wire_type": "0x132c",
+     "method": "RequestSetIsInStore",
+     "name": "PlayerComponentServerFacet_RequestSetIsInStore"
+    },
+    {
+     "wire_type": "0xf82",
+     "method": "RequestSetIsLookingThroughLoadout",
+     "name": "PlayerComponentServerFacet_RequestSetIsLookingThroughLoadout"
+    },
+    {
+     "wire_type": "0x17d9",
+     "method": "RequestSetIsTransmogScreenOpen",
+     "name": "PlayerComponentServerFacet_RequestSetIsTransmogScreenOpen"
+    },
+    {
+     "wire_type": "0x193f",
+     "method": "RequestSetIsTransmogStationScreenOpen",
+     "name": "PlayerComponentServerFacet_RequestSetIsTransmogStationScreenOpen"
+    },
+    {
+     "wire_type": "0x1596",
+     "method": "RequestSwitchPVPActiveToThisCharacter",
+     "name": "PlayerComponentServerFacet_RequestSwitchPVPActiveToThisCharacter"
+    },
+    {
+     "wire_type": "0x1946",
+     "method": "RequestSyncGatherBanEnd",
+     "name": "PlayerComponentServerFacet_RequestSyncGatherBanEnd"
+    },
+    {
+     "wire_type": "0x1729",
+     "method": "RequestUnlockMilestoneModal",
+     "name": "PlayerComponentServerFacet_RequestUnlockMilestoneModal"
+    },
+    {
+     "wire_type": "0x1f6",
+     "method": "ReturnToMainWorld",
+     "name": "PlayerComponentServerFacet_ReturnToMainWorld"
+    },
+    {
+     "wire_type": "0x1a94",
+     "method": "SetIsFreeTrialPlayer",
+     "name": "PlayerComponentServerFacet_SetIsFreeTrialPlayer"
+    },
+    {
+     "wire_type": "0xe19",
+     "method": "SyncPlayerTypeFromClient",
+     "name": "PlayerComponentServerFacet_SyncPlayerTypeFromClient"
+    },
+    {
+     "wire_type": "0x230",
+     "method": "TriggerAreaEntityPassthrough",
+     "name": "PlayerComponentServerFacet_TriggerAreaEntityPassthrough"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x3a9",
+     "method": "DarknessAdjustmentNotification",
+     "name": "PlayerComponentClientFacet_DarknessAdjustmentNotification"
+    },
+    {
+     "wire_type": "0x13b2",
+     "method": "DebugReceiveMessageOfSize",
+     "name": "PlayerComponentClientFacet_DebugReceiveMessageOfSize"
+    },
+    {
+     "wire_type": "0xf7e",
+     "method": "DebugReceiveOverpopulationTeleportMetadata",
+     "name": "PlayerComponentClientFacet_DebugReceiveOverpopulationTeleportMetadata"
+    },
+    {
+     "wire_type": "0xf89",
+     "method": "OnCancelFCPOverpopulationTeleportNotification",
+     "name": "PlayerComponentClientFacet_OnCancelFCPOverpopulationTeleportNotification"
+    },
+    {
+     "wire_type": "0x12eb",
+     "method": "OnDebugReceiveAccountAge",
+     "name": "PlayerComponentClientFacet_OnDebugReceiveAccountAge"
+    },
+    {
+     "wire_type": "0x175f",
+     "method": "OnDisplayPopup",
+     "name": "PlayerComponentClientFacet_OnDisplayPopup"
+    },
+    {
+     "wire_type": "0x61c",
+     "method": "OnFCPOverpopulationTeleportNotification",
+     "name": "PlayerComponentClientFacet_OnFCPOverpopulationTeleportNotification"
+    },
+    {
+     "wire_type": "0xf7c",
+     "method": "OnForcedOverpopulationTeleportNotification",
+     "name": "PlayerComponentClientFacet_OnForcedOverpopulationTeleportNotification"
+    },
+    {
+     "wire_type": "0xf7b",
+     "method": "OnOverpopulationTeleportNotification",
+     "name": "PlayerComponentClientFacet_OnOverpopulationTeleportNotification"
+    },
+    {
+     "wire_type": "0xf6e",
+     "method": "OnPlayerDeath",
+     "name": "PlayerComponentClientFacet_OnPlayerDeath"
+    },
+    {
+     "wire_type": "0xf72",
+     "method": "OnPlayerTeleport",
+     "name": "PlayerComponentClientFacet_OnPlayerTeleport"
+    },
+    {
+     "wire_type": "0x80e",
+     "method": "OnReturnToMainWorld",
+     "name": "PlayerComponentClientFacet_OnReturnToMainWorld"
+    },
+    {
+     "wire_type": "0x1b6e",
+     "method": "OnTeleportRequestFailedOrCancelled",
+     "name": "PlayerComponentClientFacet_OnTeleportRequestFailedOrCancelled"
+    },
+    {
+     "wire_type": "0xf71",
+     "method": "OnTeleportWithFade",
+     "name": "PlayerComponentClientFacet_OnTeleportWithFade"
+    },
+    {
+     "wire_type": "0xf6f",
+     "method": "OnTeleportWithLoadingScreen",
+     "name": "PlayerComponentClientFacet_OnTeleportWithLoadingScreen"
+    },
+    {
+     "wire_type": "0x199e",
+     "method": "RefreshClientToken",
+     "name": "PlayerComponentClientFacet_RefreshClientToken"
+    },
+    {
+     "wire_type": "0x1962",
+     "method": "SyncGatherBanEnd",
+     "name": "PlayerComponentClientFacet_SyncGatherBanEnd"
     }
    ]
   },
@@ -11033,231 +11543,10 @@
     }
    ]
   },
-  "Player": {
-   "server": [
-    {
-     "wire_type": "0xf83",
-     "method": "ChangePlayerBackstory",
-     "name": "PlayerComponentServerFacet_ChangePlayerBackstory"
-    },
-    {
-     "wire_type": "0xe98",
-     "method": "DebugCancelTeleportRequest",
-     "name": "PlayerComponentServerFacet_DebugCancelTeleportRequest"
-    },
-    {
-     "wire_type": "0x1bf",
-     "method": "DebugDespawnGhostClient",
-     "name": "PlayerComponentServerFacet_DebugDespawnGhostClient"
-    },
-    {
-     "wire_type": "0x41b",
-     "method": "DebugFillAllInventories",
-     "name": "PlayerComponentServerFacet_DebugFillAllInventories"
-    },
-    {
-     "wire_type": "0x10c6",
-     "method": "DebugForceTokenRefresh",
-     "name": "PlayerComponentServerFacet_DebugForceTokenRefresh"
-    },
-    {
-     "wire_type": "0x10c7",
-     "method": "DebugForceTokenRevoke",
-     "name": "PlayerComponentServerFacet_DebugForceTokenRevoke"
-    },
-    {
-     "wire_type": "0x15b4",
-     "method": "DebugForceUpdateDailyWarCount",
-     "name": "PlayerComponentServerFacet_DebugForceUpdateDailyWarCount"
-    },
-    {
-     "wire_type": "0x159a",
-     "method": "DebugMakePVPInactive",
-     "name": "PlayerComponentServerFacet_DebugMakePVPInactive"
-    },
-    {
-     "wire_type": "0x12c8",
-     "method": "DebugReportAnalyticsSnapshot",
-     "name": "PlayerComponentServerFacet_DebugReportAnalyticsSnapshot"
-    },
-    {
-     "wire_type": "0x12ea",
-     "method": "DebugRequestAccountAge",
-     "name": "PlayerComponentServerFacet_DebugRequestAccountAge"
-    },
-    {
-     "wire_type": "0x1385",
-     "method": "DebugRequestKick",
-     "name": "PlayerComponentServerFacet_DebugRequestKick"
-    },
-    {
-     "wire_type": "0x3c1",
-     "method": "DebugRequestOverpopulationTeleportMetadata",
-     "name": "PlayerComponentServerFacet_DebugRequestOverpopulationTeleportMetadata"
-    },
-    {
-     "wire_type": "0x17a5",
-     "method": "DebugRequestReconnectCrossWorld",
-     "name": "PlayerComponentServerFacet_DebugRequestReconnectCrossWorld"
-    },
-    {
-     "wire_type": "0x13b1",
-     "method": "DebugRequestSendMessageOfSize",
-     "name": "PlayerComponentServerFacet_DebugRequestSendMessageOfSize"
-    },
-    {
-     "wire_type": "0x47e",
-     "method": "DebugRequestTeleport",
-     "name": "PlayerComponentServerFacet_DebugRequestTeleport"
-    },
-    {
-     "wire_type": "0xe20",
-     "method": "DebugSendLevelInfo",
-     "name": "PlayerComponentServerFacet_DebugSendLevelInfo"
-    },
-    {
-     "wire_type": "0x12ed",
-     "method": "DebugSetAccountAge",
-     "name": "PlayerComponentServerFacet_DebugSetAccountAge"
-    },
-    {
-     "wire_type": "0x1653",
-     "method": "DebugSetSrcWorldId",
-     "name": "PlayerComponentServerFacet_DebugSetSrcWorldId"
-    },
-    {
-     "wire_type": "0xf87",
-     "method": "DebugSpawnGhostClient",
-     "name": "PlayerComponentServerFacet_DebugSpawnGhostClient"
-    },
-    {
-     "wire_type": "0x143d",
-     "method": "OnAckLevelInfoChanged",
-     "name": "PlayerComponentServerFacet_OnAckLevelInfoChanged"
-    },
-    {
-     "wire_type": "0x1999",
-     "method": "OnClientAuthTokenCompleted",
-     "name": "PlayerComponentServerFacet_OnClientAuthTokenCompleted"
-    },
-    {
-     "wire_type": "0x12a4",
-     "method": "OnReplicationDataCaptureAction",
-     "name": "PlayerComponentServerFacet_OnReplicationDataCaptureAction"
-    },
-    {
-     "wire_type": "0x9af",
-     "method": "RequestImmediateOverpopulationTeleport",
-     "name": "PlayerComponentServerFacet_RequestImmediateOverpopulationTeleport"
-    },
-    {
-     "wire_type": "0x99a",
-     "method": "RequestRespawn",
-     "name": "PlayerComponentServerFacet_RequestRespawn"
-    },
-    {
-     "wire_type": "0x17e1",
-     "method": "RequestRespawn",
-     "name": "PlayerComponentServerFacet_RequestRespawn"
-    },
-    {
-     "wire_type": "0xf89",
-     "method": "RequestServerReport",
-     "name": "PlayerComponentServerFacet_RequestServerReport"
-    },
-    {
-     "wire_type": "0x1956",
-     "method": "RequestSetIsArmorDyeingOpen",
-     "name": "PlayerComponentServerFacet_RequestSetIsArmorDyeingOpen"
-    },
-    {
-     "wire_type": "0x3a9",
-     "method": "RequestSetIsChangingMount",
-     "name": "PlayerComponentServerFacet_RequestSetIsChangingMount"
-    },
-    {
-     "wire_type": "0x18f8",
-     "method": "RequestSetIsInMountAttachmentMode",
-     "name": "PlayerComponentServerFacet_RequestSetIsInMountAttachmentMode"
-    },
-    {
-     "wire_type": "0xf82",
-     "method": "RequestSetIsLookingThroughLoadout",
-     "name": "PlayerComponentServerFacet_RequestSetIsLookingThroughLoadout"
-    },
-    {
-     "wire_type": "0x1486",
-     "method": "RequestSetIsTransmogStationScreenOpen",
-     "name": "PlayerComponentServerFacet_RequestSetIsTransmogStationScreenOpen"
-    },
-    {
-     "wire_type": "0x1596",
-     "method": "RequestSwitchPVPActiveToThisCharacter",
-     "name": "PlayerComponentServerFacet_RequestSwitchPVPActiveToThisCharacter"
-    },
-    {
-     "wire_type": "0x1946",
-     "method": "RequestSyncGatherBanEnd",
-     "name": "PlayerComponentServerFacet_RequestSyncGatherBanEnd"
-    },
-    {
-     "wire_type": "0x9fd",
-     "method": "RequestUnlockMilestoneModal",
-     "name": "PlayerComponentServerFacet_RequestUnlockMilestoneModal"
-    },
-    {
-     "wire_type": "0xad6",
-     "method": "ReturnToMainWorld",
-     "name": "PlayerComponentServerFacet_ReturnToMainWorld"
-    },
-    {
-     "wire_type": "0x1a94",
-     "method": "SetIsFreeTrialPlayer",
-     "name": "PlayerComponentServerFacet_SetIsFreeTrialPlayer"
-    },
-    {
-     "wire_type": "0x230",
-     "method": "TriggerAreaEntityPassthrough",
-     "name": "PlayerComponentServerFacet_TriggerAreaEntityPassthrough"
-    }
-   ],
-   "client": [
-    {
-     "wire_type": "0x13b2",
-     "method": "DebugReceiveMessageOfSize",
-     "name": "PlayerComponentClientFacet_DebugReceiveMessageOfSize"
-    },
-    {
-     "wire_type": "0x12eb",
-     "method": "OnDebugReceiveAccountAge",
-     "name": "PlayerComponentClientFacet_OnDebugReceiveAccountAge"
-    },
-    {
-     "wire_type": "0xf8c",
-     "method": "OnPlayerDeath",
-     "name": "PlayerComponentClientFacet_OnPlayerDeath"
-    },
-    {
-     "wire_type": "0x1b6e",
-     "method": "OnTeleportRequestFailedOrCancelled",
-     "name": "PlayerComponentClientFacet_OnTeleportRequestFailedOrCancelled"
-    },
-    {
-     "wire_type": "0x199e",
-     "method": "OnTeleportWithLoadingScreen",
-     "name": "PlayerComponentClientFacet_OnTeleportWithLoadingScreen"
-    },
-    {
-     "wire_type": "0x80e",
-     "method": "SyncGatherBanEnd",
-     "name": "PlayerComponentClientFacet_SyncGatherBanEnd"
-    }
-   ]
-  },
   "LocalPlayerDebug": {
    "server": [
     {
-     "wire_type": "0xbc4",
+     "wire_type": "0xf65",
      "method": "DebugTeleportPlayer",
      "name": "LocalPlayerDebugComponentServerFacet_DebugTeleportPlayer"
     },
@@ -11265,6 +11554,16 @@
      "wire_type": "0x409",
      "method": "DebugTeleportPlayerGM",
      "name": "LocalPlayerDebugComponentServerFacet_DebugTeleportPlayerGM"
+    },
+    {
+     "wire_type": "0xf64",
+     "method": "ForceDestroyStructure",
+     "name": "LocalPlayerDebugComponentServerFacet_ForceDestroyStructure"
+    },
+    {
+     "wire_type": "0x810",
+     "method": "HideMe",
+     "name": "LocalPlayerDebugComponentServerFacet_HideMe"
     },
     {
      "wire_type": "0xf63",
@@ -11282,12 +11581,12 @@
      "name": "LocalPlayerDebugComponentServerFacet_ResetAoi"
     },
     {
-     "wire_type": "0x1595",
+     "wire_type": "0x12a6",
      "method": "SetDebugAccountProbationOverrideState",
      "name": "LocalPlayerDebugComponentServerFacet_SetDebugAccountProbationOverrideState"
     },
     {
-     "wire_type": "0x17d9",
+     "wire_type": "0x17e1",
      "method": "SetDebugForceLootBiasing",
      "name": "LocalPlayerDebugComponentServerFacet_SetDebugForceLootBiasing"
     },
@@ -11297,14 +11596,14 @@
      "name": "LocalPlayerDebugComponentServerFacet_SetDebugGlobalRollBonus"
     },
     {
-     "wire_type": "0x10ca",
+     "wire_type": "0x632",
      "method": "SetDebugLootTags",
      "name": "LocalPlayerDebugComponentServerFacet_SetDebugLootTags"
     },
     {
-     "wire_type": "0x14aa",
-     "method": "SetDebugLootTags",
-     "name": "LocalPlayerDebugComponentServerFacet_SetDebugLootTags"
+     "wire_type": "0x144d",
+     "method": "SetDebugLuckBonus",
+     "name": "LocalPlayerDebugComponentServerFacet_SetDebugLuckBonus"
     },
     {
      "wire_type": "0x1c2",
@@ -11317,6 +11616,11 @@
      "name": "LocalPlayerDebugComponentServerFacet_SpawnSlice"
     },
     {
+     "wire_type": "0x14aa",
+     "method": "SyncRemoteStatusEffects",
+     "name": "LocalPlayerDebugComponentServerFacet_SyncRemoteStatusEffects"
+    },
+    {
      "wire_type": "0x760",
      "method": "SyncRemoteStatusModData",
      "name": "LocalPlayerDebugComponentServerFacet_SyncRemoteStatusModData"
@@ -11325,6 +11629,11 @@
      "wire_type": "0x14ea",
      "method": "ToggleDebugPerkRolls",
      "name": "LocalPlayerDebugComponentServerFacet_ToggleDebugPerkRolls"
+    },
+    {
+     "wire_type": "0xf68",
+     "method": "ToggleLootResults",
+     "name": "LocalPlayerDebugComponentServerFacet_ToggleLootResults"
     },
     {
      "wire_type": "0x16ac",
@@ -11349,17 +11658,22 @@
      "name": "LocalPlayerDebugComponentClientFacet_DebugMessageBox"
     },
     {
-     "wire_type": "0x61c",
+     "wire_type": "0x43a",
      "method": "SetLootResults",
      "name": "LocalPlayerDebugComponentClientFacet_SetLootResults"
     },
     {
-     "wire_type": "0x1b77",
+     "wire_type": "0x17e3",
      "method": "SyncDebugForceLootBiasing",
      "name": "LocalPlayerDebugComponentClientFacet_SyncDebugForceLootBiasing"
     },
     {
-     "wire_type": "0x1b76",
+     "wire_type": "0x1627",
+     "method": "SyncToggleLootResults",
+     "name": "LocalPlayerDebugComponentClientFacet_SyncToggleLootResults"
+    },
+    {
+     "wire_type": "0x1625",
      "method": "SyncTogglePerkResults",
      "name": "LocalPlayerDebugComponentClientFacet_SyncTogglePerkResults"
     },
@@ -11369,7 +11683,7 @@
      "name": "LocalPlayerDebugComponentClientFacet_UpdateClientNetTrackDebugInfo"
     },
     {
-     "wire_type": "0x135a",
+     "wire_type": "0xf6d",
      "method": "UpdateHideState",
      "name": "LocalPlayerDebugComponentClientFacet_UpdateHideState"
     }
@@ -11383,9 +11697,19 @@
      "name": "ObjectivesComponentServerFacet_AbandonAllRecipes"
     },
     {
-     "wire_type": "0x716",
+     "wire_type": "0xa4d",
+     "method": "AbandonCurrentMission",
+     "name": "ObjectivesComponentServerFacet_AbandonCurrentMission"
+    },
+    {
+     "wire_type": "0xb69",
      "method": "AbandonObjectiveDebug",
      "name": "ObjectivesComponentServerFacet_AbandonObjectiveDebug"
+    },
+    {
+     "wire_type": "0xefc",
+     "method": "AbandonSingleObjective",
+     "name": "ObjectivesComponentServerFacet_AbandonSingleObjective"
     },
     {
      "wire_type": "0xf02",
@@ -11398,17 +11722,17 @@
      "name": "ObjectivesComponentServerFacet_AddObjectiveByIDDebug"
     },
     {
+     "wire_type": "0x716",
+     "method": "AddObjectiveFromRecipe",
+     "name": "ObjectivesComponentServerFacet_AddObjectiveFromRecipe"
+    },
+    {
      "wire_type": "0x961",
      "method": "CompleteObjectiveDebug",
      "name": "ObjectivesComponentServerFacet_CompleteObjectiveDebug"
     },
     {
      "wire_type": "0xf06",
-     "method": "CompleteObjectiveTaskDebug",
-     "name": "ObjectivesComponentServerFacet_CompleteObjectiveTaskDebug"
-    },
-    {
-     "wire_type": "0x1ace",
      "method": "CompleteObjectiveTaskDebug",
      "name": "ObjectivesComponentServerFacet_CompleteObjectiveTaskDebug"
     },
@@ -11431,6 +11755,11 @@
      "wire_type": "0x17d5",
      "method": "DebugRequestScheduledObjectiveInformation",
      "name": "ObjectivesComponentServerFacet_DebugRequestScheduledObjectiveInformation"
+    },
+    {
+     "wire_type": "0x1ace",
+     "method": "DebugResetRepeatableObjectives",
+     "name": "ObjectivesComponentServerFacet_DebugResetRepeatableObjectives"
     },
     {
      "wire_type": "0x17f1",
@@ -11473,6 +11802,11 @@
      "name": "ObjectivesComponentServerFacet_HandleFactionProgressionPersistenceValidation"
     },
     {
+     "wire_type": "0x17d4",
+     "method": "HandleScheduledQuestResetting",
+     "name": "ObjectivesComponentServerFacet_HandleScheduledQuestResetting"
+    },
+    {
      "wire_type": "0xf01",
      "method": "HandleSpecificQuestItemPersistenceValidation",
      "name": "ObjectivesComponentServerFacet_HandleSpecificQuestItemPersistenceValidation"
@@ -11486,11 +11820,6 @@
      "wire_type": "0xeff",
      "method": "RequestShareObjectiveWithGroup",
      "name": "ObjectivesComponentServerFacet_RequestShareObjectiveWithGroup"
-    },
-    {
-     "wire_type": "0xee7",
-     "method": "ResetObjective",
-     "name": "ObjectivesComponentServerFacet_ResetObjective"
     },
     {
      "wire_type": "0x15e0",
@@ -11508,7 +11837,7 @@
      "name": "ObjectivesComponentServerFacet_UnlockPrerequisitesByIDDebug"
     },
     {
-     "wire_type": "0xa4d",
+     "wire_type": "0x5b2",
      "method": "UpdateTrackedObjectives",
      "name": "ObjectivesComponentServerFacet_UpdateTrackedObjectives"
     }
@@ -11520,7 +11849,7 @@
      "name": "ObjectivesComponentClientFacet_DebugReceiveScheduledObjectiveInformation"
     },
     {
-     "wire_type": "0xefc",
+     "wire_type": "0x151f",
      "method": "OnMilestoneCorrection",
      "name": "ObjectivesComponentClientFacet_OnMilestoneCorrection"
     },
@@ -11533,6 +11862,37 @@
      "wire_type": "0x1634",
      "method": "SetObjectiveInstanceDisabled",
      "name": "ObjectivesComponentClientFacet_SetObjectiveInstanceDisabled"
+    }
+   ]
+  },
+  "Stamina": {
+   "server": [
+    {
+     "wire_type": "0x4cd",
+     "method": "Debug_EnableStaminaRegen",
+     "name": "StaminaComponentServerFacet_Debug_EnableStaminaRegen"
+    },
+    {
+     "wire_type": "0xc24",
+     "method": "Debug_OnStaminaGodModeChanged",
+     "name": "StaminaComponentServerFacet_Debug_OnStaminaGodModeChanged"
+    },
+    {
+     "wire_type": "0x160c",
+     "method": "Debug_RemoveStamina",
+     "name": "StaminaComponentServerFacet_Debug_RemoveStamina"
+    },
+    {
+     "wire_type": "0x10c8",
+     "method": "Debug_ResetStaminaRegen",
+     "name": "StaminaComponentServerFacet_Debug_ResetStaminaRegen"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x1d9",
+     "method": "ClientForceSyncServerStateRemote",
+     "name": "StaminaComponentClientFacet_ClientForceSyncServerStateRemote"
     }
    ]
   },
@@ -11575,12 +11935,12 @@
      "name": "GameModeParticipantComponentServerFacet_AcceptMatchmakingServiceMatch"
     },
     {
-     "wire_type": "0x42a",
+     "wire_type": "0xcc7",
      "method": "DbgRequestAdvanceToNextState",
      "name": "GameModeParticipantComponentServerFacet_DbgRequestAdvanceToNextState"
     },
     {
-     "wire_type": "0x1ad1",
+     "wire_type": "0x12df",
      "method": "DbgResetFlagOverride",
      "name": "GameModeParticipantComponentServerFacet_DbgResetFlagOverride"
     },
@@ -11615,6 +11975,11 @@
      "name": "GameModeParticipantComponentServerFacet_DebugLeaveMatchmakingServiceQueue"
     },
     {
+     "wire_type": "0x1b2f",
+     "method": "DebugLoadProceduralLevelJson",
+     "name": "GameModeParticipantComponentServerFacet_DebugLoadProceduralLevelJson"
+    },
+    {
      "wire_type": "0x1b2e",
      "method": "DebugReloadProceduralDatasheets",
      "name": "GameModeParticipantComponentServerFacet_DebugReloadProceduralDatasheets"
@@ -11640,14 +12005,24 @@
      "name": "GameModeParticipantComponentServerFacet_DebugResetPlayerMetadata"
     },
     {
+     "wire_type": "0x18af",
+     "method": "DebugSetMatchmakingRole",
+     "name": "GameModeParticipantComponentServerFacet_DebugSetMatchmakingRole"
+    },
+    {
      "wire_type": "0x18d6",
      "method": "DebugSetPlayerMetadata",
      "name": "GameModeParticipantComponentServerFacet_DebugSetPlayerMetadata"
     },
     {
-     "wire_type": "0x1b2f",
+     "wire_type": "0x1769",
      "method": "DebugStartMatch",
      "name": "GameModeParticipantComponentServerFacet_DebugStartMatch"
+    },
+    {
+     "wire_type": "0x154a",
+     "method": "OnMatchmakingLoginConfirmed",
+     "name": "GameModeParticipantComponentServerFacet_OnMatchmakingLoginConfirmed"
     },
     {
      "wire_type": "0x7bc",
@@ -11660,6 +12035,11 @@
      "name": "GameModeParticipantComponentServerFacet_OnReceivedDebugClientEvent"
     },
     {
+     "wire_type": "0x134c",
+     "method": "OnRequestEndGameModeCinematic",
+     "name": "GameModeParticipantComponentServerFacet_OnRequestEndGameModeCinematic"
+    },
+    {
      "wire_type": "0x1899",
      "method": "RequestCancelMatchmakingRoleSelectionPhase",
      "name": "GameModeParticipantComponentServerFacet_RequestCancelMatchmakingRoleSelectionPhase"
@@ -11670,7 +12050,7 @@
      "name": "GameModeParticipantComponentServerFacet_RequestDebugGetPersistentData"
     },
     {
-     "wire_type": "0x18af",
+     "wire_type": "0xcc8",
      "method": "RequestDebugQuickStart",
      "name": "GameModeParticipantComponentServerFacet_RequestDebugQuickStart"
     },
@@ -11688,6 +12068,11 @@
      "wire_type": "0x467",
      "method": "RequestDebugSetMatchmakingRating",
      "name": "GameModeParticipantComponentServerFacet_RequestDebugSetMatchmakingRating"
+    },
+    {
+     "wire_type": "0x1404",
+     "method": "RequestDebugSetQueueEligibleTime",
+     "name": "GameModeParticipantComponentServerFacet_RequestDebugSetQueueEligibleTime"
     },
     {
      "wire_type": "0x18e4",
@@ -11715,14 +12100,14 @@
      "name": "GameModeParticipantComponentServerFacet_RequestLeaveGameMode"
     },
     {
-     "wire_type": "0x1404",
-     "method": "RequestLeaveGameMode",
-     "name": "GameModeParticipantComponentServerFacet_RequestLeaveGameMode"
-    },
-    {
      "wire_type": "0x951",
      "method": "RequestLeaveQueueForAllGameModes",
      "name": "GameModeParticipantComponentServerFacet_RequestLeaveQueueForAllGameModes"
+    },
+    {
+     "wire_type": "0x42a",
+     "method": "RequestLeaveQueueForGameMode",
+     "name": "GameModeParticipantComponentServerFacet_RequestLeaveQueueForGameMode"
     },
     {
      "wire_type": "0x1843",
@@ -11750,6 +12135,11 @@
      "wire_type": "0x199b",
      "method": "DebugReceiveGameModeStatus",
      "name": "GameModeParticipantComponentClientFacet_DebugReceiveGameModeStatus"
+    },
+    {
+     "wire_type": "0x1ad1",
+     "method": "OnAcceptMatchmakingServiceMatchIgnoredMsg",
+     "name": "GameModeParticipantComponentClientFacet_OnAcceptMatchmakingServiceMatchIgnoredMsg"
     },
     {
      "wire_type": "0xcca",
@@ -11815,6 +12205,11 @@
      "wire_type": "0xcee",
      "method": "OnQueueForGameModeFailedMsg",
      "name": "GameModeParticipantComponentClientFacet_OnQueueForGameModeFailedMsg"
+    },
+    {
+     "wire_type": "0x4d2",
+     "method": "OnQueueGroupRemovedMsg",
+     "name": "GameModeParticipantComponentClientFacet_OnQueueGroupRemovedMsg"
     },
     {
      "wire_type": "0x1a89",
@@ -11940,6 +12335,11 @@
      "wire_type": "0xc6b",
      "method": "DebugCloseBaitBoxAction",
      "name": "FishingComponentServerFacet_DebugCloseBaitBoxAction"
+    },
+    {
+     "wire_type": "0xc68",
+     "method": "DebugOpenBaitBoxAction",
+     "name": "FishingComponentServerFacet_DebugOpenBaitBoxAction"
     },
     {
      "wire_type": "0xc6d",
@@ -12187,8 +12587,19 @@
    ]
   },
   "ExampleFaceted": {
-   "server": [],
+   "server": [
+    {
+     "wire_type": "0x622",
+     "method": "FunctionCalledFromTheClient",
+     "name": "ExampleFacetedComponentServerFacet_FunctionCalledFromTheClient"
+    }
+   ],
    "client": [
+    {
+     "wire_type": "0x829",
+     "method": "FunctionCalledFromTheServer",
+     "name": "ExampleFacetedComponentClientFacet_FunctionCalledFromTheServer"
+    },
     {
      "wire_type": "0x244",
      "method": "OnPortrayedFromTheServer",
@@ -12269,11 +12680,6 @@
      "wire_type": "0x260",
      "method": "AdjustFXScripts",
      "name": "StatusEffectsComponentClientFacet_AdjustFXScripts"
-    },
-    {
-     "wire_type": "0x108c",
-     "method": "Debug_SyncPausedStatusEffects",
-     "name": "StatusEffectsComponentClientFacet_Debug_SyncPausedStatusEffects"
     },
     {
      "wire_type": "0x1663",
@@ -12358,13 +12764,169 @@
    ],
    "client": []
   },
-  "MomentaryOffense": {
-   "server": [],
-   "client": [
+  "Paperdoll": {
+   "server": [
+    {
+     "wire_type": "0x12ce",
+     "method": "DebugConsumeLoadedAmmo",
+     "name": "PaperdollComponentServerFacet_DebugConsumeLoadedAmmo"
+    },
+    {
+     "wire_type": "0x70f",
+     "method": "DebugForceItemFixed",
+     "name": "PaperdollComponentServerFacet_DebugForceItemFixed"
+    },
+    {
+     "wire_type": "0x57f",
+     "method": "DebugRequestSyncAverageArmorGS",
+     "name": "PaperdollComponentServerFacet_DebugRequestSyncAverageArmorGS"
+    },
+    {
+     "wire_type": "0xf3f",
+     "method": "DebugSetDurability",
+     "name": "PaperdollComponentServerFacet_DebugSetDurability"
+    },
+    {
+     "wire_type": "0x17ec",
+     "method": "DebugSetIgnoreDurabilityLoss",
+     "name": "PaperdollComponentServerFacet_DebugSetIgnoreDurabilityLoss"
+    },
+    {
+     "wire_type": "0x12cd",
+     "method": "DebugSetLoadedAmmo",
+     "name": "PaperdollComponentServerFacet_DebugSetLoadedAmmo"
+    },
+    {
+     "wire_type": "0x15cb",
+     "method": "RequestAddItemToLoadouts",
+     "name": "PaperdollComponentServerFacet_RequestAddItemToLoadouts"
+    },
+    {
+     "wire_type": "0x1541",
+     "method": "RequestAddLoadout",
+     "name": "PaperdollComponentServerFacet_RequestAddLoadout"
+    },
+    {
+     "wire_type": "0x1533",
+     "method": "RequestRemoveAllItemsFromLoadout",
+     "name": "PaperdollComponentServerFacet_RequestRemoveAllItemsFromLoadout"
+    },
+    {
+     "wire_type": "0x1543",
+     "method": "RequestRemoveItemFromAllLoadouts",
+     "name": "PaperdollComponentServerFacet_RequestRemoveItemFromAllLoadouts"
+    },
+    {
+     "wire_type": "0x1536",
+     "method": "RequestRemoveItemFromLoadout",
+     "name": "PaperdollComponentServerFacet_RequestRemoveItemFromLoadout"
+    },
+    {
+     "wire_type": "0x153e",
+     "method": "RequestRemoveLoadout",
+     "name": "PaperdollComponentServerFacet_RequestRemoveLoadout"
+    },
+    {
+     "wire_type": "0x156f",
+     "method": "RequestRenameLoadout",
+     "name": "PaperdollComponentServerFacet_RequestRenameLoadout"
+    },
+    {
+     "wire_type": "0x15a6",
+     "method": "RequestSavePaperdollToLoadout",
+     "name": "PaperdollComponentServerFacet_RequestSavePaperdollToLoadout"
+    },
+    {
+     "wire_type": "0x15ca",
+     "method": "RequestSetIsLoadoutPanelOpen",
+     "name": "PaperdollComponentServerFacet_RequestSetIsLoadoutPanelOpen"
+    },
+    {
+     "wire_type": "0x1542",
+     "method": "RequestSwitchToLoadout",
+     "name": "PaperdollComponentServerFacet_RequestSwitchToLoadout"
+    },
+    {
+     "wire_type": "0xf3e",
+     "method": "ServerCycleWeapon",
+     "name": "PaperdollComponentServerFacet_ServerCycleWeapon"
+    },
+    {
+     "wire_type": "0x158b",
+     "method": "ServerEquipAllItems",
+     "name": "PaperdollComponentServerFacet_ServerEquipAllItems"
+    },
+    {
+     "wire_type": "0xf37",
+     "method": "ServerEquipItem",
+     "name": "PaperdollComponentServerFacet_ServerEquipItem"
+    },
+    {
+     "wire_type": "0xf3c",
+     "method": "ServerSwapItems",
+     "name": "PaperdollComponentServerFacet_ServerSwapItems"
+    },
+    {
+     "wire_type": "0xf38",
+     "method": "ServerUnequipItem",
+     "name": "PaperdollComponentServerFacet_ServerUnequipItem"
+    },
     {
      "wire_type": "0x297",
-     "method": "OnDamageDealt",
-     "name": "MomentaryOffenseComponentClientFacet_OnDamageDealt"
+     "method": "ServerUseItem",
+     "name": "PaperdollComponentServerFacet_ServerUseItem"
+    },
+    {
+     "wire_type": "0x175a",
+     "method": "SetHidingSkinOnSlot",
+     "name": "PaperdollComponentServerFacet_SetHidingSkinOnSlot"
+    },
+    {
+     "wire_type": "0x14b6",
+     "method": "SetPreviewActive",
+     "name": "PaperdollComponentServerFacet_SetPreviewActive"
+    },
+    {
+     "wire_type": "0xec0",
+     "method": "SetWeaponMannequinTags",
+     "name": "PaperdollComponentServerFacet_SetWeaponMannequinTags"
+    },
+    {
+     "wire_type": "0xf3b",
+     "method": "ToggleSheath",
+     "name": "PaperdollComponentServerFacet_ToggleSheath"
+    },
+    {
+     "wire_type": "0x4e5",
+     "method": "UnequipAllItems",
+     "name": "PaperdollComponentServerFacet_UnequipAllItems"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0xe6a",
+     "method": "DebugSyncAverageArmorGS",
+     "name": "PaperdollComponentClientFacet_DebugSyncAverageArmorGS"
+    },
+    {
+     "wire_type": "0x14cb",
+     "method": "HandleThrowableWarningExpire",
+     "name": "PaperdollComponentClientFacet_HandleThrowableWarningExpire"
+    },
+    {
+     "wire_type": "0xe2a",
+     "method": "OnEquipItemFail",
+     "name": "PaperdollComponentClientFacet_OnEquipItemFail"
+    },
+    {
+     "wire_type": "0xf40",
+     "method": "PlayItemSoundFromRoot",
+     "name": "PaperdollComponentClientFacet_PlayItemSoundFromRoot"
+    },
+    {
+     "wire_type": "0x1579",
+     "method": "SendLoadoutStatusNotification",
+     "name": "PaperdollComponentClientFacet_SendLoadoutStatusNotification"
     }
    ]
   },
@@ -12384,6 +12946,11 @@
      "wire_type": "0x953",
      "method": "RenderPositions",
      "name": "StimulusComponentServerFacet_RenderPositions"
+    },
+    {
+     "wire_type": "0x835",
+     "method": "UnregisterClientForDebug",
+     "name": "StimulusComponentServerFacet_UnregisterClientForDebug"
     }
    ],
    "client": [
@@ -12432,11 +12999,6 @@
      "wire_type": "0x1099",
      "method": "CampReconnectFailure",
      "name": "CampingComponentClientFacet_CampReconnectFailure"
-    },
-    {
-     "wire_type": "0x109b",
-     "method": "DemolishCamp",
-     "name": "CampingComponentClientFacet_DemolishCamp"
     },
     {
      "wire_type": "0x1a68",
@@ -12506,6 +13068,46 @@
     }
    ]
   },
+  "Conversation": {
+   "server": [
+    {
+     "wire_type": "0x152d",
+     "method": "DebugSetAchievementConditional",
+     "name": "ConversationComponentServerFacet_DebugSetAchievementConditional"
+    },
+    {
+     "wire_type": "0xebe",
+     "method": "DebugUnlockPrerequisites",
+     "name": "ConversationComponentServerFacet_DebugUnlockPrerequisites"
+    },
+    {
+     "wire_type": "0x1515",
+     "method": "OnFinishedConversationTopicsFromClient",
+     "name": "ConversationComponentServerFacet_OnFinishedConversationTopicsFromClient"
+    },
+    {
+     "wire_type": "0xebc",
+     "method": "RequestAcceptObjective",
+     "name": "ConversationComponentServerFacet_RequestAcceptObjective"
+    },
+    {
+     "wire_type": "0x31a",
+     "method": "RequestCompleteObjective",
+     "name": "ConversationComponentServerFacet_RequestCompleteObjective"
+    },
+    {
+     "wire_type": "0xc56",
+     "method": "RequestConversationTopicFromClient",
+     "name": "ConversationComponentServerFacet_RequestConversationTopicFromClient"
+    },
+    {
+     "wire_type": "0xebd",
+     "method": "RequestDebugConversation",
+     "name": "ConversationComponentServerFacet_RequestDebugConversation"
+    }
+   ],
+   "client": []
+  },
   "HubLocalCache": {
    "server": [
     {
@@ -12529,7 +13131,7 @@
      "name": "HubLocalCacheComponentServerFacet_UnregisterClientForDebugSnapshots"
     },
     {
-     "wire_type": "0x835",
+     "wire_type": "0x12bf",
      "method": "UnregisterFromHLCActorUpdates",
      "name": "HubLocalCacheComponentServerFacet_UnregisterFromHLCActorUpdates"
     }
@@ -12563,6 +13165,11 @@
      "wire_type": "0x195c",
      "method": "DEBUG_SyncDispersalData",
      "name": "FactionComponentServerFacet_DEBUG_SyncDispersalData"
+    },
+    {
+     "wire_type": "0xc5b",
+     "method": "Debug_EnablePvpValueDebugging",
+     "name": "FactionComponentServerFacet_Debug_EnablePvpValueDebugging"
     },
     {
      "wire_type": "0x146f",
@@ -12636,7 +13243,7 @@
   "ItemDrop": {
    "server": [
     {
-     "wire_type": "0x793",
+     "wire_type": "0x72e",
      "method": "DropInventoryItems",
      "name": "ItemDropComponentServerFacet_DropInventoryItems"
     },
@@ -12861,34 +13468,64 @@
     }
    ]
   },
-  "TestFaceted": {
+  "PlayerArena": {
    "server": [
     {
-     "wire_type": "0x3a5",
-     "method": "DebugFunction",
-     "name": "TestFacetedComponentServerFacet_DebugFunction"
+     "wire_type": "0x17aa",
+     "method": "DebugAdvanceEncounterToNextState",
+     "name": "PlayerArenaComponentServerFacet_DebugAdvanceEncounterToNextState"
     },
     {
-     "wire_type": "0x80f",
-     "method": "SetUserMapPair",
-     "name": "TestFacetedComponentServerFacet_SetUserMapPair"
+     "wire_type": "0x1acc",
+     "method": "DebugResetEncounters",
+     "name": "PlayerArenaComponentServerFacet_DebugResetEncounters"
     },
     {
-     "wire_type": "0x645",
-     "method": "SetUserString",
-     "name": "TestFacetedComponentServerFacet_SetUserString"
+     "wire_type": "0x39e",
+     "method": "ForfeitArena",
+     "name": "PlayerArenaComponentServerFacet_ForfeitArena"
     },
     {
-     "wire_type": "0x7bb",
-     "method": "ToggleReplicatedStateBool",
-     "name": "TestFacetedComponentServerFacet_ToggleReplicatedStateBool"
+     "wire_type": "0x19ee",
+     "method": "NotifyPlayerOfFtueQTECompletion",
+     "name": "PlayerArenaComponentServerFacet_NotifyPlayerOfFtueQTECompletion"
+    },
+    {
+     "wire_type": "0x13ad",
+     "method": "RequestRemoteEnterDungeon",
+     "name": "PlayerArenaComponentServerFacet_RequestRemoteEnterDungeon"
+    },
+    {
+     "wire_type": "0x13af",
+     "method": "RequestRemoteInteract",
+     "name": "PlayerArenaComponentServerFacet_RequestRemoteInteract"
+    },
+    {
+     "wire_type": "0x3b2",
+     "method": "TeleportIntoDungeon",
+     "name": "PlayerArenaComponentServerFacet_TeleportIntoDungeon"
     }
    ],
    "client": [
     {
-     "wire_type": "0x847",
-     "method": "FunctionCalledFromTheServer",
-     "name": "TestFacetedComponentClientFacet_FunctionCalledFromTheServer"
+     "wire_type": "0x960",
+     "method": "OnArenaActivated",
+     "name": "PlayerArenaComponentClientFacet_OnArenaActivated"
+    },
+    {
+     "wire_type": "0x1a78",
+     "method": "OnDungeonActivateRemoteResult",
+     "name": "PlayerArenaComponentClientFacet_OnDungeonActivateRemoteResult"
+    },
+    {
+     "wire_type": "0x1ad0",
+     "method": "OnEnterDungeonRequestIgnoredMsg",
+     "name": "PlayerArenaComponentClientFacet_OnEnterDungeonRequestIgnoredMsg"
+    },
+    {
+     "wire_type": "0x13ae",
+     "method": "OnRemoteInteractResult",
+     "name": "PlayerArenaComponentClientFacet_OnRemoteInteractResult"
     }
    ]
   },
@@ -13032,12 +13669,17 @@
      "name": "LootTrackerComponentServerFacet_DebugExpireLimit"
     },
     {
-     "wire_type": "0xe21",
-     "method": "DebugResetCollectible",
-     "name": "LootTrackerComponentServerFacet_DebugResetCollectible"
+     "wire_type": "0x12db",
+     "method": "DebugFakeLootDivertAction",
+     "name": "LootTrackerComponentServerFacet_DebugFakeLootDivertAction"
     },
     {
-     "wire_type": "0x12db",
+     "wire_type": "0x12e6",
+     "method": "DebugPauseLootDivert",
+     "name": "LootTrackerComponentServerFacet_DebugPauseLootDivert"
+    },
+    {
+     "wire_type": "0xe21",
      "method": "DebugResetCollectible",
      "name": "LootTrackerComponentServerFacet_DebugResetCollectible"
     },
@@ -13052,7 +13694,7 @@
      "name": "LootTrackerComponentServerFacet_DebugResetLootDivertActionCount"
     },
     {
-     "wire_type": "0x129c",
+     "wire_type": "0x12ec",
      "method": "DebugResumeLootDivert",
      "name": "LootTrackerComponentServerFacet_DebugResumeLootDivert"
     },
@@ -13072,9 +13714,19 @@
      "name": "LootTrackerComponentServerFacet_DebugSetLootDivertLevel"
     },
     {
-     "wire_type": "0x12e6",
+     "wire_type": "0x129c",
+     "method": "DebugSyncActiveLootTags",
+     "name": "LootTrackerComponentServerFacet_DebugSyncActiveLootTags"
+    },
+    {
+     "wire_type": "0x129b",
      "method": "DebugSyncGlobalRollMod",
      "name": "LootTrackerComponentServerFacet_DebugSyncGlobalRollMod"
+    },
+    {
+     "wire_type": "0x1299",
+     "method": "DebugSyncLootLimits",
+     "name": "LootTrackerComponentServerFacet_DebugSyncLootLimits"
     },
     {
      "wire_type": "0x9e3",
@@ -13099,30 +13751,14 @@
      "name": "LootTrackerComponentClientFacet_SyncGlobalRollMod"
     },
     {
+     "wire_type": "0x129a",
+     "method": "SyncLootLimits",
+     "name": "LootTrackerComponentClientFacet_SyncLootLimits"
+    },
+    {
      "wire_type": "0x1470",
      "method": "TriggerLootLimitNofitication",
      "name": "LootTrackerComponentClientFacet_TriggerLootLimitNofitication"
-    }
-   ]
-  },
-  "Charge": {
-   "server": [
-    {
-     "wire_type": "0x1494",
-     "method": "Debug_SetCurrentCharge",
-     "name": "ChargeComponentServerFacet_Debug_SetCurrentCharge"
-    },
-    {
-     "wire_type": "0x1493",
-     "method": "ForceServerSyncRequestedFromClient",
-     "name": "ChargeComponentServerFacet_ForceServerSyncRequestedFromClient"
-    }
-   ],
-   "client": [
-    {
-     "wire_type": "0x446",
-     "method": "ClientSyncServerState",
-     "name": "ChargeComponentClientFacet_ClientSyncServerState"
     }
    ]
   },
@@ -13183,15 +13819,31 @@
    ]
   },
   "Unstuck": {
-   "server": [],
+   "server": [
+    {
+     "wire_type": "0x184",
+     "method": "OnClientRequestUnstuck",
+     "name": "UnstuckComponentServerFacet_OnClientRequestUnstuck"
+    }
+   ],
    "client": [
+    {
+     "wire_type": "0xf8c",
+     "method": "OnUnstuckRequestAccepted",
+     "name": "UnstuckComponentClientFacet_OnUnstuckRequestAccepted"
+    },
+    {
+     "wire_type": "0xad6",
+     "method": "OnUnstuckRequestDenied",
+     "name": "UnstuckComponentClientFacet_OnUnstuckRequestDenied"
+    },
     {
      "wire_type": "0xf8d",
      "method": "OnUnstuckTeleportCancelled",
      "name": "UnstuckComponentClientFacet_OnUnstuckTeleportCancelled"
     },
     {
-     "wire_type": "0x10c9",
+     "wire_type": "0x88e",
      "method": "OnUnstuckTeleportComplete",
      "name": "UnstuckComponentClientFacet_OnUnstuckTeleportComplete"
     },
@@ -13201,31 +13853,6 @@
      "name": "UnstuckComponentClientFacet_SyncBreadcrumbs"
     }
    ]
-  },
-  "Stamina": {
-   "server": [
-    {
-     "wire_type": "0x4cd",
-     "method": "Debug_EnableStaminaRegen",
-     "name": "StaminaComponentServerFacet_Debug_EnableStaminaRegen"
-    },
-    {
-     "wire_type": "0xc24",
-     "method": "Debug_OnStaminaGodModeChanged",
-     "name": "StaminaComponentServerFacet_Debug_OnStaminaGodModeChanged"
-    },
-    {
-     "wire_type": "0x160c",
-     "method": "Debug_RemoveStamina",
-     "name": "StaminaComponentServerFacet_Debug_RemoveStamina"
-    },
-    {
-     "wire_type": "0x10c8",
-     "method": "Debug_ResetStaminaRegen",
-     "name": "StaminaComponentServerFacet_Debug_ResetStaminaRegen"
-    }
-   ],
-   "client": []
   },
   "SiegeWarfare": {
    "server": [
@@ -13590,6 +14217,67 @@
     }
    ]
   },
+  "TestFaceted": {
+   "server": [
+    {
+     "wire_type": "0x40c",
+     "method": "DebugFunction",
+     "name": "TestFacetedComponentServerFacet_DebugFunction"
+    },
+    {
+     "wire_type": "0x51c",
+     "method": "FunctionCalledFromTheClient",
+     "name": "TestFacetedComponentServerFacet_FunctionCalledFromTheClient"
+    },
+    {
+     "wire_type": "0x447",
+     "method": "GmFunction",
+     "name": "TestFacetedComponentServerFacet_GmFunction"
+    },
+    {
+     "wire_type": "0x6e7",
+     "method": "PushUserString",
+     "name": "TestFacetedComponentServerFacet_PushUserString"
+    },
+    {
+     "wire_type": "0x853",
+     "method": "RemoveUserMapKey",
+     "name": "TestFacetedComponentServerFacet_RemoveUserMapKey"
+    },
+    {
+     "wire_type": "0x84e",
+     "method": "RemoveUserString",
+     "name": "TestFacetedComponentServerFacet_RemoveUserString"
+    },
+    {
+     "wire_type": "0x850",
+     "method": "SetUserMapPair",
+     "name": "TestFacetedComponentServerFacet_SetUserMapPair"
+    },
+    {
+     "wire_type": "0x645",
+     "method": "SetUserString",
+     "name": "TestFacetedComponentServerFacet_SetUserString"
+    },
+    {
+     "wire_type": "0x84a",
+     "method": "ToggleReplicatedStateBool",
+     "name": "TestFacetedComponentServerFacet_ToggleReplicatedStateBool"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x847",
+     "method": "FunctionCalledFromTheServer",
+     "name": "TestFacetedComponentClientFacet_FunctionCalledFromTheServer"
+    },
+    {
+     "wire_type": "0x854",
+     "method": "OnSync",
+     "name": "TestFacetedComponentClientFacet_OnSync"
+    }
+   ]
+  },
   "Territory": {
    "server": [
     {
@@ -13629,32 +14317,6 @@
      "wire_type": "0x93b",
      "method": "SyncParticipantData",
      "name": "ParticipantTrackerComponentClientFacet_SyncParticipantData"
-    }
-   ]
-  },
-  "GridTracking": {
-   "server": [
-    {
-     "wire_type": "0x8a0",
-     "method": "ClientAckPhasingUpdate",
-     "name": "GridTrackingComponentServerFacet_ClientAckPhasingUpdate"
-    },
-    {
-     "wire_type": "0x1512",
-     "method": "DebugRecordPrimaryGridPhysics",
-     "name": "GridTrackingComponentServerFacet_DebugRecordPrimaryGridPhysics"
-    },
-    {
-     "wire_type": "0x7c8",
-     "method": "DebugSubscribePhaseStatus",
-     "name": "GridTrackingComponentServerFacet_DebugSubscribePhaseStatus"
-    }
-   ],
-   "client": [
-    {
-     "wire_type": "0x6cc",
-     "method": "UpdatePhasing",
-     "name": "GridTrackingComponentClientFacet_UpdatePhasing"
     }
    ]
   },
@@ -13698,24 +14360,13 @@
    ],
    "client": []
   },
-  "Mana": {
-   "server": [
-    {
-     "wire_type": "0x6fe",
-     "method": "ForceServerSyncRequestedFromClient",
-     "name": "ManaComponentServerFacet_ForceServerSyncRequestedFromClient"
-    },
-    {
-     "wire_type": "0x10c5",
-     "method": "ForceServerSyncRequestedFromClient",
-     "name": "ManaComponentServerFacet_ForceServerSyncRequestedFromClient"
-    }
-   ],
+  "Homing": {
+   "server": [],
    "client": [
     {
-     "wire_type": "0x10c1",
-     "method": "ClientForceSyncServerState",
-     "name": "ManaComponentClientFacet_ClientForceSyncServerState"
+     "wire_type": "0x6fe",
+     "method": "SetHomingOverrideTarget",
+     "name": "HomingComponentClientFacet_SetHomingOverrideTarget"
     }
    ]
   },
@@ -13755,68 +14406,17 @@
     }
    ]
   },
-  "CooldownTimers": {
-   "server": [
-    {
-     "wire_type": "0xf7c",
-     "method": "Debug_OnCooldownsGodModeChanged",
-     "name": "CooldownTimersComponentServerFacet_Debug_OnCooldownsGodModeChanged"
-    },
-    {
-     "wire_type": "0x10b9",
-     "method": "Debug_OnCooldownsGodModeChanged",
-     "name": "CooldownTimersComponentServerFacet_Debug_OnCooldownsGodModeChanged"
-    },
-    {
-     "wire_type": "0x12ca",
-     "method": "Debug_ResetGeneralCooldown",
-     "name": "CooldownTimersComponentServerFacet_Debug_ResetGeneralCooldown"
-    },
-    {
-     "wire_type": "0x78b",
-     "method": "ForceServerSyncRequestedFromClient",
-     "name": "CooldownTimersComponentServerFacet_ForceServerSyncRequestedFromClient"
-    }
-   ],
-   "client": [
-    {
-     "wire_type": "0x810",
-     "method": "ClientForceSyncServerState",
-     "name": "CooldownTimersComponentClientFacet_ClientForceSyncServerState"
-    },
-    {
-     "wire_type": "0xcb4",
-     "method": "ClientSyncServerState",
-     "name": "CooldownTimersComponentClientFacet_ClientSyncServerState"
-    }
-   ]
-  },
-  "ItemManagement": {
-   "server": [
-    {
-     "wire_type": "0x7eb",
-     "method": "DebugOwnedItemTransactionTest",
-     "name": "ItemManagementComponentServerFacet_DebugOwnedItemTransactionTest"
-    },
-    {
-     "wire_type": "0x1538",
-     "method": "DebugOwnedItemTransactionTest",
-     "name": "ItemManagementComponentServerFacet_DebugOwnedItemTransactionTest"
-    },
-    {
-     "wire_type": "0x153c",
-     "method": "DebugSyncData",
-     "name": "ItemManagementComponentServerFacet_DebugSyncData"
-    }
-   ],
-   "client": []
-  },
   "ProjectileSpawner": {
    "server": [
     {
-     "wire_type": "0xb4f",
+     "wire_type": "0x2f0",
      "method": "DEBUG_FireAtTarget",
      "name": "ProjectileSpawnerComponentServerFacet_DEBUG_FireAtTarget"
+    },
+    {
+     "wire_type": "0x78b",
+     "method": "DEBUG_Spawn",
+     "name": "ProjectileSpawnerComponentServerFacet_DEBUG_Spawn"
     }
    ],
    "client": [
@@ -13826,12 +14426,7 @@
      "name": "ProjectileSpawnerComponentClientFacet_OnServerSpawn"
     },
     {
-     "wire_type": "0x803",
-     "method": "OnServerSpawnAuthoritativeProjectile",
-     "name": "ProjectileSpawnerComponentClientFacet_OnServerSpawnAuthoritativeProjectile"
-    },
-    {
-     "wire_type": "0xf3c",
+     "wire_type": "0x147",
      "method": "OnServerSpawnAuthoritativeProjectile",
      "name": "ProjectileSpawnerComponentClientFacet_OnServerSpawnAuthoritativeProjectile"
     }
@@ -13926,6 +14521,11 @@
      "name": "AchievementComponentServerFacet_DebugRequestForceEvaluateAllNPAs"
     },
     {
+     "wire_type": "0x1af1",
+     "method": "DebugRequestForceEvaluateIndividualNPA",
+     "name": "AchievementComponentServerFacet_DebugRequestForceEvaluateIndividualNPA"
+    },
+    {
      "wire_type": "0x1af0",
      "method": "DebugRequestIndividualNPAServerState",
      "name": "AchievementComponentServerFacet_DebugRequestIndividualNPAServerState"
@@ -13983,11 +14583,6 @@
      "name": "AchievementComponentClientFacet_DebugAllNPAsServerStateResponse"
     },
     {
-     "wire_type": "0xc8a",
-     "method": "DebugIndividualNPAServerStateResponse",
-     "name": "AchievementComponentClientFacet_DebugIndividualNPAServerStateResponse"
-    },
-    {
      "wire_type": "0x1aee",
      "method": "DebugIndividualNPAServerStateResponse",
      "name": "AchievementComponentClientFacet_DebugIndividualNPAServerStateResponse"
@@ -13998,6 +14593,11 @@
    "server": [
     {
      "wire_type": "0x85c",
+     "method": "PrintName",
+     "name": "GameTransformComponentServerFacet_PrintName"
+    },
+    {
+     "wire_type": "0x3db",
      "method": "PrintName",
      "name": "GameTransformComponentServerFacet_PrintName"
     }
@@ -14278,6 +14878,16 @@
    ],
    "client": []
   },
+  "HitVolume": {
+   "server": [
+    {
+     "wire_type": "0x9fd",
+     "method": "DEBUG_SetEnabled",
+     "name": "HitVolumeComponentServerFacet_DEBUG_SetEnabled"
+    }
+   ],
+   "client": []
+  },
   "ContributionTracker": {
    "server": [
     {
@@ -14310,21 +14920,15 @@
     }
    ]
   },
-  "WhisperPlayer": {
+  "Waypoints": {
    "server": [
     {
-     "wire_type": "0x1473",
-     "method": "RequestStartWhisper",
-     "name": "WhisperPlayerComponentServerFacet_RequestStartWhisper"
+     "wire_type": "0xaa8",
+     "method": "RequestSetWaypoint",
+     "name": "WaypointsComponentServerFacet_RequestSetWaypoint"
     }
    ],
-   "client": [
-    {
-     "wire_type": "0xaa8",
-     "method": "RequestStartWhisper",
-     "name": "WhisperPlayerComponentClientFacet_RequestStartWhisper"
-    }
-   ]
+   "client": []
   },
   "Mount": {
    "server": [
@@ -14483,16 +15087,6 @@
     }
    ]
   },
-  "AutoSpell": {
-   "server": [],
-   "client": [
-    {
-     "wire_type": "0xb2f",
-     "method": "OnLifetimeExpire",
-     "name": "AutoSpellComponentClientFacet_OnLifetimeExpire"
-    }
-   ]
-  },
   "HouseData": {
    "server": [
     {
@@ -14575,6 +15169,16 @@
     }
    ]
   },
+  "BeamAttack": {
+   "server": [
+    {
+     "wire_type": "0xbc4",
+     "method": "SetBeamActive",
+     "name": "BeamAttackComponentServerFacet_SetBeamActive"
+    }
+   ],
+   "client": []
+  },
   "CombatText": {
    "server": [
     {
@@ -14585,9 +15189,24 @@
    ],
    "client": [
     {
+     "wire_type": "0xbc5",
+     "method": "AddCombatTextData",
+     "name": "CombatTextComponentClientFacet_AddCombatTextData"
+    },
+    {
      "wire_type": "0xbc6",
      "method": "AddCombatValidationData",
      "name": "CombatTextComponentClientFacet_AddCombatValidationData"
+    }
+   ]
+  },
+  "MomentaryOffense": {
+   "server": [],
+   "client": [
+    {
+     "wire_type": "0xbd7",
+     "method": "OnDamageDealt",
+     "name": "MomentaryOffenseComponentClientFacet_OnDamageDealt"
     }
    ]
   },
@@ -14621,31 +15240,6 @@
    ],
    "client": []
   },
-  "WarData": {
-   "server": [
-    {
-     "wire_type": "0x1709",
-     "method": "DebugEndInfluenceRace",
-     "name": "WarDataComponentServerFacet_DebugEndInfluenceRace"
-    },
-    {
-     "wire_type": "0x1748",
-     "method": "DebugForceSyncInfluenceRaces",
-     "name": "WarDataComponentServerFacet_DebugForceSyncInfluenceRaces"
-    },
-    {
-     "wire_type": "0xc33",
-     "method": "DebugScheduleInfluenceRace",
-     "name": "WarDataComponentServerFacet_DebugScheduleInfluenceRace"
-    },
-    {
-     "wire_type": "0x1703",
-     "method": "DebugScheduleInfluenceRaces",
-     "name": "WarDataComponentServerFacet_DebugScheduleInfluenceRaces"
-    }
-   ],
-   "client": []
-  },
   "TriggerEntity": {
    "server": [],
    "client": [
@@ -14655,46 +15249,6 @@
      "name": "TriggerEntityComponentClientFacet_SyncExecuteEntities"
     }
    ]
-  },
-  "Conversation": {
-   "server": [
-    {
-     "wire_type": "0x152d",
-     "method": "DebugSetAchievementConditional",
-     "name": "ConversationComponentServerFacet_DebugSetAchievementConditional"
-    },
-    {
-     "wire_type": "0xebe",
-     "method": "DebugUnlockPrerequisites",
-     "name": "ConversationComponentServerFacet_DebugUnlockPrerequisites"
-    },
-    {
-     "wire_type": "0x1515",
-     "method": "OnFinishedConversationTopicsFromClient",
-     "name": "ConversationComponentServerFacet_OnFinishedConversationTopicsFromClient"
-    },
-    {
-     "wire_type": "0xebc",
-     "method": "RequestAcceptObjective",
-     "name": "ConversationComponentServerFacet_RequestAcceptObjective"
-    },
-    {
-     "wire_type": "0x129a",
-     "method": "RequestCompleteObjective",
-     "name": "ConversationComponentServerFacet_RequestCompleteObjective"
-    },
-    {
-     "wire_type": "0xc56",
-     "method": "RequestConversationTopicFromClient",
-     "name": "ConversationComponentServerFacet_RequestConversationTopicFromClient"
-    },
-    {
-     "wire_type": "0xebd",
-     "method": "RequestDebugConversation",
-     "name": "ConversationComponentServerFacet_RequestDebugConversation"
-    }
-   ],
-   "client": []
   },
   "InvasionAgent": {
    "server": [],
@@ -14730,6 +15284,42 @@
     }
    ],
    "client": []
+  },
+  "CooldownTimers": {
+   "server": [
+    {
+     "wire_type": "0xe45",
+     "method": "Debug_ClearAllCooldowns",
+     "name": "CooldownTimersComponentServerFacet_Debug_ClearAllCooldowns"
+    },
+    {
+     "wire_type": "0x10b9",
+     "method": "Debug_OnCooldownsGodModeChanged",
+     "name": "CooldownTimersComponentServerFacet_Debug_OnCooldownsGodModeChanged"
+    },
+    {
+     "wire_type": "0x12ca",
+     "method": "Debug_ResetGeneralCooldown",
+     "name": "CooldownTimersComponentServerFacet_Debug_ResetGeneralCooldown"
+    },
+    {
+     "wire_type": "0xc57",
+     "method": "ForceServerSyncRequestedFromClient",
+     "name": "CooldownTimersComponentServerFacet_ForceServerSyncRequestedFromClient"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x10b8",
+     "method": "ClientForceSyncServerState",
+     "name": "CooldownTimersComponentClientFacet_ClientForceSyncServerState"
+    },
+    {
+     "wire_type": "0xcb4",
+     "method": "ClientSyncServerState",
+     "name": "CooldownTimersComponentClientFacet_ClientSyncServerState"
+    }
+   ]
   },
   "POIManager": {
    "server": [
@@ -14921,16 +15511,6 @@
    ],
    "client": []
   },
-  "BeamAttack": {
-   "server": [
-    {
-     "wire_type": "0xf71",
-     "method": "SetBeamActive",
-     "name": "BeamAttackComponentServerFacet_SetBeamActive"
-    }
-   ],
-   "client": []
-  },
   "PointSpawner": {
    "server": [
     {
@@ -14949,7 +15529,7 @@
      "name": "DestroyOnSiegeWarfareComponentServerFacet_DEBUG_TestOnSiegeBegan"
     },
     {
-     "wire_type": "0xfe2",
+     "wire_type": "0xfe6",
      "method": "DEBUG_TestOnSiegeEnded",
      "name": "DestroyOnSiegeWarfareComponentServerFacet_DEBUG_TestOnSiegeEnded"
     }
@@ -15017,111 +15597,41 @@
    ],
    "client": []
   },
-  "Leaderboard": {
+  "Mana": {
    "server": [
     {
-     "wire_type": "0x1444",
-     "method": "DebugClearProcessedRotations",
-     "name": "LeaderboardComponentServerFacet_DebugClearProcessedRotations"
+     "wire_type": "0x10c6",
+     "method": "Debug_OnManaGodModeChanged",
+     "name": "ManaComponentServerFacet_Debug_OnManaGodModeChanged"
     },
     {
-     "wire_type": "0x1442",
-     "method": "DebugGetLastProcessRotations",
-     "name": "LeaderboardComponentServerFacet_DebugGetLastProcessRotations"
+     "wire_type": "0x10c7",
+     "method": "Debug_SetCurrentMana",
+     "name": "ManaComponentServerFacet_Debug_SetCurrentMana"
     },
     {
-     "wire_type": "0x15bd",
-     "method": "DebugGetServerRotationData",
-     "name": "LeaderboardComponentServerFacet_DebugGetServerRotationData"
-    },
-    {
-     "wire_type": "0x10bb",
-     "method": "DebugGrantLeaderboardReward",
-     "name": "LeaderboardComponentServerFacet_DebugGrantLeaderboardReward"
-    },
-    {
-     "wire_type": "0x1437",
-     "method": "DebugGrantLeaderboardReward",
-     "name": "LeaderboardComponentServerFacet_DebugGrantLeaderboardReward"
-    },
-    {
-     "wire_type": "0x1446",
-     "method": "DebugProcessRotationRewards",
-     "name": "LeaderboardComponentServerFacet_DebugProcessRotationRewards"
-    },
-    {
-     "wire_type": "0x1501",
-     "method": "DebugSetPersonalBest",
-     "name": "LeaderboardComponentServerFacet_DebugSetPersonalBest"
-    },
-    {
-     "wire_type": "0x1434",
-     "method": "DebugUpdateLeaderboardOffset",
-     "name": "LeaderboardComponentServerFacet_DebugUpdateLeaderboardOffset"
-    },
-    {
-     "wire_type": "0x141f",
-     "method": "DebugUpdateStat",
-     "name": "LeaderboardComponentServerFacet_DebugUpdateStat"
-    },
-    {
-     "wire_type": "0x142e",
-     "method": "OnClientLeaderboardDataRequest",
-     "name": "LeaderboardComponentServerFacet_OnClientLeaderboardDataRequest"
-    },
-    {
-     "wire_type": "0x1531",
-     "method": "OnClientLeaderboardStatDataRequest",
-     "name": "LeaderboardComponentServerFacet_OnClientLeaderboardStatDataRequest"
+     "wire_type": "0x10c5",
+     "method": "ForceServerSyncRequestedFromClient",
+     "name": "ManaComponentServerFacet_ForceServerSyncRequestedFromClient"
     }
    ],
    "client": [
     {
-     "wire_type": "0x156c",
-     "method": "OnLeaderboardEntitlementComplete",
-     "name": "LeaderboardComponentClientFacet_OnLeaderboardEntitlementComplete"
+     "wire_type": "0x10c1",
+     "method": "ClientForceSyncServerState",
+     "name": "ManaComponentClientFacet_ClientForceSyncServerState"
     },
     {
-     "wire_type": "0x156e",
-     "method": "OnLeaderboardRotationComplete",
-     "name": "LeaderboardComponentClientFacet_OnLeaderboardRotationComplete"
+     "wire_type": "0x10c2",
+     "method": "ClientSyncMaxMana",
+     "name": "ManaComponentClientFacet_ClientSyncMaxMana"
     },
-    {
-     "wire_type": "0x1443",
-     "method": "OnReceiveDebugRotationInfo",
-     "name": "LeaderboardComponentClientFacet_OnReceiveDebugRotationInfo"
-    },
-    {
-     "wire_type": "0x15be",
-     "method": "OnReceiveDebugRotationTimes",
-     "name": "LeaderboardComponentClientFacet_OnReceiveDebugRotationTimes"
-    },
-    {
-     "wire_type": "0x142d",
-     "method": "OnReceiveLeaderboardDataFromServer",
-     "name": "LeaderboardComponentClientFacet_OnReceiveLeaderboardDataFromServer"
-    },
-    {
-     "wire_type": "0x152f",
-     "method": "OnReceiveLeaderboardStatDataFromServer",
-     "name": "LeaderboardComponentClientFacet_OnReceiveLeaderboardStatDataFromServer"
-    }
-   ]
-  },
-  "IncapacitatedCharacter": {
-   "server": [
     {
      "wire_type": "0x10c3",
-     "method": "TestActivate",
-     "name": "IncapacitatedCharacterComponentServerFacet_TestActivate"
-    },
-    {
-     "wire_type": "0x12f6",
-     "method": "TestActivate",
-     "name": "IncapacitatedCharacterComponentServerFacet_TestActivate"
+     "method": "ClientSyncServerState",
+     "name": "ManaComponentClientFacet_ClientSyncServerState"
     }
-   ],
-   "client": []
+   ]
   },
   "WaterLevel": {
    "server": [
@@ -15129,41 +15639,6 @@
      "wire_type": "0x10de",
      "method": "SetKeepInteraction",
      "name": "WaterLevelComponentServerFacet_SetKeepInteraction"
-    }
-   ],
-   "client": []
-  },
-  "RewardTrack": {
-   "server": [
-    {
-     "wire_type": "0x1351",
-     "method": "DebugForceSpecificRewards",
-     "name": "RewardTrackComponentServerFacet_DebugForceSpecificRewards"
-    },
-    {
-     "wire_type": "0x1345",
-     "method": "DebugRefreshRewards",
-     "name": "RewardTrackComponentServerFacet_DebugRefreshRewards"
-    },
-    {
-     "wire_type": "0x1299",
-     "method": "DebugSetTrackCount",
-     "name": "RewardTrackComponentServerFacet_DebugSetTrackCount"
-    },
-    {
-     "wire_type": "0x1399",
-     "method": "DebugSyncExcludedTags",
-     "name": "RewardTrackComponentServerFacet_DebugSyncExcludedTags"
-    },
-    {
-     "wire_type": "0x1344",
-     "method": "RequestPurchaseReward",
-     "name": "RewardTrackComponentServerFacet_RequestPurchaseReward"
-    },
-    {
-     "wire_type": "0x132e",
-     "method": "RequestResetRewardTrack",
-     "name": "RewardTrackComponentServerFacet_RequestResetRewardTrack"
     }
    ],
    "client": []
@@ -15195,6 +15670,11 @@
      "wire_type": "0x13c6",
      "method": "DEBUG_SetNextPerformanceTime",
      "name": "MusicalPerformancePlayerComponentServerFacet_DEBUG_SetNextPerformanceTime"
+    },
+    {
+     "wire_type": "0x1529",
+     "method": "RequestAbortCurrentSong",
+     "name": "MusicalPerformancePlayerComponentServerFacet_RequestAbortCurrentSong"
     },
     {
      "wire_type": "0x131b",
@@ -15300,6 +15780,41 @@
    ],
    "client": []
   },
+  "RewardTrack": {
+   "server": [
+    {
+     "wire_type": "0x1351",
+     "method": "DebugForceSpecificRewards",
+     "name": "RewardTrackComponentServerFacet_DebugForceSpecificRewards"
+    },
+    {
+     "wire_type": "0x1345",
+     "method": "DebugRefreshRewards",
+     "name": "RewardTrackComponentServerFacet_DebugRefreshRewards"
+    },
+    {
+     "wire_type": "0x1330",
+     "method": "DebugSetTrackCount",
+     "name": "RewardTrackComponentServerFacet_DebugSetTrackCount"
+    },
+    {
+     "wire_type": "0x1399",
+     "method": "DebugSyncExcludedTags",
+     "name": "RewardTrackComponentServerFacet_DebugSyncExcludedTags"
+    },
+    {
+     "wire_type": "0x1344",
+     "method": "RequestPurchaseReward",
+     "name": "RewardTrackComponentServerFacet_RequestPurchaseReward"
+    },
+    {
+     "wire_type": "0x132e",
+     "method": "RequestResetRewardTrack",
+     "name": "RewardTrackComponentServerFacet_RequestResetRewardTrack"
+    }
+   ],
+   "client": []
+  },
   "Blackboard": {
    "server": [],
    "client": [
@@ -15319,6 +15834,159 @@
      "name": "DetectionVolumeTeleportComponentClientFacet_SyncDebugData"
     }
    ]
+  },
+  "WhisperPlayer": {
+   "server": [
+    {
+     "wire_type": "0x1473",
+     "method": "RequestStartWhisper",
+     "name": "WhisperPlayerComponentServerFacet_RequestStartWhisper"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x13ce",
+     "method": "RequestStartWhisper",
+     "name": "WhisperPlayerComponentClientFacet_RequestStartWhisper"
+    }
+   ]
+  },
+  "Leaderboard": {
+   "server": [
+    {
+     "wire_type": "0x1444",
+     "method": "DebugClearProcessedRotations",
+     "name": "LeaderboardComponentServerFacet_DebugClearProcessedRotations"
+    },
+    {
+     "wire_type": "0x1442",
+     "method": "DebugGetLastProcessRotations",
+     "name": "LeaderboardComponentServerFacet_DebugGetLastProcessRotations"
+    },
+    {
+     "wire_type": "0x15bd",
+     "method": "DebugGetServerRotationData",
+     "name": "LeaderboardComponentServerFacet_DebugGetServerRotationData"
+    },
+    {
+     "wire_type": "0x1437",
+     "method": "DebugGrantLeaderboardReward",
+     "name": "LeaderboardComponentServerFacet_DebugGrantLeaderboardReward"
+    },
+    {
+     "wire_type": "0x1446",
+     "method": "DebugProcessRotationRewards",
+     "name": "LeaderboardComponentServerFacet_DebugProcessRotationRewards"
+    },
+    {
+     "wire_type": "0x1501",
+     "method": "DebugSetPersonalBest",
+     "name": "LeaderboardComponentServerFacet_DebugSetPersonalBest"
+    },
+    {
+     "wire_type": "0x1434",
+     "method": "DebugUpdateLeaderboardOffset",
+     "name": "LeaderboardComponentServerFacet_DebugUpdateLeaderboardOffset"
+    },
+    {
+     "wire_type": "0x141f",
+     "method": "DebugUpdateStat",
+     "name": "LeaderboardComponentServerFacet_DebugUpdateStat"
+    },
+    {
+     "wire_type": "0x142e",
+     "method": "OnClientLeaderboardDataRequest",
+     "name": "LeaderboardComponentServerFacet_OnClientLeaderboardDataRequest"
+    },
+    {
+     "wire_type": "0x1531",
+     "method": "OnClientLeaderboardStatDataRequest",
+     "name": "LeaderboardComponentServerFacet_OnClientLeaderboardStatDataRequest"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x156c",
+     "method": "OnLeaderboardEntitlementComplete",
+     "name": "LeaderboardComponentClientFacet_OnLeaderboardEntitlementComplete"
+    },
+    {
+     "wire_type": "0x156e",
+     "method": "OnLeaderboardRotationComplete",
+     "name": "LeaderboardComponentClientFacet_OnLeaderboardRotationComplete"
+    },
+    {
+     "wire_type": "0x1443",
+     "method": "OnReceiveDebugRotationInfo",
+     "name": "LeaderboardComponentClientFacet_OnReceiveDebugRotationInfo"
+    },
+    {
+     "wire_type": "0x15be",
+     "method": "OnReceiveDebugRotationTimes",
+     "name": "LeaderboardComponentClientFacet_OnReceiveDebugRotationTimes"
+    },
+    {
+     "wire_type": "0x142d",
+     "method": "OnReceiveLeaderboardDataFromServer",
+     "name": "LeaderboardComponentClientFacet_OnReceiveLeaderboardDataFromServer"
+    },
+    {
+     "wire_type": "0x152f",
+     "method": "OnReceiveLeaderboardStatDataFromServer",
+     "name": "LeaderboardComponentClientFacet_OnReceiveLeaderboardStatDataFromServer"
+    }
+   ]
+  },
+  "Charge": {
+   "server": [
+    {
+     "wire_type": "0x1486",
+     "method": "Debug_OnChargeGodModeChanged",
+     "name": "ChargeComponentServerFacet_Debug_OnChargeGodModeChanged"
+    },
+    {
+     "wire_type": "0x1494",
+     "method": "Debug_SetCurrentCharge",
+     "name": "ChargeComponentServerFacet_Debug_SetCurrentCharge"
+    },
+    {
+     "wire_type": "0x1493",
+     "method": "ForceServerSyncRequestedFromClient",
+     "name": "ChargeComponentServerFacet_ForceServerSyncRequestedFromClient"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x1491",
+     "method": "ClientForceSyncServerStateRemote",
+     "name": "ChargeComponentClientFacet_ClientForceSyncServerStateRemote"
+    },
+    {
+     "wire_type": "0x1483",
+     "method": "ClientSyncMaxCharge",
+     "name": "ChargeComponentClientFacet_ClientSyncMaxCharge"
+    },
+    {
+     "wire_type": "0x1492",
+     "method": "ClientSyncServerState",
+     "name": "ChargeComponentClientFacet_ClientSyncServerState"
+    }
+   ]
+  },
+  "ItemManagement": {
+   "server": [
+    {
+     "wire_type": "0x1538",
+     "method": "DebugOwnedItemTransactionTest",
+     "name": "ItemManagementComponentServerFacet_DebugOwnedItemTransactionTest"
+    },
+    {
+     "wire_type": "0x153c",
+     "method": "DebugSyncData",
+     "name": "ItemManagementComponentServerFacet_DebugSyncData"
+    }
+   ],
+   "client": []
   },
   "SeasonsRewards": {
    "server": [
@@ -15381,6 +16049,11 @@
      "wire_type": "0x1647",
      "method": "DEBUG_AddAllTaskProgress",
      "name": "SeasonsRewardsComponentServerFacet_DEBUG_AddAllTaskProgress"
+    },
+    {
+     "wire_type": "0x15ff",
+     "method": "DEBUG_AddTaskProgress",
+     "name": "SeasonsRewardsComponentServerFacet_DEBUG_AddTaskProgress"
     },
     {
      "wire_type": "0x1628",
@@ -15569,6 +16242,11 @@
      "name": "TransmogComponentServerFacet_DebugOwnAllSkins"
     },
     {
+     "wire_type": "0x173e",
+     "method": "DebugOwnRandomSkins",
+     "name": "TransmogComponentServerFacet_DebugOwnRandomSkins"
+    },
+    {
      "wire_type": "0x188b",
      "method": "DebugRequestTransmogData",
      "name": "TransmogComponentServerFacet_DebugRequestTransmogData"
@@ -15703,6 +16381,31 @@
     }
    ]
   },
+  "WarData": {
+   "server": [
+    {
+     "wire_type": "0x1709",
+     "method": "DebugEndInfluenceRace",
+     "name": "WarDataComponentServerFacet_DebugEndInfluenceRace"
+    },
+    {
+     "wire_type": "0x1748",
+     "method": "DebugForceSyncInfluenceRaces",
+     "name": "WarDataComponentServerFacet_DebugForceSyncInfluenceRaces"
+    },
+    {
+     "wire_type": "0x1708",
+     "method": "DebugScheduleInfluenceRace",
+     "name": "WarDataComponentServerFacet_DebugScheduleInfluenceRace"
+    },
+    {
+     "wire_type": "0x1703",
+     "method": "DebugScheduleInfluenceRaces",
+     "name": "WarDataComponentServerFacet_DebugScheduleInfluenceRaces"
+    }
+   ],
+   "client": []
+  },
   "LandClaimManager": {
    "server": [
     {
@@ -15800,6 +16503,57 @@
     }
    ]
   },
+  "GridTracking": {
+   "server": [
+    {
+     "wire_type": "0x1a59",
+     "method": "ClientAckPhasingUpdate",
+     "name": "GridTrackingComponentServerFacet_ClientAckPhasingUpdate"
+    },
+    {
+     "wire_type": "0x198b",
+     "method": "DebugCondemnPrimaryPhase",
+     "name": "GridTrackingComponentServerFacet_DebugCondemnPrimaryPhase"
+    },
+    {
+     "wire_type": "0x1a92",
+     "method": "DebugRecordPrimaryGridPhysics",
+     "name": "GridTrackingComponentServerFacet_DebugRecordPrimaryGridPhysics"
+    },
+    {
+     "wire_type": "0x1921",
+     "method": "DebugSubscribePhaseStatus",
+     "name": "GridTrackingComponentServerFacet_DebugSubscribePhaseStatus"
+    },
+    {
+     "wire_type": "0x1922",
+     "method": "DebugUnsubscribePhaseStatus",
+     "name": "GridTrackingComponentServerFacet_DebugUnsubscribePhaseStatus"
+    },
+    {
+     "wire_type": "0x18bf",
+     "method": "RequestDebugInfo",
+     "name": "GridTrackingComponentServerFacet_RequestDebugInfo"
+    },
+    {
+     "wire_type": "0x18be",
+     "method": "ResetPhasingProvider",
+     "name": "GridTrackingComponentServerFacet_ResetPhasingProvider"
+    }
+   ],
+   "client": [
+    {
+     "wire_type": "0x18c0",
+     "method": "ReceiveDebugInfo",
+     "name": "GridTrackingComponentClientFacet_ReceiveDebugInfo"
+    },
+    {
+     "wire_type": "0x18a6",
+     "method": "UpdatePhasing",
+     "name": "GridTrackingComponentClientFacet_UpdatePhasing"
+    }
+   ]
+  },
   "PlayerAppearance": {
    "server": [
     {
@@ -15827,7 +16581,13 @@
    ]
   },
   "Interest": {
-   "server": [],
+   "server": [
+    {
+     "wire_type": "0x1940",
+     "method": "RequestDebugInfo",
+     "name": "InterestComponentServerFacet_RequestDebugInfo"
+    }
+   ],
    "client": [
     {
      "wire_type": "0x1941",
@@ -15973,6 +16733,16 @@
      "name": "GraphBasedSpawnNodeComponentClientFacet_SyncDebugData"
     }
    ]
+  },
+  "IncapacitatedCharacter": {
+   "server": [
+    {
+     "wire_type": "0xa49",
+     "method": "TestActivate",
+     "name": "IncapacitatedCharacterComponentServerFacet_TestActivate"
+    }
+   ],
+   "client": []
   }
  },
  "surface_contract": {
@@ -16050,6 +16820,11 @@
      "wire_type": "0x1647",
      "method": "DEBUG_AddAllTaskProgress",
      "name": "SeasonsRewardsComponentServerFacet_DEBUG_AddAllTaskProgress"
+    },
+    {
+     "wire_type": "0x15ff",
+     "method": "DEBUG_AddTaskProgress",
+     "name": "SeasonsRewardsComponentServerFacet_DEBUG_AddTaskProgress"
     },
     {
      "wire_type": "0x1628",
@@ -16152,7 +16927,7 @@
      "name": "SeasonsRewardsComponentServerFacet_RequestRedeemSeasonsReward"
     }
    ],
-   "server_message_count": 32
+   "server_message_count": 33
   },
   "Guild": {
    "actions": [
@@ -16275,6 +17050,11 @@
      "name": "GuildsComponentServerFacet_RequestDepositGuildTreasuryFunds"
     },
     {
+     "wire_type": "0x2b8",
+     "method": "RequestEditGuildIcon",
+     "name": "GuildsComponentServerFacet_RequestEditGuildIcon"
+    },
+    {
      "wire_type": "0xd14",
      "method": "RequestEditGuildMOTD",
      "name": "GuildsComponentServerFacet_RequestEditGuildMOTD"
@@ -16320,6 +17100,11 @@
      "name": "GuildsComponentServerFacet_RequestListGuildsByName"
     },
     {
+     "wire_type": "0x1574",
+     "method": "RequestRefreshGuildData",
+     "name": "GuildsComponentServerFacet_RequestRefreshGuildData"
+    },
+    {
      "wire_type": "0x9b5",
      "method": "RequestRemoveGuildMember",
      "name": "GuildsComponentServerFacet_RequestRemoveGuildMember"
@@ -16350,7 +17135,7 @@
      "name": "GuildsComponentServerFacet_RequestWithdrawGuildTreasuryFunds"
     }
    ],
-   "server_message_count": 36
+   "server_message_count": 38
   },
   "Warboard": {
    "actions": [
@@ -16556,9 +17341,19 @@
      "name": "ObjectivesComponentServerFacet_AbandonAllRecipes"
     },
     {
-     "wire_type": "0x716",
+     "wire_type": "0xa4d",
+     "method": "AbandonCurrentMission",
+     "name": "ObjectivesComponentServerFacet_AbandonCurrentMission"
+    },
+    {
+     "wire_type": "0xb69",
      "method": "AbandonObjectiveDebug",
      "name": "ObjectivesComponentServerFacet_AbandonObjectiveDebug"
+    },
+    {
+     "wire_type": "0xefc",
+     "method": "AbandonSingleObjective",
+     "name": "ObjectivesComponentServerFacet_AbandonSingleObjective"
     },
     {
      "wire_type": "0xf02",
@@ -16571,17 +17366,17 @@
      "name": "ObjectivesComponentServerFacet_AddObjectiveByIDDebug"
     },
     {
+     "wire_type": "0x716",
+     "method": "AddObjectiveFromRecipe",
+     "name": "ObjectivesComponentServerFacet_AddObjectiveFromRecipe"
+    },
+    {
      "wire_type": "0x961",
      "method": "CompleteObjectiveDebug",
      "name": "ObjectivesComponentServerFacet_CompleteObjectiveDebug"
     },
     {
      "wire_type": "0xf06",
-     "method": "CompleteObjectiveTaskDebug",
-     "name": "ObjectivesComponentServerFacet_CompleteObjectiveTaskDebug"
-    },
-    {
-     "wire_type": "0x1ace",
      "method": "CompleteObjectiveTaskDebug",
      "name": "ObjectivesComponentServerFacet_CompleteObjectiveTaskDebug"
     },
@@ -16604,6 +17399,11 @@
      "wire_type": "0x17d5",
      "method": "DebugRequestScheduledObjectiveInformation",
      "name": "ObjectivesComponentServerFacet_DebugRequestScheduledObjectiveInformation"
+    },
+    {
+     "wire_type": "0x1ace",
+     "method": "DebugResetRepeatableObjectives",
+     "name": "ObjectivesComponentServerFacet_DebugResetRepeatableObjectives"
     },
     {
      "wire_type": "0x17f1",
@@ -16646,6 +17446,11 @@
      "name": "ObjectivesComponentServerFacet_HandleFactionProgressionPersistenceValidation"
     },
     {
+     "wire_type": "0x17d4",
+     "method": "HandleScheduledQuestResetting",
+     "name": "ObjectivesComponentServerFacet_HandleScheduledQuestResetting"
+    },
+    {
      "wire_type": "0xf01",
      "method": "HandleSpecificQuestItemPersistenceValidation",
      "name": "ObjectivesComponentServerFacet_HandleSpecificQuestItemPersistenceValidation"
@@ -16659,11 +17464,6 @@
      "wire_type": "0xeff",
      "method": "RequestShareObjectiveWithGroup",
      "name": "ObjectivesComponentServerFacet_RequestShareObjectiveWithGroup"
-    },
-    {
-     "wire_type": "0xee7",
-     "method": "ResetObjective",
-     "name": "ObjectivesComponentServerFacet_ResetObjective"
     },
     {
      "wire_type": "0x15e0",
@@ -16681,7 +17481,7 @@
      "name": "ObjectivesComponentServerFacet_UnlockPrerequisitesByIDDebug"
     },
     {
-     "wire_type": "0xa4d",
+     "wire_type": "0x5b2",
      "method": "UpdateTrackedObjectives",
      "name": "ObjectivesComponentServerFacet_UpdateTrackedObjectives"
     },
@@ -16716,6 +17516,11 @@
      "name": "ContractsComponentServerFacet_DebugUpdateContractDuration"
     },
     {
+     "wire_type": "0x1487",
+     "method": "InitiateServerTransferCheck",
+     "name": "ContractsComponentServerFacet_InitiateServerTransferCheck"
+    },
+    {
      "wire_type": "0xb9f",
      "method": "LookupContracts",
      "name": "ContractsComponentServerFacet_LookupContracts"
@@ -16746,6 +17551,11 @@
      "name": "ContractsComponentServerFacet_SetDebugSendContractEventsToClient"
     },
     {
+     "wire_type": "0x1623",
+     "method": "TestMakeGoodWorldTransfer",
+     "name": "ContractsComponentServerFacet_TestMakeGoodWorldTransfer"
+    },
+    {
      "wire_type": "0x1609",
      "method": "TransferContract",
      "name": "ContractsComponentServerFacet_TransferContract"
@@ -16756,7 +17566,7 @@
      "name": "ContractsComponentServerFacet_UpdateDebugContract"
     }
    ],
-   "server_message_count": 41
+   "server_message_count": 46
   },
   "Skills": {
    "actions": [
@@ -16777,6 +17587,11 @@
    "family_source": "inferred",
    "server_messages": [
     {
+     "wire_type": "0x67e",
+     "method": "DebugRequestAddAbilityPoints",
+     "name": "AbilityComponentServerFacet_DebugRequestAddAbilityPoints"
+    },
+    {
      "wire_type": "0x1a87",
      "method": "Debug_IgnorePvpCooldownBalance",
      "name": "AbilityComponentServerFacet_Debug_IgnorePvpCooldownBalance"
@@ -16795,6 +17610,11 @@
      "wire_type": "0xa8d",
      "method": "RequestChangeMappedAbility",
      "name": "AbilityComponentServerFacet_RequestChangeMappedAbility"
+    },
+    {
+     "wire_type": "0x47e",
+     "method": "RequestChangeSelectedTable",
+     "name": "AbilityComponentServerFacet_RequestChangeSelectedTable"
     },
     {
      "wire_type": "0xba",
@@ -16917,6 +17737,11 @@
      "name": "CategoricalProgressionComponentServerFacet_DebugMaxTerritoryStanding"
     },
     {
+     "wire_type": "0xba5",
+     "method": "DebugMaxTradeskills",
+     "name": "CategoricalProgressionComponentServerFacet_DebugMaxTradeskills"
+    },
+    {
      "wire_type": "0xfc2",
      "method": "DebugMaxWeaponMastery",
      "name": "CategoricalProgressionComponentServerFacet_DebugMaxWeaponMastery"
@@ -16937,12 +17762,12 @@
      "name": "CategoricalProgressionComponentServerFacet_DebugSetProgressionRank"
     },
     {
-     "wire_type": "0xba5",
+     "wire_type": "0x17c0",
      "method": "DebugWritePersistenceToFile",
      "name": "CategoricalProgressionComponentServerFacet_DebugWritePersistenceToFile"
     }
    ],
-   "server_message_count": 33
+   "server_message_count": 36
   },
   "Menu": {
    "actions": [
@@ -17012,7 +17837,7 @@
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestCompleteProject"
     },
     {
-     "wire_type": "0xae5",
+     "wire_type": "0x14cc",
      "method": "DEBUG_RequestDistributePooledEarnings",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestDistributePooledEarnings"
     },
@@ -17037,7 +17862,7 @@
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestResetFactionInfluence"
     },
     {
-     "wire_type": "0xade",
+     "wire_type": "0x9fe",
      "method": "DEBUG_RequestServerSideDebugData",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestServerSideDebugData"
     },
@@ -17082,7 +17907,7 @@
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestSyncFactionInfluenceValues"
     },
     {
-     "wire_type": "0xae0",
+     "wire_type": "0x14cd",
      "method": "DEBUG_RequestSyncGovernanceBrokerData",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestSyncGovernanceBrokerData"
     },
@@ -17092,12 +17917,17 @@
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_RequestTransferOwnership"
     },
     {
+     "wire_type": "0xae5",
+     "method": "DEBUG_SendRaidInvites",
+     "name": "TerritoryInteractorComponentServerFacet_DEBUG_SendRaidInvites"
+    },
+    {
      "wire_type": "0x86b",
      "method": "DEBUG_SetRemainingTerritoryEffectTime",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_SetRemainingTerritoryEffectTime"
     },
     {
-     "wire_type": "0xaa6",
+     "wire_type": "0xab6",
      "method": "DEBUG_SetTaxOrFee",
      "name": "TerritoryInteractorComponentServerFacet_DEBUG_SetTaxOrFee"
     },
@@ -17127,6 +17957,11 @@
      "name": "TerritoryInteractorComponentServerFacet_RequestKickPlayer"
     },
     {
+     "wire_type": "0xae0",
+     "method": "RequestLeave",
+     "name": "TerritoryInteractorComponentServerFacet_RequestLeave"
+    },
+    {
      "wire_type": "0x68c",
      "method": "RequestMovePlayer",
      "name": "TerritoryInteractorComponentServerFacet_RequestMovePlayer"
@@ -17142,7 +17977,7 @@
      "name": "TerritoryInteractorComponentServerFacet_RequestRemoteInteract"
     },
     {
-     "wire_type": "0x9d7",
+     "wire_type": "0xadd",
      "method": "RequestRemovePlayerFromRoster",
      "name": "TerritoryInteractorComponentServerFacet_RequestRemovePlayerFromRoster"
     },
@@ -17160,6 +17995,11 @@
      "wire_type": "0x6bf",
      "method": "RequestSetGroupData",
      "name": "TerritoryInteractorComponentServerFacet_RequestSetGroupData"
+    },
+    {
+     "wire_type": "0xade",
+     "method": "RequestSetPlayerPermissions",
+     "name": "TerritoryInteractorComponentServerFacet_RequestSetPlayerPermissions"
     },
     {
      "wire_type": "0xf6",
@@ -17192,9 +18032,19 @@
      "name": "TerritoryInteractorComponentServerFacet_RequestSwapPlayers"
     },
     {
-     "wire_type": "0x6d4",
+     "wire_type": "0x9d7",
+     "method": "SetTaxOrFee",
+     "name": "TerritoryInteractorComponentServerFacet_SetTaxOrFee"
+    },
+    {
+     "wire_type": "0x283",
      "method": "DebugAssignGridLayer",
      "name": "AoiComponentServerFacet_DebugAssignGridLayer"
+    },
+    {
+     "wire_type": "0x406",
+     "method": "DebugResetAoiTracking",
+     "name": "AoiComponentServerFacet_DebugResetAoiTracking"
     },
     {
      "wire_type": "0x7e5",
@@ -17252,7 +18102,7 @@
      "name": "GroupsComponentServerFacet_DebugForceGroupPristine"
     },
     {
-     "wire_type": "0xcad",
+     "wire_type": "0x14f4",
      "method": "DebugGroupFinderFailConversion",
      "name": "GroupsComponentServerFacet_DebugGroupFinderFailConversion"
     },
@@ -17267,7 +18117,7 @@
      "name": "GroupsComponentServerFacet_DebugGroupFinderFailUpdateMember"
     },
     {
-     "wire_type": "0x894",
+     "wire_type": "0x708",
      "method": "DebugJoinRaid",
      "name": "GroupsComponentServerFacet_DebugJoinRaid"
     },
@@ -17312,7 +18162,7 @@
      "name": "GroupsComponentServerFacet_RequestConfirmConvertGroupFinderGroupToGroup"
     },
     {
-     "wire_type": "0xd87",
+     "wire_type": "0x69",
      "method": "RequestConfirmGroupFinderApplicationInvite",
      "name": "GroupsComponentServerFacet_RequestConfirmGroupFinderApplicationInvite"
     },
@@ -17337,6 +18187,11 @@
      "name": "GroupsComponentServerFacet_RequestDeclineConvertGroupFinderGroupToGroup"
     },
     {
+     "wire_type": "0xcad",
+     "method": "RequestDeclineGroupFinderApplicationInvite",
+     "name": "GroupsComponentServerFacet_RequestDeclineGroupFinderApplicationInvite"
+    },
+    {
      "wire_type": "0x47b",
      "method": "RequestGetGroupFinderGroup",
      "name": "GroupsComponentServerFacet_RequestGetGroupFinderGroup"
@@ -17347,9 +18202,14 @@
      "name": "GroupsComponentServerFacet_RequestGetGroupFinderGroupList"
     },
     {
-     "wire_type": "0x68d",
+     "wire_type": "0x1577",
      "method": "RequestGetGroupFinderGroupListUnfiltered",
      "name": "GroupsComponentServerFacet_RequestGetGroupFinderGroupListUnfiltered"
+    },
+    {
+     "wire_type": "0xda4",
+     "method": "RequestGroupInvite",
+     "name": "GroupsComponentServerFacet_RequestGroupInvite"
     },
     {
      "wire_type": "0x14c5",
@@ -17360,6 +18220,11 @@
      "wire_type": "0xdaa",
      "method": "RequestInitiateKickVotePlayer",
      "name": "GroupsComponentServerFacet_RequestInitiateKickVotePlayer"
+    },
+    {
+     "wire_type": "0x1557",
+     "method": "RequestJoinableLobbyCountsForActivity",
+     "name": "GroupsComponentServerFacet_RequestJoinableLobbyCountsForActivity"
     },
     {
      "wire_type": "0xdab",
@@ -17412,12 +18277,12 @@
      "name": "GroupsComponentServerFacet_RequestRemoveMemberFromGroupFinderGroup"
     },
     {
-     "wire_type": "0x1557",
+     "wire_type": "0xdac",
      "method": "RequestRemoveRaidMember",
      "name": "GroupsComponentServerFacet_RequestRemoveRaidMember"
     },
     {
-     "wire_type": "0x441",
+     "wire_type": "0xda7",
      "method": "RequestReplyToGroupInvite",
      "name": "GroupsComponentServerFacet_RequestReplyToGroupInvite"
     },
@@ -17437,6 +18302,11 @@
      "name": "GroupsComponentServerFacet_RequestSetGroupLeader"
     },
     {
+     "wire_type": "0x894",
+     "method": "RequestSetGroupName",
+     "name": "GroupsComponentServerFacet_RequestSetGroupName"
+    },
+    {
      "wire_type": "0xdb3",
      "method": "RequestSetGroupObjective",
      "name": "GroupsComponentServerFacet_RequestSetGroupObjective"
@@ -17445,6 +18315,11 @@
      "wire_type": "0x976",
      "method": "RequestSetRaidMemberPermission",
      "name": "GroupsComponentServerFacet_RequestSetRaidMemberPermission"
+    },
+    {
+     "wire_type": "0x18a1",
+     "method": "RequestStartAbandonGameMode",
+     "name": "GroupsComponentServerFacet_RequestStartAbandonGameMode"
     },
     {
      "wire_type": "0xdb6",
@@ -17462,7 +18337,7 @@
      "name": "GroupsComponentServerFacet_RequestTargetPing"
     },
     {
-     "wire_type": "0x1553",
+     "wire_type": "0xb38",
      "method": "RequestUpdateGroupFinderGroup",
      "name": "GroupsComponentServerFacet_RequestUpdateGroupFinderGroup"
     },
@@ -17472,12 +18347,12 @@
      "name": "GroupsComponentServerFacet_RequestUpdateMemberInGroupFinderGroup"
     },
     {
-     "wire_type": "0x47f",
+     "wire_type": "0xd8f",
      "method": "RequestWithdrawInvites",
      "name": "GroupsComponentServerFacet_RequestWithdrawInvites"
     }
    ],
-   "server_message_count": 100
+   "server_message_count": 110
   },
   "MicrophoneOnControllerUI": {
    "actions": [
@@ -17564,7 +18439,7 @@
      "name": "SocialComponentServerFacet_ClearNewTitles"
     },
     {
-     "wire_type": "0x19f3",
+     "wire_type": "0x15a7",
      "method": "DebugAcceptAllFriendInvites",
      "name": "SocialComponentServerFacet_DebugAcceptAllFriendInvites"
     },
@@ -17589,6 +18464,16 @@
      "name": "SocialComponentServerFacet_DebugForceEndWar"
     },
     {
+     "wire_type": "0x1035",
+     "method": "DebugLockAllDebugTitles",
+     "name": "SocialComponentServerFacet_DebugLockAllDebugTitles"
+    },
+    {
+     "wire_type": "0x1034",
+     "method": "DebugLockTitle",
+     "name": "SocialComponentServerFacet_DebugLockTitle"
+    },
+    {
      "wire_type": "0x1991",
      "method": "DebugNotifyEarlyRelocate",
      "name": "SocialComponentServerFacet_DebugNotifyEarlyRelocate"
@@ -17602,6 +18487,11 @@
      "wire_type": "0x1a04",
      "method": "DebugRequestAddPlatformFriend",
      "name": "SocialComponentServerFacet_DebugRequestAddPlatformFriend"
+    },
+    {
+     "wire_type": "0x1a02",
+     "method": "DebugRequestPlatformFriendsList",
+     "name": "SocialComponentServerFacet_DebugRequestPlatformFriendsList"
     },
     {
      "wire_type": "0x19f0",
@@ -17629,12 +18519,12 @@
      "name": "SocialComponentServerFacet_DebugSetP2PCommunicationRestriction"
     },
     {
-     "wire_type": "0x1a01",
+     "wire_type": "0x19e0",
      "method": "DebugSetViewPresenceRestriction",
      "name": "SocialComponentServerFacet_DebugSetViewPresenceRestriction"
     },
     {
-     "wire_type": "0x1a02",
+     "wire_type": "0x19e4",
      "method": "DebugSetVoiceCommunicationRestriction",
      "name": "SocialComponentServerFacet_DebugSetVoiceCommunicationRestriction"
     },
@@ -17647,6 +18537,11 @@
      "wire_type": "0xc8b",
      "method": "DebugUnlockTitle",
      "name": "SocialComponentServerFacet_DebugUnlockTitle"
+    },
+    {
+     "wire_type": "0x19f3",
+     "method": "GetServerVpcValues",
+     "name": "SocialComponentServerFacet_GetServerVpcValues"
     },
     {
      "wire_type": "0x1041",
@@ -17664,12 +18559,12 @@
      "name": "SocialComponentServerFacet_OnBlocklistChanged"
     },
     {
-     "wire_type": "0x113",
-     "method": "RequestClearSocialBlock",
-     "name": "SocialComponentServerFacet_RequestClearSocialBlock"
+     "wire_type": "0x1a01",
+     "method": "RequestAddPlatformFriendsToOnlineStateChangeListener",
+     "name": "SocialComponentServerFacet_RequestAddPlatformFriendsToOnlineStateChangeListener"
     },
     {
-     "wire_type": "0x196a",
+     "wire_type": "0xad2",
      "method": "RequestClearSocialBlock",
      "name": "SocialComponentServerFacet_RequestClearSocialBlock"
     },
@@ -17677,6 +18572,11 @@
      "wire_type": "0x192c",
      "method": "RequestCrossplayPermissionsDataSync",
      "name": "SocialComponentServerFacet_RequestCrossplayPermissionsDataSync"
+    },
+    {
+     "wire_type": "0xb68",
+     "method": "RequestDeclareWar",
+     "name": "SocialComponentServerFacet_RequestDeclareWar"
     },
     {
      "wire_type": "0x64a",
@@ -17719,17 +18619,17 @@
      "name": "SocialComponentServerFacet_RequestPlayerPhaseId"
     },
     {
-     "wire_type": "0x1035",
+     "wire_type": "0x103f",
      "method": "RequestRemoveAllFriendInvites",
      "name": "SocialComponentServerFacet_RequestRemoveAllFriendInvites"
     },
     {
-     "wire_type": "0x1034",
+     "wire_type": "0x103e",
      "method": "RequestRemoveAllFriends",
      "name": "SocialComponentServerFacet_RequestRemoveAllFriends"
     },
     {
-     "wire_type": "0x6c9",
+     "wire_type": "0x640",
      "method": "RequestReportPlayer",
      "name": "SocialComponentServerFacet_RequestReportPlayer"
     },
@@ -17749,7 +18649,7 @@
      "name": "SocialComponentServerFacet_RequestSetPronounType"
     },
     {
-     "wire_type": "0x640",
+     "wire_type": "0x9aa",
      "method": "RequestSetTitle",
      "name": "SocialComponentServerFacet_RequestSetTitle"
     },
@@ -17774,12 +18674,12 @@
      "name": "SocialComponentServerFacet_SendDebugTitlesToClient"
     },
     {
-     "wire_type": "0x1050",
+     "wire_type": "0xaef",
      "method": "SetSocialBlock",
      "name": "SocialComponentServerFacet_SetSocialBlock"
     }
    ],
-   "server_message_count": 45
+   "server_message_count": 50
   },
   "Emote": {
    "actions": [
@@ -17807,7 +18707,7 @@
      "name": "SocialComponentServerFacet_ClearNewTitles"
     },
     {
-     "wire_type": "0x19f3",
+     "wire_type": "0x15a7",
      "method": "DebugAcceptAllFriendInvites",
      "name": "SocialComponentServerFacet_DebugAcceptAllFriendInvites"
     },
@@ -17832,6 +18732,16 @@
      "name": "SocialComponentServerFacet_DebugForceEndWar"
     },
     {
+     "wire_type": "0x1035",
+     "method": "DebugLockAllDebugTitles",
+     "name": "SocialComponentServerFacet_DebugLockAllDebugTitles"
+    },
+    {
+     "wire_type": "0x1034",
+     "method": "DebugLockTitle",
+     "name": "SocialComponentServerFacet_DebugLockTitle"
+    },
+    {
      "wire_type": "0x1991",
      "method": "DebugNotifyEarlyRelocate",
      "name": "SocialComponentServerFacet_DebugNotifyEarlyRelocate"
@@ -17845,6 +18755,11 @@
      "wire_type": "0x1a04",
      "method": "DebugRequestAddPlatformFriend",
      "name": "SocialComponentServerFacet_DebugRequestAddPlatformFriend"
+    },
+    {
+     "wire_type": "0x1a02",
+     "method": "DebugRequestPlatformFriendsList",
+     "name": "SocialComponentServerFacet_DebugRequestPlatformFriendsList"
     },
     {
      "wire_type": "0x19f0",
@@ -17872,12 +18787,12 @@
      "name": "SocialComponentServerFacet_DebugSetP2PCommunicationRestriction"
     },
     {
-     "wire_type": "0x1a01",
+     "wire_type": "0x19e0",
      "method": "DebugSetViewPresenceRestriction",
      "name": "SocialComponentServerFacet_DebugSetViewPresenceRestriction"
     },
     {
-     "wire_type": "0x1a02",
+     "wire_type": "0x19e4",
      "method": "DebugSetVoiceCommunicationRestriction",
      "name": "SocialComponentServerFacet_DebugSetVoiceCommunicationRestriction"
     },
@@ -17890,6 +18805,11 @@
      "wire_type": "0xc8b",
      "method": "DebugUnlockTitle",
      "name": "SocialComponentServerFacet_DebugUnlockTitle"
+    },
+    {
+     "wire_type": "0x19f3",
+     "method": "GetServerVpcValues",
+     "name": "SocialComponentServerFacet_GetServerVpcValues"
     },
     {
      "wire_type": "0x1041",
@@ -17907,12 +18827,12 @@
      "name": "SocialComponentServerFacet_OnBlocklistChanged"
     },
     {
-     "wire_type": "0x113",
-     "method": "RequestClearSocialBlock",
-     "name": "SocialComponentServerFacet_RequestClearSocialBlock"
+     "wire_type": "0x1a01",
+     "method": "RequestAddPlatformFriendsToOnlineStateChangeListener",
+     "name": "SocialComponentServerFacet_RequestAddPlatformFriendsToOnlineStateChangeListener"
     },
     {
-     "wire_type": "0x196a",
+     "wire_type": "0xad2",
      "method": "RequestClearSocialBlock",
      "name": "SocialComponentServerFacet_RequestClearSocialBlock"
     },
@@ -17920,6 +18840,11 @@
      "wire_type": "0x192c",
      "method": "RequestCrossplayPermissionsDataSync",
      "name": "SocialComponentServerFacet_RequestCrossplayPermissionsDataSync"
+    },
+    {
+     "wire_type": "0xb68",
+     "method": "RequestDeclareWar",
+     "name": "SocialComponentServerFacet_RequestDeclareWar"
     },
     {
      "wire_type": "0x64a",
@@ -17962,17 +18887,17 @@
      "name": "SocialComponentServerFacet_RequestPlayerPhaseId"
     },
     {
-     "wire_type": "0x1035",
+     "wire_type": "0x103f",
      "method": "RequestRemoveAllFriendInvites",
      "name": "SocialComponentServerFacet_RequestRemoveAllFriendInvites"
     },
     {
-     "wire_type": "0x1034",
+     "wire_type": "0x103e",
      "method": "RequestRemoveAllFriends",
      "name": "SocialComponentServerFacet_RequestRemoveAllFriends"
     },
     {
-     "wire_type": "0x6c9",
+     "wire_type": "0x640",
      "method": "RequestReportPlayer",
      "name": "SocialComponentServerFacet_RequestReportPlayer"
     },
@@ -17992,7 +18917,7 @@
      "name": "SocialComponentServerFacet_RequestSetPronounType"
     },
     {
-     "wire_type": "0x640",
+     "wire_type": "0x9aa",
      "method": "RequestSetTitle",
      "name": "SocialComponentServerFacet_RequestSetTitle"
     },
@@ -18017,12 +18942,12 @@
      "name": "SocialComponentServerFacet_SendDebugTitlesToClient"
     },
     {
-     "wire_type": "0x1050",
+     "wire_type": "0xaef",
      "method": "SetSocialBlock",
      "name": "SocialComponentServerFacet_SetSocialBlock"
     }
    ],
-   "server_message_count": 45
+   "server_message_count": 50
   },
   "MapObjectives": {
    "actions": [
@@ -18046,9 +18971,19 @@
      "name": "ObjectivesComponentServerFacet_AbandonAllRecipes"
     },
     {
-     "wire_type": "0x716",
+     "wire_type": "0xa4d",
+     "method": "AbandonCurrentMission",
+     "name": "ObjectivesComponentServerFacet_AbandonCurrentMission"
+    },
+    {
+     "wire_type": "0xb69",
      "method": "AbandonObjectiveDebug",
      "name": "ObjectivesComponentServerFacet_AbandonObjectiveDebug"
+    },
+    {
+     "wire_type": "0xefc",
+     "method": "AbandonSingleObjective",
+     "name": "ObjectivesComponentServerFacet_AbandonSingleObjective"
     },
     {
      "wire_type": "0xf02",
@@ -18061,17 +18996,17 @@
      "name": "ObjectivesComponentServerFacet_AddObjectiveByIDDebug"
     },
     {
+     "wire_type": "0x716",
+     "method": "AddObjectiveFromRecipe",
+     "name": "ObjectivesComponentServerFacet_AddObjectiveFromRecipe"
+    },
+    {
      "wire_type": "0x961",
      "method": "CompleteObjectiveDebug",
      "name": "ObjectivesComponentServerFacet_CompleteObjectiveDebug"
     },
     {
      "wire_type": "0xf06",
-     "method": "CompleteObjectiveTaskDebug",
-     "name": "ObjectivesComponentServerFacet_CompleteObjectiveTaskDebug"
-    },
-    {
-     "wire_type": "0x1ace",
      "method": "CompleteObjectiveTaskDebug",
      "name": "ObjectivesComponentServerFacet_CompleteObjectiveTaskDebug"
     },
@@ -18094,6 +19029,11 @@
      "wire_type": "0x17d5",
      "method": "DebugRequestScheduledObjectiveInformation",
      "name": "ObjectivesComponentServerFacet_DebugRequestScheduledObjectiveInformation"
+    },
+    {
+     "wire_type": "0x1ace",
+     "method": "DebugResetRepeatableObjectives",
+     "name": "ObjectivesComponentServerFacet_DebugResetRepeatableObjectives"
     },
     {
      "wire_type": "0x17f1",
@@ -18136,6 +19076,11 @@
      "name": "ObjectivesComponentServerFacet_HandleFactionProgressionPersistenceValidation"
     },
     {
+     "wire_type": "0x17d4",
+     "method": "HandleScheduledQuestResetting",
+     "name": "ObjectivesComponentServerFacet_HandleScheduledQuestResetting"
+    },
+    {
      "wire_type": "0xf01",
      "method": "HandleSpecificQuestItemPersistenceValidation",
      "name": "ObjectivesComponentServerFacet_HandleSpecificQuestItemPersistenceValidation"
@@ -18149,11 +19094,6 @@
      "wire_type": "0xeff",
      "method": "RequestShareObjectiveWithGroup",
      "name": "ObjectivesComponentServerFacet_RequestShareObjectiveWithGroup"
-    },
-    {
-     "wire_type": "0xee7",
-     "method": "ResetObjective",
-     "name": "ObjectivesComponentServerFacet_ResetObjective"
     },
     {
      "wire_type": "0x15e0",
@@ -18171,12 +19111,12 @@
      "name": "ObjectivesComponentServerFacet_UnlockPrerequisitesByIDDebug"
     },
     {
-     "wire_type": "0xa4d",
+     "wire_type": "0x5b2",
      "method": "UpdateTrackedObjectives",
      "name": "ObjectivesComponentServerFacet_UpdateTrackedObjectives"
     }
    ],
-   "server_message_count": 27
+   "server_message_count": 30
   },
   "Token": {
    "actions": [
@@ -18322,6 +19262,11 @@
      "name": "FishingComponentServerFacet_DebugCloseBaitBoxAction"
     },
     {
+     "wire_type": "0xc68",
+     "method": "DebugOpenBaitBoxAction",
+     "name": "FishingComponentServerFacet_DebugOpenBaitBoxAction"
+    },
+    {
      "wire_type": "0xc6d",
      "method": "DebugResetFishingAction",
      "name": "FishingComponentServerFacet_DebugResetFishingAction"
@@ -18357,7 +19302,7 @@
      "name": "FishingComponentServerFacet_OpenBaitBoxAction"
     }
    ],
-   "server_message_count": 11
+   "server_message_count": 12
   },
   "Transmog": {
    "actions": [
@@ -18398,6 +19343,11 @@
      "name": "TransmogComponentServerFacet_DebugOwnAllSkins"
     },
     {
+     "wire_type": "0x173e",
+     "method": "DebugOwnRandomSkins",
+     "name": "TransmogComponentServerFacet_DebugOwnRandomSkins"
+    },
+    {
      "wire_type": "0x188b",
      "method": "DebugRequestTransmogData",
      "name": "TransmogComponentServerFacet_DebugRequestTransmogData"
@@ -18433,7 +19383,7 @@
      "name": "TransmogComponentServerFacet_UnlockTransmogSkin"
     }
    ],
-   "server_message_count": 12
+   "server_message_count": 13
   },
   "GearSet": {
    "actions": [
@@ -18449,17 +19399,22 @@
    "family_source": "inferred",
    "server_messages": [
     {
-     "wire_type": "0x100e",
+     "wire_type": "0x12ce",
      "method": "DebugConsumeLoadedAmmo",
      "name": "PaperdollComponentServerFacet_DebugConsumeLoadedAmmo"
     },
     {
-     "wire_type": "0x3f5",
+     "wire_type": "0x70f",
      "method": "DebugForceItemFixed",
      "name": "PaperdollComponentServerFacet_DebugForceItemFixed"
     },
     {
-     "wire_type": "0x8aa",
+     "wire_type": "0x57f",
+     "method": "DebugRequestSyncAverageArmorGS",
+     "name": "PaperdollComponentServerFacet_DebugRequestSyncAverageArmorGS"
+    },
+    {
+     "wire_type": "0xf3f",
      "method": "DebugSetDurability",
      "name": "PaperdollComponentServerFacet_DebugSetDurability"
     },
@@ -18469,7 +19424,7 @@
      "name": "PaperdollComponentServerFacet_DebugSetIgnoreDurabilityLoss"
     },
     {
-     "wire_type": "0x6d7",
+     "wire_type": "0x12cd",
      "method": "DebugSetLoadedAmmo",
      "name": "PaperdollComponentServerFacet_DebugSetLoadedAmmo"
     },
@@ -18489,12 +19444,17 @@
      "name": "PaperdollComponentServerFacet_RequestRemoveAllItemsFromLoadout"
     },
     {
-     "wire_type": "0x1d9",
+     "wire_type": "0x1543",
+     "method": "RequestRemoveItemFromAllLoadouts",
+     "name": "PaperdollComponentServerFacet_RequestRemoveItemFromAllLoadouts"
+    },
+    {
+     "wire_type": "0x1536",
      "method": "RequestRemoveItemFromLoadout",
      "name": "PaperdollComponentServerFacet_RequestRemoveItemFromLoadout"
     },
     {
-     "wire_type": "0x1543",
+     "wire_type": "0x153e",
      "method": "RequestRemoveLoadout",
      "name": "PaperdollComponentServerFacet_RequestRemoveLoadout"
     },
@@ -18504,17 +19464,22 @@
      "name": "PaperdollComponentServerFacet_RequestRenameLoadout"
     },
     {
+     "wire_type": "0x15a6",
+     "method": "RequestSavePaperdollToLoadout",
+     "name": "PaperdollComponentServerFacet_RequestSavePaperdollToLoadout"
+    },
+    {
      "wire_type": "0x15ca",
      "method": "RequestSetIsLoadoutPanelOpen",
      "name": "PaperdollComponentServerFacet_RequestSetIsLoadoutPanelOpen"
     },
     {
-     "wire_type": "0x160",
+     "wire_type": "0x1542",
      "method": "RequestSwitchToLoadout",
      "name": "PaperdollComponentServerFacet_RequestSwitchToLoadout"
     },
     {
-     "wire_type": "0x1483",
+     "wire_type": "0xf3e",
      "method": "ServerCycleWeapon",
      "name": "PaperdollComponentServerFacet_ServerCycleWeapon"
     },
@@ -18529,9 +19494,9 @@
      "name": "PaperdollComponentServerFacet_ServerEquipItem"
     },
     {
-     "wire_type": "0x658",
-     "method": "ServerUnequipItem",
-     "name": "PaperdollComponentServerFacet_ServerUnequipItem"
+     "wire_type": "0xf3c",
+     "method": "ServerSwapItems",
+     "name": "PaperdollComponentServerFacet_ServerSwapItems"
     },
     {
      "wire_type": "0xf38",
@@ -18539,7 +19504,7 @@
      "name": "PaperdollComponentServerFacet_ServerUnequipItem"
     },
     {
-     "wire_type": "0x1ac5",
+     "wire_type": "0x297",
      "method": "ServerUseItem",
      "name": "PaperdollComponentServerFacet_ServerUseItem"
     },
@@ -18564,12 +19529,12 @@
      "name": "PaperdollComponentServerFacet_ToggleSheath"
     },
     {
-     "wire_type": "0x1743",
+     "wire_type": "0x4e5",
      "method": "UnequipAllItems",
      "name": "PaperdollComponentServerFacet_UnequipAllItems"
     }
    ],
-   "server_message_count": 24
+   "server_message_count": 27
   },
   "FilterPopup": {
    "actions": [
@@ -18662,14 +19627,14 @@
     "Guilds"
    ],
    "note": "crear, gestionar e invitar; RequestBatchCreateGuildInvites",
-   "server_message_count": 36
+   "server_message_count": 38
   },
   "party-y-marcas": {
    "families": [
     "Groups"
    ],
    "note": "RequestPing, RequestTargetPing, raid members",
-   "server_message_count": 54
+   "server_message_count": 59
   },
   "personaje": {
    "families": [
@@ -18682,7 +19647,7 @@
     "Vitals"
    ],
    "note": "equipo, atributos, skills de arma, maestria",
-   "server_message_count": 83
+   "server_message_count": 93
   },
   "montura": {
    "families": [
@@ -18698,7 +19663,7 @@
     "GameModeParticipant"
    ],
    "note": "tarjetas, reroll, redencion, lobbies de actividad",
-   "server_message_count": 72
+   "server_message_count": 78
   },
   "tienda-tokens": {
    "families": [
@@ -18715,7 +19680,7 @@
     "PlayerTrade"
    ],
    "note": "RequestExecuteTradingPostTransaction",
-   "server_message_count": 16
+   "server_message_count": 17
   },
   "diario": {
    "families": [
@@ -18724,7 +19689,7 @@
     "ObjectiveInteractor"
    ],
    "note": "objetivos, contratos, pinning",
-   "server_message_count": 51
+   "server_message_count": 56
   },
   "mapa": {
    "families": [
@@ -18734,7 +19699,7 @@
     "Groups"
    ],
    "note": "territorio, desbloqueo, marcas de party",
-   "server_message_count": 105
+   "server_message_count": 115
   },
   "inventario-storage": {
    "families": [
@@ -18759,7 +19724,7 @@
     "VoiceChat"
    ],
    "note": "amigos, titulos, chat, voz",
-   "server_message_count": 68
+   "server_message_count": 74
   }
  }
 }
