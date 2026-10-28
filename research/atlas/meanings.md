@@ -2066,6 +2066,31 @@ The body is 20 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) th
 
 The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37` and `0xda2` also use. The writer is the head writer reached through a `jmp` thunk and the reader `FUN_14259f180` calls only the head reader `FUN_14150e670`, with no extra codec; there is no third field on either side. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x1676` as a 16-byte body - read the two `u64` BE head fields and nothing else - before summoning the mount, since expecting a longer body would desynchronize the stream.
 
+### The field layout of `0x1b7` (Auction ExecuteTransaction), decoded statically
+
+`CurrencyConversionComponentServerFacet_RequestExecuteTradingPostTransaction` (`0x1b7`, GUID `ac7d4486-80bc-48cf-9e22-aabcc5652f77`, type-table index 439) is decoded with the same method as `0x5de`, `0xf37`, `0xda2`, `0x55` and `0x1676`. `re message-names 0x1b7` resolves the registration record `0x14381f420`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482240d8`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x1437c1f20`. That ctor sets the message object's vtable to `0x148223810` (its `+0x08` is the name accessor `0x1437c0130`, bytes `48 8d 05 49 37 a6 04 c3`, a `lea rax,[rip+0x4a63749]` -> `"CurrencyConversionComponentServerFacet_RequestExecuteTradingPostTransaction"` at `0x148223880` = vtable+`0x70`), so the writer is object vtable `+0x60` = `FUN_142cd4180` and the reader is `+0x68` = `FUN_1437bffe0` (the same pointer the ctor calls). Writer and reader agree field for field.
+
+| # | Field | Codec | Object slot |
+| --- | --- | --- | --- |
+| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 3 | `field_c` | `u32`, big-endian (`FUN_140876e70`, reader `FUN_14087a3c0`) | `+0x28` |
+| 4 | `field_d` | `u32`, big-endian (`FUN_140876e70`, reader `FUN_14087a3c0`), validated `<= 100000000` by `FUN_142e6bbb0` | `+0x24` |
+| 5 | `field_e` | `u8` bool (0/1), raw 1-byte block (writer stream vtable `+0x40`, reader `FUN_1408787b0`), must be `< 2` | `+0x20` |
+
+The body is 25 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37`, `0xda2`, `0x55` and `0x1676` also use, then two `u32` BE in the order `+0x28` then `+0x24`, then one bool byte. The writer takes its two `u32` from the message object's `+0x28` and `+0x24` in that order and the reader stores them at the same two slots in the same order, so the two are not swapped; the `u32` reader is `FUN_14087a3c0` and the reader head is `FUN_14150e670`. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x1b7` as a 25-byte body - the two `u64` BE head fields, then two `u32` BE, then one bool byte - before applying the trading-post transaction, since a wrong length desynchronizes the stream.
+
+### The field layout of `0x969` (Attribute RefundSpentPoints), decoded statically
+
+`AttributeComponentServerFacet_RequestRefundSpentPoints` (`0x969`, GUID `9f759be2-2fea-4d9b-8572-366bfd07de70`, type-table index 2409) is decoded with the same method as `0x5de`, `0xf37`, `0xda2`, `0x55` and `0x1676`. `re message-names 0x969` resolves the registration record `0x142784d30`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1480b7a40`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x142749990`. That ctor sets the message object's vtable to `0x1480b6700` (its `+0x08` is the name accessor `0x142745e30`, bytes `48 8d 05 39 09 97 05 c3`, a `lea rax,[rip+0x5970939]` -> `"AttributeComponentServerFacet_RequestRefundSpentPoints"` at `0x1480b6770` = vtable+`0x70`), so the writer is object vtable `+0x60` = `0x14259f170` (a `jmp` thunk, bytes `e9 2b cb f3 fe`, to the shared head writer `FUN_1414dbca0`) and the reader is `+0x68` = `FUN_14259f180`. Writer and reader agree field for field: **both stop after the head**, so this message is head-only.
+
+| # | Field | Codec | Object slot |
+| --- | --- | --- | --- |
+| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+
+The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37`, `0xda2`, `0x55` and `0x1676` also use. The writer is the head writer reached through a `jmp` thunk and the reader `FUN_14259f180` calls only the head reader `FUN_14150e670`, with no extra codec; there is no third field on either side. **This differs from its `0x5de` sibling:** `0x5de` (`RequestSpendAttributePoints`) carried two varint-counted `u32` vectors (attribute indices `<= 4`, then points `<= 700`) and its body was 26 bytes, but the refund sibling carries no vectors at all - it is a parameterless 16-byte head-only request. The writer (thunk `0x14259f170`) and reader (`0x14259f180`) are literally the same pair `0x1676` uses. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x969` as a 16-byte body - read the two `u64` BE head fields and nothing else - then refund the spent attribute points in replicated state; the `Attribute` family has zero reply messages, so nothing is sent back.
+
 ### The channel-1 body changes SHAPE with the UI, not with the key
 
 The one structural positive. The ALC body (`0x635`,
