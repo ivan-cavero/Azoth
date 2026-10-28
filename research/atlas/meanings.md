@@ -2203,6 +2203,64 @@ BE, then the nested container (one presence byte, a varint count of `0x58`-byte 
 pairs, one string, one `u32` BE), then change the inventory replicated state; a wrong
 length desynchronizes the stream.
 
+### Wire-label audit of the interaction plan (2026-10-28)
+
+Every wire number `research/docs/INTERACTION-DECOMP-PLAN.md` lists in its per-system
+sections (section 3) and section 5 order, plus the one name it gives in the section 4
+asymmetry table, is resolved with `re message-names <wire>`. Each row is a direct binary
+lookup, so the evidence word for the resolution is **measured**. Client build
+`30fe6461...` (`30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033`). The
+plan's short labels are quoted as written; the binary-name column is the full
+`re message-names` result at that wire.
+
+| Plan label | plan wire | binary name at that wire | verdict | wire where the name really is |
+| --- | --- | --- | --- | --- |
+| `ChatComponentServerFacet_AddSubscription` | `0x55` | `ChatComponentServerFacet_AddSubscription` | MATCH | — |
+| `SetLanguageEnum` | `0x101e` | `ChatComponentServerFacet_SetLanguageEnum` | MATCH | — |
+| `GroupsComponentServerFacet_RequestPing` | `0x967` | `GroupsComponentServerFacet_RequestPing` | MATCH | — |
+| `RequestTargetPing` | `0xda2` | `GroupsComponentServerFacet_RequestTargetPing` | MATCH | — |
+| `CancelPing` | `0xd9e` | `GroupsComponentServerFacet_CancelPing` | MATCH | — |
+| `CancelTargetPing` | `0xda3` | `GroupsComponentServerFacet_CancelTargetPing` | MATCH | — |
+| `RequestRemoveRaidMember` | `0x1557` | `GroupsComponentServerFacet_RequestJoinableLobbyCountsForActivity` | MIS-MATCH | `0xdac` = `GroupsComponentServerFacet_RequestRemoveRaidMember` |
+| `RequestAllActivityJoinableLobbyCounts` | `0x1555` | `GroupsComponentServerFacet_RequestAllActivityJoinableLobbyCounts` | MATCH | — |
+| `EntitlementComponentServerFacet_InitializeTransaction` | `0xc36` | `EntitlementComponentServerFacet_InitializeTransaction` | MATCH | — |
+| `ClientInitializeTransaction` | `0x382` | `EntitlementComponentServerFacet_ClientInitializeTransaction` | MATCH | — |
+| `RequestServerGetEntitlements` | `0xc2e` | `EntitlementComponentServerFacet_RequestServerGetEntitlements` | MATCH | — |
+| `RequestServerSyncEntitlements` | `0xc30` | `EntitlementComponentServerFacet_RequestServerSyncEntitlements` | MATCH | — |
+| `PlayerAppearance…PurchaseAppearanceChange` | `0x1914` | `PlayerAppearanceComponentServerFacet_PurchaseAppearanceChange` | MATCH | — |
+| `MountComponentServerFacet_SummonMount` | `0x1676` | `MountComponentServerFacet_SummonMount` | MATCH | — |
+| `DismissMount` | `0x1677` | `MountComponentServerFacet_DismissMount` | MATCH | — |
+| `OnRequestChangeMount` | `0x15f3` | `MountComponentServerFacet_OnRequestChangeMount` | MATCH | — |
+| `OnEnableMounts` | `0xacc` | `MountComponentServerFacet_OnEnableMounts` | MATCH | — |
+| `OnEnableMounts` (client facet) | `0xabd` | `MountComponentClientFacet_OnEnableMounts` | MATCH | — |
+| `OnMountDashToggleChanged` | `0x187c` | `MountComponentServerFacet_OnMountDashToggleChanged` | MATCH | — |
+| `OnMountSlowWalkChanged` | `0x187f` | `MountComponentServerFacet_OnMountSlowWalkChanged` | MATCH | — |
+| `CurrencyConversionComponentServerFacet_RequestExecuteTradingPostTransaction` | `0x1b7` | `CurrencyConversionComponentServerFacet_RequestExecuteTradingPostTransaction` | MATCH | — |
+| `P2PTradeComponentServerFacet_UpdateOfferedCoin` | `0x7a` | `P2PTradeComponentServerFacet_UpdateOfferedCoin` | MATCH | — |
+| `LockInOffer` | `0x106a` | `P2PTradeComponentServerFacet_LockInOffer` | MATCH | — |
+| `ConfirmTrade` | `0x1ef` | `P2PTradeComponentServerFacet_ConfirmTrade` | MATCH | — |
+| `PaperdollComponentServerFacet_ServerEquipItem` | `0xf37` | `PaperdollComponentServerFacet_ServerEquipItem` | MATCH | — |
+| `ServerUnequipItem` | `0x658` | `IGritComponentListener` (`Javelin`, no codec facet) | MIS-MATCH | `0xf38` = `PaperdollComponentServerFacet_ServerUnequipItem` |
+| `UnequipAllItems` | `0x1743` | `PlayerComponentServerFacet_DebugSetMatchId` | MIS-MATCH | `0x4e5` = `PaperdollComponentServerFacet_UnequipAllItems` |
+| `RequestSwitchToLoadout` | `0x160` | `VitalsComponentServerFacet_SaveSnapshot` | MIS-MATCH | `0x1542` = `PaperdollComponentServerFacet_RequestSwitchToLoadout` |
+| `ToggleSheath` | `0xf3b` | `PaperdollComponentServerFacet_ToggleSheath` | MATCH | — |
+| `RequestSpendAttributePoints` | `0x5de` | `AttributeComponentServerFacet_RequestSpendAttributePoints` | MATCH | — |
+| `RequestApplyAbilityPoints` | `0xb29` | `AbilityComponentServerFacet_RequestApplyAbilityPoints` | MATCH | — |
+| `RequestChangeMappedAbility` | `0xa8d` | `AbilityComponentServerFacet_RequestChangeMappedAbility` | MATCH | — |
+| `RequestAssignPoolPoints` | `0x458` | `ProgressionPointComponentServerFacet_RequestAssignPoolPoints` | MATCH | — |
+| `MasteryTreeRespecResponse` (section 4) | `0xb2a` | `AbilityComponentClientFacet_MasteryTreeRespecResponse` | MATCH | — |
+
+**Four** of the 34 checked labels are wrong: `RequestRemoveRaidMember` `0x1557`,
+`ServerUnequipItem` `0x658`, `UnequipAllItems` `0x1743`, and `RequestSwitchToLoadout`
+`0x160`.
+
+Only the `0xf38` correction sits in the ±4-row neighbourhood of its plan wire (`0xf37` is
+`ServerEquipItem`, `0xf38` is `ServerUnequipItem`, adjacent rows). The other three real
+names are not in the neighbourhood of the plan's wire — the ±4 rows around `0x1557`,
+`0x1743` and `0x160` hold no row with those names — so they were located by resolving the
+full type table and confirmed with a direct `re message-names` on the wire named in the
+last column; no name is guessed.
+
 ### The channel-1 body changes SHAPE with the UI, not with the key
 
 The one structural positive. The ALC body (`0x635`,
