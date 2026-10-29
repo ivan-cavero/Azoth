@@ -2179,6 +2179,21 @@ Decoded 2026-10-29 **fresh** on build `30fe6461...` with the same method. `P2PTr
 
 **What the server must do:** read the head (and the offered-coin `u64` for `0x7a`), update the trade offer / lock in / confirm, then reply with the trade snapshot; a wrong length desynchronizes the stream. Client build `30fe6461...`.
 
+### The field layouts of the Mount and remaining Paperdoll entry points (`0x1677`, `0x15f3`, `0xacc`, `0x4e5`, `0x1542`, `0xf3b`), decoded statically
+
+Decoded 2026-10-29 with the same method; all six resolve `entry-match` in trait `ClientMessages` and share the head writer `FUN_1414dbca0` (2x `u64` BE) / reader `FUN_14150e670`. Writer and reader agree; **no live record**, so each row stays `partial`. Evidence: `.azoth/logs/run-20261029-mount-paperdoll-msg/mount-paperdoll-field-layouts.md`.
+
+| wire | message | writer / reader | body |
+| --- | --- | --- | --- |
+| `0x1677` | `MountComponentServerFacet_DismissMount` | `FUN_1435f0d20` / `FUN_1438bb2b0` | **18 B**: head + `u8` raw (`+0x21`, `<= 17`) + bool (`+0x20`) |
+| `0x15f3` | `MountComponentServerFacet_OnRequestChangeMount` | `FUN_1426d64f0` / `FUN_1426ffc00` | **20 B**: head + `u32` BE (`+0x20`) (same pair as `0x55`) |
+| `0xacc` | `MountComponentServerFacet_OnEnableMounts` | `FUN_1425a3070` / `FUN_1425a30b0` | **17 B**: head + bool (`+0x20`) |
+| `0x4e5` | `PaperdollComponentServerFacet_UnequipAllItems` | `FUN_1425a3070` / `FUN_1425a30b0` | **17 B**: head + bool (`+0x20`) (same pair as `0xacc`) |
+| `0x1542` | `PaperdollComponentServerFacet_RequestSwitchToLoadout` | `FUN_142746100` / `FUN_14657a670` | **17 B**: head + `u8` raw (`+0x20`, `<= 30`, **not** a bool) |
+| `0xf3b` | `PaperdollComponentServerFacet_ToggleSheath` | `FUN_1426d64f0` / `FUN_1440f4760` | **20 B**: head + `u32` BE (`+0x20`, `<= 51`) |
+
+**What the server must do:** read the head and the one trailing field per message, then change the mount / paperdoll replicated state; a wrong length desynchronizes the stream. Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
