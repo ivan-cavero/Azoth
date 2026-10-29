@@ -74,7 +74,7 @@ Naming a field removes it from this list. None of these ids is a gameplay noun.
 | Id | What is still unnamed | Evidence |
 | --- | --- | --- |
 | `flow.channel.document` | The channel HTTP document the client needs before login. Identity does not belong in it. | partial |
-| `flow.region.captured-body` | Login, entitlements, world list, and ticket JSON that still copies an official response | unknown bodies |
+| `flow.region.captured-body` | The region JSON the client needs before the world: tokens, credentials, getlogininfo, queue ticket/poll, entitlements, remote config. **Inventoried 2026-10-29** per route with owned / copied-from-official / unknown fields. Values are still the lab's constants, not server-owned; `worlds/list`, the characters list/validator and link/unlink identity have **no captured body**. See "The region HTTP bodies, inventoried". | inventoried; bodies still copied |
 | `flow.world-entry.rung.registration.body` | Registration response, wire type `0x3`, 88 bytes. **Parsed**: typed header, `u32` zero, `0x0b`, 8 bytes, 32 redacted bytes, then the 36-byte server version string `#[RETAIL].Javelin.<version>`, then `01 00 00 01`. The version string is the named field; the rest has no second signal. | version string verified, rest partial |
 | `flow.world-entry.rung.greetings.body` | GridMate greeting. Not a game event. | partial |
 | `flow.world-entry.rung.self-identification.body` | The 21 bytes the lab carries, against a real record that is **12,706 bytes**, now laid out to the byte (2026-10-26): **135-byte prefix + a 56 x 56 grid of big-endian `u32` (12,544 bytes) + 27-byte tail**, which sums to the record exactly. Proven three ways that agree cell for cell: a live Frida probe read the decoded `std::vector<u32>` span as 12,544 with `struct+0x00 = 56`; the record's `0xFFFFFFFF` runs sit on a **224-byte row lattice** (56 runs, one per row, at phase `0x87`); and **56 of 56 rows** begin with an empty cell. Cells are a small enum -- only eight distinct values, `0xFFFFFFFF` (1,716, empty) plus big-endian `0`..`6` -- and the wire is **big-endian** while the struct is host little-endian, measured by matching the probe's cells `0..23` against the record bytes. The earlier "off by exactly one byte" is **withdrawn**: it was the modulo-4 remainder of a wrong model, and there is no orphan byte. The grid's *semantics* remain unnamed. | body layout measured end to end; grid semantics unnamed |
@@ -96,6 +96,35 @@ them into one process is how a private server becomes a pile of routes.
 
 A captured HTTP body is allowed in the lab so the client can be opened and
 observed. It is labeled unknown until someone writes the fields down here.
+
+### The region HTTP bodies, inventoried (2026-10-29)
+
+Read-only inventory of the region routes the 1.460 client actually calls, from
+`services/gateway/traffic.jsonl`, `mock_discovery/*.json`, `endpoints.json`,
+`models.json` and the lab routes. Identities/tokens redacted; the classes are
+candidate. Evidence: `.azoth/logs/run-20261029-region-bodies/region-bodies.md`.
+
+| Step | Route | Captured | Owned fields that drive the client |
+| --- | --- | --- | --- |
+| login token exchange | `POST /games/new-world/tokens` | yes | `account.type` (`shadow` shows the Amazon link modal, `full` skips it), `account.personaId`, `accessToken` (2-dot JWT), `expiresIn`, `fallbackToken` |
+| login SigV4 creds | `GET /prod/credentials/omni` | yes | `accessKeyId`, `secretAccessKey`, `sessionToken`, `expiration` (**number**, not ISO) |
+| login info | `GET /prod/game/getlogininfo/jwt/omni` | yes | `LoginInfoList` (**an object**) `Worlds[]` gate (`WorldStatus="ACTIVE"`, `WorldType="OpenWorld"`, `PublicStatusCode=0`) + `Characters[]` (`CharacterId`, `Name`, `PersonaId`, `WorldId`); plus a lowercase `worlds[]` int-enum dropdown entry |
+| world list (on region click) | `POST /prod/game/worlds/list/jwt/omni` | **no** | unknown; RE shapes only |
+| queue ticket | `POST /prod/game/login/queue/v2/jwt/omni` | yes | `RepAddress` (**must point at our world**), `Signature` (**must be non-empty**), `TicketId`, `TokenVersion` |
+| queue poll | `POST /prod/game/login/queue/v2/{ticket}/jwt/omni` | yes | `Position=0` moves the client to `StartREPConnection`; `Token` = the full ticket |
+| entitlements | `.../entitlements[/sync]` | yes | `lineItems[].productId`/`transactionId`/`type`/`amount`; the sync request carries the five `syncTypes` |
+| remote config | `.../configuration-sets/{scope}/{key}[/versionless]` | yes | security flags `game-security.*` and `javelin.*`; the dotted duplicate keys have unknown purpose |
+| characters list/create, validator, link/unlink identity | region gateway | **no** | RE shapes only; envelope and verdict key unknown |
+
+**Smallest must-own set to reach character select** (nothing optional): the tokens
+body, the credentials body, and the getlogininfo `LoginInfoList` object with >=1
+gate-passing world and >=1 character, plus the matching lowercase dropdown entry.
+`ListWorlds` is not required for character select (it fires only when a region is
+clicked); the queue tickets are needed only after character select. **Still
+unknown:** the bodies of `worlds/list`, the characters list/validator and
+link/unlink identity (no capture); `conflictingAccount`, `HostHash`/`Location*`,
+`limitedUseToken`, `worldPopulationStatus`, and the remote-config dotted-duplicate
+keys.
 
 ### How a rung handler receives its message
 
