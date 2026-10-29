@@ -2212,6 +2212,24 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; every wir
 
 **What the server must do:** parse each body and change the objectives/contracts replicated state (`AbandonSingleObjective` has no reply; `AcceptContractRequest`/`LookupContractsByParticipant` expect one). **Next in these families:** `0xeff`, `0xa39`, `0xb9f`, `0x8a4`. Client build `30fe6461...`.
 
+### The Territory families: enumerated wires and the first decoded entry points (2026-10-29)
+
+Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; every wire verified `entry-match` in `ClientMessages`. **The registry counts `TerritoryInteractor` = 47 and `TerritoryDetector` = 5** client->server (52 total); the plan's `43` is stale. (`Territory` is a separate facet: `0xa77 UnclaimTerritory`.) All five rows share MARSHAL thunk `0x1414c0730`, the head `FUN_1414dbca0`/`FUN_14150e670`, and a shared **roster-entry sub-codec** `FUN_145c739d0`/`FUN_145ce8d80` (string@`+0x08`, string@`+0x30`, byte@`+0x58`). **No live record**, so each stays `partial`. Evidence: `.azoth/logs/run-20261029-territory-msg/`.
+
+**`TerritoryInteractor` = 47:** `0xf6 0x1ab 0x1b6 0x1c5 0x36e 0x45e 0x550 0x5e1 0x68c 0x6bf 0x74f 0x764 0x7b3 0x86b 0x9d7 0x9fe 0xab2 0xab3 0xab4 0xab5 0xab6 0xab8 0xab9 0xaba 0xabb 0xabf 0xac1 0xac2 0xac3 0xac5 0xaca 0xacf 0xad3 0xad4 0xad7 0xad9 0xadb 0xadd 0xade 0xae0 0xae5 0xae7 0x139b 0x14cc 0x14cd 0x152a 0x17f4`
+
+**`TerritoryDetector` = 5:** `0x8f9 0xa84 0xa88 0x13d9 0x1910`
+
+| wire | message | body | writer / reader |
+| --- | --- | --- | --- |
+| `0xf6` | `TerritoryInteractorComponentServerFacet_RequestSetRoster` | >= 22 B var: head + 5 raw bytes + varint(<= 10) of `0x90`-byte roster entries | `FUN_1447e26d0` / `FUN_1447e2770` |
+| `0x1c5` | `..._RequestStartProject` | **25 B** fixed: head + `u32` BE + bool + `u32` BE | `FUN_1447e34a0` / `FUN_1447e35f0` |
+| `0x68c` | `..._RequestMovePlayer` | >= 31 B var: head + roster entry + 3x `u32` BE | `FUN_1447ee6e0` / `FUN_1447ee800` |
+| `0x6bf` | `..._RequestSetGroupData` | **24 B** fixed: head + `u32` BE (<= 10) + 4 raw bytes | `FUN_1447ea930` / `FUN_1447eaaf0` |
+| `0x74f` | `..._RequestSwapPlayers` | >= 38 B var: head + entryA + 2x `u32` + entryB + 2x `u32` | `FUN_1447f1890` / `FUN_1447f19f0` |
+
+**What the server must do:** parse the head + roster entry/entries + scalars as above, then change the territory roster/project/group replicated state. **Next:** `0xad4 RequestRoster`, `0xae0 RequestLeave`, `0xae7 RequestRemoteInteract`, `0x9d7 SetTaxOrFee`. Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
