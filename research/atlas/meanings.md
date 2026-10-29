@@ -2229,6 +2229,8 @@ server must do:** handle inbound `0xf38` as a 29-byte body - the two `u64` BE he
 then three `u32` BE, then one bool byte - then remove the identified item in replicated
 state, since a wrong length desynchronizes the stream.
 
+**Live attempt, 2026-10-29 (negative on the gesture) - no `0xf38` composed.** One in-world session on build `30fe6461...` opened the inventory (hold TAB 0.6 s), located the equipped weapon slot on the doll at window `(274,233)`, and tried (a) a **double-click on the equipped weapon** and (b) a **drag from that slot to the inventory grid** at `(900,470)`. Neither produced a `0xf38` on the wire and the client sent **no typed message at all** in those windows - unlike the equip double-click, which fires `gate`/`bus`/`builder`/`writer`. (The session also corrected a coordinate: an earlier click at `(276,196)` was ~37 px high and merely closed the panel.) The unequip gesture's UI trigger is therefore **not** the equip sibling's double-click and is still unidentified; evidence word stays **partial**. Evidence: `.azoth/logs/run-20261029c-unequip-0xf38/`.
+
 ### The field layout of `0x169d` (Inventories QueryInventories), decoded statically
 
 `InventoriesComponentServerFacet_QueryInventories` (`0x169d`, GUID
