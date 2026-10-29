@@ -2141,6 +2141,20 @@ Decoded 2026-10-29 with the same method as `0xda2`/`0x55` (registration accessor
 
 **What the server must do:** `0x967` read the head + `u8` + three `u32` BE + `bool`, then change the Groups ping state; `0xd9e`/`0xda3` read the 16-byte head and nothing else, then cancel the (targeted) ping in replicated state; `0xdac` read the head + prefix-varint length (<= 40) + that many bytes (the raid-member id), then remove the member. A wrong length desynchronizes the stream in every case. Client build `30fe6461...`.
 
+### The field layouts of the Entitlement/Store entry points (`0xc36`, `0x382`, `0xc2e`, `0xc30`, `0x1914`), decoded statically
+
+Decoded 2026-10-29 with the same method (registration accessor -> codec facet `+0x48` -> MARSHAL/UNMARSHAL -> object-vtable writer `+0x60` / reader `+0x68`); all five land on the shared marshal thunk `0x1414c0730`. Writer and reader agree field for field; **no live record**, so every row stays `partial`. The `re decompile` calls fell back to the identical cached corpus (`status=ok`, same build) because a concurrent job held the Ghidra project lock - run one Ghidra job at a time for fresh pseudocode. Evidence: `.azoth/logs/run-20261029-entitlement-msg/REPORT.md`.
+
+| wire | message | writer / reader | body |
+| --- | --- | --- | --- |
+| `0xc36` | `EntitlementComponentServerFacet_InitializeTransaction` | `FUN_1430186f0` / `FUN_143018790` | variable: head (2x `u64` BE) + inline `transaction` container at `+0x40` (15 sub-fields: byte strings, `u32` `+0x78`, 16 raw bytes `+0x80`, bool `+0x90`, `u32` `+0x138`, three varint vectors, one varint list) + `u8` bool `+0x30` |
+| `0x382` | `EntitlementComponentServerFacet_ClientInitializeTransaction` | `FUN_143010b00` / `FUN_143010e60` | variable: head + three byte strings <= 8 (`+0x50/60/70`) + `u32` BE <= 4 (`+0x80`) + 16 raw bytes (`+0x90`) + three byte strings <= 38 (`+0xa0/d0/100`) + one byte string <= 256 (`+0x130`) + `u32` BE (`+0x238`) + `u8` bool (`+0x30`) |
+| `0xc2e` | `EntitlementComponentServerFacet_RequestServerGetEntitlements` | `FUN_143016080` / `FUN_143016200` | `17 + len`: head + `u8` bool (`+0x48`) + varint-prefixed byte string <= 25 (`+0x20..+0x40`) |
+| `0xc30` | `EntitlementComponentServerFacet_RequestServerSyncEntitlements` | `0x14259f170` / `0x14259f180` | head-only **16 B** (same pair as `0x1676`/`0x969`) |
+| `0x1914` | `PlayerAppearanceComponentServerFacet_PurchaseAppearanceChange` | `FUN_146591280` / `FUN_146591ea0` | head + twelve `u8` enum bytes in slot order `+0x29, +0x2a, +0x28, +0x2b..+0x33` (validated <= 100 / <= 2 / <= 100) -> **28 B** |
+
+**What the server must do:** parse each body exactly (strings and vectors are varint-length prefixed), then apply the transaction/change to the replicated entitlement/store state; a wrong length desynchronizes the stream. Client build `30fe6461...`. **Unknown:** all field semantics (names are positional) and the `0xc36` nested-container element shapes beyond the list above.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
