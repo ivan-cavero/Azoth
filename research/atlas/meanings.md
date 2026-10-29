@@ -2167,6 +2167,18 @@ Decoded 2026-10-29 with the same method. Writer and reader agree field for field
 
 **What the server must do:** read the head and the fields in the order above, then apply the pending ability-point / mapped-ability / pool-point change in replicated state; a wrong length desynchronizes the stream. Client build `30fe6461...`.
 
+### The field layouts of the P2P-trade entry points (`0x7a`, `0x106a`, `0x1ef`), decoded statically
+
+Decoded 2026-10-29 **fresh** on build `30fe6461...` with the same method. `P2PTrade` is genuinely request/response (9 server replies); these three are requests whose fields are named positionally only. Writer and reader agree; **no live record**, so each row stays `partial`. Evidence: `.azoth/logs/run-20261029-trade-msg/trade-field-layouts.md`.
+
+| wire | message | writer / reader | body |
+| --- | --- | --- | --- |
+| `0x7a` | `P2PTradeComponentServerFacet_UpdateOfferedCoin` | `FUN_142e915a0` / `FUN_1440aaac0` | **24 B**: head + one `u64` BE (`+0x20`, asserted `<= 1e9`) |
+| `0x106a` | `P2PTradeComponentServerFacet_LockInOffer` | `0x14259f170` / `0x14259f180` | head-only **16 B** |
+| `0x1ef` | `P2PTradeComponentServerFacet_ConfirmTrade` | `0x14259f170` / `0x14259f180` | head-only **16 B** |
+
+**What the server must do:** read the head (and the offered-coin `u64` for `0x7a`), update the trade offer / lock in / confirm, then reply with the trade snapshot; a wrong length desynchronizes the stream. Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
