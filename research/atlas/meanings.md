@@ -2194,6 +2194,24 @@ Decoded 2026-10-29 with the same method; all six resolve `entry-match` in trait 
 
 **What the server must do:** read the head and the one trailing field per message, then change the mount / paperdoll replicated state; a wrong length desynchronizes the stream. Client build `30fe6461...`.
 
+### The Journal families: enumerated wires and the first decoded entry points (2026-10-29)
+
+Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; every wire verified `entry-match` in `ClientMessages` via the registration hook (not the adjacency table). **The registry now counts Objectives = 30 and Contracts = 16** (Journal surface join = 46); the plan's `27 / 14` (and an old `Journal | 41` line) are **stale**. All five rows below share MARSHAL thunk `0x1414c0730` and the head `FUN_1414dbca0` / `FUN_14150e670` (2x `u64` BE, 16 B); **no live record**, so each stays `partial`. Evidence: `.azoth/logs/run-20261029-journal-msg/`.
+
+**Objectives = 30:** `0xefd 0xa4d 0xb69 0xefc 0xf02 0xcdf 0x716 0x961 0xf06 0xf09 0xd9c 0x59c 0x17d5 0x1ace 0x17f1 0xf0a 0x1a4d 0x1a4e 0xf07 0x19fa 0x1376 0x1d3 0x17d4 0xf01 0xa39 0xeff 0x15e0 0xa95 0xf03 0x5b2`
+
+**Contracts = 16:** `0x814 0x8a4 0x4c9 0xb9c 0x440 0xba2 0x1487 0xb9f 0x9fc 0x340 0x1459 0x145c 0xba1 0x1623 0x1609 0xba0`
+
+| wire | message | body | writer / reader |
+| --- | --- | --- | --- |
+| `0xa95` | `ObjectivesComponentServerFacet_SetObjectiveAutoPinning` | 17..53 B: head + varint(len <= 36) + N bool bytes | `FUN_1439f0870` / `FUN_1439f0910` |
+| `0x5b2` | `ObjectivesComponentServerFacet_UpdateTrackedObjectives` | 17..81 B: head + varint(len <= 8) + N `u64` BE | `FUN_1439f2c00` / `FUN_1439f2c60` |
+| `0xefc` | `ObjectivesComponentServerFacet_AbandonSingleObjective` | **24 B**: head + one `u64` BE | `FUN_1439e9ea0` / `FUN_1439ea010` |
+| `0x814` | `ContractsComponentServerFacet_AcceptContractRequest` | **52 B**: head + raw 16 + raw 16 + `u32` BE | `FUN_142da5db0` / `FUN_142da5f90` |
+| `0x9fc` | `ContractsComponentServerFacet_LookupContractsByParticipant` | ~68..451 B: head + 16-byte id + 3x `u32` + str <= 64 + str <= 256 + `u32` + `u32`-vec <= 3 + `u16`-vec <= 25 + 16-byte id | `FUN_142d9e5d0` / `FUN_142d9e7a0` |
+
+**What the server must do:** parse each body and change the objectives/contracts replicated state (`AbandonSingleObjective` has no reply; `AcceptContractRequest`/`LookupContractsByParticipant` expect one). **Next in these families:** `0xeff`, `0xa39`, `0xb9f`, `0x8a4`. Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
