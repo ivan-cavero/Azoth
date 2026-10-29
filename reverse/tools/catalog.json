@@ -27,6 +27,10 @@
       "path": "pe/xrefmap.py",
       "kind": "pe"
     },
+    "xref-data": {
+      "path": "pe/xref-data.py",
+      "kind": "pe"
+    },
     "naming": {
       "path": "type/namer.py",
       "kind": "type"
@@ -183,6 +187,10 @@
     },
     "xrefmap": {
       "path": "pe/xrefmap.py",
+      "kind": "pe"
+    },
+    "xref-data": {
+      "path": "pe/xref-data.py",
       "kind": "pe"
     },
     "dump-type-table": {
