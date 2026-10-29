@@ -73,7 +73,7 @@ Naming a field removes it from this list. None of these ids is a gameplay noun.
 
 | Id | What is still unnamed | Evidence |
 | --- | --- | --- |
-| `flow.channel.document` | The channel HTTP document the client needs before login. Identity does not belong in it. | partial |
+| `flow.channel.document` | The channel HTTP document the client fetches before login (`GET /<STEAM_APP_ID>.1063730.json`). **Inventoried 2026-10-29**: a cluster block per cluster, and `publicApis[]` is the steering array - every pre-login host comes from `publicApis[].{clientTag,apiEndpoint}` (`authStack`, `loginGateway`, `JavelinGatewayServiceV2`, `JavelinGatewayService-CF`), plus `platformMetadata.OMNI.STEAM_APP_ID.1063730.omniTokenUrl`. No identity. The `omni`/`privacy-settings.*` keys are lab inventions absent from the official capture, and the "cache validators" clause belongs to the CMS, not this JSON (0 of 40 channel GETs carry `If-None-Match`). See "The channel document, inventoried". | inventoried; values still lab-owned |
 | `flow.region.captured-body` | The region JSON the client needs before the world: tokens, credentials, getlogininfo, queue ticket/poll, entitlements, remote config. **Inventoried 2026-10-29** per route with owned / copied-from-official / unknown fields. Values are still the lab's constants, not server-owned; `worlds/list`, the characters list/validator and link/unlink identity have **no captured body**. See "The region HTTP bodies, inventoried". | inventoried; bodies still copied |
 | `flow.world-entry.rung.registration.body` | Registration response, wire type `0x3` = `RegistrationResponseMsg` (index 3), 88 bytes, **server -> client**. **Layout measured to the byte** (writer and reader agree; the 1.365 capture consumes it exactly): f1 `u32` BE at `0x03`; f2 `u64` BE at `0x07..0x0e`; f3 prefix-varint length + 32 raw bytes at `0x0f/0x10`; f4 prefix-varint length + 35-byte string at `0x30/0x31`; f5 four bool bytes at `0x54`. **f4 = `server_version` is named**; f1/f2/f3/f5 are codec-identified but unnamed (no consumer found). Corrections: the old "`0x0b` at `0x07`" and "8 bytes at `0x08`" are ONE `u64` BE, and the leading `#` was the length byte `0x23`. | layout measured; one field named |
 | `flow.world-entry.rung.greetings.body` | GridMate greeting. Not a game event. | partial |
@@ -125,6 +125,34 @@ unknown:** the bodies of `worlds/list`, the characters list/validator and
 link/unlink identity (no capture); `conflictingAccount`, `HostHash`/`Location*`,
 `limitedUseToken`, `worldPopulationStatus`, and the remote-config dotted-duplicate
 keys.
+
+### The channel document, inventoried (2026-10-29)
+
+The pre-login JSON the client fetches from `GET /<STEAM_APP_ID>.1063730.json` on
+`d2c74t4zimux3r.cloudfront.net`. The official capture (`channelName "Retail"`) is
+byte-identical across `research/notes/channel_config.json`,
+`research/schemas/live/channel.json` and four `live_20261022_r1460` session files.
+Evidence: `.azoth/logs/run-20261029-channel-doc/channel-doc.md`.
+
+| Key | Type | Class | Drives |
+| --- | --- | --- | --- |
+| `<cluster>` (e.g. `fra-prod`) | object | **owned** | a pickable cluster; its presence is what the client selects |
+| `...publicApis[]` | array | **owned** | **the steering array - every pre-login host comes from here** |
+| `...publicApis[].clientTag` | enum | **owned** | which service: `authStack` / `loginGateway` / `JavelinGatewayServiceV2` / `JavelinGatewayService-CF` |
+| `...publicApis[].apiEndpoint` | host | **owned - must-own first** | the host the client dials per service; the redirect lever |
+| `platformMetadata.OMNI.STEAM_APP_ID.1063730.omniTokenUrl` | URL | **owned** | pre-login token-exchange host |
+| `channelName`, `...displayName`, `...localizedName`, `...poolId`, `awsRegion`/`version`/`stage` | string | owned/copied/unknown | label, dropdown, SigV4 region, API version; meanings partly unverified |
+| `omni` block + `omni.privacy-settings.*` | object/string | **unknown - lab inventions, not in the official capture** | candidate, do not promote |
+
+**Smallest must-own set to pass the title gate:** one cluster block whose key is
+the cluster the client resolves, with `publicApis[].{clientTag,apiEndpoint}`
+pointing `loginGateway` and `JavelinGatewayService-CF` at hosts we control (and
+`authStack` reachable), plus `omniTokenUrl` at our token service. Nothing here is
+an identity. **Missing/unverified:** the `channelName` consumer, `poolId` meaning,
+`awsRegion`/`version`/`stage` requiredness, and cluster-count requiredness (the
+capture has 5; one is believed sufficient). **Correction:** the "cache validators"
+in "What the client walks" belong to the CMS (`/motd/...`, `/newsstories/...`),
+not this JSON - 0 of 40 channel GETs carry `If-None-Match`.
 
 ### How a rung handler receives its message
 
