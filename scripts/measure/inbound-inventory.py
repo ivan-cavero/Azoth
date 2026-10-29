@@ -19,8 +19,8 @@ HOW IT DECODES
 `parse_datagram`. Calling `parse_datagram` on the truncated `raw` field fails
 (`payload truncated: need 2048 bits, have 896`), which is why this uses `raw_full`.
 
-NAMES COME FROM TWO TABLES, VERIFIED FIRST
-==========================================
+NAMES COME FROM TWO TABLES, THEN TWO LAST-RESORT REGISTRIES
+==========================================================
 1. `research/derived/message-names.json` -- the verified table, built from the client's own
    registration hook. Its name wins wherever it names a wire.
 2. `research/derived/wire-type-names.json` -- the build's own type table, named from the
@@ -29,11 +29,17 @@ NAMES COME FROM TWO TABLES, VERIFIED FIRST
    disproven: of the wires both tables name, 620 disagree. It supplies a name only for a wire
    the verified table leaves unnamed, so a wire is never dropped just because the verified
    table is silent about it.
+3. `research/atlas/javelin-messages.json` -- the hand-curated Javelin message registry
+   (name + GUID + wire index), by wire index and by GUID. Last resort.
+4. `research/atlas/az-type-registry.json` -- every AZ type the build registers, by GUID. The
+   very last resort, after the javelin registry.
 
-A type neither table names is reported as `?` rather than guessed: several wire types are not
-Javelin-typed at all and belong to another registry (the Carrier/system channel carries a
-4-byte non-typed record, and the client's V3 re-registration is not in the type table). Each
-row keeps the `wire-type-names.json` GUID, so an unnamed type is still addressable.
+The two tables always win over the two registries: a registry fills a name only for a wire
+both tables leave unnamed. A type none of the four can name is reported as `?` rather than
+guessed: several wire types are not Javelin-typed at all and belong to another registry (the
+Carrier/system channel carries a 4-byte non-typed record, and the client's V3 re-registration
+is not in the type table). Each row keeps the `wire-type-names.json` GUID, so an unnamed type
+is still addressable.
 
 CLASSIFICATION
 ==============
@@ -77,6 +83,8 @@ NAMES = ROOT / "research" / "derived" / "wire-type-names.json"
 # produced by the adjacency heuristic `scan-wire-names.py`, which `research/atlas/meanings.md`
 # documents as disproven, so a verified name overrides it wherever the two disagree.
 VERIFIED = ROOT / "research" / "derived" / "message-names.json"
+JAVELIN = ROOT / "research" / "atlas" / "javelin-messages.json"
+AZ_REGISTRY = ROOT / "research" / "atlas" / "az-type-registry.json"
 
 # Wire ids with a fixed, measured role that is not in any name registry.
 TRANSPORT_TYPES = {349}          # PingMsg, answered by the transport layer
@@ -113,22 +121,59 @@ def _wire_names(document: dict, verified: dict) -> dict[int, str]:
     return names
 
 
-def _load_names(path: Path = NAMES,
-                verified_path: Path = VERIFIED) -> dict[int, dict]:
-    """wire type -> {name, source, guid}. The name is resolved verified-first in
-    `_wire_names`; `source` and `guid` still come from the adjacency table, which lists every
-    wire, including the ones neither table names.
+def _load_names(path: Path = NAMES, verified_path: Path = VERIFIED,
+                javelin_path: Path = JAVELIN,
+                az_path: Path = AZ_REGISTRY) -> dict[int, dict]:
+    """wire type -> {name, source, guid}. The name resolves in this order: the verified table
+    `message-names.json`, then the adjacency table, then the javelin registry, then the AZ
+    registry. `source` and `guid` come from the registry chain (adjacency, then javelin, then
+    az), so a wire the two tables leave unnamed keeps the registry label that named it.
     """
     document = _read_json(path)
-    names = _wire_names(document, _read_json(verified_path))
-    return {
+    out = {
         row["wire_type"]: {
-            "name": names.get(row["wire_type"]),
+            "name": row.get("name"),
             "source": row.get("source"),
             "guid": row.get("guid"),
         }
         for row in document.get("names", [])
     }
+    # Javelin registry: fill gaps by wire index and by GUID.
+    javelin = _read_json(javelin_path)
+    by_guid = {}
+    for row in javelin.get("messages", []):
+        guid = str(row.get("guid") or "").lower()
+        if guid:
+            by_guid[guid] = row["name"]
+        wire = row.get("wire_type")
+        if wire is not None and not out.get(wire, {}).get("name"):
+            out.setdefault(wire, {"guid": None})["name"] = row["name"]
+            out[wire]["source"] = "javelin-registry"
+    for row in out.values():
+        if not row.get("name"):
+            guid = str(row.get("guid") or "").lower()
+            if guid in by_guid:
+                row["name"] = by_guid[guid]
+                row["source"] = "javelin-registry"
+    # AZ registry: the very last resort, by GUID.
+    az = _read_json(az_path)
+    by_guid = {}
+    for entry in az.get("types", []):
+        guid = str(entry.get("guid") or "").lower()
+        if guid and entry.get("name"):
+            by_guid.setdefault(guid, entry["name"])
+    for row in out.values():
+        if not row.get("name"):
+            guid = str(row.get("guid") or "").lower()
+            if guid in by_guid:
+                row["name"] = by_guid[guid]
+                row["source"] = "az-registry"
+    # The verified table's name wins wherever it names a wire, and the adjacency table's name
+    # wins over javelin/az. Overriding the chain's name last gives that order without losing
+    # the registry `source` labels restored above.
+    for wire, name in _wire_names(document, _read_json(verified_path)).items():
+        out.setdefault(wire, {"name": None, "source": None, "guid": None})["name"] = name
+    return out
 
 
 def classify(wire_type: int, channel: int, name: str | None) -> str:

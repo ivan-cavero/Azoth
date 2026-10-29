@@ -69,8 +69,9 @@ paths are narrow, and a request answered by replicated state has no typed reply 
 
 ### The 8 types with no name
 
-All three registries (`wire-type-names.json`, the Javelin registry, the AZ type registry) fail
-to name them. Their GUIDs are **not present in the executable at all** (checked as dashed text
+All four name sources -- the two tables (`message-names.json`, `wire-type-names.json`) and
+their two last-resort registries (the Javelin registry, the AZ type registry) -- fail to name
+them. Their GUIDs are **not present in the executable at all** (checked as dashed text
 and as raw bytes), which means they are registered at runtime rather than declared in `.rdata`;
 `typeindex.json` was itself produced by a runtime probe on 2025-10-22. Naming them needs a live
 probe that reads the client's send-side class name, not a static scan.
@@ -245,6 +246,8 @@ unnamed, and the server's own name table marks it `(name unverified)`.
   `clock-samples.jsonl`).
 * Capture ordering: `services/world/replay/messages-redacted.txt` via
   `azoth_world.javelin.replay_store.ReplayStore`.
-* Names: `research/derived/wire-type-names.json`, `research/atlas/javelin-messages.json`,
-  `research/atlas/az-type-registry.json`. Regenerate the first with
-  `reverse/tools/scan-wire-names.py --check`, which now refuses to give one name to two GUIDs.
+* Names: `research/derived/message-names.json` (the verified table) first,
+  `research/derived/wire-type-names.json` as a per-wire fallback, then the last-resort
+  `research/atlas/javelin-messages.json` and `research/atlas/az-type-registry.json`.
+  Regenerate `wire-type-names.json` with `reverse/tools/scan-wire-names.py --check`, which now
+  refuses to give one name to two GUIDs.
