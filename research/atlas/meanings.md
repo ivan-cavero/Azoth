@@ -2155,6 +2155,18 @@ Decoded 2026-10-29 with the same method (registration accessor -> codec facet `+
 
 **What the server must do:** parse each body exactly (strings and vectors are varint-length prefixed), then apply the transaction/change to the replicated entitlement/store state; a wrong length desynchronizes the stream. Client build `30fe6461...`. **Unknown:** all field semantics (names are positional) and the `0xc36` nested-container element shapes beyond the list above.
 
+### The field layouts of the Ability/Progression entry points (`0xb29`, `0xa8d`, `0x458`), decoded statically
+
+Decoded 2026-10-29 with the same method. Writer and reader agree field for field and slot for slot; **no live record**, so each row stays `partial`. `Ability` has one reply message (`MasteryTreeRespecResponse 0xb2a`) but none of these expects one; `ProgressionPoint` has zero replies. Evidence: `.azoth/logs/run-20261029-ability-msg/ability-field-layouts.md`.
+
+| wire | message | writer / reader | body |
+| --- | --- | --- | --- |
+| `0xb29` | `AbilityComponentServerFacet_RequestApplyAbilityPoints` | `0x14259f170` / `0x14259f180` | head-only **16 B** (same pair as `0x1676`/`0x969`/`0xc30`) |
+| `0xa8d` | `AbilityComponentServerFacet_RequestChangeMappedAbility` | `FUN_1465a8bb0` / `FUN_1465a9810` | **26 B**: head + `u16` BE (`+0x28`) + two `u32` BE (`+0x24` then `+0x20`; first `<= 2`) |
+| `0x458` | `ProgressionPointComponentServerFacet_RequestAssignPoolPoints` | `FUN_143ccbb30` / `FUN_143ccbb60` | **28 B**: head + three `u32` BE (`+0x28`, `+0x24`, `+0x20`; last `<= 0x1000`) |
+
+**What the server must do:** read the head and the fields in the order above, then apply the pending ability-point / mapped-ability / pool-point change in replicated state; a wrong length desynchronizes the stream. Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
