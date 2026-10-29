@@ -2112,6 +2112,35 @@ The body is 45 bytes; the head (`FUN_1414dbca0`, two `u64` BE) is the shared env
 
 The body is 24 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) that `0x5de` and `0xf37` also use, then one more `u64` BE. The writer takes its third field from the message object's `+0x20` and the reader stores its third field at the same `+0x20`; the u64 reader is `FUN_14087af30`. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0xda2` as a 24-byte body - read the two `u64` BE head fields, then one `u64` BE - before sending anything back, since a wrong length desynchronizes the stream.
 
+### The field layouts of the Groups entry points (`0x967`, `0xd9e`, `0xda3`, `0xdac`), decoded statically
+
+Decoded 2026-10-29 with the same method as `0xda2`/`0x55` (registration accessor -> codec facet at descriptor+`0x48` -> MARSHAL `+0x20` (shared thunk `0x1414c0730`) / UNMARSHAL `+0x28` -> object-vtable writer `+0x60` / reader `+0x68`). Writer and reader agree field for field and slot for slot in every case; **no live record matched**, so each row stays `partial`. All four resolve `entry-match` in trait `ClientMessages`. Evidence: `.azoth/logs/run-20261029-groups-msg/groups-field-layouts.md`.
+
+**`GroupsComponentServerFacet_RequestPing` `0x967`** (record `0x143444fe0`, facet `0x1481d1410`, writer `FUN_143417390` / reader `FUN_1433f9170`) - **body 30 B**
+
+| # | field | codec | object slot |
+| --- | --- | --- | --- |
+| 1 | `field_a` | `u64` BE (shared head `FUN_1414dbca0`) | `+0x08` |
+| 2 | `field_b` | `u64` BE (shared head) | `+0x10` |
+| 3 | `field_c` | `u8` raw (`FUN_140876e10`/`FUN_14087a330`), asserted `<= 0x0e` | `+0x40` |
+| 4 | `field_d` | `u32` BE (`FUN_140876ea0`/`FUN_14087a410`) | `+0x50` |
+| 5 | `field_e` | `u32` BE | `+0x54` |
+| 6 | `field_f` | `u32` BE | `+0x58` |
+| 7 | `field_g` | `u8` bool `< 2` (`FUN_1408787b0`) | `+0x60` |
+
+**`GroupsComponentServerFacet_CancelPing` `0xd9e`** (record `0x1434403e0`, facet `0x1481d1878`, writer `0x14259f170` / reader `FUN_14259f180`) and **`GroupsComponentServerFacet_CancelTargetPing` `0xda3`** (record `0x1434405e0`, facet `0x1481d20b0`, same writer/reader pair) - **both head-only, body 16 B**: `field_a` `u64` BE `+0x08`, `field_b` `u64` BE `+0x10`.
+
+**`GroupsComponentServerFacet_RequestRemoveRaidMember` `0xdac`** (record `0x143445be0`, facet `0x1481d5200`, writer `FUN_1433fc730` / reader `FUN_1432739d0`) - **body `16 + 1 + N`, N <= 40 -> 17..57 B**
+
+| # | field | codec | object slot |
+| --- | --- | --- | --- |
+| 1 | `field_a` | `u64` BE (shared head) | `+0x08` |
+| 2 | `field_b` | `u64` BE (shared head) | `+0x10` |
+| 3 | `field_c_len` | prefix-varint length (`FUN_140877b10`/`FUN_14087b760`), bounded `< 0x29` | vector size (`+0x48`-`+0x20`) |
+| 4 | `field_c_data` | `field_c_len` raw bytes (`FUN_140876e10`/`FUN_14087a330` loop) | inline buffer `+0x20..+0x48` |
+
+**What the server must do:** `0x967` read the head + `u8` + three `u32` BE + `bool`, then change the Groups ping state; `0xd9e`/`0xda3` read the 16-byte head and nothing else, then cancel the (targeted) ping in replicated state; `0xdac` read the head + prefix-varint length (<= 40) + that many bytes (the raid-member id), then remove the member. A wrong length desynchronizes the stream in every case. Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
