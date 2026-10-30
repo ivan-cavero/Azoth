@@ -2212,6 +2212,22 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; every wir
 
 **What the server must do:** parse each body and change the objectives/contracts replicated state (`AbandonSingleObjective` has no reply; `AcceptContractRequest`/`LookupContractsByParticipant` expect one). **Next in these families:** `0xeff`, `0xa39`, `0xb9f`, `0x8a4`. Client build `30fe6461...`.
 
+**Contracts closed, 2026-10-29 - the two wires that were blocked on nested sub-codecs.** The sub-codecs were decoded first, then the messages; writer and reader agree field for field and the two copy-ctors reproduce the field lists from the ctor side. Evidence: `.azoth/logs/run-20261029-contracts-subcodecs/`.
+
+| sub-codec | writer / reader | layout | cap | over-cap behaviour |
+| --- | --- | --- | --- | --- |
+| A | `FUN_142dd8dc0` / `FUN_142db4a40` | `varint(n)` + n x 1 raw byte | 64 | writer emits length **0**; reader returns status 4 |
+| B | `FUN_142db2750` / `FUN_142db4910` | `varint(n)` + n x 1 raw byte | 256 | same |
+| C | `FUN_142db2960` / `FUN_142db8a20` | `varint(n)` + n x `u32` BE | 5 | same |
+
+Prefix-varint widths (`FUN_140877b10`/`FUN_14087b760`): 1 B `< 0x80`, 2 B `< 0x4000`, 3 B `< 0x200000`, 4 B `< 0x10000000`, else 5 B.
+
+**`0xb9f LookupContracts`** (writer `0x142da9aa0` / reader `0x142da9c10`) - **47..384 B**: head; `varint(<= 1)` + n x 16 raw bytes (`+0x40`); two `u32` BE 0..3 (`+0x60`, `+0x64`); sub-codec A <= 64 (`+0x68`); sub-codec B <= 256 (`+0xb0`); `u32` BE 0..100 (`+0x1b8`); 16 raw bytes **last** (`+0x30`).
+
+**`0x8a4 CompleteContractRequest`** (writer `0x142da8760` / reader `0x142da8890`) - **75..95 B**: head; 16 raw (`+0x80`) then 16 raw (`+0x70`); `u32` BE 0..2 (`+0x38`, the same 3-way enum as `0xad3`/`0xaca`); `u32` 0..10000 (`+0x3c`); `u32` 0..4 (`+0x40`); `u32` **no range check** (`+0x44`); `u32` 0..10000 (`+0x48`); `u16` 0..10000 (`+0x4c`); sub-codec C <= 5 (`+0x50`); `u32` 0..5 **last on the wire, first in the object** (`+0x30`).
+
+**Measured warning for any encoder:** an over-cap vector is **silent** on the write side (length 0, no error) while the reader rejects it with status 4 and clears the object, so over-running a cap produces a wrong answer rather than a visible failure. Client build `30fe6461...`.
+
 ### The Territory families: enumerated wires and the first decoded entry points (2026-10-29)
 
 Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; every wire verified `entry-match` in `ClientMessages`. **The registry counts `TerritoryInteractor` = 47 and `TerritoryDetector` = 5** client->server (52 total); the plan's `43` is stale. (`Territory` is a separate facet: `0xa77 UnclaimTerritory`.) All five rows share MARSHAL thunk `0x1414c0730`, the head `FUN_1414dbca0`/`FUN_14150e670`, and a shared **roster-entry sub-codec** `FUN_145c739d0`/`FUN_145ce8d80` (string@`+0x08`, string@`+0x30`, byte@`+0x58`). **No live record**, so each stays `partial`. Evidence: `.azoth/logs/run-20261029-territory-msg/`.
