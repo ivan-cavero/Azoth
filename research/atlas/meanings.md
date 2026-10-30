@@ -2300,6 +2300,19 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; **49/49 w
 
 **`0xf39`/`0x10ce` asymmetry, stated exactly:** one shared writer, two different readers whose inlined bool helpers (`FUN_1432812b0` vs `FUN_1425f5e20`) are instruction-for-instruction identical apart from one pointer load and both enforce `byte < 2`. The field order, codec and 18-byte body are the **same** for both: the asymmetry is in generated code and intent (the `DEBUG_` variant), **not on the wire**. Client build `30fe6461...`.
 
+**Entitlement second pass, 2026-10-29 (fresh; 5 decodes pinning 6 wires).** Of 13 candidates, 6 were skipped as `DEBUG_` variants (`0xc28 0xc38 0xc39 0x1485 0x169e 0x1879`); the control `0x13f3` reproduced its atlas VAs before any new wire was walked.
+
+| wire | message | body | writer / reader |
+| --- | --- | --- | --- |
+| `0x12d5` | `EntitlementComponentServerFacet_RequestResetEntitlements` | head-only **16 B** | `0x14259f170` / `0x14259f180` |
+| `0x1a29` | `EntitlementComponentServerFacet_RequestMutePenaltyExpired` | head-only **16 B** (same pair) | `0x14259f170` / `0x14259f180` |
+| `0x1633` | `..._ConfirmTransactionWithClientTransactionId` | **32 B** fixed: head + 16 raw bytes (no swap, `+0x30`) | `0x142959860` / `0x1429598a0` |
+| `0x138d` | `..._RequestSyncPrimeGaming` | **16 + varint + len**, variable: head + one byte string (**no writer-side bound**) | `0x14294ef30` / `0x14294ef60` |
+| `0x1a0a` | `..._ClientConfirmTransaction` | **17..55 B**: head + varint byte string, len **<= 38** (guarded both ways, `0x26`) | `0x143013b80` / `0x143013fb0` |
+| `0x1a0c` | `..._ClientDeleteTransaction` | same as `0x1a0a` (one decode pins both) | same pair |
+
+**What the server must do:** read the head only for `0x12d5`/`0x1a29`, then reset the entitlement set / clear the mute penalty; for `0x1633` match the 16 raw bytes to the open transaction before confirming; for `0x138d` push the opaque blob to the Prime Gaming path (**cap its length defensively** - the client does not); for `0x1a0a`/`0x1a0c` resolve or delete that client transaction (len <= 38). **Not decoded:** `0x1a0b ClientTransactionCancelled` (`0x143016720`/`0x143016780`) - the cheapest remaining row. Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
