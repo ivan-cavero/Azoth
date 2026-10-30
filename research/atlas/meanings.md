@@ -2287,6 +2287,19 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; **49/49 w
 
 **What the server must do:** set the stat/health in replicated vitals state (clamp against the max), run self-damage through the damage pipeline once, add/remove the listener subscription, and answer (or empty-answer) the AOI debug grid query; the parse must never desynchronize the stream. **Next best:** `0x13f3 RequestClaimEntitlement` (its pair `0x1426d64f0`/`0x1426ffc00` is already the atlas `0x55` pair, so it costs no new codec), `0x190c DebugSetAppearance`, `0x283 DebugAssignGridLayer`, `0x561 RequestDoAfflictionDamage`, `0xf39 RequestSuicide` + `0x10ce` (asymmetric pair). The 11 head-only Vitals wires need no decode (the `0x14259f170`/`FUN_14259f180` pair, 16 B). Client build `30fe6461...`.
 
+**Cheap rows, 2026-10-29 (fresh; six wires).** Calibration reproduced the `0x55` chain exactly before any new address was trusted.
+
+| wire | message | body | writer / reader |
+| --- | --- | --- | --- |
+| `0x13f3` | `EntitlementComponentServerFacet_RequestClaimEntitlement` | **20 B**: head + `u32` BE (`+0x20`) - the `0x55` pair, byte for byte | `0x1426d64f0` / `0x1426ffc00` |
+| `0xf39` | `VitalsComponentServerFacet_RequestSuicide` | **18 B**: head + bool (`+0x21`) + bool (`+0x20`) | `0x1425f2530` / `0x14326f6c0` |
+| `0x10ce` | `VitalsComponentServerFacet_DebugRequestSuicide` | **18 B**, identical to `0xf39` | `0x1425f2530` / `0x1425f2590` |
+| `0x561` | `VitalsComponentServerFacet_RequestDoAfflictionDamage` | 24 + varint + n: head + string (`+0x28`) + `f32` BE (`+0x24`) + `u32` BE (`+0x20`) | `0x14659a3f0` / `0x14659a4e0` |
+| `0x283` | `AoiComponentServerFacet_DebugAssignGridLayer` | **222 B** + two strings: head + three 36-byte cell sub-heads + 2 strings + scalars (27 fields, container at `+0x30`) | `0x141512090` / `0x141512130` |
+| `0x406` | `AoiComponentServerFacet_DebugResetAoiTracking` | head-only **16 B** | `0x1414dbca0` (the head writer itself, not the `0x14259f170` thunk) / `0x1414dbd10` |
+
+**`0xf39`/`0x10ce` asymmetry, stated exactly:** one shared writer, two different readers whose inlined bool helpers (`FUN_1432812b0` vs `FUN_1425f5e20`) are instruction-for-instruction identical apart from one pointer load and both enforce `byte < 2`. The field order, codec and 18-byte body are the **same** for both: the asymmetry is in generated code and intent (the `DEBUG_` variant), **not on the wire**. Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
