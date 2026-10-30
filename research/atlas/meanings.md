@@ -2243,6 +2243,18 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; every wir
 
 **New primitive named:** `FUN_140876ea0` writes `f32` BE and `FUN_14087a410` reads it. **Counts after this batch:** Objectives 30 with 5 decoded (`0xa95 0x5b2 0xefc 0xeff 0xa39`), Contracts 16 with 2 (`0x814 0x9fc`), TerritoryInteractor 47 with 9 (`0xf6 0x1c5 0x68c 0x6bf 0x74f 0xad4 0xae0 0xae7 0x9d7`), TerritoryDetector 5 with 0. **Still open in these families:** `0xb9f LookupContracts` and `0x8a4 CompleteContractRequest` (both need their sub-codecs `FUN_142dd8dc0`/`FUN_142db2750`/`FUN_142db2960` decoded first). Next best: `0xad3 RequestSignupCount`, `0xacf RequestSignupList`, `0xaca RequestSignup`, then the two non-`DEBUG_` detector wires `0x8f9 AttemptTerritoryUnlock`, `0x1910 AttemptTerritoryExit`. Client build `30fe6461...`.
 
+**Third batch, 2026-10-29 - the signup queries and both detector wires (fresh).** The chain walker was re-calibrated on `0xad4`/`0x1c5` (reproducing their atlas VAs) before any new wire, and the shared sub-codec `FUN_1429d6a30` was decoded first.
+
+| wire | message | body | writer / reader |
+| --- | --- | --- | --- |
+| `0xad3` | `TerritoryInteractorComponentServerFacet_RequestSignupCount` | **20 B**: head + `u32` BE, range **0..2** | `0x1426d64f0` / `0x143ea65b0` |
+| `0xacf` | `..._RequestSignupList` | **20 B**: head + `u32` BE, range **0..100** | `0x1426d64f0` / `0x1447eba20` |
+| `0xaca` | `..._RequestSignup` | **22 B**: head + `u32` BE (0..2, `+0x24`) + `u16` BE (`+0x20`) | `0x1447e8cb0` / `0x1447e9070` |
+| `0x8f9` | `TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock` | **54 B**: head + 16 raw token (`+0x38`) + `u64` BE `+0x48` + `u64` BE `+0x50` + `u16` `+0x24` + `u32` `+0x20` | `0x1429c1f60` / `0x1429c2010` |
+| `0x1910` | `..._AttemptTerritoryExit` | **50 B**: same as `0x8f9` **minus the trailing `u32`** | `0x1429c31c0` / `0x1429c3420` |
+
+**Sub-codec `FUN_1429d6a30` = 32 B:** raw 16 into `base+0x10` (no swap), `u64` BE into `base+0x20`, `u64` BE into `base+0x28`; with `base = object+0x28` that is `+0x38/+0x48/+0x50`. Ctor defaults: null UUID, `-1`, `0`. **Two measured lessons:** (1) **a shared writer does not imply a shared reader** - `0xad3`/`0xacf` share writer `0x1426d64f0` but differ only by which range validator stores the `u32` (`0x142de8260` 0..2 vs `0x142de85a0` 0..100), so reader-VA matching is not a way to group wire shapes; (2) the **`0..2` enum** (`0x142de8260`) appears at both `0xad3` and `0xaca` - the same C++ type at two wires, so it is a 3-valued signup selector, not a free `u32`. **Counts:** TerritoryInteractor 12/47 decoded; TerritoryDetector 2/5 (the 3 remaining are `DEBUG_` wires; `0xa88` cannot be named unambiguously because its GUID string is shared by two hooks). Client build `30fe6461...`.
+
 ### The Crafting / Inventories / GlobalStorage / Social families (2026-10-29)
 
 Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; 87/87 wires verified `entry-match` in `ClientMessages`. Counts: **Crafting 11, Inventories 11, GlobalStorage 15, Social 50** (the plan's `Social (45)` is stale; surface joins are Inventory(tab) 11, CraftingTreeExpandCollapse 11, inventario-storage 36). Five decodes pin **12 wires** because three of them are shared writer/reader groups. **No live record**, so each stays `partial`. Evidence: `.azoth/logs/run-20261029-craft-inv-social-msg/`.
