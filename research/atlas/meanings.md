@@ -2257,6 +2257,24 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; 87/87 wir
 
 **What the server must do:** parse each body and change the crafting / storage / social replicated state. **Next:** `0xbb5 SetCraftingDetails`, `0x167b GetItems`, `0x1b84 RequestSearchStorage`, `0x9cb RequestSetChattingState`. Client build `30fe6461...`.
 
+### The Vitals / Aoi / PlayerAppearance / Entitlement families (2026-10-29)
+
+Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; **49/49 wires verified `entry-match`**. Counts: **Vitals 25, Aoi 4, PlayerAppearance 2, Entitlement 18** (the plan's `Vitals (21)` is stale; Aoi/PlayerAppearance/Entitlement match). Five decodes pin **nine** wires because four are shared writer/reader groups. **No live record**: a scan of every `inbound-typed` line (141 distinct inbound wires) contains none of the 49, so every row stays `partial`. Evidence: `.azoth/logs/run-20261029-vitals-aoi-msg/`.
+
+**`Vitals` = 25:** `0x5c 0x160 0x377 0x3f5 0x43d 0x561 0x837 0xd7a 0xeef 0xf39 0xfb3 0x1010 0x10cd 0x10ce 0x10cf 0x10d6 0x10d8 0x10d9 0x10db 0x10dc 0x10dd 0x14b2 0x180e 0x1885 0x1b77`
+
+**`Aoi` = 4:** `0x120 0x283 0x406 0x7e5` · **`PlayerAppearance` = 2:** `0x190c 0x1914` · **`Entitlement` = 18:** `0x382 0xc28 0xc2e 0xc30 0xc36 0xc38 0xc39 0x12d5 0x138d 0x13f3 0x1485 0x1633 0x169e 0x1879 0x1a0a 0x1a0b 0x1a0c 0x1a29`
+
+| wire | message | body | writer / reader |
+| --- | --- | --- | --- |
+| `0x1885` | `VitalsComponentServerFacet_RequestSetCurrentHealth` (+ `0x10d9`) | **20 B**: head + `f32` BE (`+0x20`) | `FUN_1425a28b0` / `FUN_1425a28f0` |
+| `0x837` | `VitalsComponentServerFacet_RequestSetStatValue` (+ `0x10cd`) | **21 B**: head + `u8` (`+0x24`) + `f32` BE (`+0x20`) | `FUN_1447ec4c0` / `FUN_1465b0240` (tail `FUN_1466a1630`) |
+| `0x43d` | `VitalsComponentServerFacet_RequestDamageSelf` | **32 B**: head + `u32` (`+0x2c`) + `f32` (`+0x28`) + `u32` (`+0x24`) + `f32` (`+0x20`) | `FUN_1465894b0` / `FUN_146589590` |
+| `0x10d6` | `VitalsComponentServerFacet_RegisterListener` (+ `0x10d8`) | **40 B**: head + 16 raw (`+0x30`) + `u64` BE (`+0x40`) | `FUN_1427d3210` / `FUN_1427d3270` |
+| `0x7e5` | `AoiComponentServerFacet_RequestDebugGridData` (+ `0x120`) | **52 B**: head + `u32` (`+0x28`) + 16 raw (`+0x2c`) + 16 raw (`+0x3c`) | `FUN_1414cce00` / `FUN_1414ccef0` (tail `FUN_1415ad690`) |
+
+**What the server must do:** set the stat/health in replicated vitals state (clamp against the max), run self-damage through the damage pipeline once, add/remove the listener subscription, and answer (or empty-answer) the AOI debug grid query; the parse must never desynchronize the stream. **Next best:** `0x13f3 RequestClaimEntitlement` (its pair `0x1426d64f0`/`0x1426ffc00` is already the atlas `0x55` pair, so it costs no new codec), `0x190c DebugSetAppearance`, `0x283 DebugAssignGridLayer`, `0x561 RequestDoAfflictionDamage`, `0xf39 RequestSuicide` + `0x10ce` (asymmetric pair). The 11 head-only Vitals wires need no decode (the `0x14259f170`/`FUN_14259f180` pair, 16 B). Client build `30fe6461...`.
+
 ### The field layout of `0x55` (Chat AddSubscription), decoded statically
 
 `ChatComponentServerFacet_AddSubscription` (`0x55`, GUID `4b8ff2a2-0b01-4a13-9808-8eae117ad2d9`, type-table index 85) is decoded with the same method as `0x5de`, `0xf37` and `0xda2`. `re message-names 0x55` resolves the registration record `0x143e7ab60`; its accessor stores a codec facet at descriptor+`0x48` with vtable `0x1482cfe60`, whose slot `+0x20` (MARSHAL) is the shared thunk `0x1414c0730` (`mov rax,[rdx]; jmp [rax+0x60]`) and whose slot `+0x28` (UNMARSHAL) is the ctor `0x143e61850`. That ctor sets the message object's vtable to `0x1482d03f8` (its `+0x08` is the name accessor `0x143e62d00`, a `lea rax,[rip+...]` -> `"ChatComponentServerFacet_AddSubscription"` at `0x1482d0468`), so the writer is object vtable `+0x60` = `FUN_1426d64f0` and the reader is `+0x68` = `FUN_1426ffc00`. Writer and reader agree field for field.
