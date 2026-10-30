@@ -59,18 +59,24 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**Name the fields of `0x5de`, the first interaction message.** The flag hunt this file asked
-for is done, and it came back negative in a useful way: opening the inventory or the skills
-panel, sheathing, `q`/`r`/`f`, `lshift`, numpad loadouts, `e`, `1` send **no typed message at
-all**, and the ALC body's change is structural, not per-key — **283 bytes with the position
-marker at 91 idle, 298 with it at 94 when a panel is open**, so the 15-byte growth shifts
-everything after it by 3. That is why a byte map reported 133 "fields" that were one region.
+**The entry path is mapped; start the first Rust crate.** Overnight (2026-10-29) the atlas
+closed the client-facing entry side: the channel document and the region HTTP bodies are
+inventoried (with the smallest must-own set to reach character select), the registration
+response `0x3` is laid out to the byte (`server_version` named), `0x65c`'s 56x56 grid is a
+consumed spawn-distribution layout **and `0x65c` is server -> client**, so the server encodes
+it, and `0x663`'s consumer map is widened.
 
-The twelve menus a player names are all server-backed: **564 client→server messages** across
-179 facet families. `AttributeComponentServerFacet_RequestSpendAttributePoints` `0x5de` goes
-first because the character panel already renders 239 points with `+` buttons in a session
-that runs today, and because `Attribute` has **zero** reply messages — the server confirms by
-changing replicated state.
+Interaction layouts decoded the same night (all `partial`, writer/reader agree, no live
+record): Groups, Entitlement/Store, Ability/Progression, Trade, Mount + remaining Paperdoll,
+Journal (Objectives 30 / Contracts 16), Territory (Interactor 47 / Detector 5), Crafting,
+Inventories/GlobalStorage, Social (50), Vitals (25), Aoi, PlayerAppearance, plus the
+Contracts sub-codecs and the prefix-varint width table. Only `0x5de` and `0xf37` are
+`measured` on bytes.
+
+So the next step is `everfall-wire`: encode and decode the messages that are already laid
+out, starting with the entry bodies the server must SEND (`0x3`, `0x663`, `0x65c`) and the
+two measured requests (`0x5de`, `0xf37`). A crate appears because the rows name their
+fields, which is the condition `docs/PLAN.md` sets.
 
 Plan, order and per-system method: `research/docs/INTERACTION-DECOMP-PLAN.md`.
 
