@@ -2230,6 +2230,19 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; every wir
 
 **What the server must do:** parse the head + roster entry/entries + scalars as above, then change the territory roster/project/group replicated state. **Next:** `0xad4 RequestRoster`, `0xae0 RequestLeave`, `0xae7 RequestRemoteInteract`, `0x9d7 SetTaxOrFee`. Client build `30fe6461...`.
 
+**Second batch, 2026-10-29 - five more layouts (plus one bonus) and the updated counts.** Decoded fresh with the same method; the chain walker was calibrated on the two already-decoded controls (`0xf6`, `0x1c5`) and reproduced their atlas rows exactly before walking a new wire, and the object vtable is accepted only when its `+0x08` name accessor equals the `re message-names` string.
+
+| wire | message | body | writer / reader |
+| --- | --- | --- | --- |
+| `0xad4` | `TerritoryInteractorComponentServerFacet_RequestRoster` | head-only **16 B** | `0x14259f170` / `0x14259f180` |
+| `0xae0` | `..._RequestLeave` | **18 B**: head + `u16` BE (`+0x20`) | `0x1430c9f70` / `0x1430c9fb0` |
+| `0xae7` | `..._RequestRemoteInteract` | **18 B**: head + `u16` BE (`+0x20`) | same pair as `0xae0` |
+| `0x9d7` | `..._SetTaxOrFee` | **23 B**: head + `u16` BE (`+0x28`) + raw byte (`+0x24`) + **`f32` BE** (`+0x20`, reader clamps) | `0x1447e9cb0` / `0x1447e9ff0` |
+| `0xeff` | `ObjectivesComponentServerFacet_RequestShareObjectiveWithGroup` | **24 B**: head + `u64` BE (`+0x28`) | `0x1439e9ea0` / `0x1439ea010` (same pair as `0xefc`) |
+| `0xa39` | `ObjectivesComponentServerFacet_NotifyOpenUiScreen` | **20 B**: head + `u32` BE (`+0x20`) | `0x1426d64f0` / `0x1426ffc00` (same pair as `0x55`) |
+
+**New primitive named:** `FUN_140876ea0` writes `f32` BE and `FUN_14087a410` reads it. **Counts after this batch:** Objectives 30 with 5 decoded (`0xa95 0x5b2 0xefc 0xeff 0xa39`), Contracts 16 with 2 (`0x814 0x9fc`), TerritoryInteractor 47 with 9 (`0xf6 0x1c5 0x68c 0x6bf 0x74f 0xad4 0xae0 0xae7 0x9d7`), TerritoryDetector 5 with 0. **Still open in these families:** `0xb9f LookupContracts` and `0x8a4 CompleteContractRequest` (both need their sub-codecs `FUN_142dd8dc0`/`FUN_142db2750`/`FUN_142db2960` decoded first). Next best: `0xad3 RequestSignupCount`, `0xacf RequestSignupList`, `0xaca RequestSignup`, then the two non-`DEBUG_` detector wires `0x8f9 AttemptTerritoryUnlock`, `0x1910 AttemptTerritoryExit`. Client build `30fe6461...`.
+
 ### The Crafting / Inventories / GlobalStorage / Social families (2026-10-29)
 
 Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; 87/87 wires verified `entry-match` in `ClientMessages`. Counts: **Crafting 11, Inventories 11, GlobalStorage 15, Social 50** (the plan's `Social (45)` is stale; surface joins are Inventory(tab) 11, CraftingTreeExpandCollapse 11, inventario-storage 36). Five decodes pin **12 wires** because three of them are shared writer/reader groups. **No live record**, so each stays `partial`. Evidence: `.azoth/logs/run-20261029-craft-inv-social-msg/`.
