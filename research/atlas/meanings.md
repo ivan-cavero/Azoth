@@ -2956,3 +2956,65 @@ What this path still owes is the rung-17 body named just above: the
 self-identification record's field order and the meaning of its vector, and the
 `server_version` the lab still declares wrong. `STATUS.md` carries the live next
 step.
+
+## A real body exists for type 3857, and it does not decode yet (2026-11-02)
+
+The Objectives family has no reply message, so the server's authority over it is a
+replicated-state delta. The delta's type is known by index (3857, the row 41 of the
+state-type table, GUID `036365f4-a485-439d-8a3f-c51dff6123b4`) and its payload has
+never been named. Two things were measured here: the body is real, and the first
+candidate class does not explain it. No field order is claimed.
+
+**A real body exists, and it is reproducible.** Fragment index 7 of record 1 in
+`research/derived/state-bundle-fragments.json` carries key 22, type 3857, size 1739
+and payload length 1736, from
+`research/sessions/session-20261014T1549Z-authoritative-state`. Re-checked against
+the committed bundles rather than trusted: the identical 1739-byte fragment is
+present in five of the 53 bundles in `research/fixtures/wire/wire-fixtures.json`
+(`0x73`, `0x98`, `0x9a`, `0x9c`, `0x9e`) at body offset 5401/5402. So a proof is
+possible in principle; it is not a typed-only case.
+
+The three header bytes are `16 91 3c`. Under a 7-bit LEB128 reading that type
+varint would be 7697; under the client's own **6-bit-continuation** prefix-varint
+(`b1 << 6 | (b0 & 0x3f)`, the scheme `FUN_14087b910` implements) it is
+`0x3c << 6 | 0x11` = 3857. The record therefore corroborates index 3857 by a second
+route, and it also fixes the varint width convention for anything read out of this
+body.
+
+**The candidate class.** `FUN_143a1f0b0` sets vptr `0x148259b90` (its only
+rip-relative reference is at `0x143a1f0d7`) and then registers exactly eight
+members through `FUN_141776b80`, each with the client's own reflection string:
+`taskStartTimes` (`0x14825ac58`), `trackedObjectives` (`0x14825ac68`),
+`completedObjectives` (`0x14825ac80`), `activeObjectives` (`0x14825ac98`),
+`taskStates` (`0x14825acb0`), `objectivePoiEntityIds` (`0x14825acc0`),
+`gracePeriodEndTime` (`0x14825acd8`), `dynamicPoiIndices` (`0x14825acf0`). The class
+vtable's `+0x88` is `0x141728b30` (writer) and `+0x90` is `0x1417b5080` (reader),
+which is a two-level presence-mask codec: one mask byte per 800-byte group
+descriptor, then per set group a 7-bit member mask (0x80 = continuation), then each
+member's own codec at the member vtable's `+0x28` (write) / `+0x30` (read), with the
+presence predicate at `+0x18`. Of the eight, `gracePeriodEndTime` is the only scalar
+member base (`0x1480b98b8`) and its reader `0x14279f420` is a `u64` BE read
+(`FUN_14087af30` = eight raw bytes + `FUN_146168b00` byte swap) with a `-1`
+sentinel; the other seven are containers whose readers share no element codec
+except `trackedObjectives`/`completedObjectives`, which are the same codec.
+
+**That class is not proven to be type 3857, because the body does not parse under
+it.** The measured payload begins `02 18 00 01 07 11 4c ..`. The leading `0x02`
+selects member 1; its reader `0x143a69460` then reads a prefix-varint count
+(0x18 = 24), mask bytes `00 01 07`, and the first element's varint `0x11` followed
+by `0x4c` as the optional-value presence byte — and `FUN_1461adf60` accepts only 0
+or 1 there, so the read fails. No ordering of the eight registered members makes
+the body parse, and neither the one-group nor the eight-group reading of the
+descriptor vector changes that. Two readings are therefore wrong, and the honest
+statement is that one of the two links is missing: either this class is not the
+state type 3857, or the wire path is not the class vtable's `+0x90`.
+
+**Where the missing link actually is.** `FUN_146af38c0` does not call the state
+*class's* `+0x90` directly. It reads the key varint, reads the type-index varint,
+resolves a **type object** through `0x1461ae3a0` (flat table at `registry+0x40`,
+stride 0x10, index 0 carrying the 16 id bytes inline) and `0x1461ae3f0` (hash map
+keyed by that id), and hands the stream to *that* object's `+0x90`. On the
+`ALCReplicatedState` class the two coincide (`0x142a44650` is both), which is why
+the earlier recovery did not have to separate them; here nobody has yet resolved
+index 3857 to its type object. Until that object is read, the eight member names
+above are a candidate set attached to a class, not a payload layout.

@@ -1,0 +1,109 @@
+{
+  "uid": "codec.objectives-replicated-state",
+  "kind": "codec",
+  "name": "ObjectivesComponentReplicatedState",
+  "aliases": [
+    "wire-type:3857",
+    "guid:036365f4-a485-439d-8a3f-c51dff6123b4",
+    "state-fragment:key22"
+  ],
+  "summary": "The payload carried by state fragment type index 3857 (key 22) in the local-player record: a presence-masked delta over eight named objectives-state members. CANDIDATE, NOT VERIFIED. The member names, their registration order and their member codecs are read from the client on build 30fe6461 (ctor 0x143a1f0b0 -> class vtable 0x148259b90, writer +0x88 = 0x141728b30, reader +0x90 = 0x1417b5080). A real 1736-byte body exists and is reproducible from five committed bundles, but it does NOT parse under that reader, so nothing here is proven to be the codec for index 3857 and no byte layout is emitted.",
+  "purpose": "Carry the player's objective state to the client: the tracked, completed and active sets, per-task state, the POI entity ids and dynamic POI indices the journal and compass read, and the grace-period end time. It is the replicated-state delta through which the server, not a reply message, expresses authority over the Objectives family.",
+  "authority": "server",
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `16` (22), type varint `91 3c` = 3857 under the 6-bit-continuation prefix-varint scheme, then 1736 payload bytes.",
+  "fields": [
+    {
+      "name": "taskStartTimes",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "opaque(objectives.task-start-times)",
+      "evidence": "partial",
+      "note": "Member 0 of the registration order. The client's own reflection string (0x14825ac58) names it; the member object's vtable is 0x148259870 with codec slot +0x30 = 0x143a68d50. The element encoding is not derived, so the codec is opaque and the card is deliberately refused by the generator."
+    },
+    {
+      "name": "trackedObjectives",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "opaque(objectives.tracked-objectives)",
+      "evidence": "partial",
+      "note": "Member 1 of the registration order (reflection string 0x14825ac68), which is the member a payload whose first mask byte is 0x02 would select. Its reader 0x143a69460 reads a prefix-varint count, then a 7-bit presence mask per chunk of slots, then per slot a varint id (FUN_14087b910) and an optional value (FUN_1461adf60, which rejects any presence byte > 1), plus a u64 BE (FUN_14087af30) only for slots whose mask bit is set. That is the only carried set here that the static reader walks, but it does not consume the measured body (see the card summary), so the field stays layout-only."
+    },
+    {
+      "name": "completedObjectives",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "opaque(objectives.completed-objectives)",
+      "evidence": "partial",
+      "note": "Member 2 (reflection string 0x14825ac80), same member vtable shape and the same codec pair as trackedObjectives (0x142f882a0 / 0x143a69460), so it is a set of the same element type under a different name."
+    },
+    {
+      "name": "activeObjectives",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "opaque(objectives.active-objectives)",
+      "evidence": "partial",
+      "note": "Member 3 (reflection string 0x14825ac98), member vtable 0x148259a50, codec slot +0x30 = 0x143a69a10. A distinct element codec from trackedObjectives, so the two sets do not share an element type."
+    },
+    {
+      "name": "taskStates",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "opaque(objectives.task-states)",
+      "evidence": "partial",
+      "note": "Member 4 (reflection string 0x14825acb0), member vtable 0x148259af0, codec slot +0x30 = 0x143a69710."
+    },
+    {
+      "name": "objectivePoiEntityIds",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "opaque(objectives.objective-poi-entity-ids)",
+      "evidence": "partial",
+      "note": "Member 5 (reflection string 0x14825acc0), member vtable 0x148246528 in a different module than the other seven, codec slot +0x30 = 0x14396cc40."
+    },
+    {
+      "name": "gracePeriodEndTime",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Member 6 by registration (reflection string 0x14825acd8) and members 0x2bd..0x304 in memory. It is the only member with a scalar member base (vtable 0x1480b98b8, slots 1..3 differ from the seven containers), and its reader 0x14279f420 calls FUN_14087af30, which reads eight raw bytes, byte-swaps them (FUN_146168b00) and returns them, then stores the value at member+0x18 and stamps the default -1 sentinel. So the member is a big-endian u64 end time; it is not a duration."
+    },
+    {
+      "name": "dynamicPoiIndices",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "opaque(objectives.dynamic-poi-indices)",
+      "evidence": "partial",
+      "note": "Member 7 (reflection string 0x14825acf0) but the LAST in memory (0x2bd, before gracePeriodEndTime at 0x304). Member vtable 0x1481693f0, codec slot +0x30 = 0x142f9b430. Registration order and memory order disagree here, which is why the card lists registration order and says so."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "A real body exists: fragment index 7 of record 1 in research/derived/state-bundle-fragments.json, key 22, type_index 3857, offset_in_record 5386, size 1739, payload_length 1736, payload_hex recorded there. The same 1739 bytes are present in five committed bundles of research/fixtures/wire/wire-fixtures.json (0x73, 0x98, 0x9a, 0x9c, 0x9e) at body offset 5401/5402, so the recorded payload is reproducible from the fixtures rather than hand-copied. Session research/sessions/session-20261014T1549Z-authoritative-state."
+    },
+    {
+      "type": "decompile",
+      "ref": "Ctor 0x143a1f0b0 (build 30fe6461): sets vptr 0x148259b90 (its only rip-relative reference is 0x143a1f0d7), then registers exactly eight members through FUN_141776b80 with the reflection strings 0x14825ac58/68/80/98/b0/c0/d8/f0 = taskStartTimes, trackedObjectives, completedObjectives, activeObjectives, taskStates, objectivePoiEntityIds, gracePeriodEndTime, dynamicPoiIndices."
+    },
+    {
+      "type": "decompile",
+      "ref": "vtable 0x148259b90: +0x88 = 0x141728b30 (writer), +0x90 = 0x1417b5080 (reader), +0x98 = 0x1417285f0. Writer FUN_141728b30 walks (obj[3]-obj[2])/800 group descriptors and, per group, reserves one byte (<+0x48>), calls FUN_141728f70 per present field behind the +0xc0 presence predicate, seeks back (<+0x28>) and writes the mask byte (FUN_140876e10). Reader FUN_1417b5080 reads one mask byte per group (FUN_14087a330) and calls FUN_1417b5330 per set bit. FUN_141728f70/FUN_1417b5330 add the second mask level: a 7-bit member mask per 8 members with 0x80 as continuation, then each member's own codec at its vtable +0x28 (write) / +0x30 (read), presence at +0x18."
+    },
+    {
+      "type": "decompile",
+      "ref": "NEGATIVE, and the reason this card is a candidate: the measured payload begins 02 18 00 01 07 11 4c .. . Under the layout above the 0x02 selects member 1, whose reader 0x143a69460 reads a prefix-varint count (0x18 = 24), mask bytes 00 01 07 and then the first element's varint 0x11 followed by the optional-value presence byte 0x4c; FUN_1461adf60 accepts only 0 or 1 there and fails. No ordering of the eight members makes the body parse, so the class at 0x148259b90 is NOT proven to be type 3857 and no byte layout is claimed."
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'A real body exists for type 3857, and it does not decode yet (2026-11-02)'; research/atlas/client-functions.json objectives_replicated_state_candidate_20261102"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

@@ -45,6 +45,22 @@
 | --- | --- | --- | --- | --- | --- |
 | values | vec<u32be> | — | partial | layout-only | varint(n) + n x u32 BE, cap 5; over-cap behaviour is a silent length-0 write and a status-4 reader reject. meanings.md 'Contracts closed, 2026-10-29 - the two wires that were blocked on nested sub-codecs'. |
 
+## codec.objectives-replicated-state — ObjectivesComponentReplicatedState
+
+- kind: codec; status: candidate; confidence: layout
+- codegen: **refused** — opaque fields: taskStartTimes, trackedObjectives, completedObjectives, activeObjectives (+3 more)
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| taskStartTimes | opaque(objectives.task-start-times) | — | partial | layout-only | Member 0 of the registration order. The client's own reflection string (0x14825ac58) names it; the member object's vtable is 0x148259870 with codec slot +0x30 = 0x143a68d50. The element encoding is not derived, so the codec is opaque and the card is deliberately refused by the generator. |
+| trackedObjectives | opaque(objectives.tracked-objectives) | — | partial | layout-only | Member 1 of the registration order (reflection string 0x14825ac68), which is the member a payload whose first mask byte is 0x02 would select. Its reader 0x143a69460 reads a prefix-varint count, then a 7-bit presence mask per chunk of slots, then per slot a varint id (FUN_14087b910) and an optional value (FUN_1461adf60, which rejects any presence byte > 1), plus a u64 BE (FUN_14087af30) only for slots whose mask bit is set. That is the only carried set here that the static reader walks, but it does not consume the measured body (see the card summary), so the field stays layout-only. |
+| completedObjectives | opaque(objectives.completed-objectives) | — | partial | layout-only | Member 2 (reflection string 0x14825ac80), same member vtable shape and the same codec pair as trackedObjectives (0x142f882a0 / 0x143a69460), so it is a set of the same element type under a different name. |
+| activeObjectives | opaque(objectives.active-objectives) | — | partial | layout-only | Member 3 (reflection string 0x14825ac98), member vtable 0x148259a50, codec slot +0x30 = 0x143a69a10. A distinct element codec from trackedObjectives, so the two sets do not share an element type. |
+| taskStates | opaque(objectives.task-states) | — | partial | layout-only | Member 4 (reflection string 0x14825acb0), member vtable 0x148259af0, codec slot +0x30 = 0x143a69710. |
+| objectivePoiEntityIds | opaque(objectives.objective-poi-entity-ids) | — | partial | layout-only | Member 5 (reflection string 0x14825acc0), member vtable 0x148246528 in a different module than the other seven, codec slot +0x30 = 0x14396cc40. |
+| gracePeriodEndTime | u64be | — | measured | known | Member 6 by registration (reflection string 0x14825acd8) and members 0x2bd..0x304 in memory. It is the only member with a scalar member base (vtable 0x1480b98b8, slots 1..3 differ from the seven containers), and its reader 0x14279f420 calls FUN_14087af30, which reads eight raw bytes, byte-swaps them (FUN_146168b00) and returns them, then stores the value at member+0x18 and stamps the default -1 sentinel. So the member is a big-endian u64 end time; it is not a duration. |
+| dynamicPoiIndices | opaque(objectives.dynamic-poi-indices) | — | partial | layout-only | Member 7 (reflection string 0x14825acf0) but the LAST in memory (0x2bd, before gracePeriodEndTime at 0x304). Member vtable 0x1481693f0, codec slot +0x30 = 0x142f9b430. Registration order and memory order disagree here, which is why the card lists registration order and says so. |
+
 ## endpoint.channel-config — ChannelConfig
 
 - S2C
