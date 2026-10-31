@@ -27,6 +27,7 @@ import hashlib
 import importlib.util
 import json
 import re
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -43,6 +44,14 @@ BODIES = REPO / "research" / "fixtures" / "wire" / "wire-bodies.json"
 CRATE_MOD = (
     REPO / "server" / "crates" / "everfall-wire" / "src" / "generated" / "mod.rs"
 )
+PRESENCE_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-3857.hex"
+
+# The generated module imports the measured prefix-varint primitive from the
+# world service by a path relative to itself, so a copy written into a temp
+# directory needs that source tree on the import path.
+WORLD_SRC = REPO / "services" / "world" / "src"
+if str(WORLD_SRC) not in sys.path:
+    sys.path.insert(0, str(WORLD_SRC))
 ARTIFACTS = ("wire.py", "wire.rs", "meanings-table.md")
 TYPE_MARKER = b"\x00\x01"
 DATA_CHANNELS = (0, 1, 2)
@@ -358,6 +367,107 @@ class OntologyGenTest(unittest.TestCase):
             )
             checked += 1
         self.assertGreater(checked, 0)
+
+    # --- the presence, nested, counted and optional constructs ---------------
+
+    def test_a_second_presence_masked_component_needs_no_new_code(self) -> None:
+        """Generality: a DIFFERENT two-level presence record, generated as-is.
+
+        This card has nothing to do with the objectives family: group 2, members
+        0 and 5, one scalar member and one counted container of a nested record.
+        If the generator had special-cased the objectives card this body could
+        not decode, so the test is the proof that the vocabulary -- not the
+        generator -- carries the shape.
+        """
+        generator = load_generator()
+        with tempfile.TemporaryDirectory() as tmp:
+            concepts = Path(tmp) / "concepts"
+            out = Path(tmp) / "out"
+            concepts.mkdir()
+            item = concept(
+                uid="codec.example-item",
+                kind="codec",
+                name="ExampleItem",
+                fields=[{"name": "item_id", "type": "u64be", "evidence": "measured"}],
+            )
+            masked = concept(
+                uid="codec.example-presence",
+                kind="codec",
+                name="ExamplePresence",
+                presence={
+                    "group": {"name": "group_mask", "bits": 8},
+                    "member": {"name": "entry_mask", "bits": 7, "continuation": 128},
+                },
+                fields=[
+                    {
+                        "name": "leader",
+                        "type": "u32be",
+                        "evidence": "measured",
+                        "presence": {"group": 2, "member": 0},
+                    },
+                    {
+                        "name": "items",
+                        "type": "counted(nested(codec.example-item))",
+                        "evidence": "measured",
+                        "presence": {"group": 2, "member": 5},
+                    },
+                ],
+            )
+            (concepts / "codec.example-item.json").write_text(
+                json.dumps(item), encoding="utf-8"
+            )
+            (concepts / "codec.example-presence.json").write_text(
+                json.dumps(masked), encoding="utf-8"
+            )
+            report = generator.generate(SCHEMA, concepts, out)
+            self.assertEqual(report["refused"], [])
+            self.assertEqual(
+                [spec["uid"] for spec in report["codecs"]],
+                ["codec.example-item", "codec.example-presence"],
+            )
+
+            spec = importlib.util.spec_from_file_location(
+                "presence_wire_under_test", out / "wire.py"
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # group 2 present (0x04), members 0 and 5 (0x21), then the bodies.
+            body = bytes.fromhex("0421" "00000007" "02" "0000000000000001" "0000000000000002")
+            decoded = module.decode_codec("codec.example-presence", body)
+            self.assertEqual(decoded["group_mask"], 0x04)
+            self.assertEqual(decoded["groups"][0]["entry_mask"], 0x21)
+            self.assertEqual(decoded["groups"][0]["entries"]["leader"], 7)
+            self.assertEqual(
+                decoded["groups"][0]["entries"]["items"],
+                [{"item_id": 1}, {"item_id": 2}],
+            )
+            self.assertEqual(module.encode_codec("codec.example-presence", decoded), body)
+
+            # A set bit for a member the card does not declare is refused.
+            with self.assertRaises(module.WireCodecError):
+                module.decode_codec("codec.example-presence", bytes.fromhex("0401"))
+
+    def test_measured_presence_body_round_trips_through_the_generated_codec(self) -> None:
+        """The 1736-byte measured body through the GENERATED sub-codec table."""
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        hexes: list[str] = []
+        for line in PRESENCE_FIXTURE.read_text(encoding="utf-8").splitlines():
+            line = line.split("#", 1)[0]
+            hexes.append("".join(line.split()))
+        body = bytes.fromhex("".join(hexes))
+        self.assertEqual(len(body), 1736)
+        self.assertEqual(body[:2], bytes([0x02, 0x18]))
+        decoded = wire.decode_codec("codec.objectives-replicated-state", body)
+        self.assertEqual(decoded["groups"][0]["entry_mask"], 0x18)
+        active = decoded["groups"][0]["entries"]["activeObjectives"]
+        tasks = decoded["groups"][0]["entries"]["taskStates"]
+        self.assertEqual(active["delta"], 7)
+        self.assertEqual(len(active["elements"]), 17)
+        self.assertEqual(tasks["delta"], 7)
+        self.assertEqual(len(tasks["elements"]), 43)
+        self.assertEqual(wire.encode_codec("codec.objectives-replicated-state", decoded), body)
 
     # --- the gate: a fabricated not-ready card is refused, not emitted --------
 

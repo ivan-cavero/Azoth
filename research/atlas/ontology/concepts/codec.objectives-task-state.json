@@ -1,0 +1,67 @@
+{
+  "uid": "codec.objectives-task-state",
+  "kind": "codec",
+  "name": "ObjectivesTaskState",
+  "aliases": ["taskStates element", "FUN_143adec40"],
+  "summary": "One `taskStates` element, 18 bytes in the measured body: u64 BE, one raw byte, u32 BE, u32 BE, one raw byte. PROVEN LAYOUT, NOT PROVEN MEANINGS: field names carry the offset the reader stores to and nothing more.",
+  "purpose": "The element layout of the `taskStates` container in the Objectives replicated state (codec.objectives-replicated-state). It is a nested record card so the container names its element once.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "u64_a10",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Element +0x10, read by 0x143adec40."
+    },
+    {
+      "name": "u8_a18",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Element +0x18, one raw byte read by 0x143adec40."
+    },
+    {
+      "name": "u32_a1c",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Element +0x1c, read by 0x143adec40."
+    },
+    {
+      "name": "u32_a20",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Element +0x20, read by 0x143adec40."
+    },
+    {
+      "name": "u8_a24",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Element +0x24, one raw byte read by 0x143adec40."
+    }
+  ],
+  "relations": [{ "op": "part_of", "to": "codec.objectives-task-states" }],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "Forty-three instances in research/fixtures/wire/state-fragment-3857.hex, 18 bytes each; the whole body re-encodes byte-exactly through the generated codec."
+    },
+    {
+      "type": "decompile",
+      "ref": "Element reader 0x143adec40 (build 30fe6461); u64/u32 BE via 0x14087af30/0x14087a3c0."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

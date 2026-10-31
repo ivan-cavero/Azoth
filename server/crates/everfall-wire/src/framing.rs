@@ -58,6 +58,20 @@ pub enum WireError {
     },
     /// A varint did not terminate inside its measured maximum width.
     VarintTooLong,
+    /// A strict zero-or-one flag byte held some other value.
+    NotBoolean {
+        /// The field holding the offending value.
+        field: &'static str,
+        /// The value found.
+        value: u8,
+    },
+    /// A two-level presence mask set a bit the card does not declare.
+    UnknownPresence {
+        /// Which mask the bit belongs to, e.g. `"group"` or `"member"`.
+        what: &'static str,
+        /// The index whose bit was set.
+        index: u64,
+    },
 }
 
 impl fmt::Display for WireError {
@@ -77,6 +91,12 @@ impl fmt::Display for WireError {
                 write!(f, "field {field} holds {max} byte(s), got {len}")
             }
             Self::VarintTooLong => write!(f, "varint is longer than its maximum width"),
+            Self::NotBoolean { field, value } => {
+                write!(f, "field {field} is {value}, not zero or one")
+            }
+            Self::UnknownPresence { what, index } => {
+                write!(f, "{what} mask bit {index} names no declared {what}")
+            }
         }
     }
 }

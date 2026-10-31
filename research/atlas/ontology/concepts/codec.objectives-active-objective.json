@@ -1,0 +1,133 @@
+{
+  "uid": "codec.objectives-active-objective",
+  "kind": "codec",
+  "name": "ObjectivesActiveObjective",
+  "aliases": ["activeObjectives element", "FUN_145cea3e0/FUN_145b520f0/FUN_145b55b70"],
+  "summary": "One `activeObjectives` element, 56 bytes in the measured body: u32 BE, u64 BE, u32 BE, sixteen unnamed bytes, u64 BE, u16 BE, four zero-or-one bytes, u64 BE, one zero-or-one byte, then a prefix-varint u32 BE list of at most seven. PROVEN LAYOUT, NOT PROVEN MEANINGS: field names carry the offset the reader stores to and nothing more.",
+  "purpose": "The element layout of the `activeObjectives` container in the Objectives replicated state (codec.objectives-replicated-state). It is a nested record card so the container names its element once instead of copying a 56-byte layout.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "u32_a08",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Element +0x08, read by 0x145b54090. Meaning not established."
+    },
+    {
+      "name": "u64_a10",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Element +0x10, read by 0x145cea3e0."
+    },
+    {
+      "name": "u32_a18",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Element +0x18, read by 0x145cea3e0."
+    },
+    {
+      "name": "guid_a1c",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "bytes(16)",
+      "evidence": "measured",
+      "note": "Element +0x1c, sixteen raw bytes read by 0x145b520f0. All zero in the one measured body, so the value's meaning is unnamed and the run stays an Opaque."
+    },
+    {
+      "name": "u64_a38",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Element +0x38, read by 0x145b520f0."
+    },
+    {
+      "name": "u16_a40",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "note": "Element +0x40, a big-endian u16 read by 0x14087a360."
+    },
+    {
+      "name": "u8_a42",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Element +0x42, a zero-or-one byte read by 0x145b520f0. Declared u8 rather than bool_byte so a non-canonical byte re-encodes byte-exactly instead of being folded to one."
+    },
+    {
+      "name": "u8_a43",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Element +0x43, a zero-or-one byte read by 0x145b520f0."
+    },
+    {
+      "name": "u8_a44",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Element +0x44, a zero-or-one byte read by 0x145b520f0."
+    },
+    {
+      "name": "u8_a45",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Element +0x45, a zero-or-one byte read by 0x145b55b70."
+    },
+    {
+      "name": "u64_a50",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Element +0x50, read by 0x145b55b70."
+    },
+    {
+      "name": "u8_a58",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Element +0x58, a zero-or-one byte read by 0x145b55b70."
+    },
+    {
+      "name": "index_list",
+      "meaning": "known",
+      "where": "wire",
+      "type": "vec<u32be>",
+      "evidence": "measured",
+      "count": "prefix_varint",
+      "max": 7,
+      "note": "The trailing u32 BE list at +0x60, read by 0x145b55b70 with a cap of seven. Every element in the measured body has an empty list; the list's meaning is not established, so only its layout is claimed."
+    }
+  ],
+  "relations": [{ "op": "part_of", "to": "codec.objectives-active-objectives" }],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "Seventeen instances in research/fixtures/wire/state-fragment-3857.hex, 56 bytes each; the whole body re-encodes byte-exactly through the generated codec."
+    },
+    {
+      "type": "decompile",
+      "ref": "Element readers 0x145cea3e0 / 0x145b520f0 / 0x145b55b70 (build 30fe6461); u16 BE via 0x14087a360, u32/u64 BE via 0x14087a3c0/0x14087af30."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

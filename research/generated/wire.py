@@ -62,6 +62,9 @@ CODEC_PATTERNS = (
     '^fixed_string\\([1-9][0-9]*\\)$',
     '^vec<(u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint)>$',
     '^matrix<(u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint)>$',
+    '^nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\)$',
+    '^counted\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$',
+    '^optional\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$',
     '^opaque\\([a-z][a-z0-9_.-]*\\)$',
 )
 
@@ -92,6 +95,9 @@ _FIXED = re.compile(r"^(?:bytes|fixed_string)\(([1-9][0-9]*)\)$")
 _VEC = re.compile(r"^vec<(.+)>$")
 _VEC_LITERAL = re.compile(r"^vec<(.+)>\[([0-9]+)\]$")
 _MATRIX = re.compile(r"^matrix<(.+)>$")
+_NESTED = re.compile(r"^nested\((.+)\)$")
+_COUNTED = re.compile(r"^counted\((.+)\)$")
+_OPTIONAL = re.compile(r"^optional\((.+)\)$")
 
 
 def _read_exact(data, offset, count):
@@ -142,6 +148,100 @@ def _decode_sequence(element, data, offset):
         item, offset = decode_field(element, data, offset)
         items.append(item)
     return items, offset
+
+
+def _lowest_bit(value):
+    return (value & -value).bit_length() - 1
+
+
+def _decode_members(spec, data, offset):
+    """Decode one record: a flat field list, or a two-level presence mask."""
+    presence = spec.get("presence")
+    if presence is None:
+        values = {}
+        for name, type_name in spec["fields"]:
+            values[name], offset = decode_field(type_name, data, offset)
+        return values, offset
+
+    group_name, _group_bits, _group_continuation = presence["group"]
+    member_name, member_bits, continuation = presence["member"]
+    values = {}
+    group_mask, offset = decode_field("u8", data, offset)
+    declared = 0
+    for _index, bits, _members in presence["groups"]:
+        declared |= bits
+    unknown = group_mask & ~declared & 0xFF
+    if unknown:
+        raise WireCodecError(
+            f"{group_name} bit {_lowest_bit(unknown)} names no declared group"
+        )
+    values[group_name] = group_mask
+    groups = []
+    for _index, bits, members in presence["groups"]:
+        if not group_mask & bits:
+            continue
+        entry_mask, offset = decode_field("u8", data, offset)
+        if continuation is not None and entry_mask & continuation:
+            raise WireCodecError(
+                f"{member_name} asks for a further mask byte, which the card "
+                f"does not model"
+            )
+        declared_members = 0
+        for _member, member_bit, _name, _codec in members:
+            declared_members |= member_bit
+        unknown = entry_mask & ~declared_members & ~(continuation or 0) & 0xFF
+        if unknown:
+            raise WireCodecError(
+                f"{member_name} bit {_lowest_bit(unknown)} names no declared member"
+            )
+        entries = {}
+        for member, bit, name, type_name in members:
+            if entry_mask & bit:
+                entries[name], offset = decode_field(type_name, data, offset)
+        groups.append({member_name: entry_mask, "entries": entries})
+    values["groups"] = groups
+    return values, offset
+
+
+def _encode_members(spec, values):
+    """Encode one record: a flat field list, or a two-level presence mask."""
+    presence = spec.get("presence")
+    if presence is None:
+        out = bytearray()
+        for name, type_name in spec["fields"]:
+            if name not in values:
+                raise WireCodecError(f"{spec.get('uid')}: missing field {name!r}")
+            out += encode_field(type_name, values[name])
+        return bytes(out)
+
+    group_name = presence["group"][0]
+    member_name = presence["member"][0]
+    group_mask = values[group_name]
+    out = bytearray(encode_field("u8", group_mask))
+    written = values.get("groups") or []
+    cursor = 0
+    for _index, bits, members in presence["groups"]:
+        if not group_mask & bits:
+            continue
+        if cursor >= len(written):
+            raise WireCodecError(f"{spec.get('uid')}: {group_name} selects a group the value omits")
+        group = written[cursor]
+        cursor += 1
+        entry_mask = group[member_name]
+        out += encode_field("u8", entry_mask)
+        for member, bit, name, type_name in members:
+            if entry_mask & bit:
+                if name not in group["entries"]:
+                    raise WireCodecError(
+                        f"{spec.get('uid')}: {member_name} selects member {name!r} "
+                        f"the value omits"
+                    )
+                out += encode_field(type_name, group["entries"][name])
+    if cursor != len(written):
+        raise WireCodecError(
+            f"{spec.get('uid')}: {len(written) - cursor} group(s) the mask does not select"
+        )
+    return bytes(out)
 
 
 def _decode_matrix(element, data, offset):
@@ -197,6 +297,25 @@ def decode_field(type_name, data, offset=0):
     match = _MATRIX.match(type_name)
     if match:
         return _decode_matrix(match.group(1), data, offset)
+    match = _COUNTED.match(type_name)
+    if match:
+        return _decode_sequence(match.group(1), data, offset)
+    match = _OPTIONAL.match(type_name)
+    if match:
+        flag, offset = _read_exact(data, offset, 1)
+        if flag[0] > 1:
+            raise WireCodecError(
+                f"optional {type_name!r} flag is {flag[0]}, not zero or one"
+            )
+        if flag[0] == 0:
+            return None, offset
+        return decode_field(match.group(1), data, offset)
+    match = _NESTED.match(type_name)
+    if match:
+        spec = CODECS.get(match.group(1))
+        if spec is None:
+            raise WireCodecError(f"no card-derived codec for {match.group(1)}")
+        return _decode_members(spec, data, offset)
     if type_name.startswith("opaque("):
         raise WireCodecError(f"opaque codec {type_name!r} is not codegen-ready")
     raise WireCodecError(f"{type_name!r} is not a closed-vocabulary codec")
@@ -262,6 +381,24 @@ def encode_field(type_name, value):
             for item in row:
                 out += encode_field(match.group(1), item)
         return bytes(out)
+    match = _COUNTED.match(type_name)
+    if match:
+        items = list(value)
+        out = bytearray(_prefix_varint.encode(len(items)))
+        for item in items:
+            out += encode_field(match.group(1), item)
+        return bytes(out)
+    match = _OPTIONAL.match(type_name)
+    if match:
+        if value is None:
+            return b"\x00"
+        return b"\x01" + encode_field(match.group(1), value)
+    match = _NESTED.match(type_name)
+    if match:
+        spec = CODECS.get(match.group(1))
+        if spec is None:
+            raise WireCodecError(f"no card-derived codec for {match.group(1)}")
+        return _encode_members(spec, value)
     raise WireCodecError(f"{type_name!r} is not a closed-vocabulary codec")
 
 
@@ -278,10 +415,7 @@ def decode(wire, body, *, offset=0, require_full=True):
     spec = MESSAGES.get(wire)
     if spec is None:
         raise WireCodecError(f"no card-derived layout for wire {wire}")
-    values = {}
-    cursor = offset
-    for name, type_name in spec["fields"]:
-        values[name], cursor = decode_field(type_name, body, cursor)
+    values, cursor = _decode_members(spec, body, offset)
     if require_full and cursor != len(body):
         raise WireCodecError(
             f"wire {wire}: {len(body) - cursor} trailing byte(s) after the last field"
@@ -294,12 +428,7 @@ def encode(wire, message):
     spec = MESSAGES.get(wire)
     if spec is None:
         raise WireCodecError(f"no card-derived layout for wire {wire}")
-    out = bytearray()
-    for name, type_name in spec["fields"]:
-        if name not in message:
-            raise WireCodecError(f"wire {wire}: missing field {name!r}")
-        out += encode_field(type_name, message[name])
-    return bytes(out)
+    return _encode_members(spec, message)
 
 
 def decode_codec(uid, body, *, require_full=True):
@@ -307,10 +436,7 @@ def decode_codec(uid, body, *, require_full=True):
     spec = CODECS.get(uid)
     if spec is None:
         raise WireCodecError(f"no card-derived codec for {uid}")
-    values = {}
-    cursor = 0
-    for name, type_name in spec["fields"]:
-        values[name], cursor = decode_field(type_name, body, cursor)
+    values, cursor = _decode_members(spec, body, 0)
     if require_full and cursor != len(body):
         raise WireCodecError(
             f"codec {uid}: {len(body) - cursor} trailing byte(s) after the last field"
@@ -323,12 +449,7 @@ def encode_codec(uid, message):
     spec = CODECS.get(uid)
     if spec is None:
         raise WireCodecError(f"no card-derived codec for {uid}")
-    out = bytearray()
-    for name, type_name in spec["fields"]:
-        if name not in message:
-            raise WireCodecError(f"codec {uid}: missing field {name!r}")
-        out += encode_field(type_name, message[name])
-    return bytes(out)
+    return _encode_members(spec, message)
 
 
 # --- card-derived message layouts (BODY fields only) ---
@@ -501,6 +622,67 @@ CODECS = {
         'name': 'Contracts nested sub-codec C',
         'fields': (
             ('values', 'vec<u32be>'),
+        ),
+    },
+    'codec.objectives-active-objective': {
+        'name': 'ObjectivesActiveObjective',
+        'fields': (
+            ('u32_a08', 'u32be'),
+            ('u64_a10', 'u64be'),
+            ('u32_a18', 'u32be'),
+            ('guid_a1c', 'bytes(16)'),
+            ('u64_a38', 'u64be'),
+            ('u16_a40', 'u16be'),
+            ('u8_a42', 'u8'),
+            ('u8_a43', 'u8'),
+            ('u8_a44', 'u8'),
+            ('u8_a45', 'u8'),
+            ('u64_a50', 'u64be'),
+            ('u8_a58', 'u8'),
+            ('index_list', 'vec<u32be>'),
+        ),
+    },
+    'codec.objectives-active-objectives': {
+        'name': 'ObjectivesActiveObjectives',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(nested(codec.objectives-active-objective))'),
+        ),
+    },
+    'codec.objectives-replicated-state': {
+        'name': 'ObjectivesComponentReplicatedState',
+        'fields': (
+            ('activeObjectives', 'nested(codec.objectives-active-objectives)'),
+            ('taskStates', 'nested(codec.objectives-task-states)'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None),
+            'member': ('entry_mask', 7, 128),
+            'groups': (
+                (1, 2, (
+                    (3, 8, 'activeObjectives', 'nested(codec.objectives-active-objectives)'),
+                    (4, 16, 'taskStates', 'nested(codec.objectives-task-states)'),
+                )),
+            ),
+        },
+    },
+    'codec.objectives-task-state': {
+        'name': 'ObjectivesTaskState',
+        'fields': (
+            ('u64_a10', 'u64be'),
+            ('u8_a18', 'u8'),
+            ('u32_a1c', 'u32be'),
+            ('u32_a20', 'u32be'),
+            ('u8_a24', 'u8'),
+        ),
+    },
+    'codec.objectives-task-states': {
+        'name': 'ObjectivesTaskStates',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(nested(codec.objectives-task-state))'),
         ),
     },
 }

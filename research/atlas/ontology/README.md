@@ -61,6 +61,25 @@ indexes/              # by-uid, by-wire, by-kind (stubs OK)
   and exits 1 on any FAIL. A field-less card is neither ready nor not-ready, so it
   never counts toward the codegen-ready number. `legacy: true` cards skip field
   validation, but the prefixed-length and envelope rules still run on them.
+- Three compositional codecs carry records that are not a flat field list:
+  `nested(<uid>)` is another codec card's body (the named card must exist, be a
+  `codec`, model fields, and not be `unknown`), `counted(<element>)` is a
+  prefix-varint count followed by elements whose element codec has a layout of its
+  own, and `optional(<codec>)` is a STRICT zero-or-one flag byte followed by the
+  value only when the flag is 1 (a flag above 1 is refused, never read as true).
+  Each carries its own `$comment` in `$defs.codec`, and `opaque(id)` stays the
+  honest escape when none of them fits.
+- Conditional membership is a CARD-LEVEL `presence` block plus coordinates on each
+  field. A card with `presence` has no flat field order: its body is `[group mask
+  byte][for each present group: member mask byte][the present members in ascending
+  order]`, and a field is on the wire only when both its group bit and its member
+  bit are set. Declare each member with `"presence": {"group": g, "member": m}`.
+  One mask byte per level is modelled (`bits` usable low-first bits, optional
+  `continuation` bit meaning a further byte), so the validator rejects an index
+  that does not fit its level, two members sharing coordinates, a card that
+  declares `presence` yet leaves a wire field without coordinates, and a card that
+  puts coordinates on a field with no `presence` block. A body whose mask sets a
+  bit for an undeclared group or member is REFUSED by the codec, never skipped.
 - Put a decoded struct's members in `fields` with `"where": "memory"`, not in an
   ad-hoc top-level key. MEASURED 2026-10-25: before the checker existed a `struct`
   block and an `open_questions` list had both been introduced as top-level keys.

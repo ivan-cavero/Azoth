@@ -9,7 +9,12 @@
     "codec": [
       "codec.contracts.blob-256",
       "codec.contracts.blob-64",
-      "codec.contracts.u32-vector-5"
+      "codec.contracts.u32-vector-5",
+      "codec.objectives-active-objective",
+      "codec.objectives-active-objectives",
+      "codec.objectives-replicated-state",
+      "codec.objectives-task-state",
+      "codec.objectives-task-states"
     ],
     "flow": [
       "flow.presence",

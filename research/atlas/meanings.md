@@ -3077,7 +3077,10 @@ card. And **the tracked objective set and the pin flags are not in this body at
 all** — in-group bits 1 (`trackedObjectives`) and 2 (`completedObjectives`) are
 clear, and the four zero-or-one bytes per active element are unnamed, so calling
 any of them a pin flag would be a guess. The card is `verified` with
-`confidence: layout`; its codec is hand-written in
-`server/crates/everfall-wire/src/objectives_state.rs` because the closed codec
-vocabulary cannot express a mask-selected nested container, which is why the
-generator still refuses the card.
+`confidence: layout`; its codec is **GENERATED**, not hand-written: the closed
+vocabulary gained `nested(<uid>)`, `counted(<element>)`, `optional(<codec>)` and a
+card-level two-level `presence` mask, so a mask-selected nested container is
+expressible once and for any component. The hand-written
+`objectives_state.rs` (378 lines) was deleted once the generated code passed the same
+nine tests, including the byte-exact round trip of this body; a second, unrelated
+presence-masked component is covered by a test that needs no generator change.

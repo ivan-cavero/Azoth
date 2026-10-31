@@ -7,57 +7,49 @@
     "guid:036365f4-a485-439d-8a3f-c51dff6123b4",
     "state-fragment:key22"
   ],
-  "summary": "The payload carried by state fragment type index 3857 (key 22) in the local-player record: a mask-selected delta over the eight registered objectives-state members. PROVEN LAYOUT, NOT PROVEN MEANINGS. The identity is resolved: the dispatcher `FUN_146af38c0` reads the type index, maps it to the AZ id `036365f4-a485-439d-8a3f-c51dff6123b4` through the registry (`FUN_1461ae2a0`, `FUN_1461ae3f0`), takes the descriptor's `+0x48` facet and calls its `+8` slot, which is `0x1439eb9a0` — the only code that constructs the class at vtable `0x148259b90` (ctor `0x143a1f0b0`). The dispatcher therefore calls THAT class's `+0x88` writer (`0x141728b30`) and `+0x90` reader (`0x1417b5080`), which is what the earlier negative doubted. The real 1736-byte body parses field by field under those readers and re-encodes byte-exactly; the earlier failure came from reading the first mask byte as a member selector for the eight members, when it is a mask over the two registered GROUPS and a second, in-group mask follows. The body is NOT a flat field list — two masks select a nested container — so the closed codec vocabulary in `schema.json` cannot express it and the card stays refused by the generator while its Rust codec lives in `everfall-wire/src/objectives_state.rs`.",
+  "summary": "The payload carried by state fragment type index 3857 (key 22) in the local-player record: a two-level presence mask over the registered objectives-state members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS. The identity is resolved: the dispatcher `FUN_146af38c0` reads the type index, maps it to the AZ id `036365f4-a485-439d-8a3f-c51dff6123b4` through the registry (`FUN_1461ae2a0`, `FUN_1461ae3f0`), takes the descriptor's `+0x48` facet and calls its `+8` slot, which is `0x1439eb9a0` -- the only code that constructs the class at vtable `0x148259b90` (ctor `0x143a1f0b0`). The dispatcher therefore calls THAT class's `+0x88` writer (0x141728b30) and `+0x90` reader (0x1417b5080). The real 1736-byte body parses field by field under those readers and re-encodes byte-exactly. The body is NOT a flat field list: the first mask byte selects GROUPS, and within a present group a second mask selects its members, so the card declares the two-level mask and only the members it models. The generated codec in `server/crates/everfall-wire/src/generated/mod.rs` replaces the hand-written module this card used to need.",
   "purpose": "Carry the player's objective state to the client: the tracked, completed and active sets, per-task state, the POI entity ids and dynamic POI indices the journal and compass read, and the grace-period end time. It is the replicated-state delta through which the server, not a reply message, expresses authority over the Objectives family. The one measured body carries `activeObjectives` (17 elements) and `taskStates` (43 elements) and says nothing about the tracked or completed sets, whose mask bits are clear.",
   "authority": "server",
-  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `16` (22), type varint `91 3c` = 3857 under the 6-bit-continuation prefix-varint scheme, then 1736 payload bytes. Below that, the payload grammar itself is mask-driven, which is why fields[] cannot flatten it: [group_mask u8][for each present group: entry_mask u8][for each present entry: member body]. A member body is [prefix-varint delta count=0][u8 presence][optional prefix-varint][prefix-varint snapshot count][elements]. Element widths are in the field notes.",
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `16` (22), type varint `91 3c` = 3857 under the 6-bit-continuation prefix-varint scheme, then 1736 payload bytes. Below that, the payload is the two-level presence mask declared by this card's `presence` block: [group mask u8][for each present group: member mask u8][for each present member: that member's body, ascending by member index].",
+  "presence": {
+    "group": { "name": "group_mask", "bits": 8 },
+    "member": { "name": "entry_mask", "bits": 7, "continuation": 128 }
+  },
   "fields": [
-    {
-      "name": "groupMask",
-      "meaning": "known",
-      "where": "wire",
-      "type": "bitset8",
-      "evidence": "measured",
-      "note": "One byte, bit i set = registered member i is on the wire. Registration order is the ctor's FUN_141776b80 call order: 0 taskStartTimes, 1 trackedObjectives, 2 completedObjectives, 3 activeObjectives, 4 taskStates, 5 objectivePoiEntityIds, 6 gracePeriodEndTime, 7 dynamicPoiIndices. Measured value 0x02: only bit 1, the seven-container group. Member 6 does not live in this group: the ctor passes group index 0 for gracePeriodEndTime and the shared index from FUN_1416789e0 (which returns the count before appending, so 1) for the other seven, and there are exactly two 800-byte group descriptors, so a body may set bit 0 for the scalar group instead. Reader FUN_1417b5080 reads one such byte per chunk of eight groups."
-    },
-    {
-      "name": "groupEntriesPresent",
-      "meaning": "known",
-      "where": "wire",
-      "type": "bitset8",
-      "evidence": "measured",
-      "note": "One byte per present group, read by FUN_1417b5330: bits 0..6 select in-group members 0..6 — taskStartTimes, trackedObjectives, completedObjectives, activeObjectives, taskStates, objectivePoiEntityIds, dynamicPoiIndices — and bit 7 marks a further mask byte for members 7 and up. Measured value 0x18: bits 3 and 4, activeObjectives then taskStates, in ascending order."
-    },
     {
       "name": "activeObjectives",
       "meaning": "known",
       "where": "wire",
-      "type": "opaque(objectives.active-objectives)",
+      "type": "nested(codec.objectives-active-objectives)",
       "evidence": "measured",
-      "note": "In-group member 3, named by the ctor's reflection string at 0x14825ac98; the member object at ctor offset 0x1e8 carries vtable 0x148259a50 and its reader is vtable +0x30 = 0x143a69a10. Body: prefix-varint delta count (0 in the measured body), then FUN_143a6a050's zero branch — a zero-or-one presence byte (0x01) with an optional prefix-varint (7) — then a prefix-varint snapshot count (17) and 17 elements of reader 0x145cea3e0/0x145b520f0/0x145b55b70. Element, 56 bytes in the measured body: u32be, u64be, u32be, 16 raw bytes, u64be, u16be, four zero-or-one bytes, u64be, one zero-or-one byte, prefix-varint list length (at most 7) and that many u32be; every element in the measured body has an empty list. NOT in the vocabulary: an element is a record, so the type is opaque and keeps the card out of codegen rather than pretending to a flat layout."
+      "presence": { "group": 1, "member": 3 },
+      "note": "Group 1 member 3, named by the ctor's reflection string at 0x14825ac98; the member object at ctor offset 0x1e8 carries vtable 0x148259a50 and its reader is vtable +0x30 = 0x143a69a10. Body: prefix-varint delta count (0 in the measured body), the delta-count-zero branch (presence byte 0x01 with prefix-varint 7), then a prefix-varint snapshot count (17) and 17 elements of 56 bytes. The body is codec.objectives-active-objectives and the element is codec.objectives-active-objective, so no layout is copied into this card."
     },
     {
       "name": "taskStates",
       "meaning": "known",
       "where": "wire",
-      "type": "opaque(objectives.task-states)",
+      "type": "nested(codec.objectives-task-states)",
       "evidence": "measured",
-      "note": "In-group member 4, named by the reflection string at 0x14825acb0; the member object at ctor offset 0x22f carries vtable 0x148259af0 and its reader is vtable +0x30 = 0x143a69710. Body: prefix-varint delta count (0), the same zero branch through FUN_143a69fe0 — presence byte 0x01 with prefix-varint 7 — then a prefix-varint snapshot count (43) and 43 elements of reader 0x143adec40, each 18 bytes: u64be, u8, u32be, u32be, u8."
+      "presence": { "group": 1, "member": 4 },
+      "note": "Group 1 member 4, named by the reflection string at 0x14825acb0; the member object at ctor offset 0x22f carries vtable 0x148259af0 and its reader is vtable +0x30 = 0x143a69710. Body: prefix-varint delta count (0), the same delta-count-zero branch through FUN_143a69fe0 (presence byte 0x01 with prefix-varint 7), then a prefix-varint snapshot count (43) and 43 elements of 18 bytes."
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "consumes", "to": "codec.objectives-active-objectives" },
+    { "op": "consumes", "to": "codec.objectives-task-states" }
   ],
   "confidence": "layout",
   "status": "verified",
   "evidence": [
     {
       "type": "capture",
-      "ref": "The body parses and re-encodes byte-exactly: research/fixtures/wire/state-fragment-3857.hex holds the 1736 payload bytes, reproduced independently from five committed bundles of research/fixtures/wire/wire-fixtures.json (0x73_T0x8_R.bin at 5401, 0x98/0x9a/0x9c/0x9e_T0x8_R.bin at 5402), each preceded by the header `16 91 3c`. Also research/derived/state-bundle-fragments.json fragment index 7 of record 1. Tests: server/crates/everfall-wire/tests/objectives_state.rs."
+      "ref": "The body parses and re-encodes byte-exactly: research/fixtures/wire/state-fragment-3857.hex holds the 1736 payload bytes, reproduced independently from five committed bundles of research/fixtures/wire/wire-fixtures.json (0x73_T0x8_R.bin at 5401, 0x98/0x9a/0x9c/0x9e_T0x8_R.bin at 5402), each preceded by the header `16 91 3c`. Also research/derived/state-bundle-fragments.json fragment index 7 of record 1. Tests: server/crates/everfall-wire/tests/objectives_state.rs (generated module) and reverse/tools/tests/test_ontology_gen.py."
     },
     {
       "type": "decompile",
-      "ref": "IDENTITY (build 30fe6461): dispatcher FUN_146af38c0 -> FUN_1461ae3f0/FUN_1461ae2a0 (varint type index -> 16-byte AZ id via the flat table at registry+0x40, else inline) -> FUN_146166220 (hash map, node key at +0x10/+0x18, value at +0x20) -> descriptor. func_0x0001406d9970 is `mov rax,[rcx+0x48]` (the facet), func_0x0001406d9950 is `lea rax,[rcx+0x28]` (the name). The facet for this id is created in the type's own record function FUN_143a39e80, which parses the GUID text at 0x148253300 and stores a facet whose vptr is 0x1482531b8 — an address referenced exactly once in the image, from 0x143a3a007 inside that same function. Facet slot +8 = 0x1439eb9a0 allocates 0x1880 bytes and calls ctor FUN_143a1f0b0, i.e. it builds the candidate class. So the +0x88/+0x90 the dispatcher calls are the candidate class's own, at vtable 0x148259b90: +0x88 = 0x141728b30 writer, +0x90 = 0x1417b5080 reader. The candidate class IS type 3857."
+      "ref": "IDENTITY (build 30fe6461): dispatcher FUN_146af38c0 -> FUN_1461ae3f0/FUN_1461ae2a0 (varint type index -> 16-byte AZ id via the flat table at registry+0x40, else inline) -> FUN_146166220 (hash map, node key at +0x10/+0x18, value at +0x20) -> descriptor. func_0x0001406d9970 is `mov rax,[rcx+0x48]` (the facet), func_0x0001406d9950 is `lea rax,[rcx+0x28]` (the name). The facet for this id is created in the type's own record function FUN_143a39e80, which parses the GUID text at 0x148253300 and stores a facet whose vptr is 0x1482531b8 -- an address referenced exactly once in the image, from 0x143a3a007 inside that same function. Facet slot +8 = 0x1439eb9a0 allocates 0x1880 bytes and calls ctor FUN_143a1f0b0, i.e. it builds the candidate class. So the +0x88/+0x90 the dispatcher calls are the candidate class's own, at vtable 0x148259b90: +0x88 = 0x141728b30 writer, +0x90 = 0x1417b5080 reader. The candidate class IS type 3857."
     },
     {
       "type": "decompile",
@@ -73,5 +65,5 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": "everfall-wire", "module": "objectives_state" }
+  "owners": { "crate": "everfall-wire", "module": null }
 }

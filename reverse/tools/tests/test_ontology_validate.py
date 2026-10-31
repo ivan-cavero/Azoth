@@ -266,6 +266,171 @@ class OntologyValidateTest(unittest.TestCase):
         self.assertTrue(lines[0].startswith("FAIL msg.legacy_no_meaning"))
         self.assertIn("meaning", lines[0])
 
+    # --- the presence, nested, counted and optional constructs ---------------
+
+    def presence(self, **overrides) -> dict:
+        base = {
+            "group": {"name": "group_mask", "bits": 8},
+            "member": {"name": "entry_mask", "bits": 7, "continuation": 128},
+        }
+        base.update(overrides)
+        return base
+
+    def presence_card(self, fields=None, **overrides) -> dict:
+        if fields is None:
+            fields = [
+                field(
+                    "activeObjectives",
+                    "nested(codec.example-item)",
+                    "known",
+                    "the active set",
+                    presence={"group": 1, "member": 3},
+                )
+            ]
+        return concept(fields=fields, **{"presence": self.presence(), **overrides})
+
+    def test_presence_masked_card_is_ready(self):
+        lines, code = run(
+            {
+                "codec.example": self.presence_card(),
+                "codec.example-item": concept(
+                    uid="codec.example-item",
+                    kind="codec",
+                    fields=[field("item_id", "u64be", "known", "the item id")],
+                ),
+            }
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("OK codec.example  ready", " ".join(lines))
+
+    def test_presence_member_without_coordinates_fails(self):
+        card = self.presence_card(
+            fields=[field("active", "u64be", "known", "the active set")]
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+        self.assertIn("presence", lines[0])
+
+    def test_presence_coordinates_without_a_mask_fail(self):
+        card = concept(
+            fields=[
+                field(
+                    "active",
+                    "u64be",
+                    "known",
+                    "the active set",
+                    presence={"group": 1, "member": 3},
+                )
+            ]
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+        self.assertIn("presence", lines[0])
+
+    def test_presence_index_beyond_the_mask_bits_fails(self):
+        card = self.presence_card(
+            fields=[
+                field(
+                    "active",
+                    "u64be",
+                    "known",
+                    "the active set",
+                    presence={"group": 1, "member": 7},
+                )
+            ]
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+        self.assertIn("member", lines[0])
+
+    def test_duplicate_presence_coordinates_fail(self):
+        card = self.presence_card(
+            fields=[
+                field(
+                    "active_set",
+                    "u64be",
+                    "known",
+                    "a member",
+                    presence={"group": 1, "member": 3},
+                ),
+                field(
+                    "completed_set",
+                    "u64be",
+                    "known",
+                    "another member",
+                    presence={"group": 1, "member": 3},
+                ),
+            ]
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+        self.assertIn("duplicate", lines[0])
+
+    def test_continuation_bit_must_sit_above_the_member_bits(self):
+        card = self.presence_card(
+            presence={
+                "group": {"name": "group_mask", "bits": 8},
+                "member": {"name": "entry_mask", "bits": 6, "continuation": 128},
+            }
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+        self.assertIn("continuation", lines[0])
+
+    def test_nested_reference_must_name_a_codec_card(self):
+        card = self.presence_card()
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+        self.assertIn("codec.example-item", lines[0])
+
+    def test_counted_element_must_be_a_vocabulary_member(self):
+        card = concept(
+            fields=[
+                field(
+                    "items",
+                    "counted(string)",
+                    "known",
+                    "a counted run of names",
+                )
+            ]
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+
+    def test_optional_element_must_be_a_vocabulary_member(self):
+        card = concept(
+            fields=[
+                field("maybe", "optional(string)", "known", "an optional name")
+            ]
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+
+    def test_memory_field_cannot_declare_wire_presence(self):
+        card = self.presence_card(
+            fields=[
+                field(
+                    "active",
+                    "u64be",
+                    "known",
+                    "the active set",
+                    where="memory",
+                    presence={"group": 1, "member": 3},
+                )
+            ]
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+
     def test_placeholder_name_shapes(self):
         placeholder = [
             "field_a",

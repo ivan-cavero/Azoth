@@ -1,0 +1,55 @@
+{
+  "uid": "codec.objectives-task-states",
+  "kind": "codec",
+  "name": "ObjectivesTaskStates",
+  "aliases": ["taskStates member body", "vtable 0x148259af0 reader +0x30"],
+  "summary": "The `taskStates` member body of the Objectives replicated state: a prefix-varint delta count, the client's delta-count-zero branch (a strict zero-or-one presence flag and, when it is one, a prefix varint), then a prefix-varint snapshot count and that many `codec.objectives-task-state` elements. Only the delta-count 0 branch has an instance in the recorded bundles, so the card pins the count to 0 and a non-zero count is refused rather than guessed.",
+  "purpose": "Name the member layout that a two-level presence mask selects (in-group member 4 of group 1 of codec.objectives-replicated-state), so the mask card references a record instead of carrying the container's layout itself.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "deltaCount",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "max": 0,
+      "note": "The prefix-varint delta count read by 0x143a69710. It is 0 in the measured body; the client's non-zero branch has no instance in the recorded bundles, so the card bounds it to 0 and the codec refuses anything else instead of inventing the layout."
+    },
+    {
+      "name": "delta",
+      "meaning": "known",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "The delta-count-zero branch of FUN_143a69fe0: a strict zero-or-one presence byte read by 0x1461adf60 (which rejects any byte above 1) followed, when it is 1, by one prefix varint. Measured 01 07."
+    },
+    {
+      "name": "elements",
+      "meaning": "known",
+      "where": "wire",
+      "type": "counted(nested(codec.objectives-task-state))",
+      "evidence": "measured",
+      "note": "The prefix-varint snapshot count and that many 18-byte elements. Forty-three in the measured body."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.objectives-replicated-state" },
+    { "op": "consumes", "to": "codec.objectives-task-state" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3857.hex: 00 01 07 2b then 43 x 18 bytes; the body re-encodes byte-exactly through the generated codec, including the delta flag."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x143a69710 and its zero branch FUN_143a69fe0 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

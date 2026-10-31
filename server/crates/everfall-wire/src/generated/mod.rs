@@ -56,27 +56,29 @@ impl FlowWorldEntryRungRegistration {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let unresolved_u32 = reader.u32be("unresolved_u32")?;
-        let unresolved_u64 = reader.u64be("unresolved_u64")?;
-        let unresolved_block = reader.prefixed_opaque(
-            "unresolved_block",
-            "flow.world-entry.rung.registration.unresolved_block",
-        )?;
-        let server_version = reader.prefixed_string("server_version")?;
-        let trailing_bool_0 = reader.bool_byte("trailing_bool_0")?;
-        let trailing_bool_1 = reader.bool_byte("trailing_bool_1")?;
-        let trailing_bool_2 = reader.bool_byte("trailing_bool_2")?;
-        let trailing_bool_3 = reader.bool_byte("trailing_bool_3")?;
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            unresolved_u32,
-            unresolved_u64,
-            unresolved_block,
-            server_version,
-            trailing_bool_0,
-            trailing_bool_1,
-            trailing_bool_2,
-            trailing_bool_3,
+            unresolved_u32: reader.u32be("unresolved_u32")?,
+            unresolved_u64: reader.u64be("unresolved_u64")?,
+            unresolved_block: reader.prefixed_opaque(
+                "unresolved_block",
+                "flow.world-entry.rung.registration.unresolved_block",
+            )?,
+            server_version: reader.prefixed_string("server_version")?,
+            trailing_bool_0: reader.bool_byte("trailing_bool_0")?,
+            trailing_bool_1: reader.bool_byte("trailing_bool_1")?,
+            trailing_bool_2: reader.bool_byte("trailing_bool_2")?,
+            trailing_bool_3: reader.bool_byte("trailing_bool_3")?,
         })
     }
 
@@ -86,6 +88,14 @@ impl FlowWorldEntryRungRegistration {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u32be(self.unresolved_u32);
         writer.u64be(self.unresolved_u64);
         writer.prefixed_opaque(&self.unresolved_block)?;
@@ -120,16 +130,30 @@ impl MsgUpdate {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let blob = reader.prefixed_opaque("blob", "msg.update.blob")?;
-        if blob.len() as u64 > 512 {
-            return Err(WireError::OutOfRange {
-                field: "blob",
-                max: 512,
-                value: blob.len() as u64,
-            });
-        }
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
-        Ok(Self { blob })
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            blob: {
+                let value = reader.prefixed_opaque("blob", "msg.update.blob")?;
+                if value.len() as u64 > 512 {
+                    return Err(WireError::OutOfRange {
+                        field: "blob",
+                        max: 512,
+                        value: value.len() as u64,
+                    });
+                }
+                value
+            },
+        })
     }
 
     /// Encode one `msg.update` body, appending to `out`.
@@ -138,6 +162,14 @@ impl MsgUpdate {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.prefixed_opaque(&self.blob)?;
         Ok(())
     }
@@ -169,14 +201,21 @@ impl MsgSetReplicateStorage {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let local_facet_id = reader.u64be("local_facet_id")?;
-        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
-        let field_c = reader.opaque("field_c", "msg.set-replicate-storage.field_c", 16)?;
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            local_facet_id,
-            local_actor_id_word0,
-            field_c,
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            field_c: reader.opaque("field_c", "msg.set-replicate-storage.field_c", 16)?,
         })
     }
 
@@ -186,6 +225,14 @@ impl MsgSetReplicateStorage {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.opaque(&self.field_c);
@@ -219,25 +266,35 @@ impl MsgObjectivesUpdateTrackedObjectives {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let local_facet_id = reader.u64be("local_facet_id")?;
-        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
-        let count = reader.prefix_varint("tracked_objective_ids")?;
-        if count > 8 {
-            return Err(WireError::OutOfRange {
-                field: "tracked_objective_ids",
-                max: 8,
-                value: count,
-            });
-        }
-        let mut tracked_objective_ids = Vec::new();
-        for _ in 0..count {
-            tracked_objective_ids.push(reader.u64be("tracked_objective_ids")?);
-        }
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            local_facet_id,
-            local_actor_id_word0,
-            tracked_objective_ids,
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            tracked_objective_ids: {
+                let count = reader.prefix_varint("tracked_objective_ids")?;
+                if count > 8 {
+                    return Err(WireError::OutOfRange {
+                        field: "tracked_objective_ids",
+                        max: 8,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u64be("tracked_objective_ids")?);
+                }
+                value
+            },
         })
     }
 
@@ -247,6 +304,14 @@ impl MsgObjectivesUpdateTrackedObjectives {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.tracked_objective_ids.len() as u64)?;
@@ -285,38 +350,50 @@ impl MsgRequestSpendAttributePoints {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let local_facet_id = reader.u64be("local_facet_id")?;
-        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
-        let count = reader.prefix_varint("attribute_indices")?;
-        if count > 4 {
-            return Err(WireError::OutOfRange {
-                field: "attribute_indices",
-                max: 4,
-                value: count,
-            });
-        }
-        let mut attribute_indices = Vec::new();
-        for _ in 0..count {
-            attribute_indices.push(reader.u32be("attribute_indices")?);
-        }
-        let count = reader.prefix_varint("points")?;
-        if count > 700 {
-            return Err(WireError::OutOfRange {
-                field: "points",
-                max: 700,
-                value: count,
-            });
-        }
-        let mut points = Vec::new();
-        for _ in 0..count {
-            points.push(reader.u32be("points")?);
-        }
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            local_facet_id,
-            local_actor_id_word0,
-            attribute_indices,
-            points,
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            attribute_indices: {
+                let count = reader.prefix_varint("attribute_indices")?;
+                if count > 4 {
+                    return Err(WireError::OutOfRange {
+                        field: "attribute_indices",
+                        max: 4,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u32be("attribute_indices")?);
+                }
+                value
+            },
+            points: {
+                let count = reader.prefix_varint("points")?;
+                if count > 700 {
+                    return Err(WireError::OutOfRange {
+                        field: "points",
+                        max: 700,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u32be("points")?);
+                }
+                value
+            },
         })
     }
 
@@ -326,6 +403,14 @@ impl MsgRequestSpendAttributePoints {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.attribute_indices.len() as u64)?;
@@ -380,52 +465,52 @@ impl FlowWorldEntryRungSelfIdentification {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let prefix_lead = reader.u8("prefix_lead")?;
-        let identity_guid_prefix = reader.opaque(
-            "identity_guid_prefix",
-            "flow.world-entry.rung.self-identification.identity_guid_prefix",
-            16,
-        )?;
-        let vtable_tag = reader.u32be("vtable_tag")?;
-        let prefix_data = reader.opaque(
-            "prefix_data",
-            "flow.world-entry.rung.self-identification.prefix_data",
-            107,
-        )?;
-        let grid_side = reader.u8("grid_side")?;
-        let grid_header = reader.opaque(
-            "grid_header",
-            "flow.world-entry.rung.self-identification.grid_header",
-            2,
-        )?;
-        let grid_cells = reader.opaque(
-            "grid_cells",
-            "flow.world-entry.rung.self-identification.grid_cells",
-            12544,
-        )?;
-        let tail_zeros = reader.opaque(
-            "tail_zeros",
-            "flow.world-entry.rung.self-identification.tail_zeros",
-            10,
-        )?;
-        let tail_lead = reader.u8("tail_lead")?;
-        let identity_guid_tail = reader.opaque(
-            "identity_guid_tail",
-            "flow.world-entry.rung.self-identification.identity_guid_tail",
-            16,
-        )?;
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            prefix_lead,
-            identity_guid_prefix,
-            vtable_tag,
-            prefix_data,
-            grid_side,
-            grid_header,
-            grid_cells,
-            tail_zeros,
-            tail_lead,
-            identity_guid_tail,
+            prefix_lead: reader.u8("prefix_lead")?,
+            identity_guid_prefix: reader.opaque(
+                "identity_guid_prefix",
+                "flow.world-entry.rung.self-identification.identity_guid_prefix",
+                16,
+            )?,
+            vtable_tag: reader.u32be("vtable_tag")?,
+            prefix_data: reader.opaque(
+                "prefix_data",
+                "flow.world-entry.rung.self-identification.prefix_data",
+                107,
+            )?,
+            grid_side: reader.u8("grid_side")?,
+            grid_header: reader.opaque(
+                "grid_header",
+                "flow.world-entry.rung.self-identification.grid_header",
+                2,
+            )?,
+            grid_cells: reader.opaque(
+                "grid_cells",
+                "flow.world-entry.rung.self-identification.grid_cells",
+                12544,
+            )?,
+            tail_zeros: reader.opaque(
+                "tail_zeros",
+                "flow.world-entry.rung.self-identification.tail_zeros",
+                10,
+            )?,
+            tail_lead: reader.u8("tail_lead")?,
+            identity_guid_tail: reader.opaque(
+                "identity_guid_tail",
+                "flow.world-entry.rung.self-identification.identity_guid_tail",
+                16,
+            )?,
         })
     }
 
@@ -435,6 +520,14 @@ impl FlowWorldEntryRungSelfIdentification {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u8(self.prefix_lead);
         writer.opaque(&self.identity_guid_prefix);
         writer.u32be(self.vtable_tag);
@@ -485,31 +578,36 @@ impl FlowWorldEntryRungLevelInfo {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let level_name = reader.prefixed_string("level_name")?;
-        let level_path = reader.prefixed_string("level_path")?;
-        let mut level_bounds = [0.0; 4];
-        for slot in &mut level_bounds {
-            *slot = reader.f32be("level_bounds")?;
-        }
-        let unresolved_u64 = reader.u64be("unresolved_u64")?;
-        let unresolved_u32 = reader.u32be("unresolved_u32")?;
-        let session_nonce = reader.u64be("session_nonce")?;
-        let unresolved_group = reader.opaque(
-            "unresolved_group",
-            "flow.world-entry.rung.level-info.unresolved_group",
-            10,
-        )?;
-        let level_context_key = reader.u64be("level_context_key")?;
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            level_name,
-            level_path,
-            level_bounds,
-            unresolved_u64,
-            unresolved_u32,
-            session_nonce,
-            unresolved_group,
-            level_context_key,
+            level_name: reader.prefixed_string("level_name")?,
+            level_path: reader.prefixed_string("level_path")?,
+            level_bounds: {
+                let mut value = [0.0; 4];
+                for slot in &mut value {
+                    *slot = reader.f32be("level_bounds")?;
+                }
+                value
+            },
+            unresolved_u64: reader.u64be("unresolved_u64")?,
+            unresolved_u32: reader.u32be("unresolved_u32")?,
+            session_nonce: reader.u64be("session_nonce")?,
+            unresolved_group: reader.opaque(
+                "unresolved_group",
+                "flow.world-entry.rung.level-info.unresolved_group",
+                10,
+            )?,
+            level_context_key: reader.u64be("level_context_key")?,
         })
     }
 
@@ -519,6 +617,14 @@ impl FlowWorldEntryRungLevelInfo {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.prefixed_string(&self.level_name)?;
         writer.prefixed_string(&self.level_path)?;
         for value in &self.level_bounds {
@@ -559,14 +665,21 @@ impl MsgReceiveSettingsFromClient {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let local_facet_id = reader.u64be("local_facet_id")?;
-        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
-        let field_c = reader.u32be("field_c")?;
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            local_facet_id,
-            local_actor_id_word0,
-            field_c,
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            field_c: reader.u32be("field_c")?,
         })
     }
 
@@ -576,6 +689,14 @@ impl MsgReceiveSettingsFromClient {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.u32be(self.field_c);
@@ -627,82 +748,92 @@ impl MsgContractsLookupContractsByParticipant {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let local_facet_id = reader.u64be("local_facet_id")?;
-        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
-        let participant_id = reader.opaque(
-            "participant_id",
-            "msg.contracts-lookup-contracts-by-participant.participant_id",
-            16,
-        )?;
-        let u32_be_1 = reader.u32be("u32_be_1")?;
-        let u32_be_2 = reader.u32be("u32_be_2")?;
-        let u32_be_3 = reader.u32be("u32_be_3")?;
-        let blob_64 = reader.prefixed_opaque(
-            "blob_64",
-            "msg.contracts-lookup-contracts-by-participant.blob_64",
-        )?;
-        if blob_64.len() as u64 > 64 {
-            return Err(WireError::OutOfRange {
-                field: "blob_64",
-                max: 64,
-                value: blob_64.len() as u64,
-            });
-        }
-        let blob_256 = reader.prefixed_opaque(
-            "blob_256",
-            "msg.contracts-lookup-contracts-by-participant.blob_256",
-        )?;
-        if blob_256.len() as u64 > 256 {
-            return Err(WireError::OutOfRange {
-                field: "blob_256",
-                max: 256,
-                value: blob_256.len() as u64,
-            });
-        }
-        let count_u32 = reader.u32be("count_u32")?;
-        let count = reader.prefix_varint("index_ids")?;
-        if count > 3 {
-            return Err(WireError::OutOfRange {
-                field: "index_ids",
-                max: 3,
-                value: count,
-            });
-        }
-        let mut index_ids = Vec::new();
-        for _ in 0..count {
-            index_ids.push(reader.u32be("index_ids")?);
-        }
-        let count = reader.prefix_varint("type_ids")?;
-        if count > 25 {
-            return Err(WireError::OutOfRange {
-                field: "type_ids",
-                max: 25,
-                value: count,
-            });
-        }
-        let mut type_ids = Vec::new();
-        for _ in 0..count {
-            type_ids.push(reader.u16be("type_ids")?);
-        }
-        let trailing_id = reader.opaque(
-            "trailing_id",
-            "msg.contracts-lookup-contracts-by-participant.trailing_id",
-            16,
-        )?;
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            local_facet_id,
-            local_actor_id_word0,
-            participant_id,
-            u32_be_1,
-            u32_be_2,
-            u32_be_3,
-            blob_64,
-            blob_256,
-            count_u32,
-            index_ids,
-            type_ids,
-            trailing_id,
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            participant_id: reader.opaque(
+                "participant_id",
+                "msg.contracts-lookup-contracts-by-participant.participant_id",
+                16,
+            )?,
+            u32_be_1: reader.u32be("u32_be_1")?,
+            u32_be_2: reader.u32be("u32_be_2")?,
+            u32_be_3: reader.u32be("u32_be_3")?,
+            blob_64: {
+                let value = reader.prefixed_opaque(
+                    "blob_64",
+                    "msg.contracts-lookup-contracts-by-participant.blob_64",
+                )?;
+                if value.len() as u64 > 64 {
+                    return Err(WireError::OutOfRange {
+                        field: "blob_64",
+                        max: 64,
+                        value: value.len() as u64,
+                    });
+                }
+                value
+            },
+            blob_256: {
+                let value = reader.prefixed_opaque(
+                    "blob_256",
+                    "msg.contracts-lookup-contracts-by-participant.blob_256",
+                )?;
+                if value.len() as u64 > 256 {
+                    return Err(WireError::OutOfRange {
+                        field: "blob_256",
+                        max: 256,
+                        value: value.len() as u64,
+                    });
+                }
+                value
+            },
+            count_u32: reader.u32be("count_u32")?,
+            index_ids: {
+                let count = reader.prefix_varint("index_ids")?;
+                if count > 3 {
+                    return Err(WireError::OutOfRange {
+                        field: "index_ids",
+                        max: 3,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u32be("index_ids")?);
+                }
+                value
+            },
+            type_ids: {
+                let count = reader.prefix_varint("type_ids")?;
+                if count > 25 {
+                    return Err(WireError::OutOfRange {
+                        field: "type_ids",
+                        max: 25,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u16be("type_ids")?);
+                }
+                value
+            },
+            trailing_id: reader.opaque(
+                "trailing_id",
+                "msg.contracts-lookup-contracts-by-participant.trailing_id",
+                16,
+            )?,
         })
     }
 
@@ -712,6 +843,14 @@ impl MsgContractsLookupContractsByParticipant {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.opaque(&self.participant_id);
@@ -760,25 +899,35 @@ impl MsgObjectivesSetObjectiveAutoPinning {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let local_facet_id = reader.u64be("local_facet_id")?;
-        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
-        let count = reader.prefix_varint("auto_pinning_flags")?;
-        if count > 36 {
-            return Err(WireError::OutOfRange {
-                field: "auto_pinning_flags",
-                max: 36,
-                value: count,
-            });
-        }
-        let mut auto_pinning_flags = Vec::new();
-        for _ in 0..count {
-            auto_pinning_flags.push(reader.bool_byte("auto_pinning_flags")?);
-        }
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            local_facet_id,
-            local_actor_id_word0,
-            auto_pinning_flags,
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            auto_pinning_flags: {
+                let count = reader.prefix_varint("auto_pinning_flags")?;
+                if count > 36 {
+                    return Err(WireError::OutOfRange {
+                        field: "auto_pinning_flags",
+                        max: 36,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.bool_byte("auto_pinning_flags")?);
+                }
+                value
+            },
         })
     }
 
@@ -788,6 +937,14 @@ impl MsgObjectivesSetObjectiveAutoPinning {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.auto_pinning_flags.len() as u64)?;
@@ -832,22 +989,25 @@ impl MsgServerEquipItem {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let local_facet_id = reader.u64be("local_facet_id")?;
-        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
-        let field_c = reader.u32be("field_c")?;
-        let field_d = reader.u32be("field_d")?;
-        let field_e = reader.u32be("field_e")?;
-        let field_f = reader.opaque("field_f", "msg.server-equip-item.field_f", 16)?;
-        let field_g = reader.bool_byte("field_g")?;
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            local_facet_id,
-            local_actor_id_word0,
-            field_c,
-            field_d,
-            field_e,
-            field_f,
-            field_g,
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            field_c: reader.u32be("field_c")?,
+            field_d: reader.u32be("field_d")?,
+            field_e: reader.u32be("field_e")?,
+            field_f: reader.opaque("field_f", "msg.server-equip-item.field_f", 16)?,
+            field_g: reader.bool_byte("field_g")?,
         })
     }
 
@@ -857,6 +1017,14 @@ impl MsgServerEquipItem {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.u32be(self.field_c);
@@ -892,12 +1060,20 @@ impl MsgTimeSyncToClient {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let local_facet_id = reader.u64be("local_facet_id")?;
-        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
         Ok(Self {
-            local_facet_id,
-            local_actor_id_word0,
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
         })
     }
 
@@ -907,6 +1083,14 @@ impl MsgTimeSyncToClient {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         Ok(())
@@ -933,16 +1117,31 @@ impl CodecContractsBlob256 {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let payload = reader.prefixed_opaque("payload", "codec.contracts.blob-256.payload")?;
-        if payload.len() as u64 > 256 {
-            return Err(WireError::OutOfRange {
-                field: "payload",
-                max: 256,
-                value: payload.len() as u64,
-            });
-        }
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
-        Ok(Self { payload })
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            payload: {
+                let value =
+                    reader.prefixed_opaque("payload", "codec.contracts.blob-256.payload")?;
+                if value.len() as u64 > 256 {
+                    return Err(WireError::OutOfRange {
+                        field: "payload",
+                        max: 256,
+                        value: value.len() as u64,
+                    });
+                }
+                value
+            },
+        })
     }
 
     /// Encode one `codec.contracts.blob-256` body, appending to `out`.
@@ -951,6 +1150,14 @@ impl CodecContractsBlob256 {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.prefixed_opaque(&self.payload)?;
         Ok(())
     }
@@ -976,16 +1183,30 @@ impl CodecContractsBlob64 {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let payload = reader.prefixed_opaque("payload", "codec.contracts.blob-64.payload")?;
-        if payload.len() as u64 > 64 {
-            return Err(WireError::OutOfRange {
-                field: "payload",
-                max: 64,
-                value: payload.len() as u64,
-            });
-        }
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
-        Ok(Self { payload })
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            payload: {
+                let value = reader.prefixed_opaque("payload", "codec.contracts.blob-64.payload")?;
+                if value.len() as u64 > 64 {
+                    return Err(WireError::OutOfRange {
+                        field: "payload",
+                        max: 64,
+                        value: value.len() as u64,
+                    });
+                }
+                value
+            },
+        })
     }
 
     /// Encode one `codec.contracts.blob-64` body, appending to `out`.
@@ -994,6 +1215,14 @@ impl CodecContractsBlob64 {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.prefixed_opaque(&self.payload)?;
         Ok(())
     }
@@ -1019,20 +1248,34 @@ impl CodecContractsU32Vector5 {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let count = reader.prefix_varint("values")?;
-        if count > 5 {
-            return Err(WireError::OutOfRange {
-                field: "values",
-                max: 5,
-                value: count,
-            });
-        }
-        let mut values = Vec::new();
-        for _ in 0..count {
-            values.push(reader.u32be("values")?);
-        }
+        let value = Self::read_from(&mut reader)?;
         reader.finish()?;
-        Ok(Self { values })
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            values: {
+                let count = reader.prefix_varint("values")?;
+                if count > 5 {
+                    return Err(WireError::OutOfRange {
+                        field: "values",
+                        max: 5,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u32be("values")?);
+                }
+                value
+            },
+        })
     }
 
     /// Encode one `codec.contracts.u32-vector-5` body, appending to `out`.
@@ -1041,9 +1284,544 @@ impl CodecContractsU32Vector5 {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.prefix_varint(self.values.len() as u64)?;
         for value in &self.values {
             writer.u32be(*value);
+        }
+        Ok(())
+    }
+}
+
+/// `codec.objectives-active-objective` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesActiveObjective {
+    /// Body field `u32_a08` (`u32be`); meaning unnamed.
+    pub u32_a08: u32,
+    /// Body field `u64_a10` (`u64be`); meaning unnamed.
+    pub u64_a10: u64,
+    /// Body field `u32_a18` (`u32be`); meaning unnamed.
+    pub u32_a18: u32,
+    /// Body field `guid_a1c` (`bytes(16)`); meaning unnamed.
+    pub guid_a1c: Opaque,
+    /// Body field `u64_a38` (`u64be`); meaning unnamed.
+    pub u64_a38: u64,
+    /// Body field `u16_a40` (`u16be`); meaning unnamed.
+    pub u16_a40: u16,
+    /// Body field `u8_a42` (`u8`); meaning unnamed.
+    pub u8_a42: u8,
+    /// Body field `u8_a43` (`u8`); meaning unnamed.
+    pub u8_a43: u8,
+    /// Body field `u8_a44` (`u8`); meaning unnamed.
+    pub u8_a44: u8,
+    /// Body field `u8_a45` (`u8`); meaning unnamed.
+    pub u8_a45: u8,
+    /// Body field `u64_a50` (`u64be`); meaning unnamed.
+    pub u64_a50: u64,
+    /// Body field `u8_a58` (`u8`); meaning unnamed.
+    pub u8_a58: u8,
+    /// Body field `index_list` (`vec<u32be>`).
+    pub index_list: Vec<u32>,
+}
+
+impl CodecObjectivesActiveObjective {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.objectives-active-objective";
+
+    /// Decode one `codec.objectives-active-objective` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            u32_a08: reader.u32be("u32_a08")?,
+            u64_a10: reader.u64be("u64_a10")?,
+            u32_a18: reader.u32be("u32_a18")?,
+            guid_a1c: reader.opaque(
+                "guid_a1c",
+                "codec.objectives-active-objective.guid_a1c",
+                16,
+            )?,
+            u64_a38: reader.u64be("u64_a38")?,
+            u16_a40: reader.u16be("u16_a40")?,
+            u8_a42: reader.u8("u8_a42")?,
+            u8_a43: reader.u8("u8_a43")?,
+            u8_a44: reader.u8("u8_a44")?,
+            u8_a45: reader.u8("u8_a45")?,
+            u64_a50: reader.u64be("u64_a50")?,
+            u8_a58: reader.u8("u8_a58")?,
+            index_list: {
+                let count = reader.prefix_varint("index_list")?;
+                if count > 7 {
+                    return Err(WireError::OutOfRange {
+                        field: "index_list",
+                        max: 7,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u32be("index_list")?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.objectives-active-objective` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u32be(self.u32_a08);
+        writer.u64be(self.u64_a10);
+        writer.u32be(self.u32_a18);
+        writer.opaque(&self.guid_a1c);
+        writer.u64be(self.u64_a38);
+        writer.u16be(self.u16_a40);
+        writer.u8(self.u8_a42);
+        writer.u8(self.u8_a43);
+        writer.u8(self.u8_a44);
+        writer.u8(self.u8_a45);
+        writer.u64be(self.u64_a50);
+        writer.u8(self.u8_a58);
+        writer.prefix_varint(self.index_list.len() as u64)?;
+        for value in &self.index_list {
+            writer.u32be(*value);
+        }
+        Ok(())
+    }
+}
+
+/// `codec.objectives-active-objectives` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesActiveObjectives {
+    /// Body field `deltaCount` (`prefix_varint`).
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`).
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(nested(codec.objectives-active-objective))`).
+    pub elements: Vec<CodecObjectivesActiveObjective>,
+}
+
+impl CodecObjectivesActiveObjectives {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.objectives-active-objectives";
+
+    /// Decode one `codec.objectives-active-objectives` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(CodecObjectivesActiveObjective::read_from(reader)?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.objectives-active-objectives` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            value.write_to(writer)?;
+        }
+        Ok(())
+    }
+}
+
+/// `codec.objectives-replicated-state` — one Atlas card.
+///
+/// Presence-masked sub-codec card (no wire id).
+/// Its body is a two-level presence mask: one group mask byte, then for
+/// each present group one member mask byte, then the present members'
+/// bodies in ascending member order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesReplicatedState {
+    /// The `group_mask` byte: bit i set means group i is
+    /// on the wire.
+    pub group_mask: u8,
+    /// The present groups, ascending by group index.
+    pub groups: Vec<CodecObjectivesReplicatedStateGroup>,
+}
+
+/// One present group of [`CodecObjectivesReplicatedState`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesReplicatedStateGroup {
+    /// The `entry_mask` byte: bit i set means member i is
+    /// on the wire.
+    pub entry_mask: u8,
+    /// The present members, ascending by member index.
+    pub entries: Vec<CodecObjectivesReplicatedStateEntry>,
+}
+
+/// One present member of a [`CodecObjectivesReplicatedStateGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodecObjectivesReplicatedStateEntry {
+    /// Group 1 member 3, `activeObjectives`.
+    ActiveObjectives(CodecObjectivesActiveObjectives),
+    /// Group 1 member 4, `taskStates`.
+    TaskStates(CodecObjectivesTaskStates),
+}
+
+impl CodecObjectivesReplicatedState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.objectives-replicated-state";
+
+    /// Decode one `codec.objectives-replicated-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, outside a bound
+    /// the card states, or its mask selects a group or member the card does
+    /// not declare.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, or a mask selects a group
+    /// or member the card does not declare.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        let group_mask = reader.u8("group_mask")?;
+        let unknown = group_mask & !0b0000_0010;
+        if unknown != 0 {
+            return Err(WireError::UnknownPresence {
+                what: "group",
+                index: u64::from(unknown.trailing_zeros()),
+            });
+        }
+        let mut groups = Vec::new();
+        if group_mask & 0b0000_0010 != 0 {
+            let entry_mask = reader.u8("entry_mask")?;
+            let unknown = entry_mask & !0b0001_1000;
+            if unknown != 0 {
+                return Err(WireError::UnknownPresence {
+                    what: "member",
+                    index: u64::from(unknown.trailing_zeros()),
+                });
+            }
+            let mut entries = Vec::new();
+            if entry_mask & 0b0000_1000 != 0 {
+                let value = CodecObjectivesActiveObjectives::read_from(reader)?;
+                entries.push(CodecObjectivesReplicatedStateEntry::ActiveObjectives(value));
+            }
+            if entry_mask & 0b0001_0000 != 0 {
+                let value = CodecObjectivesTaskStates::read_from(reader)?;
+                entries.push(CodecObjectivesReplicatedStateEntry::TaskStates(value));
+            }
+            groups.push(CodecObjectivesReplicatedStateGroup {
+                entry_mask,
+                entries,
+            });
+        }
+        Ok(Self { group_mask, groups })
+    }
+
+    /// Encode one `codec.objectives-replicated-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.group_mask);
+        for group in &self.groups {
+            writer.u8(group.entry_mask);
+            for entry in &group.entries {
+                match entry {
+                    CodecObjectivesReplicatedStateEntry::ActiveObjectives(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecObjectivesReplicatedStateEntry::TaskStates(value) => {
+                        value.write_to(writer)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// `codec.objectives-task-state` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesTaskState {
+    /// Body field `u64_a10` (`u64be`); meaning unnamed.
+    pub u64_a10: u64,
+    /// Body field `u8_a18` (`u8`); meaning unnamed.
+    pub u8_a18: u8,
+    /// Body field `u32_a1c` (`u32be`); meaning unnamed.
+    pub u32_a1c: u32,
+    /// Body field `u32_a20` (`u32be`); meaning unnamed.
+    pub u32_a20: u32,
+    /// Body field `u8_a24` (`u8`); meaning unnamed.
+    pub u8_a24: u8,
+}
+
+impl CodecObjectivesTaskState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.objectives-task-state";
+
+    /// Decode one `codec.objectives-task-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            u64_a10: reader.u64be("u64_a10")?,
+            u8_a18: reader.u8("u8_a18")?,
+            u32_a1c: reader.u32be("u32_a1c")?,
+            u32_a20: reader.u32be("u32_a20")?,
+            u8_a24: reader.u8("u8_a24")?,
+        })
+    }
+
+    /// Encode one `codec.objectives-task-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.u64_a10);
+        writer.u8(self.u8_a18);
+        writer.u32be(self.u32_a1c);
+        writer.u32be(self.u32_a20);
+        writer.u8(self.u8_a24);
+        Ok(())
+    }
+}
+
+/// `codec.objectives-task-states` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesTaskStates {
+    /// Body field `deltaCount` (`prefix_varint`).
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`).
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(nested(codec.objectives-task-state))`).
+    pub elements: Vec<CodecObjectivesTaskState>,
+}
+
+impl CodecObjectivesTaskStates {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.objectives-task-states";
+
+    /// Decode one `codec.objectives-task-states` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(CodecObjectivesTaskState::read_from(reader)?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.objectives-task-states` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            value.write_to(writer)?;
         }
         Ok(())
     }

@@ -5,7 +5,7 @@
   "type": "object",
   "$defs": {
     "codec": {
-      "$comment": "Frozen codec vocabulary. Fixed-width integers carry their endianness in the name; u8 is the one endian-free width. bytes(n) and fixed_string(n) match a pattern, and vec<T>/matrix<T> match a pattern whose element T is itself a vocabulary member. opaque(id) is the honest escape when an item's own text does not determine a codec: it is valid but blocks codegen. PREFIXED LENGTHS: prefixed_bytes and prefixed_string INCLUDE their length prefix -- the prefix varint is part of the codec itself -- so a separate prefix_varint field immediately before one of them double-counts the length and would make a code generator emit the prefix twice.",
+      "$comment": "Frozen codec vocabulary. Fixed-width integers carry their endianness in the name; u8 is the one endian-free width. bytes(n) and fixed_string(n) match a pattern, and vec<T>/matrix<T> match a pattern whose element T is itself a vocabulary member. opaque(id) is the honest escape when an item's own text does not determine a codec: it is valid but blocks codegen. PREFIXED LENGTHS: prefixed_bytes and prefixed_string INCLUDE their length prefix -- the prefix varint is part of the codec itself -- so a separate prefix_varint field immediately before one of them double-counts the length and would make a code generator emit the prefix twice. The three compositional members (nested, counted, optional) each carry their own $comment below; together with the card-level `presence` block they are the whole of conditional, nested, counted records.",
       "oneOf": [
         {
           "enum": [
@@ -41,8 +41,41 @@
         { "pattern": "^fixed_string\\([1-9][0-9]*\\)$" },
         { "pattern": "^vec<(u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint)>$" },
         { "pattern": "^matrix<(u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint)>$" },
+        {
+          "$comment": "NESTED RECORD: nested(<card uid>) is the body of another codec card, decoded and encoded by that card's own layout. It is how a record appears inside another record, so the inner layout is named once and never copied into the container. The named card must exist, must be a codec card with fields, and must not be unknown; a dangling name is a validation FAIL, not a silent opaque run.",
+          "pattern": "^nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\)$"
+        },
+        {
+          "$comment": "COUNTED CONTAINER WITH ITS OWN ELEMENT LAYOUT: counted(<element>) is a prefix-varint element count followed by that many values, where <element> is a vocabulary member or a nested(<uid>) record. It is the generalisation of vec<T> to an element that has a layout of its own; a field-level `max` bounds the count.",
+          "pattern": "^counted\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$"
+        },
+        {
+          "$comment": "OPTIONAL: optional(<codec>) is a STRICT zero-or-one flag byte followed by the value only when the flag is 1. A flag byte above 1 is refused, never read as true, because the client's own reader refuses it; this is the shape of a presence-flagged scalar and is not a count.",
+          "pattern": "^optional\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$"
+        },
         { "pattern": "^opaque\\([a-z][a-z0-9_.-]*\\)$" }
       ]
+    },
+    "mask_level": {
+      "$comment": "ONE PRESENCE MASK BYTE: `name` is the generated field name for the mask (`group_mask`, `entry_mask`); `bits` is how many low-first bits carry members; `continuation`, when present, is the single bit above them that means a further mask byte follows. Exactly one mask byte per level is modelled, so a continuation bit is refused rather than followed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "bits"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "bits": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "continuation": { "type": "integer", "minimum": 1, "maximum": 255 }
+      }
+    },
+    "presence": {
+      "$comment": "TWO-LEVEL PRESENCE MASK (conditional membership): a card with `presence` has no flat field order. Its body is [one group mask byte][for each present group: one member mask byte][the bodies of the present members, ascending by member index], and a field is on the wire only when both its group bit and its member bit are set -- declared per field as presence:{group,member}. This is the shape the client's own reader walks: one mask byte per chunk of eight groups, then within a present group a 7-bit member mask whose top bit means a further byte. A set bit that names a group or member the card does not declare is REFUSED, never skipped, so a wider mask cannot be silently misread.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "member"],
+      "properties": {
+        "group": { "$ref": "#/$defs/mask_level" },
+        "member": { "$ref": "#/$defs/mask_level" }
+      }
     },
     "field": {
       "$comment": "CODEGEN-READY RULE: a card is codegen-ready iff it has at least one field and every field is where:'wire' with a type that is not opaque(...), and the card's own status is not unknown. partial does NOT block codegen; unknown and opaque do. A card with no fields[] is neither ready nor not-ready, so it must never count toward the codegen-ready number. BODY-ONLY RULE: fields[] describes the message BODY only. The record envelope is `[vlq32 length][00 01][prefix-varint type]`, generic framing owned by `services/world/src/azoth_world/javelin/frame.py` (and `bundle.py`); it must never appear as a field. Keep that knowledge in the card-level `envelope` string instead. MEMORY RULE: a where:'memory' field carries a decoded-struct offset, can never drive codegen, and must still declare a type (a vocabulary member, or opaque(id) when unknown).",
@@ -75,7 +108,17 @@
         "endian": { "type": "string", "enum": ["be", "le"] },
         "kind": { "type": "string" },
         "note": { "type": "string" },
-        "provenance": { "type": "string" }
+        "provenance": { "type": "string" },
+        "presence": {
+          "$comment": "The conditional-membership coordinates of one field in a card that declares the two-level `presence` mask: the field is on the wire only when both mask bits are set. A card without `presence` may not put these coordinates on any field, and a card with `presence` may not leave a wire field without them.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["group", "member"],
+          "properties": {
+            "group": { "type": "integer", "minimum": 0 },
+            "member": { "type": "integer", "minimum": 0 }
+          }
+        }
       }
     }
   },
@@ -159,6 +202,7 @@
       "type": "string",
       "description": "Card-level record envelope text: the [vlq32 length][00 01][prefix-varint type] framing owned by javelin/frame.py, kept out of fields[] because fields[] is the body only."
     },
+    "presence": { "$ref": "#/$defs/presence" },
     "legacy": {
       "type": "boolean",
       "default": false,

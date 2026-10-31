@@ -45,17 +45,74 @@
 | --- | --- | --- | --- | --- | --- |
 | values | vec<u32be> | — | partial | layout-only | varint(n) + n x u32 BE, cap 5; over-cap behaviour is a silent length-0 write and a status-4 reader reject. meanings.md 'Contracts closed, 2026-10-29 - the two wires that were blocked on nested sub-codecs'. |
 
-## codec.objectives-replicated-state — ObjectivesComponentReplicatedState
+## codec.objectives-active-objective — ObjectivesActiveObjective
 
 - kind: codec; status: verified; confidence: layout
-- codegen: **refused** — opaque fields: activeObjectives, taskStates
+- codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
-| groupMask | bitset8 | — | measured | known | One byte, bit i set = registered member i is on the wire. Registration order is the ctor's FUN_141776b80 call order: 0 taskStartTimes, 1 trackedObjectives, 2 completedObjectives, 3 activeObjectives, 4 taskStates, 5 objectivePoiEntityIds, 6 gracePeriodEndTime, 7 dynamicPoiIndices. Measured value 0x02: only bit 1, the seven-container group. Member 6 does not live in this group: the ctor passes group index 0 for gracePeriodEndTime and the shared index from FUN_1416789e0 (which returns the count before appending, so 1) for the other seven, and there are exactly two 800-byte group descriptors, so a body may set bit 0 for the scalar group instead. Reader FUN_1417b5080 reads one such byte per chunk of eight groups. |
-| groupEntriesPresent | bitset8 | — | measured | known | One byte per present group, read by FUN_1417b5330: bits 0..6 select in-group members 0..6 — taskStartTimes, trackedObjectives, completedObjectives, activeObjectives, taskStates, objectivePoiEntityIds, dynamicPoiIndices — and bit 7 marks a further mask byte for members 7 and up. Measured value 0x18: bits 3 and 4, activeObjectives then taskStates, in ascending order. |
-| activeObjectives | opaque(objectives.active-objectives) | — | measured | known | In-group member 3, named by the ctor's reflection string at 0x14825ac98; the member object at ctor offset 0x1e8 carries vtable 0x148259a50 and its reader is vtable +0x30 = 0x143a69a10. Body: prefix-varint delta count (0 in the measured body), then FUN_143a6a050's zero branch — a zero-or-one presence byte (0x01) with an optional prefix-varint (7) — then a prefix-varint snapshot count (17) and 17 elements of reader 0x145cea3e0/0x145b520f0/0x145b55b70. Element, 56 bytes in the measured body: u32be, u64be, u32be, 16 raw bytes, u64be, u16be, four zero-or-one bytes, u64be, one zero-or-one byte, prefix-varint list length (at most 7) and that many u32be; every element in the measured body has an empty list. NOT in the vocabulary: an element is a record, so the type is opaque and keeps the card out of codegen rather than pretending to a flat layout. |
-| taskStates | opaque(objectives.task-states) | — | measured | known | In-group member 4, named by the reflection string at 0x14825acb0; the member object at ctor offset 0x22f carries vtable 0x148259af0 and its reader is vtable +0x30 = 0x143a69710. Body: prefix-varint delta count (0), the same zero branch through FUN_143a69fe0 — presence byte 0x01 with prefix-varint 7 — then a prefix-varint snapshot count (43) and 43 elements of reader 0x143adec40, each 18 bytes: u64be, u8, u32be, u32be, u8. |
+| u32_a08 | u32be | — | measured | layout-only | Element +0x08, read by 0x145b54090. Meaning not established. |
+| u64_a10 | u64be | — | measured | layout-only | Element +0x10, read by 0x145cea3e0. |
+| u32_a18 | u32be | — | measured | layout-only | Element +0x18, read by 0x145cea3e0. |
+| guid_a1c | bytes(16) | — | measured | layout-only | Element +0x1c, sixteen raw bytes read by 0x145b520f0. All zero in the one measured body, so the value's meaning is unnamed and the run stays an Opaque. |
+| u64_a38 | u64be | — | measured | layout-only | Element +0x38, read by 0x145b520f0. |
+| u16_a40 | u16be | — | measured | layout-only | Element +0x40, a big-endian u16 read by 0x14087a360. |
+| u8_a42 | u8 | — | measured | layout-only | Element +0x42, a zero-or-one byte read by 0x145b520f0. Declared u8 rather than bool_byte so a non-canonical byte re-encodes byte-exactly instead of being folded to one. |
+| u8_a43 | u8 | — | measured | layout-only | Element +0x43, a zero-or-one byte read by 0x145b520f0. |
+| u8_a44 | u8 | — | measured | layout-only | Element +0x44, a zero-or-one byte read by 0x145b520f0. |
+| u8_a45 | u8 | — | measured | layout-only | Element +0x45, a zero-or-one byte read by 0x145b55b70. |
+| u64_a50 | u64be | — | measured | layout-only | Element +0x50, read by 0x145b55b70. |
+| u8_a58 | u8 | — | measured | layout-only | Element +0x58, a zero-or-one byte read by 0x145b55b70. |
+| index_list | vec<u32be> | — | measured | known | The trailing u32 BE list at +0x60, read by 0x145b55b70 with a cap of seven. Every element in the measured body has an empty list; the list's meaning is not established, so only its layout is claimed. |
+
+## codec.objectives-active-objectives — ObjectivesActiveObjectives
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | known | The prefix-varint delta count read by 0x143a69a10. It is 0 in the measured body; the client's non-zero branch is recovered but has no instance in the recorded bundles, so the card bounds it to 0 and the codec refuses anything else instead of inventing the layout. |
+| delta | optional(prefix_varint) | — | measured | known | The delta-count-zero branch of FUN_143a6a050: a strict zero-or-one presence byte read by 0x1461adf60 (which rejects any byte above 1) followed, when it is 1, by one prefix varint. Measured 01 07. |
+| elements | counted(nested(codec.objectives-active-objective)) | — | measured | known | The prefix-varint snapshot count and that many 56-byte elements. Seventeen in the measured body. |
+
+## codec.objectives-replicated-state — ObjectivesComponentReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 1 member 3: `activeObjectives` (`nested(codec.objectives-active-objectives)`)
+  - group 1 member 4: `taskStates` (`nested(codec.objectives-task-states)`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| activeObjectives | nested(codec.objectives-active-objectives) | — | measured | known | Group 1 member 3, named by the ctor's reflection string at 0x14825ac98; the member object at ctor offset 0x1e8 carries vtable 0x148259a50 and its reader is vtable +0x30 = 0x143a69a10. Body: prefix-varint delta count (0 in the measured body), the delta-count-zero branch (presence byte 0x01 with prefix-varint 7), then a prefix-varint snapshot count (17) and 17 elements of 56 bytes. The body is codec.objectives-active-objectives and the element is codec.objectives-active-objective, so no layout is copied into this card. |
+| taskStates | nested(codec.objectives-task-states) | — | measured | known | Group 1 member 4, named by the reflection string at 0x14825acb0; the member object at ctor offset 0x22f carries vtable 0x148259af0 and its reader is vtable +0x30 = 0x143a69710. Body: prefix-varint delta count (0), the same delta-count-zero branch through FUN_143a69fe0 (presence byte 0x01 with prefix-varint 7), then a prefix-varint snapshot count (43) and 43 elements of 18 bytes. |
+
+## codec.objectives-task-state — ObjectivesTaskState
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| u64_a10 | u64be | — | measured | layout-only | Element +0x10, read by 0x143adec40. |
+| u8_a18 | u8 | — | measured | layout-only | Element +0x18, one raw byte read by 0x143adec40. |
+| u32_a1c | u32be | — | measured | layout-only | Element +0x1c, read by 0x143adec40. |
+| u32_a20 | u32be | — | measured | layout-only | Element +0x20, read by 0x143adec40. |
+| u8_a24 | u8 | — | measured | layout-only | Element +0x24, one raw byte read by 0x143adec40. |
+
+## codec.objectives-task-states — ObjectivesTaskStates
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | known | The prefix-varint delta count read by 0x143a69710. It is 0 in the measured body; the client's non-zero branch has no instance in the recorded bundles, so the card bounds it to 0 and the codec refuses anything else instead of inventing the layout. |
+| delta | optional(prefix_varint) | — | measured | known | The delta-count-zero branch of FUN_143a69fe0: a strict zero-or-one presence byte read by 0x1461adf60 (which rejects any byte above 1) followed, when it is 1, by one prefix varint. Measured 01 07. |
+| elements | counted(nested(codec.objectives-task-state)) | — | measured | known | The prefix-varint snapshot count and that many 18-byte elements. Forty-three in the measured body. |
 
 ## endpoint.channel-config — ChannelConfig
 

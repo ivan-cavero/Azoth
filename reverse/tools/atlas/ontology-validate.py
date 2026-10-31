@@ -144,6 +144,11 @@ def _check(node: dict, value: object, schema: dict, path: str, errors: list[str]
             errors.append(f"{path}: {value!r} does not match {node['pattern']}")
         if "minLength" in node and len(value) < node["minLength"]:
             errors.append(f"{path}: {value!r} is shorter than {node['minLength']}")
+    if isinstance(value, int) and not isinstance(value, bool):
+        if "minimum" in node and value < node["minimum"]:
+            errors.append(f"{path}: {value} is below the minimum {node['minimum']}")
+        if "maximum" in node and value > node["maximum"]:
+            errors.append(f"{path}: {value} is above the maximum {node['maximum']}")
     if isinstance(value, list) and "items" in node:
         for i, member in enumerate(value):
             _check(node["items"], member, schema, f"{path}[{i}]", errors)
@@ -292,12 +297,13 @@ def envelope_errors(concept: dict) -> list[str]:
 
 
 def modelling_errors(concept: dict) -> list[str]:
-    """FIX 1 and FIX 2 rules, the literal-count rule, and the meaning rule;
-    run for every card, legacy included."""
+    """FIX 1 and FIX 2 rules, the literal-count rule, the presence rule and the
+    meaning rule; run for every card, legacy included."""
     return (
         prefixed_length_errors(concept)
         + envelope_errors(concept)
         + literal_count_errors(concept)
+        + presence_errors(concept)
         + meaning_errors(concept)
     )
 
@@ -330,6 +336,141 @@ def literal_count_errors(concept: dict) -> list[str]:
     return errors
 
 
+# A nested(<uid>) reference inside any codec string, including counted(...)/optional(...).
+NESTED_REF = re.compile(r"nested\(([^()]*)\)")
+
+
+def nested_references(concept: dict) -> list[str]:
+    """Every codec card this card's field types name as a nested record."""
+    refs: list[str] = []
+    for field in _fields(concept):
+        refs.extend(
+            match.group(1) for match in NESTED_REF.finditer(str(field.get("type", "")))
+        )
+    return refs
+
+
+def presence_errors(concept: dict) -> list[str]:
+    """The two-level presence mask's semantics, which the schema cannot state.
+
+    A card either declares `presence` and puts coordinates on every wire field,
+    or declares none and puts coordinates on no field. Each level models ONE mask
+    byte, so an index has to fit its level's `bits`, two fields cannot share a
+    coordinate, and a continuation bit has to be the single bit above the member
+    bits -- otherwise the mask would claim a second byte this vocabulary does not
+    model.
+    """
+    errors: list[str] = []
+    declared = concept.get("presence")
+    fields = _fields(concept)
+    if not isinstance(declared, dict):
+        for field in fields:
+            if "presence" in field:
+                errors.append(
+                    f"field {field.get('name')!r} declares presence coordinates but "
+                    f"the card declares no two-level `presence` mask"
+                )
+        return errors
+
+    bounds: dict[str, int] = {}
+    names: dict[str, object] = {}
+    for level in ("group", "member"):
+        node = declared.get(level)
+        if not isinstance(node, dict):
+            errors.append(f"presence level {level!r} is missing")
+            continue
+        names[level] = node.get("name")
+        bits = node.get("bits")
+        if isinstance(bits, bool) or not isinstance(bits, int) or not 1 <= bits <= 8:
+            errors.append(f"presence level {level!r} bits must be an integer 1..8")
+            continue
+        bounds[level] = bits
+        continuation = node.get("continuation")
+        if continuation is None:
+            continue
+        if isinstance(continuation, bool) or not isinstance(continuation, int):
+            errors.append(
+                f"presence level {level!r} continuation must be the continuation bit's value"
+            )
+        elif bits >= 8:
+            errors.append(
+                f"presence level {level!r} uses all 8 bits, so no bit is left for a "
+                f"continuation"
+            )
+        elif continuation != 1 << bits:
+            errors.append(
+                f"presence level {level!r} continuation {continuation} is not the bit "
+                f"above its {bits} member bits ({1 << bits})"
+            )
+    if names.get("group") is not None and names.get("group") == names.get("member"):
+        errors.append("the two presence levels cannot share one mask field name")
+    if not fields:
+        errors.append("a card declaring `presence` models no members")
+
+    seen: dict[tuple[object, object], object] = {}
+    for field in fields:
+        name = field.get("name")
+        if field.get("where", "wire") != "wire":
+            errors.append(
+                f"field {name!r} is a memory field, so it cannot carry wire presence "
+                f"coordinates"
+            )
+            continue
+        coords = field.get("presence")
+        if not isinstance(coords, dict):
+            errors.append(
+                f"field {name!r} has no presence coordinates; every wire field of a "
+                f"masked card needs presence:{{group,member}}"
+            )
+            continue
+        group = coords.get("group")
+        member = coords.get("member")
+        if isinstance(group, bool) or not isinstance(group, int) or group < 0:
+            errors.append(f"field {name!r} presence group must be a non-negative integer")
+            continue
+        if isinstance(member, bool) or not isinstance(member, int) or member < 0:
+            errors.append(
+                f"field {name!r} presence member must be a non-negative integer"
+            )
+            continue
+        if "group" in bounds and group >= bounds["group"]:
+            errors.append(
+                f"field {name!r} names group {group}, which does not fit the "
+                f"{bounds['group']}-bit group mask"
+            )
+        if "member" in bounds and member >= bounds["member"]:
+            errors.append(
+                f"field {name!r} names member {member}, which does not fit the "
+                f"{bounds['member']}-bit member mask"
+            )
+        if (group, member) in seen:
+            errors.append(
+                f"field {name!r} repeats the duplicate presence coordinates group "
+                f"{group} member {member} of field {seen[(group, member)]!r}"
+            )
+        else:
+            seen[(group, member)] = name
+    return errors
+
+
+def reference_errors(concept: dict, cards_by_uid: dict[str, dict]) -> list[str]:
+    """Every nested(<uid>) must name a real, usable codec card."""
+    errors: list[str] = []
+    for uid in nested_references(concept):
+        target = cards_by_uid.get(uid)
+        if target is None:
+            errors.append(f"nested record names no card: {uid}")
+        elif target.get("kind") != "codec":
+            errors.append(
+                f"nested record {uid} is a {target.get('kind')} card, not a codec card"
+            )
+        elif not _fields(target):
+            errors.append(f"nested record {uid} models no fields")
+        elif target.get("status") == "unknown":
+            errors.append(f"nested record {uid} has status unknown")
+    return errors
+
+
 def card_is_ready(concept: dict) -> bool:
     """Codegen-ready per the schema's `$defs.field` $comment: no opaque codec,
     no memory field, the card itself is not `unknown`, and it actually models at
@@ -346,9 +487,18 @@ def card_is_ready(concept: dict) -> bool:
     return True
 
 
-def classify(concept: dict, schema: dict) -> tuple[str, str]:
-    """Return (kind, detail) for one card; kind is ok | legacy | fail."""
+def classify(
+    concept: dict, schema: dict, cards_by_uid: dict[str, dict] | None = None
+) -> tuple[str, str]:
+    """Return (kind, detail) for one card; kind is ok | legacy | fail.
+
+    ``cards_by_uid`` is the whole concept set when the caller has it: nested
+    record references can only be checked against every card, so a per-card call
+    without it skips that one rule.
+    """
     modelling = modelling_errors(concept)
+    if cards_by_uid is not None:
+        modelling = modelling + reference_errors(concept, cards_by_uid)
     if modelling:
         return "fail", "; ".join(modelling)
     if concept.get("legacy") is True:
@@ -375,13 +525,26 @@ def validate_dir(schema_path: Path, concepts_dir: Path) -> tuple[list[str], int]
     opaque_total = 0
     known_total = 0
     layout_only_total = 0
+    # Every card first: a nested(<uid>) reference can only be checked against the
+    # whole set, so the cards are loaded before any one of them is classified.
+    cards: list[tuple[Path, object]] = []
+    cards_by_uid: dict[str, dict] = {}
     for path in files:
         try:
             concept = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            lines.append(f"FAIL {path.stem}  {exc}")
+            cards.append((path, exc))
+            continue
+        cards.append((path, concept))
+        uid = concept.get("uid") if isinstance(concept, dict) else None
+        if isinstance(uid, str):
+            cards_by_uid[uid] = concept
+    for path, loaded in cards:
+        if not isinstance(loaded, dict):
+            lines.append(f"FAIL {path.stem}  {loaded}")
             failed = True
             continue
+        concept = loaded
         has_fields = bool(_fields(concept))
         if has_fields:
             fielded += 1
@@ -391,7 +554,7 @@ def validate_dir(schema_path: Path, concepts_dir: Path) -> tuple[list[str], int]
         known_total += known
         layout_only_total += layout_only
         census = f"[meaning: {known} known, {layout_only} layout-only]"
-        kind, detail = classify(concept, schema)
+        kind, detail = classify(concept, schema, cards_by_uid)
         if kind == "legacy":
             lines.append(f"LEGACY {path.stem} ({detail})  {census}")
         elif kind == "fail":
