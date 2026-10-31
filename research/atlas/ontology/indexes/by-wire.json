@@ -16,7 +16,10 @@
     "0x5de": "msg.request-spend-attribute-points",
     "0xf37": "msg.server-equip-item",
     "0x18a6": "msg.grid-tracking-update-phasing",
-    "0x1a59": "msg.grid-tracking-client-ack-phasing"
+    "0x1a59": "msg.grid-tracking-client-ack-phasing",
+    "0x5b2": "msg.objectives-update-tracked-objectives",
+    "0x9fc": "msg.contracts-lookup-contracts-by-participant",
+    "0xa95": "msg.objectives-set-objective-auto-pinning"
   },
   "$comment": "Wire-type to concept. A wire type enters this index only when its identification is proven. 0x5d1 is absent because its identification is a candidate. 449 is absent because its AddActorMessage pairing was a name/GUID adjacency false positive: the name binds to 121, proven by FUN_146ac20a0 building both halves. 0x651 and 0x18a6 entered on 2026-10-26 through the registration hook, corroborated for 0x18a6 by the client's own log and by .rdata adjacency, and for 0x651 by the hook alone."
 }

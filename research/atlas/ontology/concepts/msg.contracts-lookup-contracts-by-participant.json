@@ -1,0 +1,157 @@
+{
+  "uid": "msg.contracts-lookup-contracts-by-participant",
+  "kind": "message",
+  "name": "ContractsComponentServerFacet_LookupContractsByParticipant",
+  "aliases": ["wire:0x9fc", "LookupContractsByParticipant"],
+  "summary": "The client's contracts lookup by participant. The atlas states a skeleton only (head + 16-byte id + 3x u32 + str <= 64 + str <= 256 + u32 + u32-vec <= 3 + u16-vec <= 25 + 16-byte id, ~68..451 B, C2S) but gives no closed-vocabulary codec for the two length-capped 'str' fields, so those stay opaque and the card is REFUSED.",
+  "purpose": "The journal/contracts facet asks the server for the contracts a participant may look up; the contracts family expects a reply (ContractsComponentClientFacet_OnLookupContractsByParticipant). Not modelled until the two 'str' codecs are stated.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the player opens the contracts surface for a participant in the journal"],
+    "if_absent": "the client's contracts lookup is never answered"
+  },
+  "wire": {
+    "id": "0x9fc",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint bc 27, i.e. type_dec 2556. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
+  "fields": [
+    {
+      "name": "field_a",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "partial",
+      "note": "First of the shared 16-byte head (FUN_1414dbca0). meanings.md 'The Journal families' row 0x9fc: 'head'.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "field_b",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "partial",
+      "note": "Second head u64. meanings.md 'The Journal families' row 0x9fc: 'head'.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "participant_id",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 16,
+      "type": "bytes(16)",
+      "evidence": "partial",
+      "note": "meanings.md 'The Journal families' row 0x9fc: '16-byte id'. Carried as a raw 16-byte run (bytes(16)); the atlas does not say GUID, so it is not claimed as one.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "u32_be_1",
+      "where": "wire",
+      "offset": "0x20",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "partial",
+      "note": "First of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "u32_be_2",
+      "where": "wire",
+      "offset": "0x24",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "partial",
+      "note": "Second of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "u32_be_3",
+      "where": "wire",
+      "offset": "0x28",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "partial",
+      "note": "Third of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "text_64",
+      "where": "wire",
+      "offset": "0x2c",
+      "type": "opaque(contracts.text64)",
+      "evidence": "partial",
+      "max": 64,
+      "note": "The atlas says 'str <= 64' but the closed vocabulary has no 'str' member; its length-prefixed members are prefixed_string (UTF-8) and prefixed_bytes (raw), and the same 64 cap is called a raw byte blob by the Contracts sub-codec A table. The codec is therefore undetermined and stays opaque, which refuses codegen. meanings.md 'The Journal families' row 0x9fc and 'Contracts closed, 2026-10-29' sub-codec A.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "text_256",
+      "where": "wire",
+      "offset": "0x2c",
+      "type": "opaque(contracts.text256)",
+      "evidence": "partial",
+      "max": 256,
+      "note": "The atlas says 'str <= 256' (the same cap as Contracts sub-codec B), with no closed-vocabulary codec; stays opaque. meanings.md 'The Journal families' row 0x9fc and 'Contracts closed, 2026-10-29' sub-codec B.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "count_u32",
+      "where": "wire",
+      "offset": "0x2c",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "partial",
+      "note": "The bare 'u32'. meanings.md 'The Journal families' row 0x9fc.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "index_ids",
+      "where": "wire",
+      "type": "vec<u32be>",
+      "evidence": "partial",
+      "max": 3,
+      "count": "prefix_varint",
+      "note": "The 'u32-vec <= 3': prefix-varint count, then count x u32 BE. meanings.md 'The Journal families' row 0x9fc.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "type_ids",
+      "where": "wire",
+      "type": "vec<u16be>",
+      "evidence": "partial",
+      "max": 25,
+      "count": "prefix_varint",
+      "note": "The 'u16-vec <= 25': prefix-varint count, then count x u16 BE. meanings.md 'The Journal families' row 0x9fc.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "trailing_id",
+      "where": "wire",
+      "size": 16,
+      "type": "bytes(16)",
+      "evidence": "partial",
+      "note": "The final '16-byte id'. meanings.md 'The Journal families' row 0x9fc.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The Journal families: enumerated wires and the first decoded entry points (2026-10-29)': row 0x9fc ContractsComponentServerFacet_LookupContractsByParticipant is '~68..451 B: head + 16-byte id + 3x u32 + str <= 64 + str <= 256 + u32 + u32-vec <= 3 + u16-vec <= 25 + 16-byte id', writer FUN_142d9e5d0 / reader FUN_142d9e7a0"
+    },
+    {
+      "type": "capture",
+      "ref": "local log .azoth/logs/world.log: channel-0 records for wire 0x9fc carry 72- and 74-byte bodies that match the stated skeleton (head/id/3x u32/two zero-length length-prefixed fields/u32/u32-vec/u16-vec/16-byte id); the two length-prefixed fields are empty in every sample, so the bytes cannot settle the str/prefixed_string/prefixed_bytes question. Extracted by scripts/export/export-wire-bodies.py"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

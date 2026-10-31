@@ -58,6 +58,15 @@ TARGETS: dict[int, str] = {
     0x8: "ReplicatedStateBundle (spawn record)",
     0x5de: "AttributeComponentServerFacet_RequestSpendAttributePoints",
     0xf37: "PaperdollComponentServerFacet_ServerEquipItem",
+    # The six inbound requests the SERVER-CONTRACT orders a playable world to
+    # answer. All six are client -> server, so their bodies are in a client
+    # channel-0/1 record (a local log), never in the server->client corpus.
+    0x9d3: "PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient",
+    0x5b2: "ObjectivesComponentServerFacet_UpdateTrackedObjectives",
+    0xa95: "ObjectivesComponentServerFacet_SetObjectiveAutoPinning",
+    0x9fc: "ContractsComponentServerFacet_LookupContractsByParticipant",
+    0x183: "GlobalStorageComponentServerFacet_SetReplicateStorage",
+    0x1098: "TimeComponentServerFacet_SyncToClient",
 }
 
 

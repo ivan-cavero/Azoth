@@ -356,6 +356,16 @@ MESSAGES = {
             ('blob', 'prefixed_bytes'),
         ),
     },
+    1458: {
+        'uid': 'msg.objectives-update-tracked-objectives',
+        'name': 'ObjectivesComponentServerFacet_UpdateTrackedObjectives',
+        'direction': 'C2S',
+        'fields': (
+            ('field_a', 'u64be'),
+            ('field_b', 'u64be'),
+            ('tracked_objective_ids', 'vec<u64be>'),
+        ),
+    },
     1502: {
         'uid': 'msg.request-spend-attribute-points',
         'name': 'AttributeComponentServerFacet_RequestSpendAttributePoints',
@@ -397,6 +407,16 @@ MESSAGES = {
             ('session_nonce', 'u64be'),
             ('unresolved_group', 'bytes(10)'),
             ('level_context_key', 'u64be'),
+        ),
+    },
+    2709: {
+        'uid': 'msg.objectives-set-objective-auto-pinning',
+        'name': 'ObjectivesComponentServerFacet_SetObjectiveAutoPinning',
+        'direction': 'C2S',
+        'fields': (
+            ('field_a', 'u64be'),
+            ('field_b', 'u64be'),
+            ('auto_pinning_flags', 'vec<bool_byte>'),
         ),
     },
     3895: {

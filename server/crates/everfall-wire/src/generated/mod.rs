@@ -143,6 +143,70 @@ impl MsgUpdate {
     }
 }
 
+/// `msg.objectives-update-tracked-objectives` — one Atlas card.
+///
+/// Message card, wire id `1458`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgObjectivesUpdateTrackedObjectives {
+    /// Body field `field_a` (`u64be`).
+    pub field_a: u64,
+    /// Body field `field_b` (`u64be`).
+    pub field_b: u64,
+    /// Body field `tracked_objective_ids` (`vec<u64be>`).
+    pub tracked_objective_ids: Vec<u64>,
+}
+
+impl MsgObjectivesUpdateTrackedObjectives {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.objectives-update-tracked-objectives";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 1458;
+
+    /// Decode one `msg.objectives-update-tracked-objectives` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let field_a = reader.u64be("field_a")?;
+        let field_b = reader.u64be("field_b")?;
+        let count = reader.prefix_varint("tracked_objective_ids")?;
+        if count > 8 {
+            return Err(WireError::OutOfRange {
+                field: "tracked_objective_ids",
+                max: 8,
+                value: count,
+            });
+        }
+        let mut tracked_objective_ids = Vec::new();
+        for _ in 0..count {
+            tracked_objective_ids.push(reader.u64be("tracked_objective_ids")?);
+        }
+        reader.finish()?;
+        Ok(Self {
+            field_a,
+            field_b,
+            tracked_objective_ids,
+        })
+    }
+
+    /// Encode one `msg.objectives-update-tracked-objectives` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        writer.u64be(self.field_a);
+        writer.u64be(self.field_b);
+        writer.prefix_varint(self.tracked_objective_ids.len() as u64)?;
+        for value in &self.tracked_objective_ids {
+            writer.u64be(*value);
+        }
+        Ok(())
+    }
+}
+
 /// `msg.request-spend-attribute-points` — one Atlas card.
 ///
 /// Message card, wire id `1502`.
@@ -415,6 +479,70 @@ impl FlowWorldEntryRungLevelInfo {
         writer.u64be(self.session_nonce);
         writer.opaque(&self.unresolved_group);
         writer.u64be(self.level_context_key);
+        Ok(())
+    }
+}
+
+/// `msg.objectives-set-objective-auto-pinning` — one Atlas card.
+///
+/// Message card, wire id `2709`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgObjectivesSetObjectiveAutoPinning {
+    /// Body field `field_a` (`u64be`).
+    pub field_a: u64,
+    /// Body field `field_b` (`u64be`).
+    pub field_b: u64,
+    /// Body field `auto_pinning_flags` (`vec<bool_byte>`).
+    pub auto_pinning_flags: Vec<bool>,
+}
+
+impl MsgObjectivesSetObjectiveAutoPinning {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.objectives-set-objective-auto-pinning";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 2709;
+
+    /// Decode one `msg.objectives-set-objective-auto-pinning` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let field_a = reader.u64be("field_a")?;
+        let field_b = reader.u64be("field_b")?;
+        let count = reader.prefix_varint("auto_pinning_flags")?;
+        if count > 36 {
+            return Err(WireError::OutOfRange {
+                field: "auto_pinning_flags",
+                max: 36,
+                value: count,
+            });
+        }
+        let mut auto_pinning_flags = Vec::new();
+        for _ in 0..count {
+            auto_pinning_flags.push(reader.bool_byte("auto_pinning_flags")?);
+        }
+        reader.finish()?;
+        Ok(Self {
+            field_a,
+            field_b,
+            auto_pinning_flags,
+        })
+    }
+
+    /// Encode one `msg.objectives-set-objective-auto-pinning` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        writer.u64be(self.field_a);
+        writer.u64be(self.field_b);
+        writer.prefix_varint(self.auto_pinning_flags.len() as u64)?;
+        for value in &self.auto_pinning_flags {
+            writer.u8(u8::from(*value));
+        }
         Ok(())
     }
 }

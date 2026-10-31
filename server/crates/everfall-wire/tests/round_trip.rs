@@ -11,7 +11,8 @@ use std::path::PathBuf;
 
 use everfall_wire::generated::{
     FlowWorldEntryRungLevelInfo, FlowWorldEntryRungRegistration,
-    FlowWorldEntryRungSelfIdentification,
+    FlowWorldEntryRungSelfIdentification, MsgObjectivesSetObjectiveAutoPinning,
+    MsgObjectivesUpdateTrackedObjectives,
 };
 
 fn fixture_text() -> String {
@@ -115,4 +116,77 @@ fn self_identification_0x65c_round_trips() {
     decoded.encode(&mut out).expect("encode 0x65c");
     assert_eq!(out, body, "0x65c did not round-trip byte for byte");
     println!("0x65c body: {} bytes round-tripped", body.len());
+}
+
+#[test]
+fn update_tracked_objectives_0x5b2_round_trips() {
+    let fixture = fixture_text();
+    let body = body_for(&fixture, 0x5b2);
+    assert!(
+        (17..=81).contains(&body.len()),
+        "0x5b2 body is inside the stated 17..81 range"
+    );
+    assert_eq!(MsgObjectivesUpdateTrackedObjectives::WIRE_ID, 0x5b2);
+
+    let decoded = MsgObjectivesUpdateTrackedObjectives::decode(&body).expect("decode 0x5b2");
+    assert_eq!(
+        decoded.field_a, 0x180f_8d4e_5736_97c6,
+        "0x5b2 first head u64"
+    );
+    assert_eq!(
+        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        "0x5b2 second head u64"
+    );
+    assert!(
+        decoded.tracked_objective_ids.len() <= 8,
+        "0x5b2 count is bounded by the stated max"
+    );
+
+    let mut out = Vec::new();
+    decoded.encode(&mut out).expect("encode 0x5b2");
+    assert_eq!(out, body, "0x5b2 did not round-trip byte for byte");
+    println!("0x5b2 body: {} bytes round-tripped", body.len());
+}
+
+#[test]
+fn set_objective_auto_pinning_0xa95_round_trips() {
+    let fixture = fixture_text();
+    let body = body_for(&fixture, 0xa95);
+    assert!(
+        (17..=53).contains(&body.len()),
+        "0xa95 body is inside the stated 17..53 range"
+    );
+    assert_eq!(MsgObjectivesSetObjectiveAutoPinning::WIRE_ID, 0xa95);
+
+    let decoded = MsgObjectivesSetObjectiveAutoPinning::decode(&body).expect("decode 0xa95");
+    assert_eq!(
+        decoded.field_a, 0x180f_8d4e_5736_97c6,
+        "0xa95 first head u64"
+    );
+    assert_eq!(
+        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        "0xa95 second head u64"
+    );
+    assert!(
+        decoded.auto_pinning_flags.len() <= 36,
+        "0xa95 count is bounded by the stated max"
+    );
+
+    let mut out = Vec::new();
+    decoded.encode(&mut out).expect("encode 0xa95");
+    assert_eq!(out, body, "0xa95 did not round-trip byte for byte");
+    println!("0xa95 body: {} bytes round-tripped", body.len());
+}
+
+#[test]
+fn objectives_count_caps_are_enforced() {
+    // The card states a count cap; a body whose prefix-varint count is over the
+    // cap must be rejected rather than read as an unbounded vector.
+    let mut update = vec![0u8; 16];
+    update.push(9); // 0x5b2 states at most 8 tracked-objective ids
+    assert!(MsgObjectivesUpdateTrackedObjectives::decode(&update).is_err());
+
+    let mut pinning = vec![0u8; 16];
+    pinning.push(37); // 0xa95 states at most 36 flag bytes
+    assert!(MsgObjectivesSetObjectiveAutoPinning::decode(&pinning).is_err());
 }

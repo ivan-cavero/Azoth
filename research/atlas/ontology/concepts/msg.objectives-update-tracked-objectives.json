@@ -1,0 +1,70 @@
+{
+  "uid": "msg.objectives-update-tracked-objectives",
+  "kind": "message",
+  "name": "ObjectivesComponentServerFacet_UpdateTrackedObjectives",
+  "aliases": ["wire:0x5b2", "UpdateTrackedObjectives"],
+  "summary": "The client's tracked-objectives update: the shared 16-byte head (two u64 BE) then a prefix-varint count (<= 8) and that many u64 BE tracked-objective ids. 17..81 byte body, C2S. Live channel-0 records match the writer/reader layout field for field.",
+  "purpose": "Tell the server which objectives the player is tracking. The server changes the objectives replicated state; the Objectives family has no reply for this request.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the player tracks, untracks, or reorders a tracked objective in the journal"],
+    "if_absent": "the server never learns the tracked-objective set and cannot replay it"
+  },
+  "wire": {
+    "id": "0x5b2",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint b2 16, i.e. type_dec 1458. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
+  "fields": [
+    {
+      "name": "field_a",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "First of the shared 16-byte head (FUN_1414dbca0, reader FUN_14150e670). Measured 0x180f8d4e573697c6 in the live channel-0 bodies. meanings.md 'The Journal families' row 0x5b2: 'head'.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "field_b",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Second head u64. Measured 0xbf85314bbc4a951a (the local-player key the atlas already documents). meanings.md 'The Journal families' row 0x5b2: 'head'.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "tracked_objective_ids",
+      "where": "wire",
+      "offset": "0x10",
+      "size": "1 + 8n",
+      "type": "vec<u64be>",
+      "evidence": "measured",
+      "max": 8,
+      "count": "prefix_varint",
+      "note": "Prefix-varint count (stated <= 8) then count x u64 BE. meanings.md 'The Journal families' row 0x5b2: 'head + varint(len <= 8) + N u64 BE'. Live bodies show count 0 (17-byte body) and count 6 (65-byte body).",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The Journal families: enumerated wires and the first decoded entry points (2026-10-29)': row 0x5b2 ObjectivesComponentServerFacet_UpdateTrackedObjectives is '17..81 B: head + varint(len <= 8) + N u64 BE', writer FUN_1439f2c00 / reader FUN_1439f2c60; the name is proven by the registration hook (meanings.md '0x5b2 keeps its original name', GUID 298436a9-06d0-4bda-8dd9-0708b36e7374)"
+    },
+    {
+      "type": "capture",
+      "ref": "local log .azoth/logs/world.log: channel-0 records for wire 0x5b2 carry 17-byte (count 0) and 65-byte (count 6) bodies, both matching the writer/reader order and codec; extracted by scripts/export/export-wire-bodies.py"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

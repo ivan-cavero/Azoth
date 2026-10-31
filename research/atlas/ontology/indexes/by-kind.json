@@ -24,9 +24,12 @@
     "message": [
       "msg.add-actor",
       "msg.client-add-entry",
+      "msg.contracts-lookup-contracts-by-participant",
       "msg.fragment-update",
       "msg.grid-tracking-client-ack-phasing",
       "msg.grid-tracking-update-phasing",
+      "msg.objectives-set-objective-auto-pinning",
+      "msg.objectives-update-tracked-objectives",
       "msg.receive-player-spawn-point",
       "msg.request-spend-attribute-points",
       "msg.replicate",

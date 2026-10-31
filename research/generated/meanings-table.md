@@ -212,6 +212,27 @@
 | --- | --- | --- | --- | --- |
 | actor_id | opaque(actor_id) | 0x04 | measured | Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0. This is the strongest cross-check in the whole inventory: the same 16 bytes appear as the spawn record's actor id at payload offset 29,731 and as the pinned ACTOR_ID constant in the deleted azoth-wire crate. Three independent sources, one value. |
 
+## msg.contracts-lookup-contracts-by-participant — ContractsComponentServerFacet_LookupContractsByParticipant
+
+- wire 0x9fc, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **refused** — opaque fields: text_64, text_256
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| field_a | u64be | 0x00 | partial | First of the shared 16-byte head (FUN_1414dbca0). meanings.md 'The Journal families' row 0x9fc: 'head'. |
+| field_b | u64be | 0x08 | partial | Second head u64. meanings.md 'The Journal families' row 0x9fc: 'head'. |
+| participant_id | bytes(16) | 0x10 | partial | meanings.md 'The Journal families' row 0x9fc: '16-byte id'. Carried as a raw 16-byte run (bytes(16)); the atlas does not say GUID, so it is not claimed as one. |
+| u32_be_1 | u32be | 0x20 | partial | First of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc. |
+| u32_be_2 | u32be | 0x24 | partial | Second of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc. |
+| u32_be_3 | u32be | 0x28 | partial | Third of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc. |
+| text_64 | opaque(contracts.text64) | 0x2c | partial | The atlas says 'str <= 64' but the closed vocabulary has no 'str' member; its length-prefixed members are prefixed_string (UTF-8) and prefixed_bytes (raw), and the same 64 cap is called a raw byte blob by the Contracts sub-codec A table. The codec is therefore undetermined and stays opaque, which refuses codegen. meanings.md 'The Journal families' row 0x9fc and 'Contracts closed, 2026-10-29' sub-codec A. |
+| text_256 | opaque(contracts.text256) | 0x2c | partial | The atlas says 'str <= 256' (the same cap as Contracts sub-codec B), with no closed-vocabulary codec; stays opaque. meanings.md 'The Journal families' row 0x9fc and 'Contracts closed, 2026-10-29' sub-codec B. |
+| count_u32 | u32be | 0x2c | partial | The bare 'u32'. meanings.md 'The Journal families' row 0x9fc. |
+| index_ids | vec<u32be> | — | partial | The 'u32-vec <= 3': prefix-varint count, then count x u32 BE. meanings.md 'The Journal families' row 0x9fc. |
+| type_ids | vec<u16be> | — | partial | The 'u16-vec <= 25': prefix-varint count, then count x u16 BE. meanings.md 'The Journal families' row 0x9fc. |
+| trailing_id | bytes(16) | — | partial | The final '16-byte id'. meanings.md 'The Journal families' row 0x9fc. |
+
 ## msg.fragment-update — FragmentUpdateMsg
 
 - wire 422, S2C
@@ -242,6 +263,30 @@
 | session_nonce | u64be | 0x18 | partial | Measured 9c fa 58 61 78 14 69 f2, the SAME value that LevelInfoChangedMsg carries at 0x54. Two different message types sharing a value is the strongest kind of field evidence in this inventory, and the value differs per session rather than per record, which is why it is called a session nonce. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
 | unresolved_tag_at_0x20 | opaque(unresolved_tag_at_0x20) | 0x20 | unknown | Measured 65 03 00 00 00 00, also present at the same place in the level-info tail. 65 03 00 00 is 869 as a little-endian u32, which reads like a version or protocol tag; unproven. |
 | sequence_counter | u8 | 0x26 | measured | The last byte of the record. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order. The byte before it is 0x02 in all four instances. |
+
+## msg.objectives-set-objective-auto-pinning — ObjectivesComponentServerFacet_SetObjectiveAutoPinning
+
+- wire 0xa95, C2S
+- kind: message; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| field_a | u64be | 0x00 | measured | First of the shared 16-byte head (FUN_1414dbca0, reader FUN_14150e670). Measured 0x180f8d4e573697c6 in the live channel-0 body. meanings.md 'The Journal families' row 0xa95: 'head'. |
+| field_b | u64be | 0x08 | measured | Second head u64. Measured 0xbf85314bbc4a951a. meanings.md 'The Journal families' row 0xa95: 'head'. |
+| auto_pinning_flags | vec<bool_byte> | 0x10 | measured | Prefix-varint count (stated <= 36) then count bool bytes. meanings.md 'The Journal families' row 0xa95: 'head + varint(len <= 36) + N bool bytes'. The live channel-0 body carries count 36 (0x24) and 36 flag bytes. |
+
+## msg.objectives-update-tracked-objectives — ObjectivesComponentServerFacet_UpdateTrackedObjectives
+
+- wire 0x5b2, C2S
+- kind: message; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| field_a | u64be | 0x00 | measured | First of the shared 16-byte head (FUN_1414dbca0, reader FUN_14150e670). Measured 0x180f8d4e573697c6 in the live channel-0 bodies. meanings.md 'The Journal families' row 0x5b2: 'head'. |
+| field_b | u64be | 0x08 | measured | Second head u64. Measured 0xbf85314bbc4a951a (the local-player key the atlas already documents). meanings.md 'The Journal families' row 0x5b2: 'head'. |
+| tracked_objective_ids | vec<u64be> | 0x10 | measured | Prefix-varint count (stated <= 8) then count x u64 BE. meanings.md 'The Journal families' row 0x5b2: 'head + varint(len <= 8) + N u64 BE'. Live bodies show count 0 (17-byte body) and count 6 (65-byte body). |
 
 ## msg.receive-player-spawn-point — ReceivePlayerSpawnPointMsg
 

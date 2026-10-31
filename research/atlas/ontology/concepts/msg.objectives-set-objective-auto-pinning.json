@@ -1,0 +1,70 @@
+{
+  "uid": "msg.objectives-set-objective-auto-pinning",
+  "kind": "message",
+  "name": "ObjectivesComponentServerFacet_SetObjectiveAutoPinning",
+  "aliases": ["wire:0xa95", "SetObjectiveAutoPinning"],
+  "summary": "The client's objective auto-pinning flag set: the shared 16-byte head (two u64 BE) then a prefix-varint count (<= 36) and that many bool bytes. 17..53 byte body, C2S. A live channel-0 record matches the writer/reader layout field for field.",
+  "purpose": "Tell the server which journal objective slots are auto-pinned. The server changes the objectives replicated state; the Objectives family has no reply for this request.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the player toggles auto-pinning for one or more tracked objectives"],
+    "if_absent": "the server never learns the auto-pinning flags and cannot replay them"
+  },
+  "wire": {
+    "id": "0xa95",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint 95 2a, i.e. type_dec 2709. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
+  "fields": [
+    {
+      "name": "field_a",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "First of the shared 16-byte head (FUN_1414dbca0, reader FUN_14150e670). Measured 0x180f8d4e573697c6 in the live channel-0 body. meanings.md 'The Journal families' row 0xa95: 'head'.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "field_b",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Second head u64. Measured 0xbf85314bbc4a951a. meanings.md 'The Journal families' row 0xa95: 'head'.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    },
+    {
+      "name": "auto_pinning_flags",
+      "where": "wire",
+      "offset": "0x10",
+      "size": "1 + n",
+      "type": "vec<bool_byte>",
+      "evidence": "measured",
+      "max": 36,
+      "count": "prefix_varint",
+      "note": "Prefix-varint count (stated <= 36) then count bool bytes. meanings.md 'The Journal families' row 0xa95: 'head + varint(len <= 36) + N bool bytes'. The live channel-0 body carries count 36 (0x24) and 36 flag bytes.",
+      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The Journal families: enumerated wires and the first decoded entry points (2026-10-29)': row 0xa95 ObjectivesComponentServerFacet_SetObjectiveAutoPinning is '17..53 B: head + varint(len <= 36) + N bool bytes', writer FUN_1439f0870 / reader FUN_1439f0910"
+    },
+    {
+      "type": "capture",
+      "ref": "local log .azoth/logs/world.log: channel-0 record for wire 0xa95 carries a 53-byte body (16-byte head + count 0x24 + 36 flag bytes) matching the writer/reader order and codec; extracted by scripts/export/export-wire-bodies.py"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}
