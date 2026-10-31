@@ -148,8 +148,8 @@ impl MsgUpdate {
 /// Message card, wire id `387`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgSetReplicateStorage {
-    /// Body field `field_a` (`u64be`); meaning unnamed.
-    pub field_a: u64,
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
     /// Body field `local_actor_id_word0` (`u64be`).
     pub local_actor_id_word0: u64,
     /// Body field `field_c` (`bytes(16)`); meaning unnamed.
@@ -169,12 +169,12 @@ impl MsgSetReplicateStorage {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let field_a = reader.u64be("field_a")?;
+        let local_facet_id = reader.u64be("local_facet_id")?;
         let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let field_c = reader.opaque("field_c", "msg.set-replicate-storage.field_c", 16)?;
         reader.finish()?;
         Ok(Self {
-            field_a,
+            local_facet_id,
             local_actor_id_word0,
             field_c,
         })
@@ -186,7 +186,7 @@ impl MsgSetReplicateStorage {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
-        writer.u64be(self.field_a);
+        writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.opaque(&self.field_c);
         Ok(())
@@ -198,8 +198,8 @@ impl MsgSetReplicateStorage {
 /// Message card, wire id `1458`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgObjectivesUpdateTrackedObjectives {
-    /// Body field `field_a` (`u64be`); meaning unnamed.
-    pub field_a: u64,
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
     /// Body field `local_actor_id_word0` (`u64be`).
     pub local_actor_id_word0: u64,
     /// Body field `tracked_objective_ids` (`vec<u64be>`).
@@ -219,7 +219,7 @@ impl MsgObjectivesUpdateTrackedObjectives {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let field_a = reader.u64be("field_a")?;
+        let local_facet_id = reader.u64be("local_facet_id")?;
         let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let count = reader.prefix_varint("tracked_objective_ids")?;
         if count > 8 {
@@ -235,7 +235,7 @@ impl MsgObjectivesUpdateTrackedObjectives {
         }
         reader.finish()?;
         Ok(Self {
-            field_a,
+            local_facet_id,
             local_actor_id_word0,
             tracked_objective_ids,
         })
@@ -247,7 +247,7 @@ impl MsgObjectivesUpdateTrackedObjectives {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
-        writer.u64be(self.field_a);
+        writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.tracked_objective_ids.len() as u64)?;
         for value in &self.tracked_objective_ids {
@@ -262,8 +262,8 @@ impl MsgObjectivesUpdateTrackedObjectives {
 /// Message card, wire id `1502`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgRequestSpendAttributePoints {
-    /// Body field `field_a` (`u64be`); meaning unnamed.
-    pub field_a: u64,
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
     /// Body field `local_actor_id_word0` (`u64be`).
     pub local_actor_id_word0: u64,
     /// Body field `attribute_indices` (`vec<u32be>`).
@@ -285,7 +285,7 @@ impl MsgRequestSpendAttributePoints {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let field_a = reader.u64be("field_a")?;
+        let local_facet_id = reader.u64be("local_facet_id")?;
         let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let count = reader.prefix_varint("attribute_indices")?;
         if count > 4 {
@@ -313,7 +313,7 @@ impl MsgRequestSpendAttributePoints {
         }
         reader.finish()?;
         Ok(Self {
-            field_a,
+            local_facet_id,
             local_actor_id_word0,
             attribute_indices,
             points,
@@ -326,7 +326,7 @@ impl MsgRequestSpendAttributePoints {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
-        writer.u64be(self.field_a);
+        writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.attribute_indices.len() as u64)?;
         for value in &self.attribute_indices {
@@ -538,8 +538,8 @@ impl FlowWorldEntryRungLevelInfo {
 /// Message card, wire id `2515`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgReceiveSettingsFromClient {
-    /// Body field `field_a` (`u64be`); meaning unnamed.
-    pub field_a: u64,
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
     /// Body field `local_actor_id_word0` (`u64be`).
     pub local_actor_id_word0: u64,
     /// Body field `field_c` (`u32be`); meaning unnamed.
@@ -559,12 +559,12 @@ impl MsgReceiveSettingsFromClient {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let field_a = reader.u64be("field_a")?;
+        let local_facet_id = reader.u64be("local_facet_id")?;
         let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let field_c = reader.u32be("field_c")?;
         reader.finish()?;
         Ok(Self {
-            field_a,
+            local_facet_id,
             local_actor_id_word0,
             field_c,
         })
@@ -576,7 +576,7 @@ impl MsgReceiveSettingsFromClient {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
-        writer.u64be(self.field_a);
+        writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.u32be(self.field_c);
         Ok(())
@@ -588,8 +588,8 @@ impl MsgReceiveSettingsFromClient {
 /// Message card, wire id `2556`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgContractsLookupContractsByParticipant {
-    /// Body field `field_a` (`u64be`); meaning unnamed.
-    pub field_a: u64,
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
     /// Body field `local_actor_id_word0` (`u64be`).
     pub local_actor_id_word0: u64,
     /// Body field `participant_id` (`bytes(16)`); meaning unnamed.
@@ -627,7 +627,7 @@ impl MsgContractsLookupContractsByParticipant {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let field_a = reader.u64be("field_a")?;
+        let local_facet_id = reader.u64be("local_facet_id")?;
         let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let participant_id = reader.opaque(
             "participant_id",
@@ -691,7 +691,7 @@ impl MsgContractsLookupContractsByParticipant {
         )?;
         reader.finish()?;
         Ok(Self {
-            field_a,
+            local_facet_id,
             local_actor_id_word0,
             participant_id,
             u32_be_1,
@@ -712,7 +712,7 @@ impl MsgContractsLookupContractsByParticipant {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
-        writer.u64be(self.field_a);
+        writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.opaque(&self.participant_id);
         writer.u32be(self.u32_be_1);
@@ -739,8 +739,8 @@ impl MsgContractsLookupContractsByParticipant {
 /// Message card, wire id `2709`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgObjectivesSetObjectiveAutoPinning {
-    /// Body field `field_a` (`u64be`); meaning unnamed.
-    pub field_a: u64,
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
     /// Body field `local_actor_id_word0` (`u64be`).
     pub local_actor_id_word0: u64,
     /// Body field `auto_pinning_flags` (`vec<bool_byte>`).
@@ -760,7 +760,7 @@ impl MsgObjectivesSetObjectiveAutoPinning {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let field_a = reader.u64be("field_a")?;
+        let local_facet_id = reader.u64be("local_facet_id")?;
         let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let count = reader.prefix_varint("auto_pinning_flags")?;
         if count > 36 {
@@ -776,7 +776,7 @@ impl MsgObjectivesSetObjectiveAutoPinning {
         }
         reader.finish()?;
         Ok(Self {
-            field_a,
+            local_facet_id,
             local_actor_id_word0,
             auto_pinning_flags,
         })
@@ -788,7 +788,7 @@ impl MsgObjectivesSetObjectiveAutoPinning {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
-        writer.u64be(self.field_a);
+        writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.auto_pinning_flags.len() as u64)?;
         for value in &self.auto_pinning_flags {
@@ -803,8 +803,8 @@ impl MsgObjectivesSetObjectiveAutoPinning {
 /// Message card, wire id `3895`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgServerEquipItem {
-    /// Body field `field_a` (`u64be`); meaning unnamed.
-    pub field_a: u64,
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
     /// Body field `local_actor_id_word0` (`u64be`).
     pub local_actor_id_word0: u64,
     /// Body field `field_c` (`u32be`); meaning unnamed.
@@ -832,7 +832,7 @@ impl MsgServerEquipItem {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let field_a = reader.u64be("field_a")?;
+        let local_facet_id = reader.u64be("local_facet_id")?;
         let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let field_c = reader.u32be("field_c")?;
         let field_d = reader.u32be("field_d")?;
@@ -841,7 +841,7 @@ impl MsgServerEquipItem {
         let field_g = reader.bool_byte("field_g")?;
         reader.finish()?;
         Ok(Self {
-            field_a,
+            local_facet_id,
             local_actor_id_word0,
             field_c,
             field_d,
@@ -857,7 +857,7 @@ impl MsgServerEquipItem {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
-        writer.u64be(self.field_a);
+        writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.u32be(self.field_c);
         writer.u32be(self.field_d);
@@ -873,8 +873,8 @@ impl MsgServerEquipItem {
 /// Message card, wire id `4248`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgTimeSyncToClient {
-    /// Body field `field_a` (`u64be`); meaning unnamed.
-    pub field_a: u64,
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
     /// Body field `local_actor_id_word0` (`u64be`).
     pub local_actor_id_word0: u64,
 }
@@ -892,11 +892,11 @@ impl MsgTimeSyncToClient {
     /// a bound the card states.
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
-        let field_a = reader.u64be("field_a")?;
+        let local_facet_id = reader.u64be("local_facet_id")?;
         let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         reader.finish()?;
         Ok(Self {
-            field_a,
+            local_facet_id,
             local_actor_id_word0,
         })
     }
@@ -907,7 +907,7 @@ impl MsgTimeSyncToClient {
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
-        writer.u64be(self.field_a);
+        writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         Ok(())
     }

@@ -2007,7 +2007,7 @@ and `FUN_142750870`. Writer and reader agree field for field.
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian | `+0x10` |
 | 3 | attribute indices | prefix varint count, then count x `u32` BE, each <= 4 | `+0x40` |
 | 4 | points per attribute | prefix varint count, then count x `u32` BE, each <= 700 | `+0x20` |
@@ -2070,7 +2070,7 @@ So the blocker under `INTERACTION-DECOMP-PLAN.md` is one precondition, not 564 s
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian | `+0x10` |
 | 3 | `field_c` | `u32` BE, an int in `[-1, 501]` (`FUN_142e6bae0`) | `+0x60` |
 | 4 | `field_d` | `u32` BE, validated by `FUN_142d94d20` | `+0x58` |
@@ -2106,7 +2106,7 @@ The body is 45 bytes; the head (`FUN_1414dbca0`, two `u64` BE) is the shared env
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u64`, big-endian (`FUN_140877280`, htonl64 `FUN_1461668a0`) | `+0x20` |
 
@@ -2120,7 +2120,7 @@ Decoded 2026-10-29 with the same method as `0xda2`/`0x55` (registration accessor
 
 | # | field | codec | object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64` BE (shared head `FUN_1414dbca0`) | `+0x08` |
+| 1 | `local_facet_id` | `u64` BE (shared head `FUN_1414dbca0`) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64` BE (shared head) | `+0x10` |
 | 3 | `field_c` | `u8` raw (`FUN_140876e10`/`FUN_14087a330`), asserted `<= 0x0e` | `+0x40` |
 | 4 | `field_d` | `u32` BE (`FUN_140876ea0`/`FUN_14087a410`) | `+0x50` |
@@ -2128,13 +2128,13 @@ Decoded 2026-10-29 with the same method as `0xda2`/`0x55` (registration accessor
 | 6 | `field_f` | `u32` BE | `+0x58` |
 | 7 | `field_g` | `u8` bool `< 2` (`FUN_1408787b0`) | `+0x60` |
 
-**`GroupsComponentServerFacet_CancelPing` `0xd9e`** (record `0x1434403e0`, facet `0x1481d1878`, writer `0x14259f170` / reader `FUN_14259f180`) and **`GroupsComponentServerFacet_CancelTargetPing` `0xda3`** (record `0x1434405e0`, facet `0x1481d20b0`, same writer/reader pair) - **both head-only, body 16 B**: `field_a` `u64` BE `+0x08`, `local_actor_id_word0` `u64` BE `+0x10`.
+**`GroupsComponentServerFacet_CancelPing` `0xd9e`** (record `0x1434403e0`, facet `0x1481d1878`, writer `0x14259f170` / reader `FUN_14259f180`) and **`GroupsComponentServerFacet_CancelTargetPing` `0xda3`** (record `0x1434405e0`, facet `0x1481d20b0`, same writer/reader pair) - **both head-only, body 16 B**: `local_facet_id` `u64` BE `+0x08`, `local_actor_id_word0` `u64` BE `+0x10`.
 
 **`GroupsComponentServerFacet_RequestRemoveRaidMember` `0xdac`** (record `0x143445be0`, facet `0x1481d5200`, writer `FUN_1433fc730` / reader `FUN_1432739d0`) - **body `16 + 1 + N`, N <= 40 -> 17..57 B**
 
 | # | field | codec | object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64` BE (shared head) | `+0x08` |
+| 1 | `local_facet_id` | `u64` BE (shared head) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64` BE (shared head) | `+0x10` |
 | 3 | `field_c_len` | prefix-varint length (`FUN_140877b10`/`FUN_14087b760`), bounded `< 0x29` | vector size (`+0x48`-`+0x20`) |
 | 4 | `field_c_data` | `field_c_len` raw bytes (`FUN_140876e10`/`FUN_14087a330` loop) | inline buffer `+0x20..+0x48` |
@@ -2365,7 +2365,7 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; **49/49 w
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u32`, big-endian (`FUN_140876e70`, htonl `FUN_146166830`) | `+0x20` |
 
@@ -2377,7 +2377,7 @@ The body is 20 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) th
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 
 The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37` and `0xda2` also use. The writer is the head writer reached through a `jmp` thunk and the reader `FUN_14259f180` calls only the head reader `FUN_14150e670`, with no extra codec; there is no third field on either side. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x1676` as a 16-byte body - read the two `u64` BE head fields and nothing else - before summoning the mount, since expecting a longer body would desynchronize the stream.
@@ -2388,7 +2388,7 @@ The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that 
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u32`, big-endian (`FUN_140876e70`, reader `FUN_14087a3c0`) | `+0x28` |
 | 4 | `field_d` | `u32`, big-endian (`FUN_140876e70`, reader `FUN_14087a3c0`), validated `<= 100000000` by `FUN_142e6bbb0` | `+0x24` |
@@ -2402,7 +2402,7 @@ The body is 25 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) th
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 
 The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37`, `0xda2`, `0x55` and `0x1676` also use. The writer is the head writer reached through a `jmp` thunk and the reader `FUN_14259f180` calls only the head reader `FUN_14150e670`, with no extra codec; there is no third field on either side. **This differs from its `0x5de` sibling:** `0x5de` (`RequestSpendAttributePoints`) carried two varint-counted `u32` vectors (attribute indices `<= 4`, then points `<= 700`) and its body was 26 bytes, but the refund sibling carries no vectors at all - it is a parameterless 16-byte head-only request. The writer (thunk `0x14259f170`) and reader (`0x14259f180`) are literally the same pair `0x1676` uses. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x969` as a 16-byte body - read the two `u64` BE head fields and nothing else - then refund the spent attribute points in replicated state; the `Attribute` family has zero reply messages, so nothing is sent back.
@@ -2446,7 +2446,7 @@ object vtable `+0x60` = `FUN_146566a10` and the reader is `+0x68` = `FUN_1465672
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u32` BE (`FUN_140876e70` writer / `FUN_14087a3c0` reader), validated by `FUN_142d94d20` | `+0x2c` |
 | 4 | `field_d` | `u32` BE (same codec pair), an int in `[-1, 501]` (`FUN_142e6bae0`) | `+0x28` |
@@ -2495,7 +2495,7 @@ is the ctor `0x1435f0110`. That ctor sets the message object's vtable to `0x1482
 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
-| 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
+| 1 | `local_facet_id` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
 | 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u32` BE (`FUN_140876e70` writer / `FUN_14087a3c0` reader) | `+0x88` |
 | 4 | `field_d` | nested container (see below): presence byte, prefix-varint vector of `0x58`-byte string pairs, one string, one `u32` BE | `+0x20` |
@@ -2717,7 +2717,7 @@ this order:
 
 | accessor | reads | becomes |
 | --- | --- | --- |
-| `FUN_1416c1c40(comp)` | `[ [GDE+8] + 8 ] + [GDE+0x10]` | `msg+0x08` (field_a) |
+| `FUN_1416c1c40(comp)` | `[ [GDE+8] + 8 ] + [GDE+0x10]` | `msg+0x08` (`local_facet_id`) |
 | `FUN_1416be9f0(comp, &tmp)` | `*[ FUN_14165c230(weak{GDE+0x60,+0x68,+0x70}) + 0x88 ]` | `msg+0x10` (field_b) |
 
 `GDE` is `*(comp+8)`: the object whose null-assert calls `UnsafePtr` / `SafePtr`
@@ -2737,7 +2737,7 @@ that caller is where the two accessors run; the rest call them inline.
 sessions (2026-10-19 20:52, 2026-10-19 21:06, 2026-10-20 17:02, 2026-10-20 17:19,
 2026-10-20 18:38):
 
-| wire | bodies | field_a | field_b |
+| wire | bodies | `local_facet_id` | `local_actor_id_word0` |
 | --- | --- | --- | --- |
 | `0x9d3` | 1 | `d1a94ccc870660b0` | `bf85314bbc4a951a` |
 | `0x9fc` | 8 | `4c0c0ed6478a69da` | `bf85314bbc4a951a` |
@@ -2764,15 +2764,87 @@ sources), and field_b is its first `u64` written big-endian. So field_b is named
 `local_actor_id_word0` and marked `meaning: known`: it is the front 8 bytes of
 the client's own actor id, an identity, never request data.
 
-field_a stays `layout-only`. The code says it is `[[GDE+8]+8] + [GDE+0x10]`, a
-base plus an offset, and the bytes say it is stable per facet across sessions -
-but nothing names the base or the offset. That is consistent with "the sending
-facet's local object id" (the 2026-10-14 measurement of the request shape already
-calls the 16 bytes after the type marker the target facet's local id, and a reply
-addressed to `93a3e477cb5fd51ebf85314bbc4a951a` dispatched 642/642 in
-`levers.md`), and being consistent is exactly why it is not a name. To name it:
-find the writer of `[[GDE+8]+8]` and of `[GDE+0x10]`, or the facet registration
-that stamps them, and see what it calls them.
+field_a was left `layout-only` here because the code only showed a base plus an
+offset and the bytes only showed stability. The writer of both terms was then
+found, and the value turned out to be the facet's own registered local id: see
+**The shared head's first u64 is the sending facet's local id** below. It is now
+named `local_facet_id` and marked `meaning: known` in every card that carries the
+head.
+
+## The shared head's first u64 is the sending facet's local id (2026-11-01)
+
+This closes the recipe the section above left open ("find the writer of
+`[[GDE+8]+8]` and of `[GDE+0x10]`, or the facet registration that stamps them, and
+see what it calls them"). Both were found, and the client names the value itself.
+Client build `30fe6461...`. Layout is untouched: the field is still `u64be` at
+body offset `0x00`, eight bytes, object slot `msg+0x08`.
+
+**The two terms have writers, and one of them is an id dispenser.**
+`FUN_1416c1c40(facet)` is `*[*[facet+8]+8] + *[facet+0x10]`, and both slots are
+written by one function, `FUN_141464890(facet, object)`:
+
+| slot | written with | what that is |
+| --- | --- | --- |
+| `facet+0x10` | `FUN_14144a9f0(0x14a3105c0)` | the next id from a global dispenser: a cursor at `+0x9a0`, an id array at `+0x9b0`, refilled by `func_0x0001414a0d70` when the block is spent |
+| `facet+0x08` | `FUN_1417db510(serverGdeRef)` | the object the GDE's own server-GDE reference resolves to, i.e. `*(serverGdeRef+8)` or the result of resolving its id at `+0x20` through `FUN_1416af8e0`; `0` when the reference has no live target |
+
+`FUN_141464890` has one caller, `FUN_14167c760` - the ClientGDE attach -
+which also sets `facet+0x78 = context`, `facet+0x60 = entity`, `+0x40/+0x48`
+and `+0x58` from the server-GDE reference, then stores the GDE back-pointer in
+the facet (`*(facet+8) = gde`). So `[facet+0x10]` is stamped per facet at attach
+and `*[*[facet+8]+8]` is a base read off the resolved server-GDE object; the
+accessor returns `0` when that base object is absent.
+
+**The value is the facet's registry key, so the client itself names it.**
+`FUN_14167c760` then calls `FUN_14167c560(facet)`, which is the facet
+registration:
+
+1. it computes `key = FUN_1416c1c40(facet)` and skips everything when the key is
+   `0`;
+2. it looks the key up in the facet map at `context+0x148` (find `FUN_1417db3d0`)
+   and stores `{ key, facet }` in the parallel slot array at `context+0x1b0`
+   (stride `0x10`) when the key is new;
+3. when the key was **already taken** it logs `facetCount`,
+   `existingFacetName`, `collidingLocalId`, `collidingFacetName` and the message
+   **"We got a collision on facets IDs, RMIs may fail to be delivered to this
+   facet."**
+
+The same map is torn down by `FUN_1417b59d0(context, &key)`, which logs `facetId`
+with **"Failed to unregister the facet."**; its sibling on the same object is the
+entity map at `+0x280` with `entityId` / `entityCount` / "Failed to unregister
+entity.", which is how we know the first one is the *facet* map rather than a
+field-name guess. This is the same registry the RMI dispatcher reads: the
+previous entries here document `FUN_1416bcba0` indexing `registry+0x1b0` with
+"object pointer at `+8`" - which is exactly the `{ key, ptr }` pair written here -
+and the dispatch failure line is `RMIDispatch: The facet target ID couldn't be
+found {targetLocalId: ...}`.
+
+**So the chain closes end to end.** `field_a` is the id the sending facet
+registers itself under in the context's facet map (`facetId`), the id the
+dispatcher looks up as `targetLocalId`, and the first 8 bytes of the 16-byte
+target a reply must carry. The live 2026-10-13 walk of that registry is the
+byte-level corroboration: `93a3e477cb5fd51e` was one of the four local ids
+registered for `TimeComponentClientFacet`, and it is the `field_a` of the
+`0x1098` body; a reply addressed to it dispatched 642/642 (`levers.md`).
+
+**What the per-facet observation rules out, and what it does not.** One value
+per facet, not per message and not per session (the table above: `0x5b2` and
+`0xa95` share `180f8d4e573697c6`, `0x9fc` keeps `4c0c0ed6478a69da` across four
+sessions while every other facet in those same sessions holds a different
+value) rules out a nonce, a
+sequence number, a timestamp, a per-message parameter, a per-session id and any
+heap or arena address. On its own it does **not** separate a per-instance id from
+a per-*type* id - the fixtures hold one instance per facet type - and it says
+nothing about where the value is stamped. The code is what separates them: the id
+is handed out by a dispenser per attach, registered against the facet object, and
+a duplicate is treated as an error that breaks RMI delivery, which is only
+coherent for per-instance identity.
+
+**What is still unnamed.** The base term `*[*[facet+8]+8]` is a `u64` read off the
+object the server-GDE reference resolves to; its own writer is not named, and no
+observed body distinguishes it from a constant offset. The *sum* is named and
+registered, so the field's meaning does not depend on that slot being named - but
+anyone re-deriving the value must not read `[facet+0x10]` alone as the id.
 
 ## Next meaning to earn
 

@@ -18,15 +18,15 @@
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint b2 16, i.e. type_dec 1458. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
   "fields": [
     {
-      "name": "field_a",
-      "meaning": "layout-only",
+      "name": "local_facet_id",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x00",
       "size": 8,
       "type": "u64be",
       "evidence": "measured",
-      "note": "First of the shared 16-byte head (FUN_1414dbca0, reader FUN_14150e670). Measured 0x180f8d4e573697c6 in the live channel-0 bodies. meanings.md 'The Journal families' row 0x5b2: 'head'.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "note": "First u64 of the shared message head, and the sending facet's own local id - identity, not request data. The send builder fills msg+0x08 from FUN_1416c1c40(facet) = *[*[facet+8]+8] + [GDE+0x10]: [GDE+0x10] is the id handed out by the global id dispenser FUN_14144a9f0 at ClientGDE attach (writer FUN_141464890 <- FUN_14167c760), and *[*[facet+8]+8] is a base read off the object the GDE's server-GDE reference resolves to (FUN_1417db510). That same value is the key the facet registers itself under in the Context's facet map (FUN_14167c560: key FUN_1416c1c40(facet), value the facet object, slot array at Context+0x1b0) and the key the RMI dispatcher looks up, so it is the local id the server must address. The client names it itself: log field facetId, 'Failed to unregister the facet.', and on a duplicate collidingLocalId + collidingFacetName with 'We got a collision on facets IDs, RMIs may fail to be delivered to this facet.'; the dispatch failure line calls it targetLocalId. Measured 0x180f8d4e573697c6 in the live 0x5b2 bodies, the same value its 0xa95 sibling carries - one per facet, not per message.",
+      "provenance": "meanings.md#the-shared-heads-first-u64-is-the-sending-facets-local-id-2026-11-01"
     },
     {
       "name": "local_actor_id_word0",

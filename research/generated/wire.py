@@ -361,7 +361,7 @@ MESSAGES = {
         'name': 'GlobalStorageComponentServerFacet_SetReplicateStorage',
         'direction': 'C2S',
         'fields': (
-            ('field_a', 'u64be'),
+            ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
             ('field_c', 'bytes(16)'),
         ),
@@ -371,7 +371,7 @@ MESSAGES = {
         'name': 'ObjectivesComponentServerFacet_UpdateTrackedObjectives',
         'direction': 'C2S',
         'fields': (
-            ('field_a', 'u64be'),
+            ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
             ('tracked_objective_ids', 'vec<u64be>'),
         ),
@@ -381,7 +381,7 @@ MESSAGES = {
         'name': 'AttributeComponentServerFacet_RequestSpendAttributePoints',
         'direction': 'C2S',
         'fields': (
-            ('field_a', 'u64be'),
+            ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
             ('attribute_indices', 'vec<u32be>'),
             ('points', 'vec<u32be>'),
@@ -424,7 +424,7 @@ MESSAGES = {
         'name': 'PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient',
         'direction': 'C2S',
         'fields': (
-            ('field_a', 'u64be'),
+            ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
             ('field_c', 'u32be'),
         ),
@@ -434,7 +434,7 @@ MESSAGES = {
         'name': 'ContractsComponentServerFacet_LookupContractsByParticipant',
         'direction': 'C2S',
         'fields': (
-            ('field_a', 'u64be'),
+            ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
             ('participant_id', 'bytes(16)'),
             ('u32_be_1', 'u32be'),
@@ -453,7 +453,7 @@ MESSAGES = {
         'name': 'ObjectivesComponentServerFacet_SetObjectiveAutoPinning',
         'direction': 'C2S',
         'fields': (
-            ('field_a', 'u64be'),
+            ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
             ('auto_pinning_flags', 'vec<bool_byte>'),
         ),
@@ -463,7 +463,7 @@ MESSAGES = {
         'name': 'PaperdollComponentServerFacet_ServerEquipItem',
         'direction': 'C2S',
         'fields': (
-            ('field_a', 'u64be'),
+            ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
             ('field_c', 'u32be'),
             ('field_d', 'u32be'),
@@ -477,7 +477,7 @@ MESSAGES = {
         'name': 'TimeComponentServerFacet_SyncToClient',
         'direction': 'C2S',
         'fields': (
-            ('field_a', 'u64be'),
+            ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
         ),
     },

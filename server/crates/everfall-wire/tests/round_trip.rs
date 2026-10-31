@@ -148,8 +148,8 @@ fn update_tracked_objectives_0x5b2_round_trips() {
 
     let decoded = MsgObjectivesUpdateTrackedObjectives::decode(&body).expect("decode 0x5b2");
     assert_eq!(
-        decoded.field_a, 0x180f_8d4e_5736_97c6,
-        "0x5b2 first head u64"
+        decoded.local_facet_id, 0x180f_8d4e_5736_97c6,
+        "0x5b2 sending facet's local id"
     );
     assert_eq!(
         decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
@@ -178,8 +178,8 @@ fn set_objective_auto_pinning_0xa95_round_trips() {
 
     let decoded = MsgObjectivesSetObjectiveAutoPinning::decode(&body).expect("decode 0xa95");
     assert_eq!(
-        decoded.field_a, 0x180f_8d4e_5736_97c6,
-        "0xa95 first head u64"
+        decoded.local_facet_id, 0x180f_8d4e_5736_97c6,
+        "0xa95 sending facet's local id"
     );
     assert_eq!(
         decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
@@ -205,8 +205,8 @@ fn receive_settings_from_client_0x9d3_round_trips() {
 
     let decoded = MsgReceiveSettingsFromClient::decode(&body).expect("decode 0x9d3");
     assert_eq!(
-        decoded.field_a, 0xd1a9_4ccc_8706_60b0,
-        "0x9d3 first head u64"
+        decoded.local_facet_id, 0xd1a9_4ccc_8706_60b0,
+        "0x9d3 sending facet's local id"
     );
     assert_eq!(
         decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
@@ -241,8 +241,8 @@ fn contracts_lookup_by_participant_0x9fc_round_trips_both_widths() {
 
         let decoded = MsgContractsLookupContractsByParticipant::decode(body).expect("decode 0x9fc");
         assert_eq!(
-            decoded.field_a, 0x4c0c_0ed6_478a_69da,
-            "0x9fc first head u64"
+            decoded.local_facet_id, 0x4c0c_0ed6_478a_69da,
+            "0x9fc sending facet's local id"
         );
         assert_eq!(
             decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
@@ -300,8 +300,8 @@ fn set_replicate_storage_0x183_round_trips() {
 
     let decoded = MsgSetReplicateStorage::decode(&body).expect("decode 0x183");
     assert_eq!(
-        decoded.field_a, 0xe264_0b7c_e540_8036,
-        "0x183 first head u64"
+        decoded.local_facet_id, 0xe264_0b7c_e540_8036,
+        "0x183 sending facet's local id"
     );
     assert_eq!(
         decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
@@ -329,8 +329,8 @@ fn time_sync_to_client_0x1098_round_trips() {
 
     let decoded = MsgTimeSyncToClient::decode(&body).expect("decode 0x1098");
     assert_eq!(
-        decoded.field_a, 0x93a3_e477_cb5f_d51e,
-        "0x1098 first head u64"
+        decoded.local_facet_id, 0x93a3_e477_cb5f_d51e,
+        "0x1098 sending facet's local id"
     );
     assert_eq!(
         decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
