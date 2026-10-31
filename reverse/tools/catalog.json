@@ -3,6 +3,10 @@
   "entry": "python ef.py re <workflow>",
   "note": "Heavy RE CLIs. Prefer ef.py re over raw paths. Folder layout under reverse/tools/<kind>/.",
   "workflows": {
+    "ontology-gen": {
+      "path": "atlas/ontology-gen.py",
+      "kind": "atlas"
+    },
     "decompile": {
       "path": "corpus/decomp.py",
       "kind": "corpus"
