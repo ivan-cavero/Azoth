@@ -119,47 +119,35 @@
 
 - wire 0x663, S2C
 - kind: flow; status: candidate; confidence: layout
-- codegen: **refused** — opaque fields: level_bounds, level_name, unresolved_at_0x20, level_path (+10 more); memory (decoded-struct) fields: level_name, unresolved_at_0x20, level_path, unresolved_at_0x48 (+9 more); unknown field evidence: level_bounds, unresolved_u64_at_0x48, level_flags, unresolved_group_at_0x5c (+13 more)
+- codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | note |
 | --- | --- | --- | --- | --- |
-| level_name | prefixed_string | 0x04 | measured | Length byte then characters. Measured value: 0x14 followed by 'NewWorld_VitaeEterna'. |
-| level_path | prefixed_string | 0x19 | measured | Length byte then characters. Measured value: 0x1e followed by 'coatlicue/NewWorld_VitaeEterna'. |
-| level_bounds | opaque(level_bounds) | 0x38 | unknown | Four big-endian floats: 2048.0, 16.0, 12272.0, 10250.0 on the measured record. A world extent or a far/near plane pair is plausible and unproven. |
-| unresolved_u64_at_0x48 | u64be | 0x48 | unknown | Zero on the measured record. No reader found in the handler. |
-| level_flags | u32be | 0x50 | unknown | Measured 01 01 00 00. The project's previous parse read the first two as level_is_loading and in_game; that reading is not proven by the decompile. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
-| session_nonce | u64be | 0x54 | partial | Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
-| unresolved_group_at_0x5c | bytes(10) | 0x5c | unknown | Measured 65 03 00 00 00 00 01 01 01 00. The atlas now splits it: six unnamed bytes then the four u8 the struct calls +0xa0..+0xa3 (01 01 01 00). Not read by the handler. The size (10) is stated, so the shape is carried as bytes(10); the meaning stays unknown. meanings.md '`0x663` laid out to the byte'. |
-| level_context_key | u64be | 0x66 | partial | The last 8 bytes of the record, measured 00 00 00 c1 7f 9b e4 8f. The handler compares it against the component slot it cached last time and RETURNS EARLY when they match, then stores the new value. So it is the dedup key: a repeated LevelInfo with the same key is ignored by the client. This is a second, independent signal for the same fact the lab had already recorded from the capture (the repeated seq 0x663 at 0x4d carries the same key and is ignored). |
-| level_name | opaque(level_name) | 0x00 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| unresolved_at_0x20 | opaque(unresolved_at_0x20) | 0x20 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| level_path | opaque(level_path) | 0x28 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| unresolved_at_0x48 | opaque(unresolved_at_0x48) | 0x48 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| level_bounds | opaque(level_bounds) | 0x50 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| unresolved_at_0x60 | opaque(unresolved_at_0x60) | 0x60 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| unresolved_at_0x68 | opaque(unresolved_at_0x68) | 0x68 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| unresolved_at_0xa0 | opaque(unresolved_at_0xa0) | 0xa0 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| m_clientContextInstanceId | opaque(m_client_context_instance_id) | 0xa1 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| unresolved_at_0xa2 | opaque(unresolved_at_0xa2) | 0xa2 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| unresolved_at_0xa3 | opaque(unresolved_at_0xa3) | 0xa3 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| unresolved_at_0xa4 | opaque(unresolved_at_0xa4) | 0xa4 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
-| level_context_key | opaque(level_context_key) | 0xa8 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
+| level_name | prefixed_string | 0x00 | measured | Length byte then characters. Measured: 0x14 followed by 'NewWorld_VitaeEterna'. |
+| level_path | prefixed_string | 0x15 | measured | Length byte then characters. Measured: 0x1e followed by 'coatlicue/NewWorld_VitaeEterna'. |
+| level_bounds | vec<f32be> | 0x34 | measured | Four big-endian floats: 2048.0, 16.0, 12272.0, 10250.0 on the measured record. Measured live 2026-10-26: the decoded struct holds the same four values and its verbatim copy proves the big-endian reading (FUN_146447ac0). The wire carries no count prefix, so the literal count 4 fixes the run. |
+| unresolved_u64 | u64be | 0x44 | measured | Measured zero, 8 bytes. The handler never reads it and no second signal names it, so the meaning stays unnamed; the width is stated by the atlas, so the shape is carried as u64be. |
+| unresolved_u32 | u32be | 0x4c | measured | Measured 01 01 00 00, 4 bytes. The atlas states it is NOT a be_f32 and NOT the struct's four u8 (those are the four bytes at body 0x5e); which struct slot it reaches is unmeasured. Carried as u32be; big-endian follows the repo rule for fixed-width wire integers and the endianness itself is not measured. |
+| session_nonce | u64be | 0x50 | partial | Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
+| unresolved_group | bytes(10) | 0x58 | measured | Measured 65 03 00 00 00 00 01 01 01 00, 10 bytes. The atlas splits it: six unnamed bytes then the four u8 the struct calls +0xa0..+0xa3 (01 01 01 00). Not read by the handler. The size (10) is stated, so the shape is carried as bytes(10); the meaning stays unknown. meanings.md '`0x663` laid out to the byte'. |
+| level_context_key | u64be | 0x62 | partial | The last 8 bytes of the body, measured 00 00 00 c1 7f 9b e4 8f. The handler compares it against the component slot it cached last time and RETURNS EARLY when they match, then stores the new value. So it is the dedup key: a repeated LevelInfo with the same key is ignored by the client. This is a second, independent signal for the same fact the lab had already recorded from the capture (the repeated seq 0x663 at 0x4d carries the same key and is ignored). |
 
 ## flow.world-entry.rung.registration — Ladder: Registration response
 
-- wire 0x3, Bidi
+- wire 0x3, S2C
 - kind: flow; status: candidate; confidence: layout
-- codegen: **refused** — opaque fields: request_version_map; unknown field evidence: unresolved_u32_at_0x03, unresolved_u8_at_0x07, unresolved_8_at_0x08, unresolved_ids_at_0x10 (+1 more)
+- codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | note |
 | --- | --- | --- | --- | --- |
-| request_version_map | opaque(request_version_map) | 0x20 | measured | Inside RegistrationRequestV3Msg the client sends its version as repeated `<u32 big-endian key><u8 length><bytes>`. Measured on the 1.400 capture: key 1 = 'Javelin', key 2 = '1', key 3 = '400', key 4 = '6031', key 5 = '6004151', key 8 = 91 bytes beginning '[RETAIL]'. Read together that is product, major, minor, build, revision and channel, i.e. 1.400.6031.6004151. The record begins with a 16-byte datagram preamble (ff c4 4f f7 ...) because it is the first message of its datagram. |
-| unresolved_u32_at_0x03 | u32be | 0x03 | unknown | Zero on the measured record. No second signal for what it is. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
-| unresolved_u8_at_0x07 | u8 | 0x07 | unknown | Measured 0x0b. Plausibly a count or a length, but nothing confirms which. |
-| unresolved_8_at_0x08 | u64be | 0x08 | unknown | Measured 88 8d 68 70 6c 41 5b 20. Not an id that appears anywhere else in the capture. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
-| unresolved_ids_at_0x10 | bytes(32) | 0x10 | unknown | 32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids. The size (32) is stated, so the shape is carried as bytes(32); the meaning stays unknown. meanings.md 'The first typed exchange, measured'. (#216). |
-| server_version | fixed_string(36) | 0x30 | measured | The 36-byte ASCII string '#[RETAIL].Javelin.1.365.6031.6006993', with no length prefix in front of it: its start is fixed and its length is fixed by the format. This is the server's version, and its shape matches the client's own version format exactly. The captured server reports 1.365.6031.6006993 because that capture was taken on build 1.365, so server and client agreed. |
-| trailing_flags | u32be | 0x54 | unknown | Measured 01 00 00 01, the last four bytes of the record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
+| unresolved_u32 | u32be | 0x00 | measured | f1, measured zero, 4 bytes. The atlas states the codec but names no consumer. Big-endian follows the repo rule for fixed-width wire integers; the endianness itself is not measured. |
+| unresolved_u64 | u64be | 0x04 | measured | f2, measured 0x0b888d68706c415b (bytes 0b 88 8d 68 70 6c 41 5b). The atlas corrects the old read that split this into a u8 (0x0b) at record 0x07 plus 8 bytes at record 0x08: it is ONE u64 BE. Still unnamed. |
+| unresolved_block | prefixed_bytes | 0x0c | measured | f3: a prefix-varint length (0x20 = 32) then 32 raw bytes. Fully redacted in the published dump, so the content is lost; the size is stated, so the shape is carried as prefixed_bytes. Could be one 32-byte id or two 16-byte ids. |
+| server_version | prefixed_string | 0x2d | measured | f4: a prefix-varint length (0x23 = 35) then '[RETAIL].Javelin.1.365.6031.6006993'. The handler labels the slot 'Server version'. The atlas corrects the old read that took the 0x23 byte as the first content byte of a fixed_string(36): it is the length prefix. |
+| trailing_bool_0 | bool_byte | 0x51 | measured | f5: first of the four trailing bool bytes. Measured 01. |
+| trailing_bool_1 | bool_byte | 0x52 | measured | f5: second of the four trailing bool bytes. Measured 00. |
+| trailing_bool_2 | bool_byte | 0x53 | measured | f5: third of the four trailing bool bytes. Measured 00. |
+| trailing_bool_3 | bool_byte | 0x54 | measured | f5: fourth of the four trailing bool bytes. Measured 01. The four bytes 01 00 00 01 are the last four of the body; the atlas says four bool bytes, and only f4 is named. |
 
 ## flow.world-entry.rung.self-identification — Ladder: SelfIdentification
 

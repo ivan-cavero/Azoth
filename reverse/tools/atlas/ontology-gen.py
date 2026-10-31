@@ -96,6 +96,28 @@ def _is_vocabulary(type_name: object, members: list[str], patterns: list[str]) -
     return any(re.fullmatch(pattern, type_name) for pattern in patterns)
 
 
+_VEC_TYPE = re.compile(r"^vec<.+>$")
+
+
+def _field_codec(field: dict) -> str:
+    """The generated type token for one card field.
+
+    A `vec<T>` with a LITERAL integer `count` is a fixed-length run with no
+    length prefix; the generated engine writes that as `vec<T>[N]`. A `count`
+    of `"prefix_varint"` (or none) keeps the prefix-counted form, and every
+    other type is passed through unchanged.
+    """
+    type_name = field["type"]
+    count = field.get("count")
+    if (
+        isinstance(count, int)
+        and not isinstance(count, bool)
+        and _VEC_TYPE.match(type_name)
+    ):
+        return f"{type_name}[{count}]"
+    return type_name
+
+
 # --- the gate -----------------------------------------------------------------
 
 
@@ -209,6 +231,7 @@ _STRUCT = {
 }
 _FIXED = re.compile(r"^(?:bytes|fixed_string)\(([1-9][0-9]*)\)$")
 _VEC = re.compile(r"^vec<(.+)>$")
+_VEC_LITERAL = re.compile(r"^vec<(.+)>\[([0-9]+)\]$")
 _MATRIX = re.compile(r"^matrix<(.+)>$")
 
 
@@ -300,6 +323,15 @@ def decode_field(type_name, data, offset=0):
         length, offset = _prefix_varint.decode(data, offset)
         raw, offset = _read_exact(data, offset, length)
         return raw.decode("utf-8"), offset
+    match = _VEC_LITERAL.match(type_name)
+    if match:
+        # A literal count is part of the layout: no length prefix on the wire.
+        element, count = match.group(1), int(match.group(2))
+        items = []
+        for _ in range(count):
+            item, offset = decode_field(element, data, offset)
+            items.append(item)
+        return items, offset
     match = _VEC.match(type_name)
     if match:
         return _decode_sequence(match.group(1), data, offset)
@@ -339,6 +371,19 @@ def encode_field(type_name, value):
     if type_name == "prefixed_string":
         raw = str(value).encode("utf-8")
         return _prefix_varint.encode(len(raw)) + raw
+    match = _VEC_LITERAL.match(type_name)
+    if match:
+        # A literal count is part of the layout: no length prefix on the wire.
+        element, count = match.group(1), int(match.group(2))
+        items = list(value)
+        if len(items) != count:
+            raise WireCodecError(
+                f"{type_name} holds exactly {count} item(s), got {len(items)}"
+            )
+        out = bytearray()
+        for item in items:
+            out += encode_field(element, item)
+        return bytes(out)
     match = _VEC.match(type_name)
     if match:
         items = list(value)
@@ -621,7 +666,7 @@ def generate(schema_path, concepts_dir, out_dir) -> dict:
     for card, status, reasons in classifications:
         if status == "ready":
             wire = card.get("wire") or {}
-            fields = [(f["name"], f["type"]) for f in card["fields"]]
+            fields = [(f["name"], _field_codec(f)) for f in card["fields"]]
             if wire.get("id") is not None:
                 emitted.append(card["uid"])
                 messages.append(

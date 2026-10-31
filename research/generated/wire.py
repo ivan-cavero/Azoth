@@ -90,6 +90,7 @@ _STRUCT = {
 }
 _FIXED = re.compile(r"^(?:bytes|fixed_string)\(([1-9][0-9]*)\)$")
 _VEC = re.compile(r"^vec<(.+)>$")
+_VEC_LITERAL = re.compile(r"^vec<(.+)>\[([0-9]+)\]$")
 _MATRIX = re.compile(r"^matrix<(.+)>$")
 
 
@@ -181,6 +182,15 @@ def decode_field(type_name, data, offset=0):
         length, offset = _prefix_varint.decode(data, offset)
         raw, offset = _read_exact(data, offset, length)
         return raw.decode("utf-8"), offset
+    match = _VEC_LITERAL.match(type_name)
+    if match:
+        # A literal count is part of the layout: no length prefix on the wire.
+        element, count = match.group(1), int(match.group(2))
+        items = []
+        for _ in range(count):
+            item, offset = decode_field(element, data, offset)
+            items.append(item)
+        return items, offset
     match = _VEC.match(type_name)
     if match:
         return _decode_sequence(match.group(1), data, offset)
@@ -220,6 +230,19 @@ def encode_field(type_name, value):
     if type_name == "prefixed_string":
         raw = str(value).encode("utf-8")
         return _prefix_varint.encode(len(raw)) + raw
+    match = _VEC_LITERAL.match(type_name)
+    if match:
+        # A literal count is part of the layout: no length prefix on the wire.
+        element, count = match.group(1), int(match.group(2))
+        items = list(value)
+        if len(items) != count:
+            raise WireCodecError(
+                f"{type_name} holds exactly {count} item(s), got {len(items)}"
+            )
+        out = bytearray()
+        for item in items:
+            out += encode_field(element, item)
+        return bytes(out)
     match = _VEC.match(type_name)
     if match:
         items = list(value)
@@ -310,6 +333,21 @@ def encode_codec(uid, message):
 
 # --- card-derived message layouts (BODY fields only) ---
 MESSAGES = {
+    3: {
+        'uid': 'flow.world-entry.rung.registration',
+        'name': 'Ladder: Registration response',
+        'direction': 'S2C',
+        'fields': (
+            ('unresolved_u32', 'u32be'),
+            ('unresolved_u64', 'u64be'),
+            ('unresolved_block', 'prefixed_bytes'),
+            ('server_version', 'prefixed_string'),
+            ('trailing_bool_0', 'bool_byte'),
+            ('trailing_bool_1', 'bool_byte'),
+            ('trailing_bool_2', 'bool_byte'),
+            ('trailing_bool_3', 'bool_byte'),
+        ),
+    },
     106: {
         'uid': 'msg.update',
         'name': 'UpdateMsg',
@@ -344,6 +382,21 @@ MESSAGES = {
             ('tail_zeros', 'bytes(10)'),
             ('tail_lead', 'u8'),
             ('identity_guid_tail', 'guid16'),
+        ),
+    },
+    1635: {
+        'uid': 'flow.world-entry.rung.level-info',
+        'name': 'Ladder: LevelInfoChanged',
+        'direction': 'S2C',
+        'fields': (
+            ('level_name', 'prefixed_string'),
+            ('level_path', 'prefixed_string'),
+            ('level_bounds', 'vec<f32be>[4]'),
+            ('unresolved_u64', 'u64be'),
+            ('unresolved_u32', 'u32be'),
+            ('session_nonce', 'u64be'),
+            ('unresolved_group', 'bytes(10)'),
+            ('level_context_key', 'u64be'),
         ),
     },
     3895: {

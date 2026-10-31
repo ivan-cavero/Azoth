@@ -9,8 +9,8 @@
     "RegistrationRequestV3Msg",
     "RegistrationResponseMsg"
   ],
-  "summary": "The registration rung, both halves. The CLIENT speaks first with RegistrationRequestV3Msg (wire 0x13, 2,750 bytes) carrying its version as a keyed string map; the server answers with RegistrationResponseMsg (wire 0x3, 88 bytes) carrying its own version as one dotted string. This moves the client from WaitingForREPConnection (14) to WaitingForActorGameConnection (15).",
-  "purpose": "Exchange versions and accept the client's registration. The client sends its build first, so a private server's first job is to ANSWER that request, not to open the conversation.",
+  "summary": "The server's registration answer. RegistrationResponseMsg (wire 0x3, S2C, 88-byte record / 85-byte body) carries the server's version as one prefix-varint string and moves the client from WaitingForREPConnection (14) to WaitingForActorGameConnection (15). The client speaks first with a separate message (wire 0x13, RegistrationRequestV3Msg); its request body is NOT modelled in this card.",
+  "purpose": "Answer the client's registration with the server's own version string. The client sends its build first, so a private server's job here is to ANSWER that request, not to open the conversation.",
   "authority": "server",
   "lifecycle": {
     "created_when": [
@@ -20,79 +20,89 @@
   },
   "wire": {
     "id": "0x3",
-    "direction": "Bidi",
+    "direction": "S2C",
     "transport": "rep"
   },
-  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 03: the typed envelope plus the prefix varint 0x03, a one-byte varint because the value is below 0x80.",
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 03, the typed envelope plus the prefix varint 0x03, a one-byte varint because the value is below 0x80. fields[] below use BODY offsets, so the first body byte is at 0x00 and the 88-byte record starts 3 bytes earlier.",
   "fields": [
     {
-      "name": "request_version_map",
+      "name": "unresolved_u32",
       "where": "wire",
-      "offset": "0x20",
-      "size": "var",
-      "type": "opaque(request_version_map)",
-      "evidence": "measured",
-      "note": "Inside RegistrationRequestV3Msg the client sends its version as repeated `<u32 big-endian key><u8 length><bytes>`. Measured on the 1.400 capture: key 1 = 'Javelin', key 2 = '1', key 3 = '400', key 4 = '6031', key 5 = '6004151', key 8 = 91 bytes beginning '[RETAIL]'. Read together that is product, major, minor, build, revision and channel, i.e. 1.400.6031.6004151. The record begins with a 16-byte datagram preamble (ff c4 4f f7 ...) because it is the first message of its datagram.",
-      "provenance": "legacy status=verified evidence=capture"
-    },
-    {
-      "name": "unresolved_u32_at_0x03",
-      "where": "wire",
-      "offset": "0x03",
+      "offset": "0x00",
       "size": 4,
       "type": "u32be",
-      "evidence": "unknown",
-      "note": "Zero on the measured record. No second signal for what it is. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
-      "provenance": "legacy status=candidate"
+      "evidence": "measured",
+      "note": "f1, measured zero, 4 bytes. The atlas states the codec but names no consumer. Big-endian follows the repo rule for fixed-width wire integers; the endianness itself is not measured.",
+      "provenance": "legacy status=candidate evidence=capture"
     },
     {
-      "name": "unresolved_u8_at_0x07",
+      "name": "unresolved_u64",
       "where": "wire",
-      "offset": "0x07",
-      "size": 1,
-      "type": "u8",
-      "evidence": "unknown",
-      "note": "Measured 0x0b. Plausibly a count or a length, but nothing confirms which.",
-      "provenance": "legacy status=candidate"
-    },
-    {
-      "name": "unresolved_8_at_0x08",
-      "where": "wire",
-      "offset": "0x08",
+      "offset": "0x04",
       "size": 8,
       "type": "u64be",
-      "evidence": "unknown",
-      "note": "Measured 88 8d 68 70 6c 41 5b 20. Not an id that appears anywhere else in the capture. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
-      "provenance": "legacy status=candidate"
+      "evidence": "measured",
+      "note": "f2, measured 0x0b888d68706c415b (bytes 0b 88 8d 68 70 6c 41 5b). The atlas corrects the old read that split this into a u8 (0x0b) at record 0x07 plus 8 bytes at record 0x08: it is ONE u64 BE. Still unnamed.",
+      "provenance": "legacy status=candidate evidence=capture"
     },
     {
-      "name": "unresolved_ids_at_0x10",
+      "name": "unresolved_block",
       "where": "wire",
-      "offset": "0x10",
-      "size": 32,
-      "type": "bytes(32)",
-      "evidence": "unknown",
-      "note": "32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids. The size (32) is stated, so the shape is carried as bytes(32); the meaning stays unknown. meanings.md 'The first typed exchange, measured'. (#216).",
+      "offset": "0x0c",
+      "size": "1 + 32",
+      "type": "prefixed_bytes",
+      "evidence": "measured",
+      "note": "f3: a prefix-varint length (0x20 = 32) then 32 raw bytes. Fully redacted in the published dump, so the content is lost; the size is stated, so the shape is carried as prefixed_bytes. Could be one 32-byte id or two 16-byte ids.",
       "provenance": "legacy status=candidate; meanings.md#the-first-typed-exchange-measured"
     },
     {
       "name": "server_version",
       "where": "wire",
-      "offset": "0x30",
-      "size": 36,
-      "type": "fixed_string(36)",
+      "offset": "0x2d",
+      "size": "1 + 35",
+      "type": "prefixed_string",
       "evidence": "measured",
-      "note": "The 36-byte ASCII string '#[RETAIL].Javelin.1.365.6031.6006993', with no length prefix in front of it: its start is fixed and its length is fixed by the format. This is the server's version, and its shape matches the client's own version format exactly. The captured server reports 1.365.6031.6006993 because that capture was taken on build 1.365, so server and client agreed.",
+      "note": "f4: a prefix-varint length (0x23 = 35) then '[RETAIL].Javelin.1.365.6031.6006993'. The handler labels the slot 'Server version'. The atlas corrects the old read that took the 0x23 byte as the first content byte of a fixed_string(36): it is the length prefix.",
       "provenance": "legacy status=verified evidence=capture"
     },
     {
-      "name": "trailing_flags",
+      "name": "trailing_bool_0",
+      "where": "wire",
+      "offset": "0x51",
+      "size": 1,
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "f5: first of the four trailing bool bytes. Measured 01.",
+      "provenance": "legacy status=candidate evidence=capture"
+    },
+    {
+      "name": "trailing_bool_1",
+      "where": "wire",
+      "offset": "0x52",
+      "size": 1,
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "f5: second of the four trailing bool bytes. Measured 00.",
+      "provenance": "legacy status=candidate evidence=capture"
+    },
+    {
+      "name": "trailing_bool_2",
+      "where": "wire",
+      "offset": "0x53",
+      "size": 1,
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "f5: third of the four trailing bool bytes. Measured 00.",
+      "provenance": "legacy status=candidate evidence=capture"
+    },
+    {
+      "name": "trailing_bool_3",
       "where": "wire",
       "offset": "0x54",
-      "size": 4,
-      "type": "u32be",
-      "evidence": "unknown",
-      "note": "Measured 01 00 00 01, the last four bytes of the record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "size": 1,
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "f5: fourth of the four trailing bool bytes. Measured 01. The four bytes 01 00 00 01 are the last four of the body; the atlas says four bool bytes, and only f4 is named.",
       "provenance": "legacy status=candidate evidence=capture"
     }
   ],
@@ -108,7 +118,11 @@
   "evidence": [
     {
       "type": "capture",
-      "ref": "services/world/replay/messages-redacted.txt record 0x1_T0x3_R.bin: 88 bytes, seq 0x1, direction R, type 0x3. Offsets sum exactly: 3 header + 4 + 1 + 8 + 32 + 36 string + 4 = 88"
+      "ref": "services/world/replay/messages-redacted.txt record 0x1_T0x3_R.bin: 88 bytes, seq 0x1, direction R, type 0x3. Offsets sum exactly: 3 header + 4 + 8 + 1 + 32 + 1 + 35 + 4 = 88"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'flow.world-entry.rung.registration.body': the server->client half is wire 0x3 RegistrationResponseMsg, an 88-byte record, layout measured to the byte (writer 0x1407cd050 and reader 0x1407cd1e0 agree): f1 u32 BE; f2 u64 BE; f3 prefix-varint length + 32 raw bytes; f4 prefix-varint length + the 35-byte server_version; f5 four bool bytes. f4 is named; f1/f2/f3/f5 are codec-identified but unnamed"
     },
     {
       "type": "decompile",
@@ -128,7 +142,7 @@
     },
     {
       "type": "capture",
-      "ref": "record 0x0_T0x13_W.bin: 2,750 bytes, direction W, type 0x13. The keyed-string pattern `<u32 BE key><u8 len><bytes>` reproduces on five consecutive runs at 0x20, 0x29, 0x31, 0x37 and 0x43, and key 8 at 0x45 has length 0x5b = 91 starting '[RETAIL]'"
+      "ref": "record 0x0_T0x13_W.bin: 2,750 bytes, direction W, type 0x13, the client's RegistrationRequestV3Msg. Its keyed-string pattern `<u32 BE key><u8 len><bytes>` reproduces on five consecutive runs at 0x20, 0x29, 0x31, 0x37 and 0x43, and key 8 at 0x45 has length 0x5b = 91 starting '[RETAIL]'. That request is a DIFFERENT message and is not modelled in this card"
     },
     {
       "type": "atlas",

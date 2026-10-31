@@ -36,14 +36,16 @@ Exit code is 1 if any card FAILs, else 0. A summary line follows with the
 fielded/field-less split, the ready count among fielded cards only, and the
 total opaque field count.
 
-TWO MODELLING RULES BEYOND THE CLOSED FIELD SCHEMA
-===================================================
+TWO MODELLING RULES BEYOND THE CLOSED FIELD SCHEMA (PLUS THE LITERAL-COUNT RULE)
+==================================================================================
 `prefixed_bytes`/`prefixed_string` INCLUDE their length prefix, so a field that
 is one of them immediately after a `prefix_varint` field double-counts the
 prefix (codegen would emit it twice). `fields[]` is also the message BODY only:
 the `[00 01 <prefix-varint type>]` record envelope is owned by
 `services/world/src/azoth_world/javelin/frame.py` and must never be a field.
-Both rules run before the `legacy` skip, so a legacy card can still FAIL.
+A JSON integer `count` is a LITERAL element count and is only meaningful on a
+`vec<T>`/`matrix<T>`. All rules run before the `legacy` skip, so a legacy card
+can still FAIL.
 
 Usage:
     python reverse/tools/atlas/ontology-validate.py
@@ -199,8 +201,41 @@ def envelope_errors(concept: dict) -> list[str]:
 
 
 def modelling_errors(concept: dict) -> list[str]:
-    """FIX 1 and FIX 2 rules; run for every card, legacy included."""
-    return prefixed_length_errors(concept) + envelope_errors(concept)
+    """FIX 1 and FIX 2 rules plus the literal-count rule; run for every card,
+    legacy included."""
+    return (
+        prefixed_length_errors(concept)
+        + envelope_errors(concept)
+        + literal_count_errors(concept)
+    )
+
+
+# FIX 3: `count` may be the string "prefix_varint" (a dynamic count) or a JSON
+# integer (a LITERAL element count). The integer form is only meaningful on a
+# composite that carries its elements directly, so it must be on vec<T>/matrix<T>
+# and must be at least 1.
+COMPOSITE_TYPE = re.compile(r"^(?:vec|matrix)<.+>$")
+
+
+def literal_count_errors(concept: dict) -> list[str]:
+    """FIX 3: an integer `count` must be a positive literal on a composite."""
+    errors: list[str] = []
+    for field in _fields(concept):
+        count = field.get("count")
+        if isinstance(count, bool) or not isinstance(count, int):
+            continue
+        name = field.get("name")
+        type_name = str(field.get("type", ""))
+        if not COMPOSITE_TYPE.match(type_name):
+            errors.append(
+                f"field {name!r} has the literal count {count} but type "
+                f"{type_name!r} is not vec<T>/matrix<T>"
+            )
+        elif count < 1:
+            errors.append(
+                f"field {name!r} has a literal count of {count}; it must be at least 1"
+            )
+    return errors
 
 
 def card_is_ready(concept: dict) -> bool:

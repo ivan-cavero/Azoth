@@ -168,6 +168,35 @@ class OntologyValidateTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue(lines[0].startswith("FAIL msg.legacy_envelope"))
 
+    def test_literal_count_vec_is_ready(self):
+        # STEP 1: `count` as a JSON integer is a literal element count on a
+        # composite type and does not by itself block codegen-readiness.
+        card = concept(
+            fields=[
+                {
+                    "name": "bounds",
+                    "type": "vec<f32be>",
+                    "count": 4,
+                    "evidence": "measured",
+                }
+            ]
+        )
+        lines, code = run({"msg.bounds": card})
+        self.assertEqual(code, 0)
+        self.assertEqual(lines[0], "OK msg.bounds  ready")
+
+    def test_literal_count_on_non_composite_fails(self):
+        # A literal count is only meaningful on vec<T>/matrix<T>; a scalar with
+        # a count is a modelling error, not silently ignored.
+        card = concept(
+            fields=[
+                {"name": "n", "type": "u32be", "count": 4, "evidence": "partial"}
+            ]
+        )
+        lines, code = run({"msg.bad_count": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL msg.bad_count"))
+
     def test_fieldless_card_is_neither_ready_nor_not_ready(self):
         lines, code = run({"msg.fieldless": concept(fields=[])})
         self.assertEqual(code, 0)

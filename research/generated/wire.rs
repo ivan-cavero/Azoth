@@ -54,6 +54,22 @@ pub struct MessageSpec {
 
 pub static MESSAGES: &[MessageSpec] = &[
     MessageSpec {
+        wire_id: 3,
+        uid: "flow.world-entry.rung.registration",
+        name: "Ladder: Registration response",
+        direction: "S2C",
+        fields: &[
+            FieldSpec { name: "unresolved_u32", codec: "u32be" },
+            FieldSpec { name: "unresolved_u64", codec: "u64be" },
+            FieldSpec { name: "unresolved_block", codec: "prefixed_bytes" },
+            FieldSpec { name: "server_version", codec: "prefixed_string" },
+            FieldSpec { name: "trailing_bool_0", codec: "bool_byte" },
+            FieldSpec { name: "trailing_bool_1", codec: "bool_byte" },
+            FieldSpec { name: "trailing_bool_2", codec: "bool_byte" },
+            FieldSpec { name: "trailing_bool_3", codec: "bool_byte" },
+        ],
+    },
+    MessageSpec {
         wire_id: 106,
         uid: "msg.update",
         name: "UpdateMsg",
@@ -90,6 +106,22 @@ pub static MESSAGES: &[MessageSpec] = &[
             FieldSpec { name: "tail_zeros", codec: "bytes(10)" },
             FieldSpec { name: "tail_lead", codec: "u8" },
             FieldSpec { name: "identity_guid_tail", codec: "guid16" },
+        ],
+    },
+    MessageSpec {
+        wire_id: 1635,
+        uid: "flow.world-entry.rung.level-info",
+        name: "Ladder: LevelInfoChanged",
+        direction: "S2C",
+        fields: &[
+            FieldSpec { name: "level_name", codec: "prefixed_string" },
+            FieldSpec { name: "level_path", codec: "prefixed_string" },
+            FieldSpec { name: "level_bounds", codec: "vec<f32be>[4]" },
+            FieldSpec { name: "unresolved_u64", codec: "u64be" },
+            FieldSpec { name: "unresolved_u32", codec: "u32be" },
+            FieldSpec { name: "session_nonce", codec: "u64be" },
+            FieldSpec { name: "unresolved_group", codec: "bytes(10)" },
+            FieldSpec { name: "level_context_key", codec: "u64be" },
         ],
     },
     MessageSpec {

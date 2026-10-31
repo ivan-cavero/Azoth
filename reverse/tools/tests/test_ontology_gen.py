@@ -123,9 +123,86 @@ class OntologyGenTest(unittest.TestCase):
             checked, 0, "no extracted body round-tripped: " + "; ".join(skipped)
         )
 
-        # The two newly seeded layouts with a real body must be codegen-ready.
-        for wire_id in (0x65C, 0xF37):
+        # The newly seeded layouts with a real body must be codegen-ready.
+        for wire_id in (0x3, 0x65C, 0x663, 0xF37):
             self.assertIn(wire_id, ready_wires, f"wire {hex(wire_id)} should be ready")
+
+    def test_generated_codec_round_trips_entry_bodies(self) -> None:
+        """The three world-entry bodies the server must SEND round-trip exactly.
+
+        `0x3` (RegistrationResponseMsg) and `0x663` (LevelInfoChangedMsg) were
+        refused until their cards were repaired; this pins that they are now
+        codegen-ready and that the GENERATED codec reproduces their extracted
+        bytes byte-for-byte. The body comes from `wire-bodies.json` (extracted by
+        `scripts/export/export-wire-bodies.py` from the committed corpus), never a
+        hand-pasted layout.
+        """
+        wire = load_generated_wire()
+        self.assertIsNotNone(
+            wire, f"{WIRE_PY} is missing; run `python ef.py re ontology-gen`"
+        )
+        fixture = json.loads(BODIES.read_text(encoding="utf-8"))
+        by_wire: dict[int, list[dict]] = {}
+        for record in fixture["records"]:
+            by_wire.setdefault(int(record["wire_id"]), []).append(record)
+        for wire_id in (0x3, 0x663):
+            self.assertIn(
+                wire_id, wire.MESSAGES, f"wire {hex(wire_id)} is not codegen-ready"
+            )
+            self.assertIn(
+                wire_id, by_wire, f"no extracted body for wire {hex(wire_id)}"
+            )
+            for record in by_wire[wire_id]:
+                body = bytes.fromhex(record["body"])
+                decoded = wire.decode(wire_id, body)
+                self.assertEqual(
+                    wire.encode(wire_id, decoded),
+                    body,
+                    f"wire {hex(wire_id)} ({record['source']}): body did not round-trip",
+                )
+
+    def test_literal_count_vec_encodes_fixed_items(self) -> None:
+        """`vec<f32be>` with a LITERAL `count` is a fixed run with no prefix.
+
+        STEP 1: the vocabulary already allows `count` to be a JSON integer. The
+        generator must carry it into the emitted codec, where it means exactly
+        that many elements and NO length prefix (unlike `count: prefix_varint`).
+        """
+        generator = load_generator()
+        with tempfile.TemporaryDirectory() as tmp:
+            concepts = Path(tmp) / "concepts"
+            out = Path(tmp) / "out"
+            concepts.mkdir()
+            card = concept(
+                uid="msg.level-bounds",
+                wire={"id": "0x663", "direction": "S2C", "transport": "rep"},
+                fields=[
+                    {
+                        "name": "bounds",
+                        "type": "vec<f32be>",
+                        "count": 4,
+                        "evidence": "measured",
+                    }
+                ],
+            )
+            (concepts / "msg.level-bounds.json").write_text(
+                json.dumps(card), encoding="utf-8"
+            )
+            report = generator.generate(SCHEMA, concepts, out)
+            self.assertIn("msg.level-bounds", report["emitted"])
+
+            spec = importlib.util.spec_from_file_location(
+                "literal_count_wire_under_test", out / "wire.py"
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # Four BE floats with NO count prefix: exactly 16 bytes.
+            body = bytes.fromhex("4500000041800000463fc00046202800")
+            self.assertEqual(len(body), 16)
+            decoded = module.decode(0x663, body)
+            self.assertEqual(decoded["bounds"], [2048.0, 16.0, 12272.0, 10250.0])
+            self.assertEqual(module.encode(0x663, decoded), body)
 
     def test_seeded_spend_layout_is_typed_but_has_no_body(self) -> None:
         """0x5de is fully typed and codegen-ready, but no real body exists.
