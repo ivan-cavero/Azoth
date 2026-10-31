@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Trace the client's REP connection state machine live (Frida, OUR runtime).
 
-From the static analysis (research/docs/REP-PROTOCOL.md):
+From the static analysis (docs/archive/1.400/REP-PROTOCOL.md):
 - 0x14645fd70: GameConnection::SetState(edx = new state) — logs the ladder.
 - 0x145a905d0: likely SendRegistrationRequest (called from the
   WaitingForREPConnection case when carrier->IsConnected() and rep.ready==0).

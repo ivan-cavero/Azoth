@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Force BOTH gates of the WaitingForREPConnection case (Frida, OUR runtime).
 
-Decompiled case at 0x14644a6c1 (see research/docs/REP-PROTOCOL.md):
+Decompiled case at 0x14644a6c1 (see docs/archive/1.400/REP-PROTOCOL.md):
 
     if (carrier->IsConnected()) {          // vtable slot 0xa8
         if ([carrier+0xA0] == 0) {         // rep.ready via 0x145a92380

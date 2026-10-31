@@ -12,7 +12,7 @@ The game does not honour the launcher's `$env:LOCALAPPDATA` override: it
 resolves its profile through the Windows known-folder API, so `Game.log` and
 `savedata` land under the real `%LOCALAPPDATA%\AGS\New World` and
 `%APPDATA%\AGS\New World\savedata`. See
-[`PRIVATE-CLIENT-RUNBOOK.md`](../../../research/docs/PRIVATE-CLIENT-RUNBOOK.md)
+[`PRIVATE-CLIENT-RUNBOOK.md`](../../../docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md)
 for the full path table and the Caddy CA trust step a cold setup needs.
 
 `python ef.py game` starts a hidden supervisor and stores its output in

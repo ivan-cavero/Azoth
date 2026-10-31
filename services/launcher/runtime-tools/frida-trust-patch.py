@@ -7,7 +7,7 @@ REP handshake. The verify path is selected by one conditional jump; forcing
 it unconditionally selects the permissive callback (always-trust).
 
 Site (VERIFIED byte-identical on build 1.400.6031.6004151 — see
-research/docs/REP-PROTOCOL.md and `bytepat.py dtls-verify`):
+docs/archive/1.400/REP-PROTOCOL.md and `bytepat.py dtls-verify`):
 
     1.400  0x145dce8ad: 48 83 BF 88 02 00 00 00   CMP qword ptr [RDI+0x288], 0
     1.400  0x145dce8b5: 0F 84 19 01 00 00         JZ  0x145dce9d4   <- patch here

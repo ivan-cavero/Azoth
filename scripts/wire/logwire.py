@@ -9,7 +9,7 @@ place to fix.
 
 The log records every inbound datagram as `raw` hex, so the framing is recovered by walking
 it with the flags the client set -- a field is present only when its flag says so
-(research/docs/JAVELIN-PROTOCOL.md section 1c). A datagram that does not parse cleanly
+(docs/archive/1.400/JAVELIN-PROTOCOL.md section 1c). A datagram that does not parse cleanly
 yields whatever was decoded before the failure: a partially readable datagram is still
 evidence.
 """
@@ -127,7 +127,7 @@ def split_records(datagram: bytes) -> list[tuple[int, bytes]]:
 def decode_input(payload: bytes):
     """Decode a channel-1 payload into its movement fields.
 
-    The payload IS the client's own container (research/docs/JAVELIN-PROTOCOL.md
+    The payload IS the client's own container (docs/archive/1.400/JAVELIN-PROTOCOL.md
     section 1f, reconfirmed on 1.460 -- 229,304 of 229,304 records pass both the length
     and the CRC check):
 

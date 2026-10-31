@@ -16,7 +16,7 @@ What collides, and where each collision is handled:
   * `Game.log` and `savedata`: SHARED and unavoidable. The client resolves them
     through the Windows known-folder API and ignores the launcher's
     LOCALAPPDATA/APPDATA overrides (measured 2026-10-07, see
-    research/docs/PRIVATE-CLIENT-RUNBOOK.md), so the second launch TRUNCATES the
+    docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md), so the second launch TRUNCATES the
     log the first client is writing. This script snapshots that log first, and
     the authoritative record of a two-client run is `.azoth/logs/world.log`,
     where every REP event carries its `peer` (ip:port).

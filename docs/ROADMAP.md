@@ -90,7 +90,7 @@ cable and no movement while the readout's `Time since last response` grows.
 
 - **The outbound half is measured and request-correlated (2026-10-14).** Captured typed
   responses are sent only when the client sent the request they answer; see
-  [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) and `AZOTH_REPLAY_REQUEST_GATING`.
+  [INBOUND-REQUESTS.md](archive/1.400/INBOUND-REQUESTS.md) and `AZOTH_REPLAY_REQUEST_GATING`.
   Verify a change to the map with `python scripts/request-response-map.py --check`.
 - **The inbound dispatcher exists (2026-10-14).** `rep.py::_dispatch_inbound` decodes the client's
   typed requests and acts on them. The request shape is measured: after the type marker the first 16
@@ -98,7 +98,7 @@ cable and no movement while the readout's `Time since last response` grows.
   facet's address from the client's own `0x1098`** (all 151 live `input-response` events report
   `target_source: client-request`), and it **answers the contracts request once per ask** with the
   captured `0x08E6`, which the replay could only send once for the whole session. See
-  [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) and
+  [INBOUND-REQUESTS.md](archive/1.400/INBOUND-REQUESTS.md) and
   `inbound_dispatcher_answers_requests_and_learns_facet_addresses_20261014`.
 - **Next: express authority as REPLICATED STATE, not as a typed reply (measured 2026-10-14).** The
   five state-carrying requests were investigated for an authoritative effect and **cannot have one**:
@@ -109,7 +109,7 @@ cable and no movement while the readout's `Time since last response` grows.
   to `0`, `1` and `3` on the wire, the client's own `lc_getTime` still showed `day` and its clock ran
   at the same 12.2× in every condition, including with no time sync sent at all. The one thing ever
   measured to make the client APPLY server data is the record-1 `0x08` state stream. See
-  [INBOUND-REQUESTS.md](../research/docs/INBOUND-REQUESTS.md) §3 and
+  [INBOUND-REQUESTS.md](archive/1.400/INBOUND-REQUESTS.md) §3 and
   `state_carrying_requests_have_no_reply_and_the_client_ignores_the_time_sync_20261014`.
 - **The server can now COMPOSE a state bundle, and the client applies it (2026-10-14).** The
   local-player record's fragment layout was derived from the client, recomposition is asserted

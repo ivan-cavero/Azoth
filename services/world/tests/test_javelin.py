@@ -2,7 +2,7 @@
 
 The round-trip rule: a parser that cannot reproduce its input byte-for-byte
 is wrong. The synthetic V3 body is built from the layout constants in
-research/docs/REP-PROTOCOL.md (gap sizes follow from the fixed offsets).
+docs/archive/1.400/REP-PROTOCOL.md (gap sizes follow from the fixed offsets).
 """
 
 from __future__ import annotations

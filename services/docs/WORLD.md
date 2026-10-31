@@ -12,7 +12,7 @@ stamp stops updating. The local player entity was re-measured with both
 not the diagnosis. Movement remains unproven: the player transform has not been
 shown to change, and reliable position message 4216 currently fails facet-target
 dispatch. See [live status](../../STATUS.md), the
-[world investigation](../../research/docs/WORLD-INVESTIGATION.md), and the
+[world investigation](../../docs/archive/1.400/WORLD-INVESTIGATION.md), and the
 [ordered work plan](../../docs/ROADMAP.md).
 
 The [performance document](PERFORMANCE.md) contains future measurement targets;

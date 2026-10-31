@@ -8,7 +8,7 @@ The `python ef.py game` supervisor hides the launcher console and records
 lifecycle state and launcher output under `.azoth/`.
 
 Two environment facts measured 2026-10-07, both in
-[`PRIVATE-CLIENT-RUNBOOK.md`](../../research/docs/PRIVATE-CLIENT-RUNBOOK.md):
+[`PRIVATE-CLIENT-RUNBOOK.md`](../../docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md):
 
 - The launcher sets `$env:LOCALAPPDATA` to `private-client/profile/Local`, but
   **the game ignores it** and resolves its profile through the Windows

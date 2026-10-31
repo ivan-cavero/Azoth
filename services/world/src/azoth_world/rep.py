@@ -680,7 +680,7 @@ DEFER_DECISION_TIMEOUT_S = float(os.environ.get("AZOTH_REPLAY_DEFER_TIMEOUT_S", 
 # client. The replay is another client's capture, so it contains answers to requests ours never
 # makes; the server used to blast them at a client with no target and lose them silently.
 #
-# Pairs are derived two ways and both are recorded in research/docs/INBOUND-REQUESTS.md:
+# Pairs are derived two ways and both are recorded in docs/archive/1.400/INBOUND-REQUESTS.md:
 #   * ORDERING: in the capture the response follows its request. Contracts seq 59 -> 67,
 #     VoiceChat seq 100 -> 101, the input burst seq 110-114 -> the time pair 117/118.
 #   * NAMING: `XComponentServerFacet_M` / `XComponentClientFacet_OnM` in the same component

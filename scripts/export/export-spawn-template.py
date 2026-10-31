@@ -263,7 +263,7 @@ def main() -> int:
         "actor_id_note": (
             "The 16 bytes at payload offset 29731 are the local player's actor id, verified by the "
             "four-byte <00 00 00 02> that precedes it at 29727 and by the independent live measurement "
-            "in research/docs/PRIVATE-CLIENT-RUNBOOK.md (1a954abc4b3185bfbe37c3d8592618e0)."
+            "in docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md (1a954abc4b3185bfbe37c3d8592618e0)."
         ),
         "position": {
             "x_offset": POSITION_X_OFFSET,
@@ -291,7 +291,7 @@ def main() -> int:
             "is a census of the 9-fragment ONGOING record only; no spawn census exists, so the "
             "boundaries were NOT invented.",
             "fragment_count 48 is the client's own measured nested-call count for this record "
-            "(research/docs/JAVELIN-PROTOCOL.md §2e), not a guess from the bytes.",
+            "(docs/archive/1.400/JAVELIN-PROTOCOL.md §2e), not a guess from the bytes.",
             "The prototype transmits this payload chunked (REPLAY_CHUNK_SIZE 1100) inside the "
             "type-0x08 bundle; the record payload is what this fixture carries, so a caller re-wraps "
             "it with azoth-wire::bundle::encode.",

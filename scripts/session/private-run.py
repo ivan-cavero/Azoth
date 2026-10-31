@@ -5,7 +5,7 @@ Why this exists: every world attempt needs the same manual dance (pass the
 splash gate, wait for character select, apply the world-phase memory patches,
 click Play). Doing it by hand makes overnight A/B work impossible and leaves
 the patch timing to chance — and applying the world-phase patches during load
-hangs the client (see research/docs/PRIVATE-CLIENT-RUNBOOK.md).
+hangs the client (see docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md).
 
 Sequence:
   1. launch the private client (Start-NwPrivate.ps1, no -Watch)

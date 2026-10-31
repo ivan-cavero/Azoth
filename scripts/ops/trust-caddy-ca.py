@@ -7,7 +7,7 @@ redirected host with its own local issuing authority. A fresh
 (`CN=Caddy Local Authority - 2026 ECC Root`) but a different key, while
 Windows still trusts an older one. Same name, different thumbprint, no error
 anywhere: the client hangs at the title gate and the gateway logs zero
-requests. See research/docs/PRIVATE-CLIENT-RUNBOOK.md, gate 2.
+requests. See docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md, gate 2.
 
 The game validates TLS through Schannel (the Windows store), so importing the
 root into `Cert:\\CurrentUser\\Root` is enough; no admin and no LocalMachine

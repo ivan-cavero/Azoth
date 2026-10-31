@@ -1,7 +1,7 @@
 """Javelin per-message framing (Carrier envelope + MessageRecords).
 
 Mirrors Javelin_Carrier_ParseMessages / _WriteMessages; see
-research/docs/REP-PROTOCOL.md for the wire layout and evidence.
+docs/archive/1.400/REP-PROTOCOL.md for the wire layout and evidence.
 """
 
 from __future__ import annotations

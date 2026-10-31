@@ -9,7 +9,7 @@ dropped **silently**, so the client log cannot distinguish "parsed and applied"
 from "ignored". The player does not move, so the honest question is whether the
 reader runs at all.
 
-The static chain is known (`research/docs/JAVELIN-DISPATCH.md`,
+The static chain is known (`docs/archive/1.400/JAVELIN-DISPATCH.md`,
 `.azoth/night/subagent-movement-codecs.md`):
 
     FUN_143f98750   facet slot5 wrapper (stamps the object vtable, calls the reader)

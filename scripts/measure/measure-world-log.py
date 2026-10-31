@@ -38,7 +38,7 @@ MARKER = b"\x3d\x4c\xcc\xcd"
 # Channel-1 wire type: ActionListComponentServerFacet_ReceiveInputFromClient.
 WIRE_INPUT = 0x635
 
-# MessageRecord flags (research/docs/JAVELIN-PROTOCOL.md section 1c).
+# MessageRecord flags (docs/archive/1.400/JAVELIN-PROTOCOL.md section 1c).
 MF_RELIABLE = 0x01
 MF_CHUNKS = 0x04
 MF_SEQUENTIAL_ID = 0x08
@@ -81,7 +81,7 @@ def decode_varint(buf: bytes, off: int) -> tuple[int, int]:
 def split_records(datagram: bytes) -> list[tuple[int, bytes]]:
     """Split a post-DTLS datagram into (channel, payload) pairs.
 
-    The framing rules are the ones research/docs/JAVELIN-PROTOCOL.md measured; a field is
+    The framing rules are the ones docs/archive/1.400/JAVELIN-PROTOCOL.md measured; a field is
     present only when its flag says so, which is why this is a walk and not a fixed struct.
     A datagram that does not parse cleanly yields whatever was decoded before the failure,
     because a partially-readable datagram is still evidence.
@@ -143,7 +143,7 @@ def analyse_channel1(payload: bytes, stats: dict, positions: list) -> None:
     """Decode one channel-1 payload and fold it into `stats`.
 
     The payload IS the client's own container, not a bare typed message
-    (research/docs/JAVELIN-PROTOCOL.md section 1f, measured 2026-10-11 and reconfirmed
+    (docs/archive/1.400/JAVELIN-PROTOCOL.md section 1f, measured 2026-10-11 and reconfirmed
     here):
 
         [u32 BE crc32][u32 BE len][16-byte target][00 01][prefix-varint type][body]

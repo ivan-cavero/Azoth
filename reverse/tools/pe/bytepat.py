@@ -26,7 +26,7 @@ from common import default_paths  # noqa: E402
 from catalog import PE  # noqa: E402
 
 # Built-in patterns: (description, hex with ?? wildcards).
-# Derived from research/docs/REP-PROTOCOL.md (external Ghidra traces).
+# Derived from docs/archive/1.400/REP-PROTOCOL.md (external Ghidra traces).
 PATTERNS: dict[str, tuple[str, str]] = {
     "dtls-verify": (
         "DTLS driver branch: CMP qword ptr [RDI+0x288],0 / JZ <permissive>. "

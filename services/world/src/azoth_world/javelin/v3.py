@@ -1,6 +1,6 @@
 """V3 registration: request parser (round-trip) + response encoder.
 
-Wire layout + evidence in research/docs/REP-PROTOCOL.md. Nothing is guessed:
+Wire layout + evidence in docs/archive/1.400/REP-PROTOCOL.md. Nothing is guessed:
 unknown regions are preserved verbatim as bytes so the request body
 round-trips byte-for-byte (a parser that cannot reproduce its input is
 wrong — the tests enforce it).

@@ -83,7 +83,7 @@ live value 1), and its counter is strictly greater than `port[+0x78]`
 Because it is a varint, advancing it must **re-encode** it: writing a byte
 `>= 0x80` turns a one-byte varint into a two-byte one and shifts everything after
 it, which is the `Failed to unmarshal … ValidationError` measured in
-`research/docs/DECOMP-BACKLOG.md` section 12.3.
+`docs/archive/1.400/DECOMP-BACKLOG.md` section 12.3.
 """
 
 from __future__ import annotations

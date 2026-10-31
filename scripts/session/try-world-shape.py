@@ -25,7 +25,7 @@ SCRIPTS = REPO / "scripts"
 OVERRIDE = REPO / "services/gateway/mock_discovery/getlogininfo.json"
 # The game ignores the launcher's LOCALAPPDATA override and resolves its profile
 # through the Windows known-folder API, so Game.log is under the real profile.
-# See research/docs/PRIVATE-CLIENT-RUNBOOK.md (evidence paths).
+# See docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md (evidence paths).
 GAME_LOG = Path(os.environ.get("LOCALAPPDATA", "")) / "AGS" / "New World" / "Game.log"
 GW_LOG = REPO / ".azoth/logs/gateway.log"
 

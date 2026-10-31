@@ -1,6 +1,6 @@
 """Javelin wire library (Carrier framing + V3 registration).
 
-Derived from the AzCore/Javelin decompilation; see research/docs/REP-PROTOCOL.md.
+Derived from the AzCore/Javelin decompilation; see docs/archive/1.400/REP-PROTOCOL.md.
 Only the world service imports this: the gateway never interprets Carrier.
 """
 

@@ -32,7 +32,7 @@ analysis or repository cleanup.
 - Record the process id and the `%LOCALAPPDATA%\AGS\New World\Game.log`
   boundary. The game ignores the launcher's `LOCALAPPDATA` override, so the log
   is under the real profile, not `private-client/profile/`; see
-  [`PRIVATE-CLIENT-RUNBOOK.md`](../../research/docs/PRIVATE-CLIENT-RUNBOOK.md). Treat counters as
+  [`PRIVATE-CLIENT-RUNBOOK.md`](../../../docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md). Treat counters as
   meaningful only after the log shows
   `ProcessPendingReliableMsgQueue processing 26 messages`.
 - Set `AZOTH_LOG_RAW=1` on the world server when distinguishing missing UDP
