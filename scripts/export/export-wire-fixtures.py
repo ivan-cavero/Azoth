@@ -8,12 +8,18 @@ envelope, the record framing, the channel-1 containers, and the state bundles â€
 into a compact JSON fixture file that both implementations read.
 
 The fixtures are derived from a capture that is gitignored, so the output is
-small and self-contained: the harness must run on a fresh checkout.
+small and self-contained: the harness must run on a fresh checkout. The corpus
+belongs to the repository, not to a crate -- the default `--out` is therefore
+`research/fixtures/wire/wire-fixtures.json`, and no `server/` tree is required.
 
 Usage:
     python scripts/export-wire-fixtures.py .azoth/logs/world.log \
-        --out server/crates/azoth-wire/tests/fixtures/wire-fixtures.json \
+        --out research/fixtures/wire/wire-fixtures.json \
         --limit 400
+
+With no arguments it uses the default `--out` and `--corpus`, producing the
+state-bundle half of the corpus from the committed replay dump; pass a local
+world log to add the client-side datagrams and channel-1 containers.
 """
 
 from __future__ import annotations
@@ -23,7 +29,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "wire"))
 from logwire import decode_input, iter_events, split_records  # noqa: E402
 
 # The type-0x08 state bundle marker inside a server record's payload.
@@ -31,17 +37,14 @@ STATE_BUNDLE_MARKER = b"\x00\x01\x08"
 
 
 def main() -> int:
-    root = Path(__file__).resolve()
-    while not (root / "ef.py").is_file() and root.parent != root:
-        root = root.parent
-    if not (root / "server" / "Cargo.toml").is_file():
-        print("server/ is not in this checkout.")
-        print("This helper used to write Rust fixtures. It does not recreate server/.")
-        print("See research/atlas/meanings.md.")
-        return 2
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("log")
-    ap.add_argument("--out", required=True)
+    ap.add_argument(
+        "log",
+        nargs="?",
+        default="services/world/replay/messages-redacted.txt",
+        help="structured world log to extract client datagrams from",
+    )
+    ap.add_argument("--out", default="research/fixtures/wire/wire-fixtures.json")
     ap.add_argument("--corpus", default="services/world/replay/messages-redacted.txt",
                     help="the committed replay dump, source of the server->client bundles")
     ap.add_argument("--limit", type=int, default=400,
@@ -168,7 +171,9 @@ def main() -> int:
             "requires the Python and Rust implementations to agree on all of them."
         ),
         "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-        "source": str(args.log).replace("\\", "/"),
+        # Only the file NAME, never a path: a checkout-relative or absolute log
+        # path would pin the fixture to one machine and break its self-containment.
+        "source": Path(args.log).name,
         "datagrams": datagrams,
         "channel1": channel1,
         "state_bundles": bundles,
