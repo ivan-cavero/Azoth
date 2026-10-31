@@ -1,6 +1,8 @@
 # Client debug and configuration levers
 
-Everything discovered about activating/deactivating/questioning the client. Keep
+Everything discovered about activating/deactivating/questioning the client. This
+list is not pinned to one build: each row names the build its measurement was
+taken on, and a row that carries an address is valid only for that build. Keep
 up to date: **one new lever = one line here** (memory/decomp finding → write it
 NOW, not "for later").
 

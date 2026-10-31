@@ -10,9 +10,10 @@ evidence rules are in [the RE skill](../../.agents/skills/azoth-re/SKILL.md).
 - `reverse/tools/decomp.py` resolves the local Ghidra/JDK install,
   decompiles requested function ranges, and reuses a project under the full
   executable SHA-256 workspace.
-- The local corpus is indexed against 423,579 `.pdata` functions for client
-  build `1.400.6031.6004151` (sha256 `8654f01d…c8e`), rebuilt fresh on
-  2026-10-06 under `reverse/builds/8654f01d…c8e/corpus/`: **423,579 `ok`, 0
+- This workflow is build-independent procedure. The local corpus named here is
+  the retired client build `1.400.6031.6004151` (sha256 `8654f01d…c8e`):
+  423,579 `.pdata` functions, rebuilt fresh on 2026-10-06 under
+  `reverse/builds/8654f01d…c8e/corpus/`: **423,579 `ok`, 0
   `fail`** (full coverage after retry passes; see DECOMP-BACKLOG §0/§1.1 and
   §9 for the payload-ladder and fragment-parent techniques). Do not
   resume the old per-user workspace under ignored

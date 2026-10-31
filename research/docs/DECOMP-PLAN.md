@@ -7,8 +7,9 @@ compiler-generated function.
 
 ## Current baseline
 
-- The local corpus is indexed against 423,579 `.pdata` functions for the
-  installed client build (sha256 `8654f01d…c8e`). The 2026-10-06 rebuild under
+- This program is build-independent procedure. The local corpus named here is
+  the retired client build `1.400.6031.6004151` (sha256 `8654f01d…c8e`):
+  423,579 `.pdata` functions. The 2026-10-06 rebuild under
   `reverse/builds/<full-sha256>/corpus/` reports **423,579 `ok` / 0 `fail`**
   (full coverage after retry passes; techniques in DECOMP-BACKLOG §9).
 - A cached xref map, Ghidra runner, candidate namer, PAK reader, and readers for
