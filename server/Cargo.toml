@@ -9,7 +9,7 @@
 
 [workspace]
 resolver = "2"
-members = ["crates/everfall-wire"]
+members = ["crates/everfall-sim", "crates/everfall-wire", "crates/everfall-world"]
 
 [workspace.package]
 edition = "2024"

@@ -1,0 +1,15 @@
+[package]
+name = "everfall-world"
+description = "The Everfall world process: decode a client request, ask the simulation, record the decision."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+everfall-sim = { path = "../everfall-sim" }
+everfall-wire = { path = "../everfall-wire" }

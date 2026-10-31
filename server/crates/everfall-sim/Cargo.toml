@@ -1,0 +1,13 @@
+[package]
+name = "everfall-sim"
+description = "Objective state and rules for the Everfall world: no I/O, no sockets, no bytes."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
