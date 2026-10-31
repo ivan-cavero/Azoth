@@ -12,8 +12,10 @@ every card in `research/atlas/ontology/concepts/`, and emits into
                          It imports the measured prefix-varint primitive from
                          `services/world/src/azoth_world/javelin/varint.py`
                          rather than reimplementing it.
-  - `wire.rs`            the same structure as a Rust PREVIEW. It is marked at
-                         the top as a non-compiling preview and no crate is made.
+  - `wire.rs`            the compiling Rust codec: one typed struct per ready
+                         card, with `decode`/`encode`. The SAME text is written
+                         into `server/crates/everfall-wire/src/generated/mod.rs`,
+                         so the reviewed artifact and the crate cannot drift.
   - `meanings-table.md`  the human-readable rendering: one section per card, one
                          row per field (name, type, offset, evidence, note).
 
@@ -44,6 +46,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -51,8 +54,16 @@ ONTOLOGY = ROOT / "research" / "atlas" / "ontology"
 SCHEMA = ONTOLOGY / "schema.json"
 CONCEPTS = ONTOLOGY / "concepts"
 OUT = ROOT / "research" / "generated"
+WIRE_RS_CRATE = (
+    ROOT / "server" / "crates" / "everfall-wire" / "src" / "generated" / "mod.rs"
+)
 
 ARTIFACTS = ("wire.py", "wire.rs", "meanings-table.md")
+
+# The crate edition the emitted Rust is formatted for. It matches
+# `server/Cargo.toml`; keeping it here lets the generator hand rustfmt the same
+# edition cargo does.
+CRATE_EDITION = "2024"
 
 _DEFAULT_VOCAB: tuple[list[str], list[str]] | None = None
 
@@ -495,8 +506,8 @@ def render_wire_py(
         lines.append(f"        'name': {spec['name']!r},")
         lines.append(f"        'direction': {spec['direction']!r},")
         lines.append("        'fields': (")
-        for name, type_name in spec["fields"]:
-            lines.append(f"            ({name!r}, {type_name!r}),")
+        for field in spec["fields"]:
+            lines.append(f"            ({field['name']!r}, {field['codec']!r}),")
         lines.append("        ),")
         lines.append("    },")
     lines.append("}")
@@ -507,82 +518,328 @@ def render_wire_py(
         lines.append(f"    {spec['uid']!r}: {{")
         lines.append(f"        'name': {spec['name']!r},")
         lines.append("        'fields': (")
-        for name, type_name in spec["fields"]:
-            lines.append(f"            ({name!r}, {type_name!r}),")
+        for field in spec["fields"]:
+            lines.append(f"            ({field['name']!r}, {field['codec']!r}),")
         lines.append("        ),")
         lines.append("    },")
     lines.append("}")
     return "\n".join(lines) + "\n"
 
 
-# --- generated Rust preview ---------------------------------------------------
+# --- generated Rust ------------------------------------------------------------
 
-_WIRE_RS_HEADER = '''\
-// NON-COMPILING PREVIEW -- generated from the Atlas concept cards by
-// `reverse/tools/atlas/ontology-gen.py`. This file is NOT a crate and is NOT
-// meant to build; it previews the same table-driven layout as wire.py so the
-// Rust port can be reviewed field by field. Do not `mod` it into anything.
-//
-// Envelope note: every field is a message BODY field. The `00 01` + prefix-varint
-// type record envelope is framing owned by javelin/frame.py, never a field here.
-//
-// The measured prefix-varint primitive is `azoth_world.javelin.varint`; this
-// preview mirrors wire.py and does not reimplement it.
+_RUST_RS_HEADER = '''\
+// GENERATED FILE -- do not edit by hand.
+//!
+//! Typed messages and nested sub-codecs derived from the Atlas cards.
+//!
+//! Produced by `reverse/tools/atlas/ontology-gen.py` (`python ef.py re
+//! ontology-gen`) from `research/atlas/ontology/schema.json` and the Atlas
+//! concept cards. One struct per codegen-ready card: its fields are that card's
+//! body fields under the card's own names, and a raw byte run is an [`Opaque`]
+//! that carries its Atlas id.
+//!
+//! This exact text is written to
+//! `server/crates/everfall-wire/src/generated/mod.rs` and mirrored here for
+//! review. The record envelope (`00 01` plus the prefix-varint type) is framing
+//! owned by `crate::framing` and is never a field.
+
+use crate::framing::{Reader, Writer, WireError};
+use crate::opaque::Opaque;
 '''
+
+# codec token -> (Rust type, Reader method, Writer method, zero literal,
+#                 writer-fallible, is-float)
+_RUST_SCALARS: dict[str, tuple[str, str, str, str, bool, bool]] = {
+    "u8": ("u8", "u8", "u8", "0", False, False),
+    "i8": ("i8", "i8", "i8", "0", False, False),
+    "u16be": ("u16", "u16be", "u16be", "0", False, False),
+    "u16le": ("u16", "u16le", "u16le", "0", False, False),
+    "i16be": ("i16", "i16be", "i16be", "0", False, False),
+    "u32be": ("u32", "u32be", "u32be", "0", False, False),
+    "u32le": ("u32", "u32le", "u32le", "0", False, False),
+    "i32be": ("i32", "i32be", "i32be", "0", False, False),
+    "u64be": ("u64", "u64be", "u64be", "0", False, False),
+    "u64le": ("u64", "u64le", "u64le", "0", False, False),
+    "i64be": ("i64", "i64be", "i64be", "0", False, False),
+    "f32be": ("f32", "f32be", "f32be", "0.0", False, True),
+    "f32le": ("f32", "f32le", "f32le", "0.0", False, True),
+    "f64be": ("f64", "f64be", "f64be", "0.0", False, True),
+    "enum8": ("u8", "u8", "u8", "0", False, False),
+    "enum16be": ("u16", "u16be", "u16be", "0", False, False),
+    "enum32be": ("u32", "u32be", "u32be", "0", False, False),
+    "bitset8": ("u8", "u8", "u8", "0", False, False),
+    "bitset16": ("u16", "u16be", "u16be", "0", False, False),
+    "bitset32be": ("u32", "u32be", "u32be", "0", False, False),
+    "prefix_varint": ("u64", "prefix_varint", "prefix_varint", "0", True, False),
+    "varint": ("u64", "varint", "varint", "0", False, False),
+    "bool_byte": ("bool", "bool_byte", "u8", "false", False, False),
+}
+
+_RUST_KEYWORDS = frozenset(
+    """
+    as break const continue crate dyn else enum extern false fn for if impl in let
+    loop match mod move mut pub ref return self Self static struct super trait true
+    type unsafe use where while async await
+    """.split()
+)
+
+_RUST_FIXED = re.compile(r"^(bytes|fixed_string)\(([0-9]+)\)$")
+_RUST_VEC_LITERAL = re.compile(r"^vec<(.+)>\[([0-9]+)\]$")
+_RUST_VEC = re.compile(r"^vec<(.+)>$")
+_RUST_MATRIX = re.compile(r"^matrix<(.+)>$")
+
+
+def rust_type_name(uid: str) -> str:
+    """A deterministic PascalCase Rust type name for one card uid."""
+    parts = re.split(r"[.\-]", uid)
+    name = "".join(part[:1].upper() + part[1:] for part in parts if part)
+    if not name or name[0].isdigit():
+        name = "Card" + name
+    if name in _RUST_KEYWORDS:
+        name += "Msg"
+    return name
+
+
+def rust_field_name(name: str) -> str:
+    """A valid snake_case Rust field name for one card field name."""
+    ident = re.sub(r"[^0-9A-Za-z_]", "_", name)
+    if not ident or ident[0].isdigit():
+        ident = "f_" + ident
+    if ident in _RUST_KEYWORDS:
+        ident += "_"
+    return ident
+
+
+def _rust_write(write: str, expr: str, fallible: bool, element: str) -> str:
+    """One `writer.<write>(<expr>);` line, widening a bool to its byte."""
+    if element == "bool_byte":
+        expr = f"u8::from({expr})"
+    call = f"writer.{write}({expr})"
+    return call + "?;" if fallible else call + ";"
+
+
+def _rust_field(field: dict) -> dict:
+    """Render one card field to its Rust type plus decode/encode statements."""
+    name = field["name"]
+    codec = field["codec"]
+    ident = rust_field_name(name)
+    atlas_id = field["id"]
+    maximum = field.get("max")
+    result: dict = {
+        "name": name,
+        "codec": codec,
+        "ident": ident,
+        "rust_type": "",
+        "decode": [],
+        "encode": [],
+        "is_float": False,
+    }
+    if codec == "bool_byte":
+        result["rust_type"] = "bool"
+        result["decode"] = [f'let {ident} = reader.bool_byte("{name}")?;']
+        result["encode"] = [f'writer.u8(u8::from(self.{ident}));']
+        return result
+    if codec in _RUST_SCALARS:
+        rust_type, read, write, _zero, fallible, is_float = _RUST_SCALARS[codec]
+        result["rust_type"] = rust_type
+        result["is_float"] = is_float
+        result["decode"] = [f'let {ident} = reader.{read}("{name}")?;']
+        result["encode"] = [_rust_write(write, f"self.{ident}", fallible, codec)]
+        return result
+    if codec == "prefixed_string":
+        result["rust_type"] = "String"
+        result["decode"] = [f'let {ident} = reader.prefixed_string("{name}")?;']
+        result["encode"] = [f'writer.prefixed_string(&self.{ident})?;']
+        return result
+    match = _RUST_FIXED.match(codec)
+    if match:
+        kind, width = match.group(1), int(match.group(2))
+        if kind == "bytes":
+            result["rust_type"] = "Opaque"
+            result["decode"] = [
+                f'let {ident} = reader.opaque("{name}", "{atlas_id}", {width})?;'
+            ]
+            result["encode"] = [f'writer.opaque(&self.{ident});']
+        else:
+            result["rust_type"] = "String"
+            result["decode"] = [
+                f'let {ident} = reader.fixed_string("{name}", {width})?;'
+            ]
+            result["encode"] = [f'writer.fixed_string(&self.{ident}, {width})?;']
+        return result
+    if codec == "prefixed_bytes":
+        result["rust_type"] = "Opaque"
+        result["decode"] = [
+            f'let {ident} = reader.prefixed_opaque("{name}", "{atlas_id}")?;'
+        ]
+        if maximum is not None:
+            result["decode"].append(
+                f'if {ident}.len() as u64 > {maximum} {{ return Err(WireError::OutOfRange '
+                f'{{ field: "{name}", max: {maximum}, value: {ident}.len() as u64 }}); }}'
+            )
+        result["encode"] = [f'writer.prefixed_opaque(&self.{ident})?;']
+        return result
+    if codec == "guid16":
+        result["rust_type"] = "Opaque"
+        result["decode"] = [
+            f'let {ident} = reader.opaque("{name}", "{atlas_id}", 16)?;'
+        ]
+        result["encode"] = [f'writer.opaque(&self.{ident});']
+        return result
+    match = _RUST_VEC_LITERAL.match(codec)
+    if match:
+        element, count = match.group(1), int(match.group(2))
+        rust_type, read, write, zero, fallible, is_float = _RUST_SCALARS[element]
+        result["rust_type"] = f"[{rust_type}; {count}]"
+        result["is_float"] = is_float
+        result["decode"] = [
+            f'let mut {ident} = [{zero}; {count}];',
+            f'for slot in &mut {ident} {{',
+            f'    *slot = reader.{read}("{name}")?;',
+            '}',
+        ]
+        result["encode"] = [f'for value in &self.{ident} {{']
+        result["encode"].append("    " + _rust_write(write, "*value", fallible, element))
+        result["encode"].append('}')
+        return result
+    match = _RUST_VEC.match(codec)
+    if match:
+        element = match.group(1)
+        rust_type, read, write, _zero, fallible, is_float = _RUST_SCALARS[element]
+        result["rust_type"] = f"Vec<{rust_type}>"
+        result["is_float"] = is_float
+        result["decode"] = [f'let count = reader.prefix_varint("{name}")?;']
+        if maximum is not None:
+            result["decode"].append(
+                f'if count > {maximum} {{ return Err(WireError::OutOfRange '
+                f'{{ field: "{name}", max: {maximum}, value: count }}); }}'
+            )
+        result["decode"].append(f'let mut {ident} = Vec::new();')
+        result["decode"].extend(
+            [
+                'for _ in 0..count {',
+                f'    {ident}.push(reader.{read}("{name}")?);',
+                '}',
+            ]
+        )
+        result["encode"] = [
+            f'writer.prefix_varint(self.{ident}.len() as u64)?;',
+            f'for value in &self.{ident} {{',
+        ]
+        result["encode"].append("    " + _rust_write(write, "*value", fallible, element))
+        result["encode"].append('}')
+        return result
+    match = _RUST_MATRIX.match(codec)
+    if match:
+        element = match.group(1)
+        rust_type, read, write, _zero, fallible, is_float = _RUST_SCALARS[element]
+        result["rust_type"] = f"Vec<Vec<{rust_type}>>"
+        result["is_float"] = is_float
+        result["decode"] = [f'let rows = reader.prefix_varint("{name}")?;']
+        if maximum is not None:
+            result["decode"].append(
+                f'if rows > {maximum} {{ return Err(WireError::OutOfRange '
+                f'{{ field: "{name}", max: {maximum}, value: rows }}); }}'
+            )
+        result["decode"].append(f'let cols = reader.prefix_varint("{name}")?;')
+        result["decode"].extend(
+            [
+                f'let mut {ident} = Vec::new();',
+                'for _ in 0..rows {',
+                '    let mut row = Vec::new();',
+                '    for _ in 0..cols {',
+                f'        row.push(reader.{read}("{name}")?);',
+                '    }',
+                f'    {ident}.push(row);',
+                '}',
+            ]
+        )
+        result["encode"] = [
+            f'writer.prefix_varint(self.{ident}.len() as u64)?;',
+            f'let cols = self.{ident}.first().map_or(0, Vec::len);',
+            f'writer.prefix_varint(cols as u64)?;',
+            f'for row in &self.{ident} {{',
+            '    for value in row {',
+        ]
+        result["encode"].append("        " + _rust_write(write, "*value", fallible, element))
+        result["encode"].extend(['    }', '}'])
+        return result
+    raise ValueError(f"codec {codec!r} cannot be rendered to Rust")
+
+
+def _render_card(spec: dict, *, wire: bool) -> list[str]:
+    uid = spec["uid"]
+    type_name = rust_type_name(uid)
+    fields = [_rust_field(field) for field in spec["fields"]]
+    has_float = any(field["is_float"] for field in fields)
+    bool_fields = sum(1 for field in fields if field["rust_type"] == "bool")
+
+    lines = [f"/// `{uid}` \u2014 one Atlas card.", "///"]
+    if wire:
+        lines.append(f"/// Message card, wire id `{spec['wire_id']}`.")
+    else:
+        lines.append("/// Nested sub-codec card (no wire id).")
+    if bool_fields > 3:
+        lines.append(
+            '#[expect(clippy::struct_excessive_bools, reason = '
+            '"the card models one bool byte per trailing flag")]'
+        )
+    derive = "Debug, Clone, PartialEq" + ("" if has_float else ", Eq")
+    lines.append(f"#[derive({derive})]")
+    lines.append(f"pub struct {type_name} {{")
+    for field in fields:
+        lines.append(f"    /// Body field `{field['name']}` (`{field['codec']}`).")
+        lines.append(f"    pub {field['ident']}: {field['rust_type']},")
+    lines.append("}")
+    lines.append("")
+    lines.append(f"impl {type_name} {{")
+    lines.append("    /// The Atlas card id.")
+    lines.append(f'    pub const UID: &\'static str = "{uid}";')
+    if wire:
+        lines.append("    /// The card wire id.")
+        lines.append(f"    pub const WIRE_ID: u32 = {spec['wire_id']};")
+    lines.append("")
+    lines.append(f"    /// Decode one `{uid}` body.")
+    lines.append("    ///")
+    lines.append("    /// # Errors")
+    lines.append("    /// Returns [`WireError`] when the body is shorter, longer, or outside")
+    lines.append("    /// a bound the card states.")
+    lines.append("    pub fn decode(body: &[u8]) -> Result<Self, WireError> {")
+    lines.append("        let mut reader = Reader::new(body);")
+    for field in fields:
+        lines.extend("        " + line for line in field["decode"])
+    lines.append("        reader.finish()?;")
+    lines.append("        Ok(Self {")
+    for field in fields:
+        lines.append(f"            {field['ident']},")
+    lines.append("        })")
+    lines.append("    }")
+    lines.append("")
+    lines.append(f"    /// Encode one `{uid}` body, appending to `out`.")
+    lines.append("    ///")
+    lines.append("    /// # Errors")
+    lines.append("    /// Returns [`WireError`] when a value exceeds a width the card states.")
+    lines.append("    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {")
+    lines.append("        let mut writer = Writer::new(out);")
+    for field in fields:
+        lines.extend("        " + line for line in field["encode"])
+    lines.append("        Ok(())")
+    lines.append("    }")
+    lines.append("}")
+    return lines
 
 
 def render_wire_rs(
     members: list[str], patterns: list[str], messages: list[dict], codecs: list[dict]
 ) -> str:
-    lines = [_WIRE_RS_HEADER, "", "pub const VOCABULARY: &[&str] = &["]
-    for member in members:
-        lines.append(f'    "{member}",')
-    lines.append("];")
-    lines.append("")
-    lines.append("pub struct FieldSpec {")
-    lines.append("    pub name: &'static str,")
-    lines.append("    pub codec: &'static str,")
-    lines.append("}")
-    lines.append("")
-    lines.append("pub struct MessageSpec {")
-    lines.append("    pub wire_id: u32,")
-    lines.append("    pub uid: &'static str,")
-    lines.append("    pub name: &'static str,")
-    lines.append("    pub direction: &'static str,")
-    lines.append("    pub fields: &'static [FieldSpec],")
-    lines.append("}")
-    lines.append("")
-    lines.append("pub static MESSAGES: &[MessageSpec] = &[")
+    lines = [_RUST_RS_HEADER]
     for spec in messages:
-        lines.append("    MessageSpec {")
-        lines.append(f"        wire_id: {spec['wire_id']},")
-        lines.append(f'        uid: "{spec["uid"]}",')
-        lines.append(f'        name: "{spec["name"]}",')
-        lines.append(f'        direction: "{spec["direction"]}",')
-        lines.append("        fields: &[")
-        for name, type_name in spec["fields"]:
-            lines.append(f'            FieldSpec {{ name: "{name}", codec: "{type_name}" }},')
-        lines.append("        ],")
-        lines.append("    },")
-    lines.append("];")
-    lines.append("")
-    lines.append("pub struct CodecSpec {")
-    lines.append("    pub uid: &'static str,")
-    lines.append("    pub name: &'static str,")
-    lines.append("    pub fields: &'static [FieldSpec],")
-    lines.append("}")
-    lines.append("")
-    lines.append("pub static CODECS: &[CodecSpec] = &[")
+        lines.append("")
+        lines.extend(_render_card(spec, wire=True))
     for spec in codecs:
-        lines.append("    CodecSpec {")
-        lines.append(f'        uid: "{spec["uid"]}",')
-        lines.append(f'        name: "{spec["name"]}",')
-        lines.append("        fields: &[")
-        for name, type_name in spec["fields"]:
-            lines.append(f'            FieldSpec {{ name: "{name}", codec: "{type_name}" }},')
-        lines.append("        ],")
-        lines.append("    },")
-    lines.append("];")
+        lines.append("")
+        lines.extend(_render_card(spec, wire=False))
     return "\n".join(lines) + "\n"
 
 
@@ -647,8 +904,15 @@ def render_meanings_md(classifications: list[tuple[dict, str, list[str]]]) -> st
 # --- driver -------------------------------------------------------------------
 
 
-def generate(schema_path, concepts_dir, out_dir) -> dict:
-    """Emit the three artifacts into ``out_dir``; return the gate report."""
+def generate(schema_path, concepts_dir, out_dir, crate_out=None) -> dict:
+    """Emit the artifacts into ``out_dir``; return the gate report.
+
+    When ``crate_out`` is given, the exact `wire.rs` text is also written to that
+    path (normally
+    ``server/crates/everfall-wire/src/generated/mod.rs``), so the reviewed
+    artifact and the crate cannot drift. Tests pass no ``crate_out`` and so never
+    touch the crate.
+    """
     schema = json.loads(Path(schema_path).read_text(encoding="utf-8"))
     vocabulary = load_vocabulary(schema)
 
@@ -666,7 +930,15 @@ def generate(schema_path, concepts_dir, out_dir) -> dict:
     for card, status, reasons in classifications:
         if status == "ready":
             wire = card.get("wire") or {}
-            fields = [(f["name"], _field_codec(f)) for f in card["fields"]]
+            fields = [
+                {
+                    "name": f["name"],
+                    "codec": _field_codec(f),
+                    "id": f"{card['uid']}.{f['name']}",
+                    "max": f.get("max"),
+                }
+                for f in card["fields"]
+            ]
             if wire.get("id") is not None:
                 emitted.append(card["uid"])
                 messages.append(
@@ -706,12 +978,27 @@ def generate(schema_path, concepts_dir, out_dir) -> dict:
     for name, text in rendered.items():
         (out_dir / name).write_text(text, encoding="utf-8", newline="\n")
 
+    # The emitted Rust must be rustfmt-clean so `cargo fmt --check` passes on the
+    # crate; running the project's own formatter here keeps the generator output
+    # and the crate identical. python and rustfmt are the only writers here.
+    wire_rs_path = out_dir / "wire.rs"
+    rustfmt(wire_rs_path)
+    rendered["wire.rs"] = wire_rs_path.read_text(encoding="utf-8")
+
+    crate_artifact = None
+    if crate_out is not None:
+        crate_out = Path(crate_out)
+        crate_out.parent.mkdir(parents=True, exist_ok=True)
+        crate_out.write_text(rendered["wire.rs"], encoding="utf-8", newline="\n")
+        crate_artifact = str(crate_out)
+
     return {
         "emitted": emitted,
         "codecs": codecs,
         "refused": refused,
         "fieldless": fieldless,
         "artifacts": [str(out_dir / name) for name in ARTIFACTS],
+        "crate_artifact": crate_artifact,
     }
 
 
@@ -722,6 +1009,23 @@ def _relative(path: str) -> str:
         return path
 
 
+def rustfmt(path: Path) -> None:
+    """Format one emitted Rust file in place with the project's rustfmt."""
+    try:
+        subprocess.run(
+            ["rustfmt", "--edition", CRATE_EDITION, str(path)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "rustfmt is required to emit the Rust codec; install it with the toolchain"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(f"rustfmt failed on {path}: {exc.stderr}") from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Generate wire code and a meanings table from the Atlas cards."
@@ -729,9 +1033,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--schema", default=str(SCHEMA))
     parser.add_argument("--concepts", default=str(CONCEPTS))
     parser.add_argument("--out", default=str(OUT))
+    parser.add_argument("--crate-out", default=str(WIRE_RS_CRATE))
     args = parser.parse_args(argv)
 
-    report = generate(Path(args.schema), Path(args.concepts), Path(args.out))
+    report = generate(
+        Path(args.schema), Path(args.concepts), Path(args.out), Path(args.crate_out)
+    )
     total = (
         len(report["emitted"])
         + len(report["codecs"])
@@ -753,6 +1060,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  - {uid}")
     for path in report["artifacts"]:
         print(f"wrote {_relative(path)}")
+    if report["crate_artifact"]:
+        print(f"wrote {_relative(report['crate_artifact'])}")
     return 0
 
 

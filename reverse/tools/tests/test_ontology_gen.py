@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -39,6 +40,9 @@ SCHEMA = REPO / "research" / "atlas" / "ontology" / "schema.json"
 CONCEPTS = REPO / "research" / "atlas" / "ontology" / "concepts"
 FIXTURE = REPO / "research" / "fixtures" / "wire" / "wire-fixtures.json"
 BODIES = REPO / "research" / "fixtures" / "wire" / "wire-bodies.json"
+CRATE_MOD = (
+    REPO / "server" / "crates" / "everfall-wire" / "src" / "generated" / "mod.rs"
+)
 ARTIFACTS = ("wire.py", "wire.rs", "meanings-table.md")
 TYPE_MARKER = b"\x00\x01"
 DATA_CHANNELS = (0, 1, 2)
@@ -160,6 +164,41 @@ class OntologyGenTest(unittest.TestCase):
                     body,
                     f"wire {hex(wire_id)} ({record['source']}): body did not round-trip",
                 )
+
+    def test_generator_emits_compiling_crate_and_stays_in_sync(self) -> None:
+        """The Rust output is a crate copy, and it carries no bare byte field.
+
+        The generator writes the exact same `wire.rs` text into the crate. This
+        re-runs the generator into a temp crate path and checks three things the
+        anti-emulator rule needs: the crate copy equals the reviewed `wire.rs`,
+        the committed crate file has not drifted, and no generated struct
+        declares a bare `Vec<u8>`/`&[u8]` field (an unnamed run is an `Opaque`).
+        """
+        generator = load_generator()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "out"
+            crate = Path(tmp) / "generated" / "mod.rs"
+            report = generator.generate(SCHEMA, CONCEPTS, out, crate)
+            self.assertIsNotNone(report["crate_artifact"])
+            produced = crate.read_text(encoding="utf-8")
+            self.assertEqual(
+                produced,
+                (out / "wire.rs").read_text(encoding="utf-8"),
+                "the crate copy and the reviewed wire.rs differ",
+            )
+            self.assertTrue(CRATE_MOD.is_file(), f"missing crate module: {CRATE_MOD}")
+            self.assertEqual(
+                produced,
+                CRATE_MOD.read_text(encoding="utf-8"),
+                "the committed crate has drifted from the generator",
+            )
+
+            bare = re.compile(r"^\s*pub [A-Za-z_][A-Za-z0-9_]*:\s*(?:Vec<u8>|&\[u8\])")
+            offenders = [line for line in produced.splitlines() if bare.match(line)]
+            self.assertEqual(offenders, [], f"bare byte field(s): {offenders}")
+
+            for needle in ("pub fn decode", "pub fn encode", "pub struct"):
+                self.assertIn(needle, produced)
 
     def test_literal_count_vec_encodes_fixed_items(self) -> None:
         """`vec<f32be>` with a LITERAL `count` is a fixed run with no prefix.

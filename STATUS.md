@@ -1,8 +1,7 @@
 # Live status
 
-Everfall. Private New World server. The Rust tree in `server/` was removed
-on 2026-10-25. Inventory: `research/atlas/meanings.md`. How we rebuild:
-`docs/PLAN.md`. Command: `python ef.py`.
+Everfall. Private New World server. `server/` is a Cargo workspace again
+(2026-10-31), one crate: `everfall-wire`. Inventory: `research/atlas/meanings.md`. Command: `python ef.py`.
 
 ## Now
 
@@ -56,11 +55,12 @@ were measured live. The position is in fragment 36, `ALCReplicatedState`.
 
 ## Next
 
-**The entry path is mapped; start the first Rust crate.** Overnight (2026-10-29) the atlas
-closed the client-facing entry side: the channel document and region HTTP bodies are
-inventoried (with the smallest must-own set to reach character select), registration `0x3` is
-laid out to the byte (`server_version` named), and `0x65c`'s 56x56 grid is a consumed
-spawn-distribution layout **with `0x65c` server -> client**, so the server encodes it.
+**The entry path is mapped; the first Rust crate exists.** `everfall-wire` (2026-10-31)
+encodes and decodes the laid-out fields; `cargo test` round-trips the three entry bodies
+the server must SEND (`0x3`, `0x663`, `0x65c`) byte-exactly. The atlas closed the
+client-facing entry side: the channel document and region HTTP bodies are inventoried
+(with the smallest must-own set to reach character select), registration `0x3` is laid out
+to the byte (`server_version` named), and `0x65c`'s 56x56 grid is a consumed spawn layout.
 
 Interaction layouts decoded the same night (all `partial` - writer and reader agree, no live
 record): Groups, Entitlement/Store, Ability/Progression, Trade, Mount + remaining Paperdoll,
@@ -68,13 +68,13 @@ Journal (Objectives 30 / Contracts 16), Territory (Interactor 47 / Detector 5), 
 Inventories/GlobalStorage, Social (50), Vitals (25), Aoi, Paperdoll, the Contracts
 sub-codecs and the prefix-varint width table. Only `0x5de` and `0xf37` are `measured`.
 
-So the next step is `everfall-wire`: encode and decode what is already laid out, starting
-with the entry bodies the server must SEND (`0x3`, `0x663`, `0x65c`) and the two measured
-requests (`0x5de`, `0xf37`). Plan and per-system method:
-`research/docs/INTERACTION-DECOMP-PLAN.md`; the decoded layouts, each with its build
-and evidence word, are rows in `research/atlas/meanings.md` § *The interaction contract*.
+The long tail is the next step: one card + one fixture per remaining message. Plan and
+per-system method: `research/docs/INTERACTION-DECOMP-PLAN.md`; the decoded layouts, each
+with its build and evidence word, are rows in `research/atlas/meanings.md` § *The interaction contract*.
 
 ## Do not
 
-Recreate `server/`. Send a datagram because a capture contained it. Rename the
-in-game resource Azoth. Read `docs/archive/` or `docs/journal/raw/` whole.
+Never add a crate or field the atlas does not name, or embed an unnamed byte
+string in a crate (a raw run is an `Opaque` with its Atlas id). Send a datagram
+because a capture contained it. Rename the resource Azoth. Read `docs/archive/`
+or `docs/journal/raw/` whole.
