@@ -44,8 +44,8 @@ hook (GUID to name, validated on the proven controls `0x663` and `0x65c`):
 | `0x651` | `ReceivePlayerSpawnPointMsg` | `ClientViewListenerTrait` |
 | `0x18a6` | `GridTrackingComponentClientFacet_UpdatePhasing` | `ClientMessages` |
 
-`0x651` has no body; `0x18a6` is a 40-byte periodic record with unnamed fields. The
-type table is one name per wire**: all 3,390 named types carry a single answer, because
+`0x651` has no body; `0x18a6` is a 40-byte periodic record with unnamed fields.
+**The type table is one name per wire**: all 3,390 named types carry a single answer, because
 the "ambiguity" was the reader taking eight qwords from the table base instead of the
 lambda's own 48-byte row. No settled name changed.
 
@@ -71,8 +71,8 @@ sub-codecs and the prefix-varint width table. Only `0x5de` and `0xf37` are `meas
 So the next step is `everfall-wire`: encode and decode what is already laid out, starting
 with the entry bodies the server must SEND (`0x3`, `0x663`, `0x65c`) and the two measured
 requests (`0x5de`, `0xf37`). Plan and per-system method:
-`research/docs/INTERACTION-DECOMP-PLAN.md`. Full night log:
-`.azoth/logs/run-20261029-overnight/SUMMARY.md`.
+`research/docs/INTERACTION-DECOMP-PLAN.md`; the decoded layouts, each with its build
+and evidence word, are rows in `research/atlas/meanings.md` § *The interaction contract*.
 
 ## Do not
 

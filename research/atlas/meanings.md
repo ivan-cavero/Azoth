@@ -427,8 +427,8 @@ exists and its handler still spawns the player, so it belongs to the rung-17 pat
 not to rung 15. The `0xa4` actor-id message is what tells the client WHICH actor it
 is, which is a precondition for that spawn, not the transition itself.
 
-The three rungs that are still open are open for different reasons, and the
-reason matters more than the status:
+Three rungs stalled the ladder, each for a different reason, and the reason
+matters more than the status:
 
 - **15** — **closed as a transport question.** The rung is left when the Carrier
   actor game connection reaches state 2 (`[carrier+0xA0] == 2`, getter at
@@ -1491,10 +1491,10 @@ ready" signal arriving after registration and before level info is exactly the s
 rung 16 needs.
 
 **What this does not prove.** `0x651` is *not* the message that moves the client out
-of rung 15. `STATUS.md` records that the actor game connection reaching state 2 does
-that, and this record arrives after registration, at the same rung, as a
-notification. Sending it does not substitute for the transport work. And the body is
-empty, so there is no field to name: the whole record is the name.
+of rung 15. The world-entry ladder above records that the actor game connection
+reaching state 2 does that, and this record arrives after registration, at the same
+rung, as a notification. Sending it does not substitute for the transport work. And
+the body is empty, so there is no field to name: the whole record is the name.
 
 ### Method note: the reversed walk
 
@@ -2761,8 +2761,13 @@ under the right type id is how the 1.400 crash happened.
 
 ## What actually blocks the ladder
 
-None of the above is the next step. Rung 15 is left by completing the Carrier
-actor game connection (`[carrier+0xA0] == 2`, getter `0x145A934A0`), which is a
-transport job, not a message. Self-identification belongs to the rung-17 path.
-`STATUS.md` carries the live blocker; this section records what the rung-17
-message still owes once the transport is done.
+**Superseded 2026-10-26** by *Rung 17 is passed, and the wall was never the
+bundle*. The Carrier actor game connection is not the live blocker: rung 15
+closed itself on 1.460 with no forced gate, and rung 17 reaches `InGame` with the
+world rendered. The connection test `[carrier+0xA0] == 2` (getter
+`0x145A934A0`) is how rung 15 is left, which is a transport detail, not a message.
+
+What this path still owes is the rung-17 body named just above: the
+self-identification record's field order and the meaning of its vector, and the
+`server_version` the lab still declares wrong. `STATUS.md` carries the live next
+step.
