@@ -24,6 +24,7 @@
   "fields": [
     {
       "name": "level_name",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x00",
       "size": "1 + n",
@@ -34,6 +35,7 @@
     },
     {
       "name": "level_path",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x15",
       "size": "1 + n",
@@ -44,6 +46,7 @@
     },
     {
       "name": "level_bounds",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x34",
       "size": 16,
@@ -56,6 +59,7 @@
     },
     {
       "name": "unresolved_u64",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x44",
       "size": 8,
@@ -67,6 +71,7 @@
     },
     {
       "name": "unresolved_u32",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x4c",
       "size": 4,
@@ -77,6 +82,7 @@
     },
     {
       "name": "session_nonce",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x50",
       "size": 8,
@@ -88,6 +94,7 @@
     },
     {
       "name": "unresolved_group",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x58",
       "size": 10,
@@ -98,6 +105,7 @@
     },
     {
       "name": "level_context_key",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x62",
       "size": 8,

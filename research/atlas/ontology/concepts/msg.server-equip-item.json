@@ -19,6 +19,7 @@
   "fields": [
     {
       "name": "field_a",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x00",
       "size": 8,
@@ -29,6 +30,7 @@
     },
     {
       "name": "field_b",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x08",
       "size": 8,
@@ -39,6 +41,7 @@
     },
     {
       "name": "field_c",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x10",
       "size": 4,
@@ -49,6 +52,7 @@
     },
     {
       "name": "field_d",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x14",
       "size": 4,
@@ -59,6 +63,7 @@
     },
     {
       "name": "field_e",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x18",
       "size": 4,
@@ -69,6 +74,7 @@
     },
     {
       "name": "field_f",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x1c",
       "size": 16,
@@ -79,6 +85,7 @@
     },
     {
       "name": "field_g",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x2c",
       "size": 1,

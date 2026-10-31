@@ -25,21 +25,21 @@ use crate::opaque::Opaque;
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlowWorldEntryRungRegistration {
-    /// Body field `unresolved_u32` (`u32be`).
+    /// Body field `unresolved_u32` (`u32be`); meaning unnamed.
     pub unresolved_u32: u32,
-    /// Body field `unresolved_u64` (`u64be`).
+    /// Body field `unresolved_u64` (`u64be`); meaning unnamed.
     pub unresolved_u64: u64,
-    /// Body field `unresolved_block` (`prefixed_bytes`).
+    /// Body field `unresolved_block` (`prefixed_bytes`); meaning unnamed.
     pub unresolved_block: Opaque,
     /// Body field `server_version` (`prefixed_string`).
     pub server_version: String,
-    /// Body field `trailing_bool_0` (`bool_byte`).
+    /// Body field `trailing_bool_0` (`bool_byte`); meaning unnamed.
     pub trailing_bool_0: bool,
-    /// Body field `trailing_bool_1` (`bool_byte`).
+    /// Body field `trailing_bool_1` (`bool_byte`); meaning unnamed.
     pub trailing_bool_1: bool,
-    /// Body field `trailing_bool_2` (`bool_byte`).
+    /// Body field `trailing_bool_2` (`bool_byte`); meaning unnamed.
     pub trailing_bool_2: bool,
-    /// Body field `trailing_bool_3` (`bool_byte`).
+    /// Body field `trailing_bool_3` (`bool_byte`); meaning unnamed.
     pub trailing_bool_3: bool,
 }
 
@@ -103,7 +103,7 @@ impl FlowWorldEntryRungRegistration {
 /// Message card, wire id `106`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgUpdate {
-    /// Body field `blob` (`prefixed_bytes`).
+    /// Body field `blob` (`prefixed_bytes`); meaning unnamed.
     pub blob: Opaque,
 }
 
@@ -148,11 +148,11 @@ impl MsgUpdate {
 /// Message card, wire id `387`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgSetReplicateStorage {
-    /// Body field `field_a` (`u64be`).
+    /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`).
+    /// Body field `field_b` (`u64be`); meaning unnamed.
     pub field_b: u64,
-    /// Body field `field_c` (`bytes(16)`).
+    /// Body field `field_c` (`bytes(16)`); meaning unnamed.
     pub field_c: Opaque,
 }
 
@@ -198,9 +198,9 @@ impl MsgSetReplicateStorage {
 /// Message card, wire id `1458`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgObjectivesUpdateTrackedObjectives {
-    /// Body field `field_a` (`u64be`).
+    /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`).
+    /// Body field `field_b` (`u64be`); meaning unnamed.
     pub field_b: u64,
     /// Body field `tracked_objective_ids` (`vec<u64be>`).
     pub tracked_objective_ids: Vec<u64>,
@@ -262,9 +262,9 @@ impl MsgObjectivesUpdateTrackedObjectives {
 /// Message card, wire id `1502`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgRequestSpendAttributePoints {
-    /// Body field `field_a` (`u64be`).
+    /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`).
+    /// Body field `field_b` (`u64be`); meaning unnamed.
     pub field_b: u64,
     /// Body field `attribute_indices` (`vec<u32be>`).
     pub attribute_indices: Vec<u32>,
@@ -345,23 +345,23 @@ impl MsgRequestSpendAttributePoints {
 /// Message card, wire id `1628`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlowWorldEntryRungSelfIdentification {
-    /// Body field `prefix_lead` (`u8`).
+    /// Body field `prefix_lead` (`u8`); meaning unnamed.
     pub prefix_lead: u8,
     /// Body field `identity_guid_prefix` (`guid16`).
     pub identity_guid_prefix: Opaque,
     /// Body field `vtable_tag` (`u32be`).
     pub vtable_tag: u32,
-    /// Body field `prefix_data` (`bytes(107)`).
+    /// Body field `prefix_data` (`bytes(107)`); meaning unnamed.
     pub prefix_data: Opaque,
     /// Body field `grid_side` (`u8`).
     pub grid_side: u8,
-    /// Body field `grid_header` (`bytes(2)`).
+    /// Body field `grid_header` (`bytes(2)`); meaning unnamed.
     pub grid_header: Opaque,
     /// Body field `grid_cells` (`bytes(12544)`).
     pub grid_cells: Opaque,
-    /// Body field `tail_zeros` (`bytes(10)`).
+    /// Body field `tail_zeros` (`bytes(10)`); meaning unnamed.
     pub tail_zeros: Opaque,
-    /// Body field `tail_lead` (`u8`).
+    /// Body field `tail_lead` (`u8`); meaning unnamed.
     pub tail_lead: u8,
     /// Body field `identity_guid_tail` (`guid16`).
     pub identity_guid_tail: Opaque,
@@ -460,13 +460,13 @@ pub struct FlowWorldEntryRungLevelInfo {
     pub level_path: String,
     /// Body field `level_bounds` (`vec<f32be>[4]`).
     pub level_bounds: [f32; 4],
-    /// Body field `unresolved_u64` (`u64be`).
+    /// Body field `unresolved_u64` (`u64be`); meaning unnamed.
     pub unresolved_u64: u64,
-    /// Body field `unresolved_u32` (`u32be`).
+    /// Body field `unresolved_u32` (`u32be`); meaning unnamed.
     pub unresolved_u32: u32,
     /// Body field `session_nonce` (`u64be`).
     pub session_nonce: u64,
-    /// Body field `unresolved_group` (`bytes(10)`).
+    /// Body field `unresolved_group` (`bytes(10)`); meaning unnamed.
     pub unresolved_group: Opaque,
     /// Body field `level_context_key` (`u64be`).
     pub level_context_key: u64,
@@ -538,11 +538,11 @@ impl FlowWorldEntryRungLevelInfo {
 /// Message card, wire id `2515`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgReceiveSettingsFromClient {
-    /// Body field `field_a` (`u64be`).
+    /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`).
+    /// Body field `field_b` (`u64be`); meaning unnamed.
     pub field_b: u64,
-    /// Body field `field_c` (`u32be`).
+    /// Body field `field_c` (`u32be`); meaning unnamed.
     pub field_c: u32,
 }
 
@@ -588,29 +588,29 @@ impl MsgReceiveSettingsFromClient {
 /// Message card, wire id `2556`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgContractsLookupContractsByParticipant {
-    /// Body field `field_a` (`u64be`).
+    /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`).
+    /// Body field `field_b` (`u64be`); meaning unnamed.
     pub field_b: u64,
-    /// Body field `participant_id` (`bytes(16)`).
+    /// Body field `participant_id` (`bytes(16)`); meaning unnamed.
     pub participant_id: Opaque,
-    /// Body field `u32_be_1` (`u32be`).
+    /// Body field `u32_be_1` (`u32be`); meaning unnamed.
     pub u32_be_1: u32,
-    /// Body field `u32_be_2` (`u32be`).
+    /// Body field `u32_be_2` (`u32be`); meaning unnamed.
     pub u32_be_2: u32,
-    /// Body field `u32_be_3` (`u32be`).
+    /// Body field `u32_be_3` (`u32be`); meaning unnamed.
     pub u32_be_3: u32,
-    /// Body field `blob_64` (`prefixed_bytes`).
+    /// Body field `blob_64` (`prefixed_bytes`); meaning unnamed.
     pub blob_64: Opaque,
-    /// Body field `blob_256` (`prefixed_bytes`).
+    /// Body field `blob_256` (`prefixed_bytes`); meaning unnamed.
     pub blob_256: Opaque,
-    /// Body field `count_u32` (`u32be`).
+    /// Body field `count_u32` (`u32be`); meaning unnamed.
     pub count_u32: u32,
-    /// Body field `index_ids` (`vec<u32be>`).
+    /// Body field `index_ids` (`vec<u32be>`); meaning unnamed.
     pub index_ids: Vec<u32>,
-    /// Body field `type_ids` (`vec<u16be>`).
+    /// Body field `type_ids` (`vec<u16be>`); meaning unnamed.
     pub type_ids: Vec<u16>,
-    /// Body field `trailing_id` (`bytes(16)`).
+    /// Body field `trailing_id` (`bytes(16)`); meaning unnamed.
     pub trailing_id: Opaque,
 }
 
@@ -739,9 +739,9 @@ impl MsgContractsLookupContractsByParticipant {
 /// Message card, wire id `2709`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgObjectivesSetObjectiveAutoPinning {
-    /// Body field `field_a` (`u64be`).
+    /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`).
+    /// Body field `field_b` (`u64be`); meaning unnamed.
     pub field_b: u64,
     /// Body field `auto_pinning_flags` (`vec<bool_byte>`).
     pub auto_pinning_flags: Vec<bool>,
@@ -803,19 +803,19 @@ impl MsgObjectivesSetObjectiveAutoPinning {
 /// Message card, wire id `3895`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgServerEquipItem {
-    /// Body field `field_a` (`u64be`).
+    /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`).
+    /// Body field `field_b` (`u64be`); meaning unnamed.
     pub field_b: u64,
-    /// Body field `field_c` (`u32be`).
+    /// Body field `field_c` (`u32be`); meaning unnamed.
     pub field_c: u32,
-    /// Body field `field_d` (`u32be`).
+    /// Body field `field_d` (`u32be`); meaning unnamed.
     pub field_d: u32,
-    /// Body field `field_e` (`u32be`).
+    /// Body field `field_e` (`u32be`); meaning unnamed.
     pub field_e: u32,
-    /// Body field `field_f` (`guid16`).
+    /// Body field `field_f` (`guid16`); meaning unnamed.
     pub field_f: Opaque,
-    /// Body field `field_g` (`bool_byte`).
+    /// Body field `field_g` (`bool_byte`); meaning unnamed.
     pub field_g: bool,
 }
 
@@ -873,9 +873,9 @@ impl MsgServerEquipItem {
 /// Message card, wire id `4248`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MsgTimeSyncToClient {
-    /// Body field `field_a` (`u64be`).
+    /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`).
+    /// Body field `field_b` (`u64be`); meaning unnamed.
     pub field_b: u64,
 }
 
@@ -915,7 +915,7 @@ impl MsgTimeSyncToClient {
 /// Nested sub-codec card (no wire id).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecContractsBlob256 {
-    /// Body field `payload` (`prefixed_bytes`).
+    /// Body field `payload` (`prefixed_bytes`); meaning unnamed.
     pub payload: Opaque,
 }
 
@@ -958,7 +958,7 @@ impl CodecContractsBlob256 {
 /// Nested sub-codec card (no wire id).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecContractsBlob64 {
-    /// Body field `payload` (`prefixed_bytes`).
+    /// Body field `payload` (`prefixed_bytes`); meaning unnamed.
     pub payload: Opaque,
 }
 
@@ -1001,7 +1001,7 @@ impl CodecContractsBlob64 {
 /// Nested sub-codec card (no wire id).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecContractsU32Vector5 {
-    /// Body field `values` (`vec<u32be>`).
+    /// Body field `values` (`vec<u32be>`); meaning unnamed.
     pub values: Vec<u32>,
 }
 

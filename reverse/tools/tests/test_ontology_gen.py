@@ -443,6 +443,87 @@ class OntologyGenTest(unittest.TestCase):
             wire.decode(106, body + b"x")  # a trailing byte is not consumed
 
 
+    # --- the meaning gap is carried into the artifacts ------------------------
+
+    def test_layout_only_field_is_emitted_not_refused(self) -> None:
+        """Marking a field layout-only is visibility, never a gate.
+
+        The layout is known, so the codec is correct: a card whose every field is
+        `layout-only` must still be emitted, never refused.
+        """
+        generator = load_generator()
+        with tempfile.TemporaryDirectory() as tmp:
+            concepts = Path(tmp) / "concepts"
+            out = Path(tmp) / "out"
+            concepts.mkdir()
+            card = concept(
+                wire={"id": "0x123", "direction": "S2C", "transport": "rep"},
+                fields=[
+                    {
+                        "name": "field_a",
+                        "type": "u64be",
+                        "evidence": "measured",
+                        "meaning": "layout-only",
+                        "note": "shared head; meaning unnamed",
+                    }
+                ]
+            )
+            (concepts / "msg.example.json").write_text(
+                json.dumps(card), encoding="utf-8"
+            )
+            report = generator.generate(SCHEMA, concepts, out)
+            self.assertEqual(report["refused"], [])
+            self.assertIn("msg.example", report["emitted"])
+
+    def test_artifacts_label_known_and_layout_only(self) -> None:
+        """The generated markdown and Rust both carry the meaning split."""
+        generator = load_generator()
+        with tempfile.TemporaryDirectory() as tmp:
+            concepts = Path(tmp) / "concepts"
+            out = Path(tmp) / "out"
+            concepts.mkdir()
+            card = concept(
+                fields=[
+                    {
+                        "name": "actor_id",
+                        "type": "u64be",
+                        "evidence": "measured",
+                        "meaning": "known",
+                        "note": "the actor id",
+                    },
+                    {
+                        "name": "field_a",
+                        "type": "u64be",
+                        "evidence": "measured",
+                        "meaning": "layout-only",
+                        "note": "shared head; meaning unnamed",
+                    },
+                ]
+            )
+            (concepts / "msg.example.json").write_text(
+                json.dumps(card), encoding="utf-8"
+            )
+            generator.generate(SCHEMA, concepts, out)
+
+            markup = (out / "meanings-table.md").read_text(encoding="utf-8")
+            self.assertIn("| field | type | offset | evidence | meaning | note |", markup)
+            self.assertIn("| known |", markup)
+            self.assertIn("| layout-only |", markup)
+
+            rust = (out / "wire.rs").read_text(encoding="utf-8")
+            self.assertIn(
+                "Body field `field_a` (`u64be`); meaning unnamed.",
+                rust,
+            )
+            self.assertNotIn(
+                "Body field `actor_id` (`u64be`); meaning unnamed.",
+                rust,
+            )
+            # The struct's type and behaviour are untouched by the marking.
+            self.assertIn("pub field_a: u64,", rust)
+            self.assertIn("pub actor_id: u64,", rust)
+
+
 def _cards(concepts_dir: Path):
     for path in sorted(Path(concepts_dir).glob("*.json")):
         yield json.loads(path.read_text(encoding="utf-8"))

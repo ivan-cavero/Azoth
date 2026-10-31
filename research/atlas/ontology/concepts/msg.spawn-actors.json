@@ -13,7 +13,7 @@
   "wire": { "id": 574, "direction": "S2C", "transport": "rep" },
   "domain_types": ["ActorId"],
   "fields": [
-    { "name": "id", "offset": "0x00", "size": 8, "endian": "be", "type": "u64be", "evidence": "unknown", "note": "meaning unproven; not a count or vector", "provenance": "legacy (none)" }
+    { "name": "id", "meaning": "layout-only", "offset": "0x00", "size": 8, "endian": "be", "type": "u64be", "evidence": "unknown", "note": "meaning unproven; not a count or vector", "provenance": "legacy (none)" }
   ],
   "legacy": true,
   "relations": [

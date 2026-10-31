@@ -47,6 +47,19 @@ A JSON integer `count` is a LITERAL element count and is only meaningful on a
 `vec<T>`/`matrix<T>`. All rules run before the `legacy` skip, so a legacy card
 can still FAIL.
 
+THE MEANING RULE (VISIBILITY, NEVER A GATE)
+===========================================
+Every field declares `meaning`: `known` (we know what it carries) or
+`layout-only` (we know the bytes, not the meaning). A field with no `meaning`
+FAILs. A placeholder name -- `field_*`, `unresolved_*`, `unknown_*`, `raw*`,
+`blob*`, `head`, `*_at_0x*`, a name that is only a type or an offset -- MUST be
+`layout-only` and may never claim `known`. A field claiming `known` must carry a
+`note` that actually says what it is. This marking never makes a card
+un-codegen-ready: the layout is known, so the codec is correct.
+
+The summary reports, per card and in total, how many fields are `known` and how
+many are `layout-only`.
+
 Usage:
     python reverse/tools/atlas/ontology-validate.py
 """
@@ -154,6 +167,84 @@ def opaque_count(concept: dict) -> int:
     )
 
 
+# The two honest states of a field's meaning. `layout-only` is a true statement
+# about our knowledge, not a defect: we know the bytes, not what they carry.
+MEANING_VALUES = frozenset({"known", "layout-only"})
+
+# A placeholder name tells us nothing about what the field carries, so it can
+# never claim `known`. `raw*`/`blob*` are here because a raw run states no
+# meaning; the other shapes are the card conventions for "we only know the
+# layout". A name that is only a codec token (optionally indexed) or an offset
+# is a placeholder too.
+_PLACEHOLDER_PATTERNS = (
+    re.compile(r"^field_"),
+    re.compile(r"^unresolved_"),
+    re.compile(r"^unknown_"),
+    re.compile(r"^raw"),
+    re.compile(r"^blob"),
+    re.compile(r"^head"),
+    re.compile(r"_at_0x"),
+    re.compile(r"_from_0x"),
+    re.compile(r"0x"),
+    re.compile(
+        r"^(?:u8|u16|u32|u64|i8|i16|i32|i64|f32|f64|enum\d*|bitset\d*|bool(?:_byte)?)"
+        r"(?:_?(?:be|le))?(?:_\d+)?$"
+    ),
+    re.compile(r"^(?:first|second|third|fourth)$"),
+    re.compile(r"^trailing_bool(?:_\d+)?$"),
+)
+
+
+def _is_placeholder_name(name: object) -> bool:
+    """True when a field name says nothing about what the field carries."""
+    if not isinstance(name, str):
+        return False
+    return any(pattern.search(name) for pattern in _PLACEHOLDER_PATTERNS)
+
+
+def _meaning_census(concept: dict) -> tuple[int, int]:
+    """(known, layout-only) field counts for one card."""
+    known = sum(1 for f in _fields(concept) if f.get("meaning") == "known")
+    layout_only = sum(
+        1 for f in _fields(concept) if f.get("meaning") == "layout-only"
+    )
+    return known, layout_only
+
+
+def meaning_errors(concept: dict) -> list[str]:
+    """The meaning rule: presence, placeholder honesty, and a real note.
+
+    Runs for every card, `legacy` included, because the rule is about what we
+    claim to know, not about whether the closed field schema applies.
+    """
+    errors: list[str] = []
+    for field in _fields(concept):
+        name = field.get("name")
+        if "meaning" not in field:
+            errors.append(f"field {name!r} does not declare a meaning")
+            continue
+        meaning = field.get("meaning")
+        if meaning not in MEANING_VALUES:
+            errors.append(
+                f"field {name!r} meaning {meaning!r} is not one of "
+                f"{sorted(MEANING_VALUES)}"
+            )
+            continue
+        if _is_placeholder_name(name) and meaning != "layout-only":
+            errors.append(
+                f"field {name!r} is a placeholder name and must be layout-only, "
+                f"not {meaning!r}"
+            )
+        if meaning == "known":
+            note = field.get("note")
+            if not isinstance(note, str) or not note.strip():
+                errors.append(
+                    f"field {name!r} claims meaning known but has no note saying "
+                    f"what it is"
+                )
+    return errors
+
+
 # FIX 1: the length lives inside these codecs; a separate prefix_varint before one
 # of them double-counts it and would make a code generator emit the prefix twice.
 PREFIXED_TYPES = frozenset({"prefixed_bytes", "prefixed_string"})
@@ -201,12 +292,13 @@ def envelope_errors(concept: dict) -> list[str]:
 
 
 def modelling_errors(concept: dict) -> list[str]:
-    """FIX 1 and FIX 2 rules plus the literal-count rule; run for every card,
-    legacy included."""
+    """FIX 1 and FIX 2 rules, the literal-count rule, and the meaning rule;
+    run for every card, legacy included."""
     return (
         prefixed_length_errors(concept)
         + envelope_errors(concept)
         + literal_count_errors(concept)
+        + meaning_errors(concept)
     )
 
 
@@ -281,6 +373,8 @@ def validate_dir(schema_path: Path, concepts_dir: Path) -> tuple[list[str], int]
     fieldless = 0
     ready = 0
     opaque_total = 0
+    known_total = 0
+    layout_only_total = 0
     for path in files:
         try:
             concept = json.loads(path.read_text(encoding="utf-8"))
@@ -293,20 +387,25 @@ def validate_dir(schema_path: Path, concepts_dir: Path) -> tuple[list[str], int]
             fielded += 1
         else:
             fieldless += 1
+        known, layout_only = _meaning_census(concept)
+        known_total += known
+        layout_only_total += layout_only
+        census = f"[meaning: {known} known, {layout_only} layout-only]"
         kind, detail = classify(concept, schema)
         if kind == "legacy":
-            lines.append(f"LEGACY {path.stem} ({detail})")
+            lines.append(f"LEGACY {path.stem} ({detail})  {census}")
         elif kind == "fail":
             lines.append(f"FAIL {path.stem}  {detail}")
             failed = True
         else:
-            lines.append(f"OK {path.stem}  {detail}")
+            lines.append(f"OK {path.stem}  {detail}  {census}")
             if has_fields and detail == "ready":
                 ready += 1
         opaque_total += opaque_count(concept)
     lines.append(
         f"summary: {len(files)} cards (fielded {fielded}, field-less {fieldless}); "
-        f"fielded codegen-ready: {ready}/{fielded}; {opaque_total} opaque fields"
+        f"fielded codegen-ready: {ready}/{fielded}; {opaque_total} opaque fields; "
+        f"fields: {known_total} known, {layout_only_total} layout-only"
     )
     return lines, (1 if failed else 0)
 

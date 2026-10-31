@@ -15,6 +15,7 @@
   "fields": [
     {
       "name": "unresolved_id_at_0x04",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x04",
       "size": 16,
@@ -25,6 +26,7 @@
     },
     {
       "name": "flags_at_0x14",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x14",
       "size": 4,
@@ -35,6 +37,7 @@
     },
     {
       "name": "session_nonce",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x18",
       "size": 8,
@@ -45,6 +48,7 @@
     },
     {
       "name": "unresolved_tag_at_0x20",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x20",
       "size": 6,
@@ -55,6 +59,7 @@
     },
     {
       "name": "sequence_counter",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x26",
       "size": 1,

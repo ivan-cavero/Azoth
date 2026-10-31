@@ -48,10 +48,15 @@
       "$comment": "CODEGEN-READY RULE: a card is codegen-ready iff it has at least one field and every field is where:'wire' with a type that is not opaque(...), and the card's own status is not unknown. partial does NOT block codegen; unknown and opaque do. A card with no fields[] is neither ready nor not-ready, so it must never count toward the codegen-ready number. BODY-ONLY RULE: fields[] describes the message BODY only. The record envelope is `[vlq32 length][00 01][prefix-varint type]`, generic framing owned by `services/world/src/azoth_world/javelin/frame.py` (and `bundle.py`); it must never appear as a field. Keep that knowledge in the card-level `envelope` string instead. MEMORY RULE: a where:'memory' field carries a decoded-struct offset, can never drive codegen, and must still declare a type (a vocabulary member, or opaque(id) when unknown).",
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "type", "evidence"],
+      "required": ["name", "type", "evidence", "meaning"],
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "type": { "$ref": "#/$defs/codec" },
+        "meaning": {
+          "$comment": "How much we know about what this field CARRIES. `known`: we know what the field carries (its meaning), not just its bytes. `layout-only`: we know the bytes, type and offset but not the meaning -- an honest statement, not a failure. Exactly these two values, no third. A placeholder name (field_*, unresolved_*, unknown_*, raw*, blob*, head, *_at_0x*, or a name that is only a type or an offset) MUST be `layout-only` and may never claim `known`; a field claiming `known` must carry a `note` that says what it is. This marking is VISIBILITY, never a codegen gate: a `layout-only` field does not stop its card being code-generated.",
+          "type": "string",
+          "enum": ["known", "layout-only"]
+        },
         "where": {
           "type": "string",
           "enum": ["wire", "memory"],

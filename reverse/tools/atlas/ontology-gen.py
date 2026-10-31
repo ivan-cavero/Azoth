@@ -17,7 +17,16 @@ every card in `research/atlas/ontology/concepts/`, and emits into
                          into `server/crates/everfall-wire/src/generated/mod.rs`,
                          so the reviewed artifact and the crate cannot drift.
   - `meanings-table.md`  the human-readable rendering: one section per card, one
-                         row per field (name, type, offset, evidence, note).
+                         row per field (name, type, offset, evidence, meaning,
+                         note), so the known / layout-only split is auditable.
+
+MEANING VISIBILITY
+==================
+Every field declares `meaning`: `known` or `layout-only`. This is visibility,
+never a gate: a `layout-only` field still emits its codec unchanged, because the
+layout is known even when the meaning is not. A `layout-only` field's Rust field
+doc comment says its meaning is unnamed; the field's type and the struct's
+behaviour are untouched.
 
 THE GATE
 ========
@@ -630,6 +639,7 @@ def _rust_field(field: dict) -> dict:
         "name": name,
         "codec": codec,
         "ident": ident,
+        "meaning": field.get("meaning", "known"),
         "rust_type": "",
         "decode": [],
         "encode": [],
@@ -789,7 +799,12 @@ def _render_card(spec: dict, *, wire: bool) -> list[str]:
     lines.append(f"#[derive({derive})]")
     lines.append(f"pub struct {type_name} {{")
     for field in fields:
-        lines.append(f"    /// Body field `{field['name']}` (`{field['codec']}`).")
+        doc = f"Body field `{field['name']}` (`{field['codec']}`)"
+        if field["meaning"] == "layout-only":
+            doc += "; meaning unnamed."
+        else:
+            doc += "."
+        lines.append(f"    /// {doc}")
         lines.append(f"    pub {field['ident']}: {field['rust_type']},")
     lines.append("}")
     lines.append("")
@@ -885,15 +900,16 @@ def render_meanings_md(classifications: list[tuple[dict, str, list[str]]]) -> st
         lines.append("")
         fields = card.get("fields") or []
         if fields:
-            lines.append("| field | type | offset | evidence | note |")
-            lines.append("| --- | --- | --- | --- | --- |")
+            lines.append("| field | type | offset | evidence | meaning | note |")
+            lines.append("| --- | --- | --- | --- | --- | --- |")
             for field in fields:
                 lines.append(
-                    "| {name} | {type} | {offset} | {evidence} | {note} |".format(
+                    "| {name} | {type} | {offset} | {evidence} | {meaning} | {note} |".format(
                         name=_cell(field.get("name")),
                         type=_cell(field.get("type")),
                         offset=_cell(field.get("offset", "—")),
                         evidence=_cell(field.get("evidence")),
+                        meaning=_cell(field.get("meaning", "—")),
                         note=_cell(field.get("note", "")),
                     )
                 )
@@ -936,6 +952,7 @@ def generate(schema_path, concepts_dir, out_dir, crate_out=None) -> dict:
                     "codec": _field_codec(f),
                     "id": f"{card['uid']}.{f['name']}",
                     "max": f.get("max"),
+                    "meaning": f.get("meaning", "known"),
                 }
                 for f in card["fields"]
             ]

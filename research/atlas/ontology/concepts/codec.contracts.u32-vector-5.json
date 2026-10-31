@@ -10,6 +10,7 @@
   "fields": [
     {
       "name": "values",
+      "meaning": "layout-only",
       "where": "wire",
       "type": "vec<u32be>",
       "evidence": "partial",

@@ -16,6 +16,7 @@
   "fields": [
     {
       "name": "actor_id",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x04",
       "size": 16,

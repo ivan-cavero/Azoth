@@ -27,6 +27,7 @@
   "fields": [
     {
       "name": "unresolved_u32",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x00",
       "size": 4,
@@ -37,6 +38,7 @@
     },
     {
       "name": "unresolved_u64",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x04",
       "size": 8,
@@ -47,6 +49,7 @@
     },
     {
       "name": "unresolved_block",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x0c",
       "size": "1 + 32",
@@ -57,6 +60,7 @@
     },
     {
       "name": "server_version",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x2d",
       "size": "1 + 35",
@@ -67,6 +71,7 @@
     },
     {
       "name": "trailing_bool_0",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x51",
       "size": 1,
@@ -77,6 +82,7 @@
     },
     {
       "name": "trailing_bool_1",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x52",
       "size": 1,
@@ -87,6 +93,7 @@
     },
     {
       "name": "trailing_bool_2",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x53",
       "size": 1,
@@ -97,6 +104,7 @@
     },
     {
       "name": "trailing_bool_3",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x54",
       "size": 1,

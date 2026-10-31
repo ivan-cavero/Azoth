@@ -26,6 +26,7 @@
   "fields": [
     {
       "name": "payload_length",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x0b",
       "size": 3,
@@ -36,6 +37,7 @@
     },
     {
       "name": "record_id",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x0e",
       "size": 1,
@@ -46,6 +48,7 @@
     },
     {
       "name": "fragment_count",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x0f",
       "size": 1,
@@ -56,6 +59,7 @@
     },
     {
       "name": "fragments",
+      "meaning": "layout-only",
       "where": "wire",
       "offset": "0x10",
       "size": "46375",
@@ -66,6 +70,7 @@
     },
     {
       "name": "actor_id",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x10+29731",
       "size": 16,
@@ -76,6 +81,7 @@
     },
     {
       "name": "position_x",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x10+38332",
       "size": 4,
@@ -87,6 +93,7 @@
     },
     {
       "name": "position_y",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x10+38336",
       "size": 4,

@@ -10,6 +10,7 @@
   "fields": [
     {
       "name": "payload",
+      "meaning": "layout-only",
       "where": "wire",
       "type": "prefixed_bytes",
       "evidence": "partial",

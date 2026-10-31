@@ -26,6 +26,7 @@
   "fields": [
     {
       "name": "head16",
+      "meaning": "layout-only",
       "offset": "0x00",
       "size": 16,
       "type": "opaque(head16)",
@@ -35,6 +36,7 @@
     },
     {
       "name": "u8_at_0x10",
+      "meaning": "layout-only",
       "offset": "0x10",
       "size": 1,
       "type": "u8",
@@ -44,6 +46,7 @@
     },
     {
       "name": "count_payload",
+      "meaning": "layout-only",
       "offset": "0x18",
       "size": "var",
       "type": "opaque(count_payload)",
@@ -53,6 +56,7 @@
     },
     {
       "name": "tail_from_0x28",
+      "meaning": "layout-only",
       "offset": "0x28",
       "size": "var",
       "type": "opaque(tail_from_0x28)",
