@@ -14,6 +14,8 @@ mod framing;
 mod opaque;
 
 pub mod generated;
+/// The hand-written codec for the mask-selected state body of Atlas card 3857.
+pub mod objectives_state;
 
 pub use crate::framing::{RECORD_TYPE_MARKER, Reader, WireError, Writer};
 pub use crate::opaque::Opaque;

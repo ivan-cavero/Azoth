@@ -2959,6 +2959,10 @@ step.
 
 ## A real body exists for type 3857, and it does not decode yet (2026-11-02)
 
+> SUPERSEDED later the same day by 'Type 3857 resolves to the candidate class, and the
+> body parses (2026-11-02)' below: the identity is resolved and the body does decode.
+> Kept because a filed negative is history, not noise.
+
 The Objectives family has no reply message, so the server's authority over it is a
 replicated-state delta. The delta's type is known by index (3857, the row 41 of the
 state-type table, GUID `036365f4-a485-439d-8a3f-c51dff6123b4`) and its payload has
@@ -3018,3 +3022,62 @@ keyed by that id), and hands the stream to *that* object's `+0x90`. On the
 the earlier recovery did not have to separate them; here nobody has yet resolved
 index 3857 to its type object. Until that object is read, the eight member names
 above are a candidate set attached to a class, not a payload layout.
+
+## Type 3857 resolves to the candidate class, and the body parses (2026-11-02)
+
+The missing link was one hop: the dispatcher does not call the *class's* codec
+directly, and the class it reaches is the candidate class after all. The body then
+parses field by field and re-encodes byte-exactly. This supersedes the negative
+directly above; what was wrong there was the layout reading, not the identity.
+
+**The chain, from the dispatcher outwards.** `FUN_146af38c0` reads the key varint,
+then `FUN_1461ae3f0` -> `FUN_1461ae2a0`, which reads the type-index varint and
+turns index 3857 into the 16-byte AZ id through the flat table at `registry+0x40`
+(stride 0x10; index 0 means "16 id bytes inline"), then `FUN_146166220` hashes that
+id into a map whose node key sits at `+0x10`/`+0x18` and whose value is at `+0x20`.
+The value is a descriptor: `0x1406d9950` is `lea rax,[rcx+0x28]` (its name string)
+and `0x1406d9970` is `mov rax,[rcx+0x48]` (its facet). The facet for **this** id is
+created in the type's own record function `FUN_143a39e80`, which parses the GUID
+text at `0x148253300` and stores a facet whose vptr is `0x1482531b8` — an address
+referenced exactly once in the whole image, from `0x143a3a007` inside that same
+function, so the facet is not shared and identifies this type alone.
+
+**Facet slot `+8` builds the candidate class.** `0x1439eb9a0` allocates `0x1880`
+bytes, sets a refcount header at vptr `0x14825b1b0`, and calls `FUN_143a1f0b0` —
+the ctor that sets vptr `0x148259b90`. So the `+0x88` `0x141728b30` and `+0x90`
+`0x1417b5080` the dispatcher calls are that class's own. `ALCReplicatedState`
+coinciding with its class vtable was not a special case; it was the general rule,
+and the earlier miss was that the facet indirection was never followed. **The
+candidate class is type 3857.**
+
+**The layout is a two-level mask, not a member selector.** `FUN_1417b5080` reads
+one mask byte per chunk of eight *groups* — the descriptor vector at
+`(obj+0x18 - obj+0x10)/800` — then calls `FUN_1417b5330` per set bit, which reads
+one 7-bit *in-group* mask byte (`0x80` = another byte) and then each present
+member's vtable `+0x30`. The ctor builds exactly two groups: group 0 for
+`gracePeriodEndTime` (the ctor passes index 0) and group 1 for the other seven
+(`FUN_1416789e0` returns the count before appending, so 1). The measured body is
+therefore `02` = group 1, `18` = in-group members 3 and 4 = `activeObjectives`
+then `taskStates`. The old reading made `0x02` select a member, so `0x18` became a
+count of 24 and `0x4c` a presence byte; both disappear under the correct leveling.
+
+**The body closes exactly.** `[02][18] [active: 00 01 07 11 + 17 x 56]
+[taskStates: 00 01 07 2b + 43 x 18]` = 1 + 1 + 5 + 952 + 5 + 774 = **1736**, zero
+bytes left, and re-encoding reproduces the fixture byte for byte. An
+`activeObjectives` element is `u32be, u64be, u32be, 16 raw bytes, u64be, u16be,
+four zero-or-one bytes, u64be, one zero-or-one byte, prefix-varint list length
+(<=7) + that many u32be` (reader `0x145cea3e0` / `0x145b520f0` / `0x145b55b70`); a
+`taskStates` element is `u64be, u8, u32be, u32be, u8` (reader `0x143adec40`). Both
+member readers take a prefix-varint count, and the measured body takes their zero
+branch: a presence byte plus one prefix-varint, here 7.
+
+**What this does not establish.** Not one element field's meaning: the readers fix
+order and width, nothing more, so every element field stays `layout-only` in the
+card. And **the tracked objective set and the pin flags are not in this body at
+all** — in-group bits 1 (`trackedObjectives`) and 2 (`completedObjectives`) are
+clear, and the four zero-or-one bytes per active element are unnamed, so calling
+any of them a pin flag would be a guess. The card is `verified` with
+`confidence: layout`; its codec is hand-written in
+`server/crates/everfall-wire/src/objectives_state.rs` because the closed codec
+vocabulary cannot express a mask-selected nested container, which is why the
+generator still refuses the card.

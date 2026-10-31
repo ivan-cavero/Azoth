@@ -339,6 +339,14 @@ impl<'a> Writer<'a> {
         self.out.push(value);
     }
 
+    /// Write a run of bytes the caller already holds in wire order.
+    ///
+    /// Only for a field whose card states a fixed byte width; a variable run is
+    /// written with [`Self::prefixed_opaque`] so it keeps its length prefix.
+    pub fn raw(&mut self, bytes: &[u8]) {
+        self.out.extend_from_slice(bytes);
+    }
+
     /// Write one signed byte.
     pub fn i8(&mut self, value: i8) {
         self.out.push(value as u8);
