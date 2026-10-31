@@ -12,7 +12,7 @@ class whose vftable lives in the imported CRT (msvcp140/vcruntime)** — zero
 COL-vftables point at in-image `.text`. Consequence: Ghidra's RTTI class
 recovery can only name exception/STL classes here, never game classes. Game
 class naming must come from the AZ reflection registry and string references
-(namer v2) — see research/docs/DECOMP-BACKLOG.md (naming section).
+(namer v2) — see docs/archive/1.400/DECOMP-BACKLOG.md (naming section).
 
 What this tool still delivers:
 
@@ -31,6 +31,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import struct
@@ -43,6 +44,24 @@ from catalog import PE  # noqa: E402
 
 NAME_RE = re.compile(rb"\.\?A([VUW][0-9]?)([^\x00]+?@@)\x00")
 OUT = default_paths()["research"] / "derived" / "rtti-classes.json"
+
+
+def exe_sha256_prefix(exe: Path, length: int = 16) -> str | None:
+    """First `length` hex chars of the client executable's SHA-256.
+
+    The scan output is a provenance record, so this has to be measured, never
+    assumed: a constant makes every rebuild claim the build it was written for
+    instead of the build it actually scanned. Returns None when the exe cannot
+    be read, so the caller can refuse to emit rather than invent a build id.
+    """
+    try:
+        digest = hashlib.sha256()
+        with exe.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(chunk)
+        return digest.hexdigest()[:length]
+    except OSError:
+        return None
 
 
 def demangle(raw: bytes) -> str:
@@ -130,7 +149,16 @@ def _cols_by_pself(pe: PE, rdata: dict) -> int:
 
 
 def build() -> int:
-    pe = PE(default_paths()["exe"])
+    exe = Path(default_paths()["exe"])
+    prefix = exe_sha256_prefix(exe)
+    if prefix is None:
+        print(f"cannot read client exe: {exe}", file=sys.stderr)
+        print(
+            "refusing to write an artifact with an unmeasured build identity",
+            file=sys.stderr,
+        )
+        return 1
+    pe = PE(exe)
     secs = _scan_sections(pe)
     base = pe.image_base
     text = pe.section(".text")
@@ -179,7 +207,7 @@ def build() -> int:
             break
 
     out = {
-        "exe_sha256_prefix": "8654f01d324636d9",
+        "exe_sha256_prefix": prefix,
         "measured_conclusion": (
             "Game code is compiled without vftable RTTI (/GR-): 4,820 "
             "TypeDescriptors exist but all 1,959 COLs belong to imported-CRT "

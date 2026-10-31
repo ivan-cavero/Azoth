@@ -45,6 +45,11 @@
       "kind": "toolchain",
       "file": "bootstrap.py"
     },
+    "build-audit": {
+      "path": "ops/build-audit.py",
+      "kind": "ops",
+      "file": "build-audit.py"
+    },
     "capture-world-run": {
       "path": "session/capture-world-run.py",
       "kind": "session",
