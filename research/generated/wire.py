@@ -279,6 +279,35 @@ def encode(wire, message):
     return bytes(out)
 
 
+def decode_codec(uid, body, *, require_full=True):
+    """Decode a named nested sub-codec (not a message) into {field_name: value}."""
+    spec = CODECS.get(uid)
+    if spec is None:
+        raise WireCodecError(f"no card-derived codec for {uid}")
+    values = {}
+    cursor = 0
+    for name, type_name in spec["fields"]:
+        values[name], cursor = decode_field(type_name, body, cursor)
+    if require_full and cursor != len(body):
+        raise WireCodecError(
+            f"codec {uid}: {len(body) - cursor} trailing byte(s) after the last field"
+        )
+    return values
+
+
+def encode_codec(uid, message):
+    """Encode {field_name: value} for a named nested sub-codec."""
+    spec = CODECS.get(uid)
+    if spec is None:
+        raise WireCodecError(f"no card-derived codec for {uid}")
+    out = bytearray()
+    for name, type_name in spec["fields"]:
+        if name not in message:
+            raise WireCodecError(f"codec {uid}: missing field {name!r}")
+        out += encode_field(type_name, message[name])
+    return bytes(out)
+
+
 # --- card-derived message layouts (BODY fields only) ---
 MESSAGES = {
     106: {
@@ -287,6 +316,70 @@ MESSAGES = {
         'direction': 'S2C',
         'fields': (
             ('blob', 'prefixed_bytes'),
+        ),
+    },
+    1502: {
+        'uid': 'msg.request-spend-attribute-points',
+        'name': 'AttributeComponentServerFacet_RequestSpendAttributePoints',
+        'direction': 'C2S',
+        'fields': (
+            ('field_a', 'u64be'),
+            ('field_b', 'u64be'),
+            ('attribute_indices', 'vec<u32be>'),
+            ('points', 'vec<u32be>'),
+        ),
+    },
+    1628: {
+        'uid': 'flow.world-entry.rung.self-identification',
+        'name': 'Ladder: SelfIdentification',
+        'direction': 'S2C',
+        'fields': (
+            ('prefix_lead', 'u8'),
+            ('identity_guid_prefix', 'guid16'),
+            ('vtable_tag', 'u32be'),
+            ('prefix_data', 'bytes(107)'),
+            ('grid_side', 'u8'),
+            ('grid_header', 'bytes(2)'),
+            ('grid_cells', 'bytes(12544)'),
+            ('tail_zeros', 'bytes(10)'),
+            ('tail_lead', 'u8'),
+            ('identity_guid_tail', 'guid16'),
+        ),
+    },
+    3895: {
+        'uid': 'msg.server-equip-item',
+        'name': 'PaperdollComponentServerFacet_ServerEquipItem',
+        'direction': 'C2S',
+        'fields': (
+            ('field_a', 'u64be'),
+            ('field_b', 'u64be'),
+            ('field_c', 'u32be'),
+            ('field_d', 'u32be'),
+            ('field_e', 'u32be'),
+            ('field_f', 'guid16'),
+            ('field_g', 'bool_byte'),
+        ),
+    },
+}
+
+# --- card-derived nested sub-codecs (not messages) ---
+CODECS = {
+    'codec.contracts.blob-256': {
+        'name': 'Contracts nested sub-codec B',
+        'fields': (
+            ('payload', 'prefixed_bytes'),
+        ),
+    },
+    'codec.contracts.blob-64': {
+        'name': 'Contracts nested sub-codec A',
+        'fields': (
+            ('payload', 'prefixed_bytes'),
+        ),
+    },
+    'codec.contracts.u32-vector-5': {
+        'name': 'Contracts nested sub-codec C',
+        'fields': (
+            ('values', 'vec<u32be>'),
         ),
     },
 }

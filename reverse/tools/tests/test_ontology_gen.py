@@ -38,6 +38,7 @@ WIRE_PY = GENERATED / "wire.py"
 SCHEMA = REPO / "research" / "atlas" / "ontology" / "schema.json"
 CONCEPTS = REPO / "research" / "atlas" / "ontology" / "concepts"
 FIXTURE = REPO / "research" / "fixtures" / "wire" / "wire-fixtures.json"
+BODIES = REPO / "research" / "fixtures" / "wire" / "wire-bodies.json"
 ARTIFACTS = ("wire.py", "wire.rs", "meanings-table.md")
 TYPE_MARKER = b"\x00\x01"
 DATA_CHANNELS = (0, 1, 2)
@@ -86,6 +87,87 @@ class OntologyGenTest(unittest.TestCase):
 
     # --- THE IMPORTANT TEST: real bytes through the generated codec -----------
 
+    def test_generated_codec_round_trips_extracted_bodies(self) -> None:
+        """Every seeded layout with a real body must round-trip byte-exactly.
+
+        `scripts/export/export-wire-bodies.py` extracts one real BODY per target
+        layout from the committed corpus or a local log and writes
+        `wire-bodies.json`. Each body here is fed through the GENERATED codec:
+        `encode(decode(body)) == body`. A record whose wire is not codegen-ready
+        is reported and skipped -- never replaced by a weaker assertion.
+        """
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run `python ef.py re ontology-gen`")
+        self.assertTrue(BODIES.is_file(), f"missing extracted-body fixture: {BODIES}")
+        fixture = json.loads(BODIES.read_text(encoding="utf-8"))
+        records = fixture["records"]
+        self.assertTrue(records, "wire-bodies.json has no records")
+
+        ready_wires = set(wire.MESSAGES)
+        checked = 0
+        skipped: list[str] = []
+        for record in records:
+            wire_id = int(record["wire_id"])
+            body = bytes.fromhex(record["body"])
+            if wire_id not in ready_wires:
+                skipped.append(f"wire {hex(wire_id)} is not codegen-ready")
+                continue
+            decoded = wire.decode(wire_id, body)
+            self.assertEqual(
+                wire.encode(wire_id, decoded),
+                body,
+                f"wire {hex(wire_id)} ({record['source']}): body did not round-trip",
+            )
+            checked += 1
+        self.assertGreater(
+            checked, 0, "no extracted body round-tripped: " + "; ".join(skipped)
+        )
+
+        # The two newly seeded layouts with a real body must be codegen-ready.
+        for wire_id in (0x65C, 0xF37):
+            self.assertIn(wire_id, ready_wires, f"wire {hex(wire_id)} should be ready")
+
+    def test_seeded_spend_layout_is_typed_but_has_no_body(self) -> None:
+        """0x5de is fully typed and codegen-ready, but no real body exists.
+
+        The committed corpus and the scanned local logs carry no 0x5de record, so
+        the card stays a `typed but unverified` layout: present and emitted, but
+        absent from wire-bodies.json. This pins the honest outcome so nobody
+        fabricates a fixture for it.
+        """
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        self.assertIn(0x5DE, wire.MESSAGES)
+        fixture = json.loads(BODIES.read_text(encoding="utf-8"))
+        for record in fixture["records"]:
+            self.assertNotEqual(int(record["wire_id"]), 0x5DE)
+
+    def test_gate_emits_codec_cards_separately(self) -> None:
+        """A ready card with no wire id is a nested sub-codec, not a message."""
+        generator = load_generator()
+        with tempfile.TemporaryDirectory() as tmp:
+            concepts = Path(tmp) / "concepts"
+            out = Path(tmp) / "out"
+            concepts.mkdir()
+            card = concept(
+                uid="codec.example",
+                kind="codec",
+                fields=[
+                    {"name": "blob", "type": "prefixed_bytes", "evidence": "partial", "max": 8}
+                ],
+            )
+            (concepts / "codec.example.json").write_text(
+                json.dumps(card), encoding="utf-8"
+            )
+            report = generator.generate(SCHEMA, concepts, out)
+            self.assertEqual(report["emitted"], [])
+            self.assertEqual([c["uid"] for c in report["codecs"]], ["codec.example"])
+            rendered = (out / "wire.py").read_text(encoding="utf-8")
+            self.assertIn("'codec.example'", rendered)
+            self.assertIn("CODECS", rendered)
+            messages_block = rendered.split("MESSAGES = {", 1)[1].split("CODECS = {", 1)[0]
+            self.assertNotIn("codec.example", messages_block)
+
     def test_generated_codec_round_trips_fixture_records(self) -> None:
         generator = load_generator()
         wire = load_generated_wire()
@@ -97,6 +179,7 @@ class OntologyGenTest(unittest.TestCase):
             card
             for card in _cards(CONCEPTS)
             if generator.classify(card)[0] == "ready"
+            and (card.get("wire") or {}).get("id") is not None
         ]
         self.assertTrue(ready, "no codegen-ready card to falsify against")
 

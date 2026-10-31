@@ -18,6 +18,33 @@
 - kind: command; status: implemented; confidence: semantics
 - codegen: field-less — neither emitted nor refused
 
+## codec.contracts.blob-256 — Contracts nested sub-codec B
+
+- kind: codec; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| payload | prefixed_bytes | — | partial | varint(n) + n x 1 raw byte, cap 256; over-cap behaviour is a silent length-0 write and a status-4 reader reject. meanings.md 'Contracts closed, 2026-10-29 - the two wires that were blocked on nested sub-codecs'. |
+
+## codec.contracts.blob-64 — Contracts nested sub-codec A
+
+- kind: codec; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| payload | prefixed_bytes | — | partial | varint(n) + n x 1 raw byte, cap 64; over-cap behaviour is a silent length-0 write and a status-4 reader reject. meanings.md 'Contracts closed, 2026-10-29 - the two wires that were blocked on nested sub-codecs'. |
+
+## codec.contracts.u32-vector-5 — Contracts nested sub-codec C
+
+- kind: codec; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| values | vec<u32be> | — | partial | varint(n) + n x u32 BE, cap 5; over-cap behaviour is a silent length-0 write and a status-4 reader reject. meanings.md 'Contracts closed, 2026-10-29 - the two wires that were blocked on nested sub-codecs'. |
+
 ## endpoint.channel-config — ChannelConfig
 
 - S2C
@@ -92,7 +119,7 @@
 
 - wire 0x663, S2C
 - kind: flow; status: candidate; confidence: layout
-- codegen: **refused** — opaque fields: level_bounds, unresolved_group_at_0x5c, level_name, unresolved_at_0x20 (+11 more); memory (decoded-struct) fields: level_name, unresolved_at_0x20, level_path, unresolved_at_0x48 (+9 more); unknown field evidence: level_bounds, unresolved_u64_at_0x48, level_flags, unresolved_group_at_0x5c (+13 more)
+- codegen: **refused** — opaque fields: level_bounds, level_name, unresolved_at_0x20, level_path (+10 more); memory (decoded-struct) fields: level_name, unresolved_at_0x20, level_path, unresolved_at_0x48 (+9 more); unknown field evidence: level_bounds, unresolved_u64_at_0x48, level_flags, unresolved_group_at_0x5c (+13 more)
 
 | field | type | offset | evidence | note |
 | --- | --- | --- | --- | --- |
@@ -102,7 +129,7 @@
 | unresolved_u64_at_0x48 | u64be | 0x48 | unknown | Zero on the measured record. No reader found in the handler. |
 | level_flags | u32be | 0x50 | unknown | Measured 01 01 00 00. The project's previous parse read the first two as level_is_loading and in_game; that reading is not proven by the decompile. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
 | session_nonce | u64be | 0x54 | partial | Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
-| unresolved_group_at_0x5c | opaque(unresolved_group_at_0x5c) | 0x5c | unknown | Measured 65 03 00 00 00 00 01 01 01 00. Not read by the handler, so it is either consumed by the deserializer or ignored. |
+| unresolved_group_at_0x5c | bytes(10) | 0x5c | unknown | Measured 65 03 00 00 00 00 01 01 01 00. The atlas now splits it: six unnamed bytes then the four u8 the struct calls +0xa0..+0xa3 (01 01 01 00). Not read by the handler. The size (10) is stated, so the shape is carried as bytes(10); the meaning stays unknown. meanings.md '`0x663` laid out to the byte'. |
 | level_context_key | u64be | 0x66 | partial | The last 8 bytes of the record, measured 00 00 00 c1 7f 9b e4 8f. The handler compares it against the component slot it cached last time and RETURNS EARLY when they match, then stores the new value. So it is the dedup key: a repeated LevelInfo with the same key is ignored by the client. This is a second, independent signal for the same fact the lab had already recorded from the capture (the repeated seq 0x663 at 0x4d carries the same key and is ignored). |
 | level_name | opaque(level_name) | 0x00 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
 | unresolved_at_0x20 | opaque(unresolved_at_0x20) | 0x20 | unknown | Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70. |
@@ -120,9 +147,9 @@
 
 ## flow.world-entry.rung.registration — Ladder: Registration response
 
-- wire 0x13 / 0x3, Bidi
+- wire 0x3, Bidi
 - kind: flow; status: candidate; confidence: layout
-- codegen: **refused** — opaque fields: request_version_map, unresolved_ids_at_0x10; unknown field evidence: unresolved_u32_at_0x03, unresolved_u8_at_0x07, unresolved_8_at_0x08, unresolved_ids_at_0x10 (+1 more)
+- codegen: **refused** — opaque fields: request_version_map; unknown field evidence: unresolved_u32_at_0x03, unresolved_u8_at_0x07, unresolved_8_at_0x08, unresolved_ids_at_0x10 (+1 more)
 
 | field | type | offset | evidence | note |
 | --- | --- | --- | --- | --- |
@@ -130,29 +157,34 @@
 | unresolved_u32_at_0x03 | u32be | 0x03 | unknown | Zero on the measured record. No second signal for what it is. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
 | unresolved_u8_at_0x07 | u8 | 0x07 | unknown | Measured 0x0b. Plausibly a count or a length, but nothing confirms which. |
 | unresolved_8_at_0x08 | u64be | 0x08 | unknown | Measured 88 8d 68 70 6c 41 5b 20. Not an id that appears anywhere else in the capture. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
-| unresolved_ids_at_0x10 | opaque(unresolved_ids_at_0x10) | 0x10 | unknown | 32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids. |
+| unresolved_ids_at_0x10 | bytes(32) | 0x10 | unknown | 32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids. The size (32) is stated, so the shape is carried as bytes(32); the meaning stays unknown. meanings.md 'The first typed exchange, measured'. (#216). |
 | server_version | fixed_string(36) | 0x30 | measured | The 36-byte ASCII string '#[RETAIL].Javelin.1.365.6031.6006993', with no length prefix in front of it: its start is fixed and its length is fixed by the format. This is the server's version, and its shape matches the client's own version format exactly. The captured server reports 1.365.6031.6006993 because that capture was taken on build 1.365, so server and client agreed. |
 | trailing_flags | u32be | 0x54 | unknown | Measured 01 00 00 01, the last four bytes of the record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
 
 ## flow.world-entry.rung.self-identification — Ladder: SelfIdentification
 
-- wire unproven, S2C
+- wire 0x65c, S2C
 - kind: flow; status: candidate; confidence: layout
-- codegen: **refused** — opaque fields: unresolved_u32_at_0x00, unresolved_u32_vector_at_0x08, spawn_from_debug_cvars, unresolved_u64_at_0x2c (+1 more); memory (decoded-struct) fields: unresolved_u32_at_0x00, unresolved_u32_vector_at_0x08, spawn_from_debug_cvars, unresolved_u64_at_0x2c (+1 more); unknown field evidence: unresolved_u32_at_0x00, unresolved_u64_at_0x2c, unresolved_u32_at_0x34
+- codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | note |
 | --- | --- | --- | --- | --- |
-| unresolved_u32_at_0x00 | opaque(unresolved_u32_at_0x00) | 0x00 | unknown | First field of the decoded struct. Copied into the player-manager component at -0x7e8; nothing reads that component slot, so its role is unknown. |
-| unresolved_u32_vector_at_0x08 | opaque(unresolved_u32_vector_at_0x08) | 0x08 | partial | std::vector of 4-byte elements: begin, end, capacity. Proven by the copy helper FUN_1402d1540, which computes (src_end - src_begin) >> 2 and reallocates by element count. This is the only variable-length member of the struct, so it is what makes the message worth sending, and it is the member the wire form replaces with an explicit count plus elements. |
-| spawn_from_debug_cvars | opaque(spawn_from_debug_cvars) | 0x28 | partial | Non-zero makes the handler read two debug cvars as strings, atof them into three position floats and four rotation floats, log 'spawning player at location by editor' and 'using spawn rotation [%.3f, %.3f, %.3f, %.3f]', and skip the real spawn delegate FUN_14167cc70 entirely. Verified in two separate branches of the same function. |
-| unresolved_u64_at_0x2c | opaque(unresolved_u64_at_0x2c) | 0x2c | unknown | Copied into the player-manager component at -0x7bc. Negative evidence: no function in the 423,609-function corpus reads that component slot, and the value never reaches a log, a comparison or a serialization call. |
-| unresolved_u32_at_0x34 | opaque(unresolved_u32_at_0x34) | 0x34 | unknown | Copied into the player-manager component at -0x7b4. Same negative evidence as the u64 above: written once, read nowhere. |
+| prefix_lead | u8 | 0x04 | measured | Measured 05. The same 05 also precedes the tail GUID, so it plausibly introduces an identity slot. meanings.md '0x65c body: measured'. |
+| identity_guid_prefix | guid16 | 0x05 | measured | GUID #1, redacted in the committed dump (zeros). Filled by AZOTH_REPLAY_SELFIDENT_GUID at target (0x06, 0x065C, 0x05, 16). meanings.md '0x65c body: measured'. |
+| vtable_tag | u32be | 0x15 | measured | Measured 0x14786158 (bytes 58 61 78 14), a VA into the image's .rdata. The same tag appears in 0x40a and 0x1be. meanings.md '0x65c body: measured'. |
+| prefix_data | bytes(107) | 0x19 | measured | Measured data, unnamed; ends in a run of zeros from 0x5d. Size stated, so carried as bytes(107); the meaning stays unnamed. meanings.md '0x65c body: measured'. |
+| grid_side | u8 | 0x84 | measured | Measured 0x38 = 56, the grid side. meanings.md '0x65c body: measured'. |
+| grid_header | bytes(2) | 0x85 | measured | Measured 80 31, unexplained. meanings.md '0x65c body: measured'. |
+| grid_cells | bytes(12544) | 0x87 | measured | The grid: 56 x 56 big-endian u32 cells = 12,544 bytes. The wire carries no row/column count prefix, so the fixed run is carried as bytes(12544); a cell is a small enum with 7 states plus an empty sentinel 0xFFFFFFFF. meanings.md '0x65c body: measured'. |
+| tail_zeros | bytes(10) | 0x3187 | measured | Measured ten zero bytes. meanings.md '0x65c body: measured'. |
+| tail_lead | u8 | 0x3191 | measured | Measured 05, matching prefix_lead. meanings.md '0x65c body: measured'. |
+| identity_guid_tail | guid16 | 0x3192 | measured | GUID #2, redacted in the committed dump (zeros), the last 16 bytes of the record. Filled by nothing today. meanings.md '0x65c body: measured'. |
 
 ## flow.world-entry.rung.spawn — Ladder: Spawn
 
 - wire 0x8, S2C
 - kind: flow; status: candidate; confidence: layout
-- codegen: **refused** — opaque fields: fragments, actor_id
+- codegen: **refused** — opaque fields: fragments
 
 | field | type | offset | evidence | note |
 | --- | --- | --- | --- | --- |
@@ -160,7 +192,7 @@
 | record_id | u8 | 0x0e | measured | 1. The other variant of record_id 1 is the ongoing 9-fragment, 7,154-byte record, which carries no position; the two are not interchangeable. |
 | fragment_count | u8 | 0x0f | measured | 0x30 = 48, matching the client's own nested-call count (FUN_146af20d0 -> FUN_146af2340) recorded by the deleted crate. This is a measured agreement, not a guess. |
 | fragments | opaque(fragments) | 0x10 | partial | 48 concatenated [varint key][varint type_index][payload] fragments with NO length field: a fragment's payload length is implied by its type, which only the client's reader knows. 48 distinct keys, 47 distinct types, keys sparse and all <= 77. The individual boundaries are not recovered; see the evidence for the measured negative result. |
-| actor_id | opaque(actor_id) | 0x10+29731 | measured | Payload offset 29,731. Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, which is byte-identical to the ACTOR_ID constant the deleted crate pinned, and it is preceded at 29,727 by 00 00 00 02 exactly as that crate's census anchor describes. This is the one field a private server must rewrite, and nothing else may move. |
+| actor_id | guid16 | 0x10+29731 | measured | Payload offset 29,731. Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, which is byte-identical to the ACTOR_ID constant the deleted crate pinned, and it is preceded at 29,727 by 00 00 00 02 exactly as that crate's census anchor describes. This is the one field a private server must rewrite, and nothing else may move. Sixteen raw bytes, so the shape is carried as guid16. meanings.md 'Rung 17 is passed, and the wall was never the bundle'. |
 | position_x | f32be | 0x10+38332 | measured | Payload offset 38,332, big-endian f32. Measured 46 11 fe 91 = 9343.6416, a plausible world coordinate. |
 | position_y | f32be | 0x10+38336 | measured | Payload offset 38,336, big-endian f32. Measured 45 2e 2b b9 = 2786.7327. |
 
@@ -240,6 +272,35 @@
 - wire 391, S2C
 - kind: message; status: verified; confidence: bytes
 - codegen: field-less — neither emitted nor refused
+
+## msg.request-spend-attribute-points — AttributeComponentServerFacet_RequestSpendAttributePoints
+
+- wire 0x5de, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| field_a | u64be | 0x00 | measured | First of the shared 16-byte head (FUN_1414dbca0). Measured 0xe05592a1d48c417 on the 2026-10-27 live record, byte-identical to the builder's *param_2. meanings.md 'The first field layout: 0x5de'. |
+| field_b | u64be | 0x08 | measured | Second head u64. Measured 0xbf85314bbc4a951a, byte-identical to the builder's *param_3 and the local-player key the atlas already documents. meanings.md 'The first field layout: 0x5de'. |
+| attribute_indices | vec<u32be> | 0x10 | measured | Prefix-varint count, then count x u32 BE. Measured [2] (Strength) on the live record. Each index is a CharacterAttributeType in 0..4; the client asserts an index above 4 (FUN_141788630) and the runtime cap is 4. meanings.md 'The first field layout: 0x5de'. |
+| points | vec<u32be> | 0x15 | measured | Prefix-varint count, then count x u32 BE. Measured [1] on the live record. Each value is a points amount the client asserts <= 700 (FUN_14279bb40); the runtime cap is 700. meanings.md 'The first field layout: 0x5de'. |
+
+## msg.server-equip-item — PaperdollComponentServerFacet_ServerEquipItem
+
+- wire 0xf37, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| field_a | u64be | 0x00 | measured | First of the shared 16-byte head (FUN_1414dbca0). Measured 0x307df08e15b85dab in all six live records. meanings.md 'The second field layout: 0xf37'. |
+| field_b | u64be | 0x08 | measured | Second head u64. Measured 0xbf85314bbc4a951a (the local-player key the atlas already documents). meanings.md 'The second field layout: 0xf37'. |
+| field_c | u32be | 0x10 | measured | u32 BE validated as an int in [-1, 501] (FUN_142e6bae0). Measured 0x147, 0x14a, 0x142, 0x120 across the six live records. meanings.md 'The second field layout: 0xf37'. |
+| field_d | u32be | 0x14 | measured | u32 BE, validated by FUN_142d94d20. Measured 0x18/0x1b/0x19. meanings.md 'The second field layout: 0xf37'. |
+| field_e | u32be | 0x18 | measured | u32 BE, validated by FUN_142d94df0. Measured 0x1 on every live record. meanings.md 'The second field layout: 0xf37'. |
+| field_f | guid16 | 0x1c | measured | The 16-byte item id, written and read verbatim with no byte swap (from FUN_145c495c0(itemDescriptor)). Carried as guid16 because the codec is exactly 16 raw bytes. meanings.md 'The second field layout: 0xf37'. |
+| field_g | bool_byte | 0x2c | measured | A u8 bool (0/1) passed on the stack. Measured 0x00. meanings.md 'The second field layout: 0xf37'. |
 
 ## msg.spawn-actors — SpawnActorsMsg
 

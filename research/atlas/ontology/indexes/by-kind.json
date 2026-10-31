@@ -6,6 +6,11 @@
       "cmd.grant",
       "cmd.kick"
     ],
+    "codec": [
+      "codec.contracts.blob-256",
+      "codec.contracts.blob-64",
+      "codec.contracts.u32-vector-5"
+    ],
     "flow": [
       "flow.presence",
       "flow.world-entry",
@@ -23,8 +28,10 @@
       "msg.grid-tracking-client-ack-phasing",
       "msg.grid-tracking-update-phasing",
       "msg.receive-player-spawn-point",
+      "msg.request-spend-attribute-points",
       "msg.replicate",
       "msg.replicate-client",
+      "msg.server-equip-item",
       "msg.spawn-actors",
       "msg.update"
     ],

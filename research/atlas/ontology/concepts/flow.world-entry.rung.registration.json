@@ -19,7 +19,7 @@
     "if_absent": "the client stays in WaitingForREPConnection and never reaches the actor game connection"
   },
   "wire": {
-    "id": "0x13 / 0x3",
+    "id": "0x3",
     "direction": "Bidi",
     "transport": "rep"
   },
@@ -70,10 +70,10 @@
       "where": "wire",
       "offset": "0x10",
       "size": 32,
-      "type": "opaque(unresolved_ids_at_0x10)",
+      "type": "bytes(32)",
       "evidence": "unknown",
-      "note": "32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids.",
-      "provenance": "legacy status=candidate"
+      "note": "32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids. The size (32) is stated, so the shape is carried as bytes(32); the meaning stays unknown. meanings.md 'The first typed exchange, measured'. (#216).",
+      "provenance": "legacy status=candidate; meanings.md#the-first-typed-exchange-measured"
     },
     {
       "name": "server_version",
@@ -96,7 +96,7 @@
       "provenance": "legacy status=candidate evidence=capture"
     }
   ],
-  "legacy": true,
+  "legacy": false,
   "relations": [
     {
       "op": "part_of",
@@ -145,6 +145,10 @@
     {
       "type": "log",
       "ref": "PREDICTION CONFIRMED on the real build, 2026-10-25. The ficha predicted a 1.460 client should be told #[RETAIL].Javelin.1.460.6033.6024067. The official 1.460 session's Game.log shows exactly that at 08:27:54.940: 'LogEnvironmentString: Server version: [RETAIL].Javelin.1.460.6033.6024067'. Server and client versions matched because both were 1.460, which is what the earlier 1.365 capture also showed"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The first typed exchange, measured' and 'The complete map': the server->client half is wire 0x3 RegistrationResponseMsg, an 88-byte record, moving state 14 WaitingForREPConnection to 15 WaitingForActorGameConnection; the client speaks first with the 0x13 request"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

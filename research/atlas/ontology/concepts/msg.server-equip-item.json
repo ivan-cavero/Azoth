@@ -1,0 +1,113 @@
+{
+  "uid": "msg.server-equip-item",
+  "kind": "message",
+  "name": "PaperdollComponentServerFacet_ServerEquipItem",
+  "aliases": ["wire:0xf37", "ServerEquipItem"],
+  "summary": "The client's equip request: two u64 BE head fields, three u32 BE request parameters, a 16-byte item id, then a bool byte. 45-byte body, C2S. Six live 45-byte records match the static writer/reader layout field for field.",
+  "purpose": "The paperdoll/equip request bus composes this after the can-equip gate passes; the two head u64 are the shared character identity pair, the three u32 are the caller's equip parameters, the 16 bytes are the item instance id, and the bool is the flag passed on the stack. The server changes the paperdoll replicated state.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["an inventory weapon cell is double-clicked, running the PaperdollComponentServerFacet equip request bus"],
+    "if_absent": "no equip request reaches the server and the item stays unequipped"
+  },
+  "wire": {
+    "id": "0xf37",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint b7 3c, i.e. type_dec 3895. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
+  "fields": [
+    {
+      "name": "field_a",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "First of the shared 16-byte head (FUN_1414dbca0). Measured 0x307df08e15b85dab in all six live records. meanings.md 'The second field layout: 0xf37'.",
+      "provenance": "meanings.md#the-second-field-layout-0xf37"
+    },
+    {
+      "name": "field_b",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Second head u64. Measured 0xbf85314bbc4a951a (the local-player key the atlas already documents). meanings.md 'The second field layout: 0xf37'.",
+      "provenance": "meanings.md#the-second-field-layout-0xf37"
+    },
+    {
+      "name": "field_c",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "u32 BE validated as an int in [-1, 501] (FUN_142e6bae0). Measured 0x147, 0x14a, 0x142, 0x120 across the six live records. meanings.md 'The second field layout: 0xf37'.",
+      "provenance": "meanings.md#the-second-field-layout-0xf37"
+    },
+    {
+      "name": "field_d",
+      "where": "wire",
+      "offset": "0x14",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "u32 BE, validated by FUN_142d94d20. Measured 0x18/0x1b/0x19. meanings.md 'The second field layout: 0xf37'.",
+      "provenance": "meanings.md#the-second-field-layout-0xf37"
+    },
+    {
+      "name": "field_e",
+      "where": "wire",
+      "offset": "0x18",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "u32 BE, validated by FUN_142d94df0. Measured 0x1 on every live record. meanings.md 'The second field layout: 0xf37'.",
+      "provenance": "meanings.md#the-second-field-layout-0xf37"
+    },
+    {
+      "name": "field_f",
+      "where": "wire",
+      "offset": "0x1c",
+      "size": 16,
+      "type": "guid16",
+      "evidence": "measured",
+      "note": "The 16-byte item id, written and read verbatim with no byte swap (from FUN_145c495c0(itemDescriptor)). Carried as guid16 because the codec is exactly 16 raw bytes. meanings.md 'The second field layout: 0xf37'.",
+      "provenance": "meanings.md#the-second-field-layout-0xf37"
+    },
+    {
+      "name": "field_g",
+      "where": "wire",
+      "offset": "0x2c",
+      "size": 1,
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "A u8 bool (0/1) passed on the stack. Measured 0x00. meanings.md 'The second field layout: 0xf37'.",
+      "provenance": "meanings.md#the-second-field-layout-0xf37"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.world-entry" },
+    { "op": "measured_on", "to": "atlas.interaction-contract" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The second field layout: 0xf37, decoded statically' - writer FUN_1465ad7e0 / reader FUN_1465ae570 agree field for field"
+    },
+    {
+      "type": "capture",
+      "ref": "research/atlas/meanings.md live attempt #6, 2026-10-29: client sent 'inbound-typed channel 0 type 0xf37 type_dec 3895 size 73' after a weapon-cell double-click; 45-byte body field for field; six further 45-byte bodies recovered from the local rep_traffic log"
+    },
+    {
+      "type": "decompile",
+      "ref": "builder FUN_146681060 (second lea of vtable 0x14852cb00) names the fields; gate FUN_14679da70 / bus FUN_1467a6f20"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

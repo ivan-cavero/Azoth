@@ -1,0 +1,32 @@
+{
+  "uid": "codec.contracts.blob-256",
+  "kind": "codec",
+  "name": "Contracts nested sub-codec B",
+  "aliases": ["sub-codec B", "FUN_142db2750/FUN_142db4910"],
+  "summary": "A length-counted raw byte blob, cap 256: a prefix varint count then count x 1 raw byte. Same silent over-cap write (length 0) and status-4 reader reject as sub-codec A.",
+  "purpose": "The second nested sub-codec that blocked LookupContracts (0xb9f). Field at object +0xb0.",
+  "authority": "shared",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "payload",
+      "where": "wire",
+      "type": "prefixed_bytes",
+      "evidence": "partial",
+      "max": 256,
+      "count": "prefix_varint",
+      "note": "varint(n) + n x 1 raw byte, cap 256; over-cap behaviour is a silent length-0 write and a status-4 reader reject. meanings.md 'Contracts closed, 2026-10-29 - the two wires that were blocked on nested sub-codecs'.",
+      "provenance": "meanings.md#contracts-closed-2026-10-29"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "research/atlas/meanings.md Contracts sub-codec table row B: writer FUN_142db2750 / reader FUN_142db4910"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

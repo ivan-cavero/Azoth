@@ -69,10 +69,10 @@
       "where": "wire",
       "offset": "0x10+29731",
       "size": 16,
-      "type": "opaque(actor_id)",
+      "type": "guid16",
       "evidence": "measured",
-      "note": "Payload offset 29,731. Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, which is byte-identical to the ACTOR_ID constant the deleted crate pinned, and it is preceded at 29,727 by 00 00 00 02 exactly as that crate's census anchor describes. This is the one field a private server must rewrite, and nothing else may move.",
-      "provenance": "legacy status=verified evidence=capture"
+      "note": "Payload offset 29,731. Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, which is byte-identical to the ACTOR_ID constant the deleted crate pinned, and it is preceded at 29,727 by 00 00 00 02 exactly as that crate's census anchor describes. This is the one field a private server must rewrite, and nothing else may move. Sixteen raw bytes, so the shape is carried as guid16. meanings.md 'Rung 17 is passed, and the wall was never the bundle'.",
+      "provenance": "legacy status=verified evidence=capture; meanings.md#rung-17-is-passed-and-the-wall-was-never-the-bundle"
     },
     {
       "name": "position_x",
@@ -97,7 +97,7 @@
       "provenance": "legacy status=verified evidence=capture"
     }
   ],
-  "legacy": true,
+  "legacy": false,
   "relations": [
     {
       "op": "part_of",

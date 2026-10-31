@@ -88,10 +88,10 @@
       "where": "wire",
       "offset": "0x5c",
       "size": 10,
-      "type": "opaque(unresolved_group_at_0x5c)",
+      "type": "bytes(10)",
       "evidence": "unknown",
-      "note": "Measured 65 03 00 00 00 00 01 01 01 00. Not read by the handler, so it is either consumed by the deserializer or ignored.",
-      "provenance": "legacy status=candidate"
+      "note": "Measured 65 03 00 00 00 00 01 01 01 00. The atlas now splits it: six unnamed bytes then the four u8 the struct calls +0xa0..+0xa3 (01 01 01 00). Not read by the handler. The size (10) is stated, so the shape is carried as bytes(10); the meaning stays unknown. meanings.md '`0x663` laid out to the byte'.",
+      "provenance": "legacy status=candidate; meanings.md#0x663-laid-out-to-the-byte"
     },
     {
       "name": "level_context_key",
@@ -248,7 +248,7 @@
       "provenance": "legacy status=verified"
     }
   ],
-  "legacy": true,
+  "legacy": false,
   "relations": [
     {
       "op": "part_of",

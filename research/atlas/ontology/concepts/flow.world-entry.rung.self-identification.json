@@ -3,10 +3,11 @@
   "kind": "flow",
   "name": "Ladder: SelfIdentification",
   "aliases": [
+    "wire:0x65c",
     "PlayerManagerSelfIdentificationMsg"
   ],
-  "summary": "PlayerManagerSelfIdentificationMsg. Its client handler and decoded struct are decompiled on build 30fe6461, but the rung it was believed to drive is a Carrier state flag, not this message. Measured on the official 1.460 Game.log: the client leaves WaitingForActorGameConnection when 'actor game connection succeeds', i.e. when [carrier+0xA0] reaches 2.",
-  "purpose": "Tell the player manager to spawn the player. The handler validates the game and client-SDK pointers, copies the message into the player-manager component, marks the client identified, and either spawns from the debug cvars or delegates the real spawn to FUN_14167cc70. That places it on the spawn path, not on the actor-connection transition.",
+  "summary": "PlayerManagerSelfIdentificationMsg, wire 0x65c. The wire type was measured on build 30fe6461 through the client's own registration hook, and the 12,706-byte body was measured by two independent methods that agree cell for cell: a 135-byte prefix, a 56x56 big-endian u32 grid, and a 27-byte tail. The rung it was once believed to drive is a Carrier state flag, not this message.",
+  "purpose": "Tell the player manager to spawn the player. The handler validates the game and client-SDK pointers, copies the message into the player-manager component, marks the client identified, and either spawns from the debug cvars or delegates the real spawn to FUN_14167cc70.",
   "authority": "server",
   "lifecycle": {
     "created_when": [
@@ -15,63 +16,113 @@
     "if_absent": "client stays in WaitingForActorGameConnection and no player is spawned"
   },
   "wire": {
-    "id": "unproven",
+    "id": "0x65c",
     "direction": "S2C",
     "transport": "rep"
   },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint 9c 19 = 1628 = 0x65c. Body fields below use RECORD offsets, so the first body byte is at 0x04.",
   "fields": [
     {
-      "name": "unresolved_u32_at_0x00",
-      "where": "memory",
-      "offset": "0x00",
-      "size": 4,
-      "type": "opaque(unresolved_u32_at_0x00)",
-      "evidence": "unknown",
-      "note": "First field of the decoded struct. Copied into the player-manager component at -0x7e8; nothing reads that component slot, so its role is unknown.",
-      "provenance": "legacy status=candidate evidence=decompile"
-    },
-    {
-      "name": "unresolved_u32_vector_at_0x08",
-      "where": "memory",
-      "offset": "0x08",
-      "size": 24,
-      "type": "opaque(unresolved_u32_vector_at_0x08)",
-      "evidence": "partial",
-      "note": "std::vector of 4-byte elements: begin, end, capacity. Proven by the copy helper FUN_1402d1540, which computes (src_end - src_begin) >> 2 and reallocates by element count. This is the only variable-length member of the struct, so it is what makes the message worth sending, and it is the member the wire form replaces with an explicit count plus elements.",
-      "provenance": "legacy status=candidate evidence=decompile"
-    },
-    {
-      "name": "spawn_from_debug_cvars",
-      "where": "memory",
-      "offset": "0x28",
+      "name": "prefix_lead",
+      "where": "wire",
+      "offset": "0x04",
       "size": 1,
-      "type": "opaque(spawn_from_debug_cvars)",
-      "evidence": "partial",
-      "note": "Non-zero makes the handler read two debug cvars as strings, atof them into three position floats and four rotation floats, log 'spawning player at location by editor' and 'using spawn rotation [%.3f, %.3f, %.3f, %.3f]', and skip the real spawn delegate FUN_14167cc70 entirely. Verified in two separate branches of the same function.",
-      "provenance": "legacy status=verified evidence=decompile"
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Measured 05. The same 05 also precedes the tail GUID, so it plausibly introduces an identity slot. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
     },
     {
-      "name": "unresolved_u64_at_0x2c",
-      "where": "memory",
-      "offset": "0x2c",
-      "size": 8,
-      "type": "opaque(unresolved_u64_at_0x2c)",
-      "evidence": "unknown",
-      "note": "Copied into the player-manager component at -0x7bc. Negative evidence: no function in the 423,609-function corpus reads that component slot, and the value never reaches a log, a comparison or a serialization call.",
-      "provenance": "legacy status=candidate"
+      "name": "identity_guid_prefix",
+      "where": "wire",
+      "offset": "0x05",
+      "size": 16,
+      "type": "guid16",
+      "evidence": "measured",
+      "note": "GUID #1, redacted in the committed dump (zeros). Filled by AZOTH_REPLAY_SELFIDENT_GUID at target (0x06, 0x065C, 0x05, 16). meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
     },
     {
-      "name": "unresolved_u32_at_0x34",
-      "where": "memory",
-      "offset": "0x34",
+      "name": "vtable_tag",
+      "where": "wire",
+      "offset": "0x15",
       "size": 4,
-      "type": "opaque(unresolved_u32_at_0x34)",
-      "evidence": "unknown",
-      "note": "Copied into the player-manager component at -0x7b4. Same negative evidence as the u64 above: written once, read nowhere.",
-      "provenance": "legacy status=candidate"
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 0x14786158 (bytes 58 61 78 14), a VA into the image's .rdata. The same tag appears in 0x40a and 0x1be. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
+    },
+    {
+      "name": "prefix_data",
+      "where": "wire",
+      "offset": "0x19",
+      "size": 107,
+      "type": "bytes(107)",
+      "evidence": "measured",
+      "note": "Measured data, unnamed; ends in a run of zeros from 0x5d. Size stated, so carried as bytes(107); the meaning stays unnamed. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
+    },
+    {
+      "name": "grid_side",
+      "where": "wire",
+      "offset": "0x84",
+      "size": 1,
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Measured 0x38 = 56, the grid side. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
+    },
+    {
+      "name": "grid_header",
+      "where": "wire",
+      "offset": "0x85",
+      "size": 2,
+      "type": "bytes(2)",
+      "evidence": "measured",
+      "note": "Measured 80 31, unexplained. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
+    },
+    {
+      "name": "grid_cells",
+      "where": "wire",
+      "offset": "0x87",
+      "size": 12544,
+      "type": "bytes(12544)",
+      "evidence": "measured",
+      "note": "The grid: 56 x 56 big-endian u32 cells = 12,544 bytes. The wire carries no row/column count prefix, so the fixed run is carried as bytes(12544); a cell is a small enum with 7 states plus an empty sentinel 0xFFFFFFFF. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
+    },
+    {
+      "name": "tail_zeros",
+      "where": "wire",
+      "offset": "0x3187",
+      "size": 10,
+      "type": "bytes(10)",
+      "evidence": "measured",
+      "note": "Measured ten zero bytes. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
+    },
+    {
+      "name": "tail_lead",
+      "where": "wire",
+      "offset": "0x3191",
+      "size": 1,
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Measured 05, matching prefix_lead. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
+    },
+    {
+      "name": "identity_guid_tail",
+      "where": "wire",
+      "offset": "0x3192",
+      "size": 16,
+      "type": "guid16",
+      "evidence": "measured",
+      "note": "GUID #2, redacted in the committed dump (zeros), the last 16 bytes of the record. Filled by nothing today. meanings.md '0x65c body: measured'.",
+      "provenance": "meanings.md#0x65c-body-measured"
     }
   ],
-  "legacy": true,
   "relations": [
     {
       "op": "part_of",
@@ -82,72 +133,20 @@
   "status": "candidate",
   "evidence": [
     {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md '0x65c body: measured — a 135-byte prefix, a 56x56 grid, a 27-byte tail': the whole record accounts exactly as 135 + 12,544 + 27 = 12,706, measured statically and by a live Frida probe that agree cell for cell"
+    },
+    {
+      "type": "capture",
+      "ref": "services/world/replay/messages-redacted.txt record 0x6_T0x65c_R.bin: 12,706 bytes, wire 0x65c, the committed fixture for this layout"
+    },
+    {
       "type": "decompile",
-      "ref": "handler FUN_146455ec0, .pdata BeginAddress 0x146455ec0 / EndAddress 0x146456933, unwind RVA 0x9cc3258, index 315441 of 423637, on build 30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033. Reached as a virtual method through the adjustor thunk 0x146455eac, whose only vtable slot is 0x1484fdb78"
-    },
-    {
-      "type": "decompile",
-      "ref": "FUN_1402d1540 copies the 24-byte std::vector at struct+0x08; it derives the element count as (end - begin) >> 2, which fixes the element width at 4 bytes"
-    },
-    {
-      "type": "log",
-      "ref": "all seven 'PlayerManagerSelfIdentification ...' format strings (0x148500b18, 0x148500b38, 0x148500b78, 0x148500bc0, 0x148500c20, 0x148500c80, 0x148500cd0) are lea-referenced from exactly one function in the image, FUN_146455ec0"
+      "ref": "handler FUN_146455ec0; the decoded-struct member list (was the card's former fields[]) is: u32 at +0x00, std::vector<u32> at +0x08, u8 spawn_from_debug_cvars at +0x28, u64 at +0x2c, u32 at +0x34. It is a decoded struct, not the wire body, so it is recorded here rather than in fields[]."
     },
     {
       "type": "atlas",
-      "ref": "RTTI descriptor at .data 0x14a15a2b0 names the instantiation .?AV<lambda_1>@?1???$InstallRegistrationHook@VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin@@@Hub@Amazon@@YA_NXZ@, and aoi-trait-registry.json lists the message under Javelin::ClientMessagesTrait beside LevelInfoChangedMsg, which IS a proven typed message. Trait membership therefore does not settle the wire type."
-    },
-    {
-      "type": "log",
-      "ref": "ladder state machine: FUN_14644b330 switches on (state - 4) with the state at this+0x1530, and the name table at 0x1484fb420 numbers the rungs 4 Disconnected .. 18 InGame. This rung sits between 15 WaitingForActorGameConnection and 16 WaitingForSpawnPoint"
-    },
-    {
-      "type": "live",
-      "ref": "negative: services/world/src/azoth_world/rep.py records that the synthesized SelfIdent + LevelInfoChanged burst with the 21-byte body raised an access violation at 0x146b6f1be on 2026-09-18, build 1.400, and POST_V3_ENABLED is False because of it. The 21-byte body has never been shown to advance this rung on its own"
-    },
-    {
-      "type": "capture",
-      "ref": "services/world/replay/messages-redacted.txt: the official 1.365 replay contains no 0x5d1 record at all, and it DOES contain a 12,706-byte 0x65c record at seq 0x06. CORRECTED 2026-10-25: that record IS this message. The wire type was measured by walking the client's own registration hook -- lambda TypeDescriptor 0x14a15a2b0 (name at 0x14a15a2c0 spells InstallRegistrationHook@VPlayerManagerSelfIdentificationMsg@ClientMessagesTrait@Javelin), thunk 0x1414f2b00, record 0x148012b10 slot4 0x1414f2940, which calls 0x1416ec940 whose lea r11,[rip+0x6917808] at 0x1416ec9f1 points at 0x148004200 = 169443e0-a508-4653-b437-49b7a195f69c = typeIndex[1628] = 0x65c. The control is LevelInfoChangedMsg, which the same method resolves to 0x663."
-    },
-    {
-      "type": "atlas",
-      "ref": "the elimination recorded here on 2026-10-25 is WITHDRAWN. It rested on research/derived/wire-type-names.json, which pairs a name with a GUID by .rdata adjacency, and that heuristic fails on its own control: the proven LevelInfoChangedMsg GUID (typeIndex[1635]) has NO name in that file. The string LastSpawnedBotCharacterId sits three names before the 169443e0 GUID (LastSpawnedSlice @0x1480041a8, LastSpawnedSlicePosition @0x1480041c0, LastSpawnedBotCharacterId @0x1480041e0, GUID @0x148004200), so that name is adjacency, not ownership. Wire 0x65c is PlayerManagerSelfIdentificationMsg. What remains open is the BODY: 12,702 bytes after the 4-byte typed header, and the model 4+4+4c+1+8+4 = 21+4c gives c = 3170.25, off by exactly one byte, so the vector layout is not confirmed."
-    },
-    {
-      "type": "capture",
-      "ref": "MEASURED 2026-10-25: record 0x8_T0xa4_R.bin and its repeat 0xf_T0xa4_R.bin are 20 bytes each, `00 01 a4 02` then 16 bytes. Those 16 bytes are 1a954abc4b3185bfbe37c3d8592618e0, which is the SAME id as the spawn record's actor id at payload offset 29731 and the same id the deleted crate pinned as ACTOR_ID. Three independent sources agree."
-    },
-    {
-      "type": "capture",
-      "ref": "sequence position: ClientAddEntryMsg arrives at seq 0x08 and again at seq 0x0f, and level info (0x663) is seq 0x10. So the actor id reaches the client immediately before the level info that moves it to WaitingForPlayerSpawn, which is exactly this rung's slot in the ladder"
-    },
-    {
-      "type": "atlas",
-      "ref": "ClientAddEntryMsg is NOT a member of Javelin::ClientMessagesTrait (aoi-trait-registry.json has no AddEntry entry), while PlayerManagerSelfIdentificationMsg IS. So they are two different dispatch paths, and the trait message is not the wire message the capture shows"
-    },
-    {
-      "type": "atlas",
-      "ref": "OPEN QUESTION: Is the 15 -> 16 transition caused by ClientAddEntryMsg (0xa4), or by a trait notification that the replay dump does not cover? The capture places 0xa4 immediately before level info, which supports the first reading, but no capture shows the transition itself."
-    },
-    {
-      "type": "atlas",
-      "ref": "OPEN QUESTION: PlayerManagerSelfIdentificationMsg has a decoded struct with a std::vector<u32> at +0x08, which is far more than a 16-byte actor id. So it is not simply the decoded form of ClientAddEntryMsg."
-    },
-    {
-      "type": "atlas",
-      "ref": "OPEN QUESTION: Wire 0x5d1 remains unnamed and absent from the capture; it is not supported as this rung's type."
-    },
-    {
-      "type": "log",
-      "ref": "CORRECTION, measured 2026-10-25 on research/sessions/live_20261022_r1460_first: the rung is a Carrier flag. Game.log shows 'start actor game connection' at 08:27:55.006 moving 14 to 15, then 'actor game connection succeeds' at 08:27:55.105 moving 15 to 16. No message arrives at that instant. The three post-registration rungs read carrier state through leaf getters whose 1.460 addresses are verified: 0x145A934A0 returns [rcx+0xA0]==2, 0x145A916F0 returns [rcx+0xBC8], 0x145A934F0 returns [rcx+0x252]"
-    },
-    {
-      "type": "log",
-      "ref": "the same session logs 'Player Actor: 462E0DB5432EE8FC9FF2049C9D2FD6F9' at 08:27:59.068, immediately before 'player spawn succeeds, in game'. That is a second, independent session's 16-byte actor id, in hex, in a client log line -- a cheap anchor for any future run"
-    },
-    {
-      "type": "atlas",
-      "ref": "so the atlas no longer claims this message drives rung 15. ClientAddEntryMsg (0xa4) carries the actor id and is a precondition for the spawn; PlayerManagerSelfIdentificationMsg is the player manager's spawn instruction. Neither is the actor-connection transition"
+      "ref": "wire 0x65c resolves through the registration hook lambda TypeDescriptor 0x14a15a2b0; the control LevelInfoChangedMsg resolves to 0x663 by the same method, so the type index is measured not adjacent"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

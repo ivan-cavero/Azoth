@@ -62,4 +62,79 @@ pub static MESSAGES: &[MessageSpec] = &[
             FieldSpec { name: "blob", codec: "prefixed_bytes" },
         ],
     },
+    MessageSpec {
+        wire_id: 1502,
+        uid: "msg.request-spend-attribute-points",
+        name: "AttributeComponentServerFacet_RequestSpendAttributePoints",
+        direction: "C2S",
+        fields: &[
+            FieldSpec { name: "field_a", codec: "u64be" },
+            FieldSpec { name: "field_b", codec: "u64be" },
+            FieldSpec { name: "attribute_indices", codec: "vec<u32be>" },
+            FieldSpec { name: "points", codec: "vec<u32be>" },
+        ],
+    },
+    MessageSpec {
+        wire_id: 1628,
+        uid: "flow.world-entry.rung.self-identification",
+        name: "Ladder: SelfIdentification",
+        direction: "S2C",
+        fields: &[
+            FieldSpec { name: "prefix_lead", codec: "u8" },
+            FieldSpec { name: "identity_guid_prefix", codec: "guid16" },
+            FieldSpec { name: "vtable_tag", codec: "u32be" },
+            FieldSpec { name: "prefix_data", codec: "bytes(107)" },
+            FieldSpec { name: "grid_side", codec: "u8" },
+            FieldSpec { name: "grid_header", codec: "bytes(2)" },
+            FieldSpec { name: "grid_cells", codec: "bytes(12544)" },
+            FieldSpec { name: "tail_zeros", codec: "bytes(10)" },
+            FieldSpec { name: "tail_lead", codec: "u8" },
+            FieldSpec { name: "identity_guid_tail", codec: "guid16" },
+        ],
+    },
+    MessageSpec {
+        wire_id: 3895,
+        uid: "msg.server-equip-item",
+        name: "PaperdollComponentServerFacet_ServerEquipItem",
+        direction: "C2S",
+        fields: &[
+            FieldSpec { name: "field_a", codec: "u64be" },
+            FieldSpec { name: "field_b", codec: "u64be" },
+            FieldSpec { name: "field_c", codec: "u32be" },
+            FieldSpec { name: "field_d", codec: "u32be" },
+            FieldSpec { name: "field_e", codec: "u32be" },
+            FieldSpec { name: "field_f", codec: "guid16" },
+            FieldSpec { name: "field_g", codec: "bool_byte" },
+        ],
+    },
+];
+
+pub struct CodecSpec {
+    pub uid: &'static str,
+    pub name: &'static str,
+    pub fields: &'static [FieldSpec],
+}
+
+pub static CODECS: &[CodecSpec] = &[
+    CodecSpec {
+        uid: "codec.contracts.blob-256",
+        name: "Contracts nested sub-codec B",
+        fields: &[
+            FieldSpec { name: "payload", codec: "prefixed_bytes" },
+        ],
+    },
+    CodecSpec {
+        uid: "codec.contracts.blob-64",
+        name: "Contracts nested sub-codec A",
+        fields: &[
+            FieldSpec { name: "payload", codec: "prefixed_bytes" },
+        ],
+    },
+    CodecSpec {
+        uid: "codec.contracts.u32-vector-5",
+        name: "Contracts nested sub-codec C",
+        fields: &[
+            FieldSpec { name: "values", codec: "vec<u32be>" },
+        ],
+    },
 ];

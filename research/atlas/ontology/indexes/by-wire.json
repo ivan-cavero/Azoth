@@ -13,6 +13,8 @@
     "574": "msg.spawn-actors",
     "663": "flow.world-entry.rung.level-info",
     "0x651": "msg.receive-player-spawn-point",
+    "0x5de": "msg.request-spend-attribute-points",
+    "0xf37": "msg.server-equip-item",
     "0x18a6": "msg.grid-tracking-update-phasing",
     "0x1a59": "msg.grid-tracking-client-ack-phasing"
   },

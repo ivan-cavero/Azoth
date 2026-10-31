@@ -1,0 +1,87 @@
+{
+  "uid": "msg.request-spend-attribute-points",
+  "kind": "message",
+  "name": "AttributeComponentServerFacet_RequestSpendAttributePoints",
+  "aliases": ["wire:0x5de", "RequestSpendAttributePoints"],
+  "summary": "The client's attribute-point spend: two u64 BE head fields, then a prefix-varint-counted vector of attribute indices and a prefix-varint-counted vector of points. 26-byte body, C2S. One live 26-byte record matches the static writer/reader layout field for field.",
+  "purpose": "The client applies a pending attribute allocation: the two head u64 are the character identity pair, the index vector names which CharacterAttributeType slots and the points vector the amount spent on each. The Attribute family has zero reply messages, so the server only changes replicated state.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the player confirms (Asignar) a staged attribute allocation in the character panel"],
+    "if_absent": "the spend is never sent and the attribute stays at its old value"
+  },
+  "wire": {
+    "id": "0x5de",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint 9e 17, i.e. type_dec 1502. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
+  "fields": [
+    {
+      "name": "field_a",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "First of the shared 16-byte head (FUN_1414dbca0). Measured 0xe05592a1d48c417 on the 2026-10-27 live record, byte-identical to the builder's *param_2. meanings.md 'The first field layout: 0x5de'.",
+      "provenance": "meanings.md#the-first-field-layout-0x5de"
+    },
+    {
+      "name": "field_b",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Second head u64. Measured 0xbf85314bbc4a951a, byte-identical to the builder's *param_3 and the local-player key the atlas already documents. meanings.md 'The first field layout: 0x5de'.",
+      "provenance": "meanings.md#the-first-field-layout-0x5de"
+    },
+    {
+      "name": "attribute_indices",
+      "where": "wire",
+      "offset": "0x10",
+      "size": "1 + 4n",
+      "type": "vec<u32be>",
+      "evidence": "measured",
+      "max": 4,
+      "count": "prefix_varint",
+      "note": "Prefix-varint count, then count x u32 BE. Measured [2] (Strength) on the live record. Each index is a CharacterAttributeType in 0..4; the client asserts an index above 4 (FUN_141788630) and the runtime cap is 4. meanings.md 'The first field layout: 0x5de'.",
+      "provenance": "meanings.md#the-first-field-layout-0x5de"
+    },
+    {
+      "name": "points",
+      "where": "wire",
+      "offset": "0x15",
+      "size": "1 + 4n",
+      "type": "vec<u32be>",
+      "evidence": "measured",
+      "max": 700,
+      "count": "prefix_varint",
+      "note": "Prefix-varint count, then count x u32 BE. Measured [1] on the live record. Each value is a points amount the client asserts <= 700 (FUN_14279bb40); the runtime cap is 700. meanings.md 'The first field layout: 0x5de'.",
+      "provenance": "meanings.md#the-first-field-layout-0x5de"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.world-entry" },
+    { "op": "measured_on", "to": "atlas.interaction-contract" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The first field layout: 0x5de, decoded statically' - writer FUN_1427484d0 / reader FUN_142750870 agree field for field"
+    },
+    {
+      "type": "capture",
+      "ref": "research/atlas/meanings.md live positive 2026-10-27: world logged 'inbound-typed channel 0 type 0x5de type_dec 1502 size 54', 26-byte body 0e05592a1d48c417 bf85314bbc4a951a 0100000002 0100000001, consumed exactly"
+    },
+    {
+      "type": "decompile",
+      "ref": "builder FUN_142760cf0 is the only lea of the message vtable 0x1480b7508 outside the ctor; bounds read from FUN_141788630 (index <= 4) and FUN_14279bb40 (points <= 700)"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

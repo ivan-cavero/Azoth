@@ -396,11 +396,40 @@ def encode(wire, message):
             raise WireCodecError(f"wire {wire}: missing field {name!r}")
         out += encode_field(type_name, message[name])
     return bytes(out)
+
+
+def decode_codec(uid, body, *, require_full=True):
+    """Decode a named nested sub-codec (not a message) into {field_name: value}."""
+    spec = CODECS.get(uid)
+    if spec is None:
+        raise WireCodecError(f"no card-derived codec for {uid}")
+    values = {}
+    cursor = 0
+    for name, type_name in spec["fields"]:
+        values[name], cursor = decode_field(type_name, body, cursor)
+    if require_full and cursor != len(body):
+        raise WireCodecError(
+            f"codec {uid}: {len(body) - cursor} trailing byte(s) after the last field"
+        )
+    return values
+
+
+def encode_codec(uid, message):
+    """Encode {field_name: value} for a named nested sub-codec."""
+    spec = CODECS.get(uid)
+    if spec is None:
+        raise WireCodecError(f"no card-derived codec for {uid}")
+    out = bytearray()
+    for name, type_name in spec["fields"]:
+        if name not in message:
+            raise WireCodecError(f"codec {uid}: missing field {name!r}")
+        out += encode_field(type_name, message[name])
+    return bytes(out)
 '''
 
 
 def render_wire_py(
-    members: list[str], patterns: list[str], messages: list[dict]
+    members: list[str], patterns: list[str], messages: list[dict], codecs: list[dict]
 ) -> str:
     lines = [_WIRE_PY_HEADER, "", "# The closed vocabulary, from schema.json $defs.codec."]
     lines.append("VOCABULARY = (")
@@ -420,6 +449,18 @@ def render_wire_py(
         lines.append(f"        'uid': {spec['uid']!r},")
         lines.append(f"        'name': {spec['name']!r},")
         lines.append(f"        'direction': {spec['direction']!r},")
+        lines.append("        'fields': (")
+        for name, type_name in spec["fields"]:
+            lines.append(f"            ({name!r}, {type_name!r}),")
+        lines.append("        ),")
+        lines.append("    },")
+    lines.append("}")
+    lines.append("")
+    lines.append("# --- card-derived nested sub-codecs (not messages) ---")
+    lines.append("CODECS = {")
+    for spec in codecs:
+        lines.append(f"    {spec['uid']!r}: {{")
+        lines.append(f"        'name': {spec['name']!r},")
         lines.append("        'fields': (")
         for name, type_name in spec["fields"]:
             lines.append(f"            ({name!r}, {type_name!r}),")
@@ -446,7 +487,7 @@ _WIRE_RS_HEADER = '''\
 
 
 def render_wire_rs(
-    members: list[str], patterns: list[str], messages: list[dict]
+    members: list[str], patterns: list[str], messages: list[dict], codecs: list[dict]
 ) -> str:
     lines = [_WIRE_RS_HEADER, "", "pub const VOCABULARY: &[&str] = &["]
     for member in members:
@@ -473,6 +514,24 @@ def render_wire_rs(
         lines.append(f'        uid: "{spec["uid"]}",')
         lines.append(f'        name: "{spec["name"]}",')
         lines.append(f'        direction: "{spec["direction"]}",')
+        lines.append("        fields: &[")
+        for name, type_name in spec["fields"]:
+            lines.append(f'            FieldSpec {{ name: "{name}", codec: "{type_name}" }},')
+        lines.append("        ],")
+        lines.append("    },")
+    lines.append("];")
+    lines.append("")
+    lines.append("pub struct CodecSpec {")
+    lines.append("    pub uid: &'static str,")
+    lines.append("    pub name: &'static str,")
+    lines.append("    pub fields: &'static [FieldSpec],")
+    lines.append("}")
+    lines.append("")
+    lines.append("pub static CODECS: &[CodecSpec] = &[")
+    for spec in codecs:
+        lines.append("    CodecSpec {")
+        lines.append(f'        uid: "{spec["uid"]}",')
+        lines.append(f'        name: "{spec["name"]}",')
         lines.append("        fields: &[")
         for name, type_name in spec["fields"]:
             lines.append(f'            FieldSpec {{ name: "{name}", codec: "{type_name}" }},')
@@ -558,31 +617,45 @@ def generate(schema_path, concepts_dir, out_dir) -> dict:
     refused: list[tuple[str, str]] = []
     fieldless: list[str] = []
     messages: list[dict] = []
+    codecs: list[dict] = []
     for card, status, reasons in classifications:
         if status == "ready":
-            emitted.append(card["uid"])
             wire = card.get("wire") or {}
-            messages.append(
-                {
-                    "wire_id": int(str(wire["id"]), 0),
-                    "uid": card["uid"],
-                    "name": card.get("name", ""),
-                    "direction": wire.get("direction", ""),
-                    "fields": [(f["name"], f["type"]) for f in card["fields"]],
-                }
-            )
+            fields = [(f["name"], f["type"]) for f in card["fields"]]
+            if wire.get("id") is not None:
+                emitted.append(card["uid"])
+                messages.append(
+                    {
+                        "wire_id": int(str(wire["id"]), 0),
+                        "uid": card["uid"],
+                        "name": card.get("name", ""),
+                        "direction": wire.get("direction", ""),
+                        "fields": fields,
+                    }
+                )
+            else:
+                # A ready card with no wire id is a named nested sub-codec, not a
+                # message: it is emitted into CODECS, never into MESSAGES.
+                codecs.append(
+                    {
+                        "uid": card["uid"],
+                        "name": card.get("name", ""),
+                        "fields": fields,
+                    }
+                )
         elif status == "refused":
             refused.append((card["uid"], "; ".join(reasons)))
         else:
             fieldless.append(card["uid"])
 
     messages.sort(key=lambda spec: (spec["wire_id"], spec["uid"]))
+    codecs.sort(key=lambda spec: spec["uid"])
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     rendered = {
-        "wire.py": render_wire_py(*vocabulary, messages),
-        "wire.rs": render_wire_rs(*vocabulary, messages),
+        "wire.py": render_wire_py(*vocabulary, messages, codecs),
+        "wire.rs": render_wire_rs(*vocabulary, messages, codecs),
         "meanings-table.md": render_meanings_md(classifications),
     }
     for name, text in rendered.items():
@@ -590,6 +663,7 @@ def generate(schema_path, concepts_dir, out_dir) -> dict:
 
     return {
         "emitted": emitted,
+        "codecs": codecs,
         "refused": refused,
         "fieldless": fieldless,
         "artifacts": [str(out_dir / name) for name in ARTIFACTS],
@@ -613,11 +687,19 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     report = generate(Path(args.schema), Path(args.concepts), Path(args.out))
-    total = len(report["emitted"]) + len(report["refused"]) + len(report["fieldless"])
+    total = (
+        len(report["emitted"])
+        + len(report["codecs"])
+        + len(report["refused"])
+        + len(report["fieldless"])
+    )
     print(f"ontology-gen: {total} cards")
-    print(f"emitted (wire code): {len(report['emitted'])}")
+    print(f"emitted (message wire code): {len(report['emitted'])}")
     for uid in report["emitted"]:
         print(f"  - {uid}")
+    print(f"emitted (nested sub-codecs): {len(report['codecs'])}")
+    for spec in report["codecs"]:
+        print(f"  - {spec['uid']}")
     print(f"refused (markdown only): {len(report['refused'])}")
     for uid, reason in report["refused"]:
         print(f"  - {uid}: {reason}")
