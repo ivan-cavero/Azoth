@@ -3,8 +3,8 @@
   "kind": "message",
   "name": "ContractsComponentServerFacet_LookupContractsByParticipant",
   "aliases": ["wire:0x9fc", "LookupContractsByParticipant"],
-  "summary": "The client's contracts lookup by participant. The atlas states a skeleton only (head + 16-byte id + 3x u32 + str <= 64 + str <= 256 + u32 + u32-vec <= 3 + u16-vec <= 25 + 16-byte id, ~68..451 B, C2S) but gives no closed-vocabulary codec for the two length-capped 'str' fields, so those stay opaque and the card is REFUSED.",
-  "purpose": "The journal/contracts facet asks the server for the contracts a participant may look up; the contracts family expects a reply (ContractsComponentClientFacet_OnLookupContractsByParticipant). Not modelled until the two 'str' codecs are stated.",
+  "summary": "The client's contracts lookup by participant. Full layout recovered 2026-10-31: the shared two-u64 BE head, a 16-byte id, three u32 BE, two prefix-varint raw byte blobs capped at 64 and 256, a u32 BE, a prefix-varint u32 vector capped at 3, a prefix-varint u16 vector capped at 25, then a final 16-byte id. The two length-capped fields are `prefixed_bytes` (the prefix varint is the length prefix), so the card is no longer refused. Writer and reader agree field for field and both committed widths (72 and 74 bytes) reproduce byte for byte.",
+  "purpose": "The journal/contracts facet asks the server for the contracts a participant may look up; the contracts family expects a reply (ContractsComponentClientFacet_OnLookupContractsByParticipant). The two length-capped blobs are raw prefix-varint byte runs (caps 64 and 256), the same sub-codecs A and B that blocked 0xb9f.",
   "authority": "client",
   "lifecycle": {
     "created_when": ["the player opens the contracts surface for a participant in the journal"],
@@ -44,8 +44,8 @@
       "size": 16,
       "type": "bytes(16)",
       "evidence": "partial",
-      "note": "meanings.md 'The Journal families' row 0x9fc: '16-byte id'. Carried as a raw 16-byte run (bytes(16)); the atlas does not say GUID, so it is not claimed as one.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "note": "The first '16-byte id': a raw run written from object +0x40 and read by FUN_1408787b0(object +0x40, 0x10).",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
       "name": "u32_be_1",
@@ -53,9 +53,9 @@
       "offset": "0x20",
       "size": 4,
       "type": "u32be",
-      "evidence": "partial",
-      "note": "First of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "evidence": "measured",
+      "note": "First of the three '3x u32', at object +0x50; range validator FUN_142de8190. meaning unnamed.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
       "name": "u32_be_2",
@@ -63,9 +63,9 @@
       "offset": "0x24",
       "size": 4,
       "type": "u32be",
-      "evidence": "partial",
-      "note": "Second of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "evidence": "measured",
+      "note": "Second of the three '3x u32', at object +0x54; range validator FUN_142de8330. meaning unnamed.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
       "name": "u32_be_3",
@@ -73,68 +73,70 @@
       "offset": "0x28",
       "size": 4,
       "type": "u32be",
-      "evidence": "partial",
-      "note": "Third of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "evidence": "measured",
+      "note": "Third of the three '3x u32', at object +0x58; range validator FUN_142de8330. meaning unnamed.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
-      "name": "text_64",
+      "name": "blob_64",
       "where": "wire",
       "offset": "0x2c",
-      "type": "opaque(contracts.text64)",
-      "evidence": "partial",
+      "type": "prefixed_bytes",
+      "evidence": "measured",
       "max": 64,
-      "note": "The atlas says 'str <= 64' but the closed vocabulary has no 'str' member; its length-prefixed members are prefixed_string (UTF-8) and prefixed_bytes (raw), and the same 64 cap is called a raw byte blob by the Contracts sub-codec A table. The codec is therefore undetermined and stays opaque, which refuses codegen. meanings.md 'The Journal families' row 0x9fc and 'Contracts closed, 2026-10-29' sub-codec A.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "count": "prefix_varint",
+      "note": "The 'str <= 64' field is a raw byte blob: writer FUN_142dd8dc0 (object +0x60) and reader FUN_142db4a40 both use the shared prefix varint FUN_140877b10/FUN_14087b760 as the length prefix; over-cap (>64) writes length 0 and the reader rejects with status 4. prefixed_bytes carries that length prefix. meanings.md 'Contracts closed, 2026-10-29' sub-codec A and 'The four refused inbound requests recovered, 2026-10-31'.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
-      "name": "text_256",
+      "name": "blob_256",
       "where": "wire",
-      "offset": "0x2c",
-      "type": "opaque(contracts.text256)",
-      "evidence": "partial",
+      "offset": "0x2d + n64",
+      "type": "prefixed_bytes",
+      "evidence": "measured",
       "max": 256,
-      "note": "The atlas says 'str <= 256' (the same cap as Contracts sub-codec B), with no closed-vocabulary codec; stays opaque. meanings.md 'The Journal families' row 0x9fc and 'Contracts closed, 2026-10-29' sub-codec B.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "count": "prefix_varint",
+      "note": "The 'str <= 256' field is a raw byte blob: writer FUN_142db2750 (object +0xc0) and reader FUN_142db4910 both use the shared prefix varint as the length prefix; over-cap (>256) writes length 0 and the reader rejects with status 4. prefixed_bytes carries that length prefix. meanings.md 'Contracts closed, 2026-10-29' sub-codec B and 'The four refused inbound requests recovered, 2026-10-31'.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
       "name": "count_u32",
       "where": "wire",
-      "offset": "0x2c",
+      "offset": "0x2e + n64 + n256",
       "size": 4,
       "type": "u32be",
-      "evidence": "partial",
-      "note": "The bare 'u32'. meanings.md 'The Journal families' row 0x9fc.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "evidence": "measured",
+      "note": "The bare 'u32', written/read by FUN_140876e70/FUN_14087a3c0 from object +0x1c8. meaning unnamed.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
       "name": "index_ids",
       "where": "wire",
       "type": "vec<u32be>",
-      "evidence": "partial",
+      "evidence": "measured",
       "max": 3,
       "count": "prefix_varint",
-      "note": "The 'u32-vec <= 3': prefix-varint count, then count x u32 BE. meanings.md 'The Journal families' row 0x9fc.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "note": "The 'u32-vec <= 3': prefix-varint count, then count x u32 BE. Writer FUN_142db28d0 (object +0xa8, emits length 0 over 3) and reader FUN_142db87a0.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
       "name": "type_ids",
       "where": "wire",
       "type": "vec<u16be>",
-      "evidence": "partial",
+      "evidence": "measured",
       "max": 25,
       "count": "prefix_varint",
-      "note": "The 'u16-vec <= 25': prefix-varint count, then count x u16 BE. meanings.md 'The Journal families' row 0x9fc.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "note": "The 'u16-vec <= 25': prefix-varint count, then count x u16 BE. Writer inline at object +0x1d0 (cap 25) and reader FUN_142db7e40 (rejects count > 25).",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
       "name": "trailing_id",
       "where": "wire",
       "size": 16,
       "type": "bytes(16)",
-      "evidence": "partial",
-      "note": "The final '16-byte id'. meanings.md 'The Journal families' row 0x9fc.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "evidence": "measured",
+      "note": "The final '16-byte id': a raw run written from object +0x30 and read by FUN_1408787b0(object +0x30, 0x10). meanings.md 'The four refused inbound requests recovered, 2026-10-31'.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     }
   ],
   "relations": [
@@ -149,7 +151,7 @@
     },
     {
       "type": "capture",
-      "ref": "local log .azoth/logs/world.log: channel-0 records for wire 0x9fc carry 72- and 74-byte bodies that match the stated skeleton (head/id/3x u32/two zero-length length-prefixed fields/u32/u32-vec/u16-vec/16-byte id); the two length-prefixed fields are empty in every sample, so the bytes cannot settle the str/prefixed_string/prefixed_bytes question. Extracted by scripts/export/export-wire-bodies.py"
+      "ref": "local log .azoth/logs/world.log: channel-0 records for wire 0x9fc carry 72- and 74-byte bodies that decode field for field and re-encode byte for byte (head/id/3x u32/two zero-length prefix-varint blobs/u32/u32-vec/u16-vec/16-byte id). The blobs are empty in every sample, so the length encoding is pinned by the codec pair (prefix varint), not by the sample; the sample only rules out a multi-byte fixed length. Extracted by scripts/export/export-wire-bodies.py"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

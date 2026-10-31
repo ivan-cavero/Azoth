@@ -1,0 +1,68 @@
+{
+  "uid": "msg.receive-settings-from-client",
+  "kind": "message",
+  "name": "PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient",
+  "aliases": ["wire:0x9d3", "ReceiveSettingsFromClient"],
+  "summary": "The client's player-settings hand-off: the shared two-u64 BE head, then one u32 BE. 20-byte body, C2S. Writer and reader agree field for field and the committed 20-byte record reproduces byte for byte.",
+  "purpose": "The player-settings facet hands the server the settings the client holds; the server changes its replicated player-settings state. Two of the plan's six inbound requests were already named and round-trip; this is one of the four that were refused on layout and is now recovered.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the player's settings are pushed to the server on entering a world"],
+    "if_absent": "the server never learns the client's player settings"
+  },
+  "wire": {
+    "id": "0x9d3",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint 93 27, i.e. type_dec 2515. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
+  "fields": [
+    {
+      "name": "field_a",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "First of the shared 16-byte head, written by FUN_1414dbca0 through htonl64 FUN_140877280 and read by FUN_14150e670. Field meaning unnamed. Body offset 0x00.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+    },
+    {
+      "name": "field_b",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Second head u64; the local-player key 0xbf85314bbc4a951a in every committed body. Body offset 0x08.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+    },
+    {
+      "name": "field_c",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "One u32 BE written by FUN_140876e70 (htonl FUN_146166830) from the message object at +0x20 and read by FUN_14087a3c0. Meaning unnamed. Body offset 0x10.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "re message-names 0x9d3 -> record_fn 0x142a63080 -> facet vtable 0x148102930 (slot +0x20 MARSHAL 0x1414c0730, slot +0x28 UNMARSHAL 0x142a57450) -> object vtable 0x1481029c0 (name accessor +0x08 -> 'PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient' at +0x70); writer object vtable +0x60 = 0x1426d64f0 / reader +0x68 = 0x142a57a30"
+    },
+    {
+      "type": "capture",
+      "ref": "local log .azoth/logs/world.log: channel-0 record for wire 0x9d3 carries a 20-byte body d1a94ccc870660b0 bf85314bbc4a951a 000097c9, consumed exactly by head + u32 BE. Extracted by scripts/export/export-wire-bodies.py"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

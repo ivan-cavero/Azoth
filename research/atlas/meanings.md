@@ -2208,7 +2208,7 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; every wir
 | `0x5b2` | `ObjectivesComponentServerFacet_UpdateTrackedObjectives` | 17..81 B: head + varint(len <= 8) + N `u64` BE | `FUN_1439f2c00` / `FUN_1439f2c60` |
 | `0xefc` | `ObjectivesComponentServerFacet_AbandonSingleObjective` | **24 B**: head + one `u64` BE | `FUN_1439e9ea0` / `FUN_1439ea010` |
 | `0x814` | `ContractsComponentServerFacet_AcceptContractRequest` | **52 B**: head + raw 16 + raw 16 + `u32` BE | `FUN_142da5db0` / `FUN_142da5f90` |
-| `0x9fc` | `ContractsComponentServerFacet_LookupContractsByParticipant` | ~68..451 B: head + 16-byte id + 3x `u32` + str <= 64 + str <= 256 + `u32` + `u32`-vec <= 3 + `u16`-vec <= 25 + 16-byte id | `FUN_142d9e5d0` / `FUN_142d9e7a0` |
+| `0x9fc` | `ContractsComponentServerFacet_LookupContractsByParticipant` | **72/74 B measured**: head + 16 raw + 3x `u32` + blob64 (prefix varint, cap 64) + blob256 (prefix varint, cap 256) + `u32` + `u32`-vec (prefix varint, cap 3) + `u16`-vec (prefix varint, cap 25) + 16 raw last | `FUN_142d9e5d0` / `FUN_142d9e7a0` |
 
 **What the server must do:** parse each body and change the objectives/contracts replicated state (`AbandonSingleObjective` has no reply; `AcceptContractRequest`/`LookupContractsByParticipant` expect one). **Next in these families:** `0xeff`, `0xa39`, `0xb9f`, `0x8a4`. Client build `30fe6461...`.
 
@@ -2280,10 +2280,40 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; 87/87 wir
 | `0xbb7` | `CraftingComponentServerFacet_CancelCrafting` | head-only **16 B** | 1 |
 | `0x6c5` | `CraftingComponentServerFacet_InitiateSalvage` | **48 B** fixed (validators `FUN_141788630` <= 4, `FUN_142d49390` [-1,65535], `FUN_142d94df0` <= 10000) | 1 |
 | `0x169f` | `GlobalStorageComponentServerFacet_ReadyGlobalOwnerData` | head + string vector + `u64` + 16 raw | 2 |
-| `0x183` | `InventoriesComponentServerFacet_SetReplicateStorage` | **32 B** | shared by **5** wires |
+| `0x183` | `GlobalStorageComponentServerFacet_SetReplicateStorage` | **32 B measured**: head + 16 raw | shared by **5** GlobalStorage wires |
 | `0x103f` | `SocialComponentServerFacet_RequestRemoveAllFriendInvites` | **17 B** | shared by **3** wires |
 
 **What the server must do:** parse each body and change the crafting / storage / social replicated state. **Next:** `0xbb5 SetCraftingDetails`, `0x167b GetItems`, `0x1b84 RequestSearchStorage`, `0x9cb RequestSetChattingState`. Client build `30fe6461...`.
+
+### The four refused inbound requests, recovered (2026-10-31)
+
+The previous unit established that the blocker on the four remaining inbound requests was knowledge, not data: all their bodies already sit in `.azoth/logs/world.log` and are extracted to `research/fixtures/wire/wire-bodies.json`. Each of the four below was recovered with the plan's §2 method - anchor the type through the client's own registration hook, take the writer/reader from the registration chain, decompile, and match field by field against the real extracted body. Client build `30fe6461...`.
+
+| wire | message | body | writer / reader | evidence |
+| --- | --- | --- | --- | --- |
+| `0x9d3` | `PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient` | **20 B**: head + `u32` BE | `FUN_1426d64f0` / `FUN_142a57a30` | measured |
+| `0x9fc` | `ContractsComponentServerFacet_LookupContractsByParticipant` | **72/74 B**: head + 16 raw + 3x `u32` + blob64 (prefix varint, cap 64) + blob256 (prefix varint, cap 256) + `u32` + `u32`-vec (prefix varint, cap 3) + `u16`-vec (prefix varint, cap 25) + 16 raw last | `FUN_142d9e5d0` / `FUN_142d9e7a0` | measured |
+| `0x183` | `GlobalStorageComponentServerFacet_SetReplicateStorage` | **32 B**: head + 16 raw | `FUN_142cd2bf0` / `FUN_142cd2c30` | measured |
+| `0x1098` | `TimeComponentServerFacet_SyncToClient` | head-only **16 B** | `0x14259f170` / `0x14259f180` | measured |
+
+**Chain, per target.** All four resolve the same way: `re message-names <wire>` -> `record_fn` -> codec facet vtable (slot `+0x20` MARSHAL is the shared thunk `0x1414c0730`) -> object vtable set by the facet's `+0x28` ctor. The object vtable is accepted only because its `+0x70` string equals the `re message-names` name.
+
+| wire | record_fn | facet vtable | object vtable | `+0x60` writer | `+0x68` reader |
+| --- | --- | --- | --- | --- | --- |
+| `0x9d3` | `0x142a63080` | `0x148102930` | `0x1481029c0` | `0x1426d64f0` | `0x142a57a30` |
+| `0x9fc` | `0x142dd4ea0` | `0x148149848` | `0x148147e68` | `0x142d9e5d0` | `0x142d9e7a0` |
+| `0x183` | `0x142d08080` | `0x1481394c8` | `0x1481399f8` | `0x142cd2bf0` | `0x142cd2c30` |
+| `0x1098` | `0x144086cf0` | `0x1482fff40` | `0x1482ff7d0` | `0x14259f170` | `0x14259f180` |
+
+**`0x9d3`, 20 B:** head (2x `u64` BE, `FUN_1414dbca0` / `FUN_14150e670`) + one `u32` BE (`FUN_140876e70` / `FUN_14087a3c0`). The committed body `d1a94ccc870660b0 bf85314bbc4a951a 000097c9` is consumed exactly.
+
+**`0x9fc`, 72/74 B:** the two length-capped fields are **raw prefix-varint-counted blobs**, not strings: sub-codec A (`FUN_142dd8dc0` / `FUN_142db4a40`, cap 64) and B (`FUN_142db2750` / `FUN_142db4910`, cap 256), both using the shared prefix varint `FUN_140877b10` / `FUN_14087b760` as the length. The `u32`-vec (`FUN_142db28d0` / `FUN_142db87a0`, cap 3) and `u16`-vec (inline / `FUN_142db7e40`, cap 25) are prefix-varint counted. **The length encoding is pinned by the codec pair, not inferred from the sample:** every committed body carries zero-length blobs, which only rules out a multi-byte fixed length. Both widths decode field for field and re-encode byte for byte.
+
+**`0x183`, 32 B - the facet conflict is resolved: GlobalStorage.** `re message-names 0x183` and the object-vtable `+0x70` string both say `GlobalStorageComponentServerFacet_SetReplicateStorage`; the earlier atlas label `InventoriesComponentServerFacet_SetReplicateStorage` is wrong and is corrected above. Body is head + a raw 16-byte run (`FUN_1408787b0(object+0x20, 0x10)`); writer and reader agree field for field, and the same codec is shared by five GlobalStorage wires.
+
+**`0x1098`, 16 B head-only:** absent from the atlas before this. The writer `0x14259f170` is a `jmp` thunk (bytes `e9 2b cb f3 fe`) to the shared head writer `FUN_1414dbca0` and the reader `0x14259f180` stops after the head, so the body is exactly the two head `u64` BE. The committed 16-byte body is consumed exactly.
+
+Evidence word **measured** for all four: each layout is matched field for field against a real record and every committed body round-trips byte for byte. Field *meanings* (what the bytes say) remain unnamed. Evidence: `research/fixtures/wire/wire-bodies.json`; the four functions are in `research/atlas/client-functions.json`.
 
 ### The Vitals / Aoi / PlayerAppearance / Entitlement families (2026-10-29)
 

@@ -1,0 +1,68 @@
+{
+  "uid": "msg.set-replicate-storage",
+  "kind": "message",
+  "name": "GlobalStorageComponentServerFacet_SetReplicateStorage",
+  "aliases": ["wire:0x183", "SetReplicateStorage"],
+  "summary": "The client's storage replication hand-off: the shared two-u64 BE head, then a raw 16-byte run. 32-byte body, C2S. The facet is GlobalStorage, proven by the client's own registration and object-vtable name; the atlas 'Inventories' attribution for 0x183 was wrong. Writer and reader agree field for field and the committed 32-byte record reproduces byte for byte.",
+  "purpose": "The GlobalStorage facet sets the storage state it wants replicated; the server changes its replicated storage state. The codec (head + 16 raw) is shared by five GlobalStorage wires (SetReplicateStorage, UpdateStorageSession, DebugClearStorage, DebugRequestForcePersistenceDirty, DebugRequestOpenStorageSession), which is why the family row called the shape 'shared by 5 wires'.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the storage surface is driven and the client pushes its replicated storage state"],
+    "if_absent": "the server never learns the client's storage state"
+  },
+  "wire": {
+    "id": "0x183",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint 83 06, i.e. type_dec 387. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
+  "fields": [
+    {
+      "name": "field_a",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "First of the shared 16-byte head (FUN_1414dbca0). Meaning unnamed. Body offset 0x00.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+    },
+    {
+      "name": "field_b",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Second head u64; the local-player key 0xbf85314bbc4a951a in the committed body. Body offset 0x08.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+    },
+    {
+      "name": "field_c",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 16,
+      "type": "bytes(16)",
+      "evidence": "measured",
+      "note": "A raw 16-byte run written by the writer context's slot +0x40 (param_2, object +0x20, 0x10) and read by FUN_1408787b0(object +0x20, 0x10). The atlas does not say GUID, so it is not claimed as one. Body offset 0x10.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "re message-names 0x183 -> record_fn 0x142d08080 -> facet vtable 0x1481394c8 (slot +0x20 MARSHAL 0x1414c0730, slot +0x28 UNMARSHAL 0x142cd5b30) -> object vtable 0x1481399f8 (name accessor +0x08 -> 'GlobalStorageComponentServerFacet_SetReplicateStorage' at +0x70); writer object vtable +0x60 = 0x142cd2bf0 / reader +0x68 = 0x142cd2c30"
+    },
+    {
+      "type": "capture",
+      "ref": "local log .azoth/logs/world.log: channel-0 record for wire 0x183 carries a 32-byte body e2640b7ce5408036 bf85314bbc4a951a 2bb560aa58eb8881 0000000000000000, consumed exactly by head + 16 raw. Extracted by scripts/export/export-wire-bodies.py"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

@@ -11,8 +11,9 @@ use std::path::PathBuf;
 
 use everfall_wire::generated::{
     FlowWorldEntryRungLevelInfo, FlowWorldEntryRungRegistration,
-    FlowWorldEntryRungSelfIdentification, MsgObjectivesSetObjectiveAutoPinning,
-    MsgObjectivesUpdateTrackedObjectives,
+    FlowWorldEntryRungSelfIdentification, MsgContractsLookupContractsByParticipant,
+    MsgObjectivesSetObjectiveAutoPinning, MsgObjectivesUpdateTrackedObjectives,
+    MsgReceiveSettingsFromClient, MsgSetReplicateStorage, MsgTimeSyncToClient,
 };
 
 fn fixture_text() -> String {
@@ -31,14 +32,31 @@ fn hex_bytes(hex: &str) -> Vec<u8> {
 }
 
 fn body_for(fixture: &str, wire_id: u32) -> Vec<u8> {
+    bodies_for(fixture, wire_id)
+        .into_iter()
+        .next()
+        .expect("wire id present in fixture")
+}
+
+/// Every committed body for one wire id, in fixture order.
+///
+/// A variable-width message (0x9fc carries both 72- and 74-byte bodies)
+/// round-trips each width, so a single sample cannot hide a layout that only
+/// happens to fit one width.
+fn bodies_for(fixture: &str, wire_id: u32) -> Vec<Vec<u8>> {
     let needle = format!("\"wire_id\": {wire_id},");
-    let start = fixture.find(&needle).expect("wire id present in fixture");
-    let after_id = &fixture[start..];
     let body_key = "\"body\": \"";
-    let body_start = after_id.find(body_key).expect("body key after wire id") + body_key.len();
-    let after_body = &after_id[body_start..];
-    let end = after_body.find('"').expect("closing quote after body");
-    hex_bytes(&after_body[..end])
+    let mut out = Vec::new();
+    let mut rest = fixture;
+    while let Some(start) = rest.find(&needle) {
+        let after_id = &rest[start..];
+        let body_start = after_id.find(body_key).expect("body key after wire id") + body_key.len();
+        let after_body = &after_id[body_start..];
+        let end = after_body.find('"').expect("closing quote after body");
+        out.push(hex_bytes(&after_body[..end]));
+        rest = &after_body[end..];
+    }
+    out
 }
 
 #[test]
@@ -176,6 +194,153 @@ fn set_objective_auto_pinning_0xa95_round_trips() {
     decoded.encode(&mut out).expect("encode 0xa95");
     assert_eq!(out, body, "0xa95 did not round-trip byte for byte");
     println!("0xa95 body: {} bytes round-tripped", body.len());
+}
+
+#[test]
+fn receive_settings_from_client_0x9d3_round_trips() {
+    let fixture = fixture_text();
+    let body = body_for(&fixture, 0x9d3);
+    assert_eq!(body.len(), 20, "0x9d3 body length");
+    assert_eq!(MsgReceiveSettingsFromClient::WIRE_ID, 0x9d3);
+
+    let decoded = MsgReceiveSettingsFromClient::decode(&body).expect("decode 0x9d3");
+    assert_eq!(
+        decoded.field_a, 0xd1a9_4ccc_8706_60b0,
+        "0x9d3 first head u64"
+    );
+    assert_eq!(
+        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        "0x9d3 second head u64"
+    );
+    assert_eq!(decoded.field_c, 0x0000_97c9, "0x9d3 trailing u32");
+
+    let mut out = Vec::new();
+    decoded.encode(&mut out).expect("encode 0x9d3");
+    assert_eq!(out, body, "0x9d3 did not round-trip byte for byte");
+    println!("0x9d3 body: {} bytes round-tripped", body.len());
+}
+
+#[test]
+fn contracts_lookup_by_participant_0x9fc_round_trips_both_widths() {
+    let fixture = fixture_text();
+    let bodies = bodies_for(&fixture, 0x9fc);
+    assert!(
+        bodies.len() >= 2,
+        "0x9fc has both the 72- and 74-byte widths"
+    );
+    assert_eq!(MsgContractsLookupContractsByParticipant::WIRE_ID, 0x9fc);
+
+    let mut seen_widths = std::collections::BTreeSet::new();
+    for body in &bodies {
+        assert!(
+            body.len() == 72 || body.len() == 74,
+            "0x9fc body width {}",
+            body.len()
+        );
+        seen_widths.insert(body.len());
+
+        let decoded = MsgContractsLookupContractsByParticipant::decode(body).expect("decode 0x9fc");
+        assert_eq!(
+            decoded.field_a, 0x4c0c_0ed6_478a_69da,
+            "0x9fc first head u64"
+        );
+        assert_eq!(
+            decoded.field_b, 0xbf85_314b_bc4a_951a,
+            "0x9fc second head u64"
+        );
+        assert_eq!(
+            decoded.participant_id.len(),
+            16,
+            "0x9fc participant id width"
+        );
+        assert!(
+            decoded.blob_64.is_empty() && decoded.blob_256.is_empty(),
+            "0x9fc length-prefixed blobs are empty in every sample"
+        );
+        assert!(
+            decoded.index_ids.len() <= 3,
+            "0x9fc index vector is capped at 3"
+        );
+        assert!(
+            decoded.type_ids.len() <= 25,
+            "0x9fc type vector is capped at 25"
+        );
+        assert_eq!(decoded.trailing_id.len(), 16, "0x9fc trailing id width");
+
+        let mut out = Vec::new();
+        decoded.encode(&mut out).expect("encode 0x9fc");
+        assert_eq!(&out, body, "0x9fc did not round-trip byte for byte");
+    }
+    assert_eq!(
+        seen_widths.into_iter().collect::<Vec<_>>(),
+        vec![72, 74],
+        "both committed 0x9fc widths were exercised"
+    );
+}
+
+#[test]
+fn contracts_lookup_blob_caps_are_enforced() {
+    // A 65-byte blob exceeds the stated cap of 64; the reader must reject it
+    // rather than accept a longer prefix-counted run.
+    let mut body = vec![0u8; 16 + 16 + 12]; // head + participant id + three u32
+    body.push(65); // blob_64 length prefix above the cap
+    body.extend(std::iter::repeat_n(0u8, 65));
+    assert!(
+        MsgContractsLookupContractsByParticipant::decode(&body).is_err(),
+        "0x9fc rejects a blob_64 over its 64-byte cap"
+    );
+}
+
+#[test]
+fn set_replicate_storage_0x183_round_trips() {
+    let fixture = fixture_text();
+    let body = body_for(&fixture, 0x183);
+    assert_eq!(body.len(), 32, "0x183 body length");
+    assert_eq!(MsgSetReplicateStorage::WIRE_ID, 0x183);
+
+    let decoded = MsgSetReplicateStorage::decode(&body).expect("decode 0x183");
+    assert_eq!(
+        decoded.field_a, 0xe264_0b7c_e540_8036,
+        "0x183 first head u64"
+    );
+    assert_eq!(
+        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        "0x183 second head u64"
+    );
+    assert_eq!(decoded.field_c.len(), 16, "0x183 trailing run is 16 bytes");
+    assert_eq!(
+        decoded.field_c.id(),
+        "msg.set-replicate-storage.field_c",
+        "the trailing run carries its Atlas id"
+    );
+
+    let mut out = Vec::new();
+    decoded.encode(&mut out).expect("encode 0x183");
+    assert_eq!(out, body, "0x183 did not round-trip byte for byte");
+    println!("0x183 body: {} bytes round-tripped", body.len());
+}
+
+#[test]
+fn time_sync_to_client_0x1098_round_trips() {
+    let fixture = fixture_text();
+    let body = body_for(&fixture, 0x1098);
+    assert_eq!(body.len(), 16, "0x1098 is head-only");
+    assert_eq!(MsgTimeSyncToClient::WIRE_ID, 0x1098);
+
+    let decoded = MsgTimeSyncToClient::decode(&body).expect("decode 0x1098");
+    assert_eq!(
+        decoded.field_a, 0x93a3_e477_cb5f_d51e,
+        "0x1098 first head u64"
+    );
+    assert_eq!(
+        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        "0x1098 second head u64"
+    );
+
+    let mut out = Vec::new();
+    decoded.encode(&mut out).expect("encode 0x1098");
+    assert_eq!(out, body, "0x1098 did not round-trip byte for byte");
+    println!("0x1098 body: {} bytes round-tripped", body.len());
 }
 
 #[test]

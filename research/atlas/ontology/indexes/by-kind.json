@@ -31,11 +31,14 @@
       "msg.objectives-set-objective-auto-pinning",
       "msg.objectives-update-tracked-objectives",
       "msg.receive-player-spawn-point",
+      "msg.receive-settings-from-client",
       "msg.request-spend-attribute-points",
       "msg.replicate",
       "msg.replicate-client",
       "msg.server-equip-item",
+      "msg.set-replicate-storage",
       "msg.spawn-actors",
+      "msg.time-sync-to-client",
       "msg.update"
     ],
     "system": [

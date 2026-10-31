@@ -143,6 +143,56 @@ impl MsgUpdate {
     }
 }
 
+/// `msg.set-replicate-storage` — one Atlas card.
+///
+/// Message card, wire id `387`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgSetReplicateStorage {
+    /// Body field `field_a` (`u64be`).
+    pub field_a: u64,
+    /// Body field `field_b` (`u64be`).
+    pub field_b: u64,
+    /// Body field `field_c` (`bytes(16)`).
+    pub field_c: Opaque,
+}
+
+impl MsgSetReplicateStorage {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.set-replicate-storage";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 387;
+
+    /// Decode one `msg.set-replicate-storage` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let field_a = reader.u64be("field_a")?;
+        let field_b = reader.u64be("field_b")?;
+        let field_c = reader.opaque("field_c", "msg.set-replicate-storage.field_c", 16)?;
+        reader.finish()?;
+        Ok(Self {
+            field_a,
+            field_b,
+            field_c,
+        })
+    }
+
+    /// Encode one `msg.set-replicate-storage` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        writer.u64be(self.field_a);
+        writer.u64be(self.field_b);
+        writer.opaque(&self.field_c);
+        Ok(())
+    }
+}
+
 /// `msg.objectives-update-tracked-objectives` — one Atlas card.
 ///
 /// Message card, wire id `1458`.
@@ -483,6 +533,207 @@ impl FlowWorldEntryRungLevelInfo {
     }
 }
 
+/// `msg.receive-settings-from-client` — one Atlas card.
+///
+/// Message card, wire id `2515`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgReceiveSettingsFromClient {
+    /// Body field `field_a` (`u64be`).
+    pub field_a: u64,
+    /// Body field `field_b` (`u64be`).
+    pub field_b: u64,
+    /// Body field `field_c` (`u32be`).
+    pub field_c: u32,
+}
+
+impl MsgReceiveSettingsFromClient {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.receive-settings-from-client";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 2515;
+
+    /// Decode one `msg.receive-settings-from-client` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let field_a = reader.u64be("field_a")?;
+        let field_b = reader.u64be("field_b")?;
+        let field_c = reader.u32be("field_c")?;
+        reader.finish()?;
+        Ok(Self {
+            field_a,
+            field_b,
+            field_c,
+        })
+    }
+
+    /// Encode one `msg.receive-settings-from-client` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        writer.u64be(self.field_a);
+        writer.u64be(self.field_b);
+        writer.u32be(self.field_c);
+        Ok(())
+    }
+}
+
+/// `msg.contracts-lookup-contracts-by-participant` — one Atlas card.
+///
+/// Message card, wire id `2556`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgContractsLookupContractsByParticipant {
+    /// Body field `field_a` (`u64be`).
+    pub field_a: u64,
+    /// Body field `field_b` (`u64be`).
+    pub field_b: u64,
+    /// Body field `participant_id` (`bytes(16)`).
+    pub participant_id: Opaque,
+    /// Body field `u32_be_1` (`u32be`).
+    pub u32_be_1: u32,
+    /// Body field `u32_be_2` (`u32be`).
+    pub u32_be_2: u32,
+    /// Body field `u32_be_3` (`u32be`).
+    pub u32_be_3: u32,
+    /// Body field `blob_64` (`prefixed_bytes`).
+    pub blob_64: Opaque,
+    /// Body field `blob_256` (`prefixed_bytes`).
+    pub blob_256: Opaque,
+    /// Body field `count_u32` (`u32be`).
+    pub count_u32: u32,
+    /// Body field `index_ids` (`vec<u32be>`).
+    pub index_ids: Vec<u32>,
+    /// Body field `type_ids` (`vec<u16be>`).
+    pub type_ids: Vec<u16>,
+    /// Body field `trailing_id` (`bytes(16)`).
+    pub trailing_id: Opaque,
+}
+
+impl MsgContractsLookupContractsByParticipant {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.contracts-lookup-contracts-by-participant";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 2556;
+
+    /// Decode one `msg.contracts-lookup-contracts-by-participant` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let field_a = reader.u64be("field_a")?;
+        let field_b = reader.u64be("field_b")?;
+        let participant_id = reader.opaque(
+            "participant_id",
+            "msg.contracts-lookup-contracts-by-participant.participant_id",
+            16,
+        )?;
+        let u32_be_1 = reader.u32be("u32_be_1")?;
+        let u32_be_2 = reader.u32be("u32_be_2")?;
+        let u32_be_3 = reader.u32be("u32_be_3")?;
+        let blob_64 = reader.prefixed_opaque(
+            "blob_64",
+            "msg.contracts-lookup-contracts-by-participant.blob_64",
+        )?;
+        if blob_64.len() as u64 > 64 {
+            return Err(WireError::OutOfRange {
+                field: "blob_64",
+                max: 64,
+                value: blob_64.len() as u64,
+            });
+        }
+        let blob_256 = reader.prefixed_opaque(
+            "blob_256",
+            "msg.contracts-lookup-contracts-by-participant.blob_256",
+        )?;
+        if blob_256.len() as u64 > 256 {
+            return Err(WireError::OutOfRange {
+                field: "blob_256",
+                max: 256,
+                value: blob_256.len() as u64,
+            });
+        }
+        let count_u32 = reader.u32be("count_u32")?;
+        let count = reader.prefix_varint("index_ids")?;
+        if count > 3 {
+            return Err(WireError::OutOfRange {
+                field: "index_ids",
+                max: 3,
+                value: count,
+            });
+        }
+        let mut index_ids = Vec::new();
+        for _ in 0..count {
+            index_ids.push(reader.u32be("index_ids")?);
+        }
+        let count = reader.prefix_varint("type_ids")?;
+        if count > 25 {
+            return Err(WireError::OutOfRange {
+                field: "type_ids",
+                max: 25,
+                value: count,
+            });
+        }
+        let mut type_ids = Vec::new();
+        for _ in 0..count {
+            type_ids.push(reader.u16be("type_ids")?);
+        }
+        let trailing_id = reader.opaque(
+            "trailing_id",
+            "msg.contracts-lookup-contracts-by-participant.trailing_id",
+            16,
+        )?;
+        reader.finish()?;
+        Ok(Self {
+            field_a,
+            field_b,
+            participant_id,
+            u32_be_1,
+            u32_be_2,
+            u32_be_3,
+            blob_64,
+            blob_256,
+            count_u32,
+            index_ids,
+            type_ids,
+            trailing_id,
+        })
+    }
+
+    /// Encode one `msg.contracts-lookup-contracts-by-participant` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        writer.u64be(self.field_a);
+        writer.u64be(self.field_b);
+        writer.opaque(&self.participant_id);
+        writer.u32be(self.u32_be_1);
+        writer.u32be(self.u32_be_2);
+        writer.u32be(self.u32_be_3);
+        writer.prefixed_opaque(&self.blob_64)?;
+        writer.prefixed_opaque(&self.blob_256)?;
+        writer.u32be(self.count_u32);
+        writer.prefix_varint(self.index_ids.len() as u64)?;
+        for value in &self.index_ids {
+            writer.u32be(*value);
+        }
+        writer.prefix_varint(self.type_ids.len() as u64)?;
+        for value in &self.type_ids {
+            writer.u16be(*value);
+        }
+        writer.opaque(&self.trailing_id);
+        Ok(())
+    }
+}
+
 /// `msg.objectives-set-objective-auto-pinning` — one Atlas card.
 ///
 /// Message card, wire id `2709`.
@@ -613,6 +864,48 @@ impl MsgServerEquipItem {
         writer.u32be(self.field_e);
         writer.opaque(&self.field_f);
         writer.u8(u8::from(self.field_g));
+        Ok(())
+    }
+}
+
+/// `msg.time-sync-to-client` — one Atlas card.
+///
+/// Message card, wire id `4248`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgTimeSyncToClient {
+    /// Body field `field_a` (`u64be`).
+    pub field_a: u64,
+    /// Body field `field_b` (`u64be`).
+    pub field_b: u64,
+}
+
+impl MsgTimeSyncToClient {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.time-sync-to-client";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 4248;
+
+    /// Decode one `msg.time-sync-to-client` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let field_a = reader.u64be("field_a")?;
+        let field_b = reader.u64be("field_b")?;
+        reader.finish()?;
+        Ok(Self { field_a, field_b })
+    }
+
+    /// Encode one `msg.time-sync-to-client` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        writer.u64be(self.field_a);
+        writer.u64be(self.field_b);
         Ok(())
     }
 }

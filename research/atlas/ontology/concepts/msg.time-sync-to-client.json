@@ -1,0 +1,58 @@
+{
+  "uid": "msg.time-sync-to-client",
+  "kind": "message",
+  "name": "TimeComponentServerFacet_SyncToClient",
+  "aliases": ["wire:0x1098", "SyncToClient"],
+  "summary": "The time facet's sync: head-only, the shared two-u64 BE head and nothing after it. 16-byte body, C2S. The card was absent from the atlas entirely; writer and reader both stop after the head and the committed 16-byte record reproduces byte for byte.",
+  "purpose": "The time facet syncs the client's clock state to the server; the server changes its replicated time state. Head-only, so the server's only job is to parse the head and never desynchronize the stream.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the client syncs its clock with the server"],
+    "if_absent": "the server never receives the client's time sync"
+  },
+  "wire": {
+    "id": "0x1098",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint 98 42, i.e. type_dec 4248. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id.",
+  "fields": [
+    {
+      "name": "field_a",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "First of the shared 16-byte head, written by FUN_1414dbca0 through htonl64 FUN_140877280 and read by FUN_14150e670. Meaning unnamed. Body offset 0x00.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+    },
+    {
+      "name": "field_b",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Second head u64; the local-player key 0xbf85314bbc4a951a in the committed body. Body offset 0x08.",
+      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "re message-names 0x1098 -> record_fn 0x144086cf0 -> facet vtable 0x1482fff40 (slot +0x20 MARSHAL 0x1414c0730, slot +0x28 UNMARSHAL 0x144072d20) -> object vtable 0x1482ff7d0 (name accessor +0x08 -> 'TimeComponentServerFacet_SyncToClient' at +0x70); writer object vtable +0x60 = 0x14259f170 (jmp thunk to the shared head writer FUN_1414dbca0) / reader +0x68 = 0x14259f180. Both stop after the head."
+    },
+    {
+      "type": "capture",
+      "ref": "local log .azoth/logs/world.log: channel-0 record for wire 0x1098 carries a 16-byte body 93a3e477cb5fd51e bf85314bbc4a951a, exactly two head u64. Extracted by scripts/export/export-wire-bodies.py"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

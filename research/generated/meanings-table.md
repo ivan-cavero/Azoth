@@ -216,22 +216,22 @@
 
 - wire 0x9fc, C2S
 - kind: message; status: candidate; confidence: layout
-- codegen: **refused** — opaque fields: text_64, text_256
+- codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | note |
 | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | partial | First of the shared 16-byte head (FUN_1414dbca0). meanings.md 'The Journal families' row 0x9fc: 'head'. |
 | field_b | u64be | 0x08 | partial | Second head u64. meanings.md 'The Journal families' row 0x9fc: 'head'. |
-| participant_id | bytes(16) | 0x10 | partial | meanings.md 'The Journal families' row 0x9fc: '16-byte id'. Carried as a raw 16-byte run (bytes(16)); the atlas does not say GUID, so it is not claimed as one. |
-| u32_be_1 | u32be | 0x20 | partial | First of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc. |
-| u32_be_2 | u32be | 0x24 | partial | Second of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc. |
-| u32_be_3 | u32be | 0x28 | partial | Third of the three '3x u32'. meanings.md 'The Journal families' row 0x9fc. |
-| text_64 | opaque(contracts.text64) | 0x2c | partial | The atlas says 'str <= 64' but the closed vocabulary has no 'str' member; its length-prefixed members are prefixed_string (UTF-8) and prefixed_bytes (raw), and the same 64 cap is called a raw byte blob by the Contracts sub-codec A table. The codec is therefore undetermined and stays opaque, which refuses codegen. meanings.md 'The Journal families' row 0x9fc and 'Contracts closed, 2026-10-29' sub-codec A. |
-| text_256 | opaque(contracts.text256) | 0x2c | partial | The atlas says 'str <= 256' (the same cap as Contracts sub-codec B), with no closed-vocabulary codec; stays opaque. meanings.md 'The Journal families' row 0x9fc and 'Contracts closed, 2026-10-29' sub-codec B. |
-| count_u32 | u32be | 0x2c | partial | The bare 'u32'. meanings.md 'The Journal families' row 0x9fc. |
-| index_ids | vec<u32be> | — | partial | The 'u32-vec <= 3': prefix-varint count, then count x u32 BE. meanings.md 'The Journal families' row 0x9fc. |
-| type_ids | vec<u16be> | — | partial | The 'u16-vec <= 25': prefix-varint count, then count x u16 BE. meanings.md 'The Journal families' row 0x9fc. |
-| trailing_id | bytes(16) | — | partial | The final '16-byte id'. meanings.md 'The Journal families' row 0x9fc. |
+| participant_id | bytes(16) | 0x10 | partial | The first '16-byte id': a raw run written from object +0x40 and read by FUN_1408787b0(object +0x40, 0x10). |
+| u32_be_1 | u32be | 0x20 | measured | First of the three '3x u32', at object +0x50; range validator FUN_142de8190. meaning unnamed. |
+| u32_be_2 | u32be | 0x24 | measured | Second of the three '3x u32', at object +0x54; range validator FUN_142de8330. meaning unnamed. |
+| u32_be_3 | u32be | 0x28 | measured | Third of the three '3x u32', at object +0x58; range validator FUN_142de8330. meaning unnamed. |
+| blob_64 | prefixed_bytes | 0x2c | measured | The 'str <= 64' field is a raw byte blob: writer FUN_142dd8dc0 (object +0x60) and reader FUN_142db4a40 both use the shared prefix varint FUN_140877b10/FUN_14087b760 as the length prefix; over-cap (>64) writes length 0 and the reader rejects with status 4. prefixed_bytes carries that length prefix. meanings.md 'Contracts closed, 2026-10-29' sub-codec A and 'The four refused inbound requests recovered, 2026-10-31'. |
+| blob_256 | prefixed_bytes | 0x2d + n64 | measured | The 'str <= 256' field is a raw byte blob: writer FUN_142db2750 (object +0xc0) and reader FUN_142db4910 both use the shared prefix varint as the length prefix; over-cap (>256) writes length 0 and the reader rejects with status 4. prefixed_bytes carries that length prefix. meanings.md 'Contracts closed, 2026-10-29' sub-codec B and 'The four refused inbound requests recovered, 2026-10-31'. |
+| count_u32 | u32be | 0x2e + n64 + n256 | measured | The bare 'u32', written/read by FUN_140876e70/FUN_14087a3c0 from object +0x1c8. meaning unnamed. |
+| index_ids | vec<u32be> | — | measured | The 'u32-vec <= 3': prefix-varint count, then count x u32 BE. Writer FUN_142db28d0 (object +0xa8, emits length 0 over 3) and reader FUN_142db87a0. |
+| type_ids | vec<u16be> | — | measured | The 'u16-vec <= 25': prefix-varint count, then count x u16 BE. Writer inline at object +0x1d0 (cap 25) and reader FUN_142db7e40 (rejects count > 25). |
+| trailing_id | bytes(16) | — | measured | The final '16-byte id': a raw run written from object +0x30 and read by FUN_1408787b0(object +0x30, 0x10). meanings.md 'The four refused inbound requests recovered, 2026-10-31'. |
 
 ## msg.fragment-update — FragmentUpdateMsg
 
@@ -294,6 +294,18 @@
 - kind: message; status: verified; confidence: semantics
 - codegen: field-less — neither emitted nor refused
 
+## msg.receive-settings-from-client — PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient
+
+- wire 0x9d3, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| field_a | u64be | 0x00 | measured | First of the shared 16-byte head, written by FUN_1414dbca0 through htonl64 FUN_140877280 and read by FUN_14150e670. Field meaning unnamed. Body offset 0x00. |
+| field_b | u64be | 0x08 | measured | Second head u64; the local-player key 0xbf85314bbc4a951a in every committed body. Body offset 0x08. |
+| field_c | u32be | 0x10 | measured | One u32 BE written by FUN_140876e70 (htonl FUN_146166830) from the message object at +0x20 and read by FUN_14087a3c0. Meaning unnamed. Body offset 0x10. |
+
 ## msg.replicate-client — ReplicateClient
 
 - wire 407, S2C
@@ -335,6 +347,18 @@
 | field_f | guid16 | 0x1c | measured | The 16-byte item id, written and read verbatim with no byte swap (from FUN_145c495c0(itemDescriptor)). Carried as guid16 because the codec is exactly 16 raw bytes. meanings.md 'The second field layout: 0xf37'. |
 | field_g | bool_byte | 0x2c | measured | A u8 bool (0/1) passed on the stack. Measured 0x00. meanings.md 'The second field layout: 0xf37'. |
 
+## msg.set-replicate-storage — GlobalStorageComponentServerFacet_SetReplicateStorage
+
+- wire 0x183, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| field_a | u64be | 0x00 | measured | First of the shared 16-byte head (FUN_1414dbca0). Meaning unnamed. Body offset 0x00. |
+| field_b | u64be | 0x08 | measured | Second head u64; the local-player key 0xbf85314bbc4a951a in the committed body. Body offset 0x08. |
+| field_c | bytes(16) | 0x10 | measured | A raw 16-byte run written by the writer context's slot +0x40 (param_2, object +0x20, 0x10) and read by FUN_1408787b0(object +0x20, 0x10). The atlas does not say GUID, so it is not claimed as one. Body offset 0x10. |
+
 ## msg.spawn-actors — SpawnActorsMsg
 
 - wire 574, S2C
@@ -344,6 +368,17 @@
 | field | type | offset | evidence | note |
 | --- | --- | --- | --- | --- |
 | id | u64be | 0x00 | unknown | meaning unproven; not a count or vector |
+
+## msg.time-sync-to-client — TimeComponentServerFacet_SyncToClient
+
+- wire 0x1098, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | note |
+| --- | --- | --- | --- | --- |
+| field_a | u64be | 0x00 | measured | First of the shared 16-byte head, written by FUN_1414dbca0 through htonl64 FUN_140877280 and read by FUN_14150e670. Meaning unnamed. Body offset 0x00. |
+| field_b | u64be | 0x08 | measured | Second head u64; the local-player key 0xbf85314bbc4a951a in the committed body. Body offset 0x08. |
 
 ## msg.update — UpdateMsg
 

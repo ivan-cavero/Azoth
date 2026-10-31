@@ -356,6 +356,16 @@ MESSAGES = {
             ('blob', 'prefixed_bytes'),
         ),
     },
+    387: {
+        'uid': 'msg.set-replicate-storage',
+        'name': 'GlobalStorageComponentServerFacet_SetReplicateStorage',
+        'direction': 'C2S',
+        'fields': (
+            ('field_a', 'u64be'),
+            ('field_b', 'u64be'),
+            ('field_c', 'bytes(16)'),
+        ),
+    },
     1458: {
         'uid': 'msg.objectives-update-tracked-objectives',
         'name': 'ObjectivesComponentServerFacet_UpdateTrackedObjectives',
@@ -409,6 +419,35 @@ MESSAGES = {
             ('level_context_key', 'u64be'),
         ),
     },
+    2515: {
+        'uid': 'msg.receive-settings-from-client',
+        'name': 'PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient',
+        'direction': 'C2S',
+        'fields': (
+            ('field_a', 'u64be'),
+            ('field_b', 'u64be'),
+            ('field_c', 'u32be'),
+        ),
+    },
+    2556: {
+        'uid': 'msg.contracts-lookup-contracts-by-participant',
+        'name': 'ContractsComponentServerFacet_LookupContractsByParticipant',
+        'direction': 'C2S',
+        'fields': (
+            ('field_a', 'u64be'),
+            ('field_b', 'u64be'),
+            ('participant_id', 'bytes(16)'),
+            ('u32_be_1', 'u32be'),
+            ('u32_be_2', 'u32be'),
+            ('u32_be_3', 'u32be'),
+            ('blob_64', 'prefixed_bytes'),
+            ('blob_256', 'prefixed_bytes'),
+            ('count_u32', 'u32be'),
+            ('index_ids', 'vec<u32be>'),
+            ('type_ids', 'vec<u16be>'),
+            ('trailing_id', 'bytes(16)'),
+        ),
+    },
     2709: {
         'uid': 'msg.objectives-set-objective-auto-pinning',
         'name': 'ObjectivesComponentServerFacet_SetObjectiveAutoPinning',
@@ -431,6 +470,15 @@ MESSAGES = {
             ('field_e', 'u32be'),
             ('field_f', 'guid16'),
             ('field_g', 'bool_byte'),
+        ),
+    },
+    4248: {
+        'uid': 'msg.time-sync-to-client',
+        'name': 'TimeComponentServerFacet_SyncToClient',
+        'direction': 'C2S',
+        'fields': (
+            ('field_a', 'u64be'),
+            ('field_b', 'u64be'),
         ),
     },
 }
