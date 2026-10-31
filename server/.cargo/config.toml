@@ -1,0 +1,15 @@
+# Everfall Rust workspace -- build configuration.
+#
+# rust-toolchain.toml pins x86_64-pc-windows-msvc. `rust-lld.exe` ships inside
+# that toolchain, so selecting it as the linker makes the link step independent
+# of PATH. That matters on this machine: the `link.exe` on PATH is Git's, which
+# shadows the real MSVC linker; and rust-lld is addressed by name because rustc
+# resolves it from the sysroot.
+#
+# rust-lld still needs import libraries. The Windows SDK ones (kernel32.lib,
+# ucrt.lib, ntdll.lib, userenv.lib, ws2_32.lib, dbghelp.lib) are absent on this
+# machine and are NOT part of the Rust toolchain; they must be supplied on LIB
+# (see README.md). The CRT half (msvcrt.lib, vcruntime.lib) comes from the MSVC
+# toolset that windows-msvc already requires.
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld"
