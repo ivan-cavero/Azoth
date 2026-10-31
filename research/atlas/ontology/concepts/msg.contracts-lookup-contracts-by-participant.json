@@ -29,15 +29,15 @@
       "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
     },
     {
-      "name": "field_b",
-      "meaning": "layout-only",
+      "name": "local_actor_id_word0",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x08",
       "size": 8,
       "type": "u64be",
-      "evidence": "partial",
-      "note": "Second head u64. meanings.md 'The Journal families' row 0x9fc: 'head'.",
-      "provenance": "meanings.md#the-journal-families-enumerated-wires-and-the-first-decoded-entry-points-2026-10-29"
+      "evidence": "measured",
+      "note": "Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4).",
+      "provenance": "meanings.md#the-shared-2-x-u64be-head-recovered-2026-11-01"
     },
     {
       "name": "participant_id",
@@ -157,6 +157,10 @@
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
+    {
+      "type": "decompile",
+      "ref": "Head provenance, recovered 2026-11-01: the shared writer FUN_1414dbca0 stores msg+0x08 (straight) then msg+0x10 (through a stack local) with FUN_140877280 = htonl64 FUN_1461668a0 + stream raw-write slot +0x40; the reader FUN_14150e670 mirrors it. This wire's builder FUN_142dbd490 (sole caller FUN_142db3ec0) fills +0x08 with FUN_1416c1c40(...) and +0x10 with *FUN_1416be9f0(...) = [session+0x88]"
+    },
     {
       "type": "atlas",
       "ref": "research/atlas/meanings.md 'The Journal families: enumerated wires and the first decoded entry points (2026-10-29)': row 0x9fc ContractsComponentServerFacet_LookupContractsByParticipant is '~68..451 B: head + 16-byte id + 3x u32 + str <= 64 + str <= 256 + u32 + u32-vec <= 3 + u16-vec <= 25 + 16-byte id', writer FUN_142d9e5d0 / reader FUN_142d9e7a0"

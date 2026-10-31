@@ -29,15 +29,15 @@
       "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
     },
     {
-      "name": "field_b",
-      "meaning": "layout-only",
+      "name": "local_actor_id_word0",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x08",
       "size": 8,
       "type": "u64be",
       "evidence": "measured",
-      "note": "Second head u64; the local-player key 0xbf85314bbc4a951a in every committed body. Body offset 0x08.",
-      "provenance": "meanings.md#the-four-refused-inbound-requests-recovered-2026-10-31"
+      "note": "Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4).",
+      "provenance": "meanings.md#the-shared-2-x-u64be-head-recovered-2026-11-01"
     },
     {
       "name": "field_c",
@@ -57,6 +57,10 @@
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
+    {
+      "type": "decompile",
+      "ref": "Head provenance, recovered 2026-11-01: the shared writer FUN_1414dbca0 stores msg+0x08 (straight) then msg+0x10 (through a stack local) with FUN_140877280 = htonl64 FUN_1461668a0 + stream raw-write slot +0x40; the reader FUN_14150e670 mirrors it. This wire's builder FUN_142a5c250 (sole caller FUN_142a644e0) fills +0x08 with FUN_1416c1c40(...) and +0x10 with *FUN_1416be9f0(...) = [session+0x88]."
+    },
     {
       "type": "decompile",
       "ref": "re message-names 0x9d3 -> record_fn 0x142a63080 -> facet vtable 0x148102930 (slot +0x20 MARSHAL 0x1414c0730, slot +0x28 UNMARSHAL 0x142a57450) -> object vtable 0x1481029c0 (name accessor +0x08 -> 'PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient' at +0x70); writer object vtable +0x60 = 0x1426d64f0 / reader +0x68 = 0x142a57a30"

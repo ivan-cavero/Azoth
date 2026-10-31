@@ -2008,7 +2008,7 @@ and `FUN_142750870`. Writer and reader agree field for field.
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian | `+0x10` |
 | 3 | attribute indices | prefix varint count, then count x `u32` BE, each <= 4 | `+0x40` |
 | 4 | points per attribute | prefix varint count, then count x `u32` BE, each <= 700 | `+0x20` |
 
@@ -2050,7 +2050,7 @@ reaches `FUN_142760cf0`; it does not. Evidence:
 
 **The real trigger, 2026-10-27 — the `+` never sends; `ApplyAttributeChanges` does.** The only construction path for a `0x5de` object is the builder `FUN_142760cf0` (it is the only `lea` of the message vtable `0x1480b7508` outside the message constructor). Its only static caller is `FUN_1427789a0`, whose only static caller is `FUN_142778890`, and that function sits in a method-table slot at `0x1480bb5c8` next to the string `AttributeComponentClientFacet`. `FUN_1427789a0`'s else branch logs `AttributeComponentClientFacet` plus `"Attempting to ApplyAttributeChanges from remote entity."`, which names it: it is the `AttributeRequestBus` method **`ApplyAttributeChanges`** (method string `0x14841b508`). The same bus exposes `AddPendingPointsToAttribute` (`0x14841b4b0`), `RemovePendingPointsFromAttribute` (`0x14841b488`), `CancelPendingAttributePoints` (`0x14841b4d0`), `ResetAllAttributePoints` (`0x14841b4f0`) and `AddAttributePointsToPool` (`0x14841b468`), and the HUD reads `Hud.LocalPlayer.Attributes.PendingPoints` / `UnspentPoints` / `SpentPoints` / `BonusPoints`. So the `+` control **stages pending points** and `0x5de` is composed only when the client **applies** the pending allocation. That explains both 2026-10-27 live sessions exactly: they clicked the `+` dead-centre and the builder and writer recorded 0 hits, because the `+` was never the sender. The next live provocation must drive the apply/confirm, not the `+`. **Not yet measured:** which UI control invokes `ApplyAttributeChanges`.
 
-**Live positive, 2026-10-27 — the APPLY step composes a real `0x5de`; evidence word now `measured`.** One measured session on build `30fe6461...` (world env: `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`, `AZOTH_REPLAY_STATE_STREAM=1`, `_SEQ=1`, `_MIN_SEQ=0x94`, `_ONLY_RECORD=1`, `_PERIOD_S=0.25`; world confirmed `state-stream-armed ... only_record 1, player_record 1, period_s 0.25`) drove the confirm. The character panel (`k`) rendered **239 PUNTOS DISPONIBLES**; a click on the FUERZA `+` staged one point (FUERZA 5→6, points 239→238) and activated the **`Asignar`** button, and a click on `Asignar` — the Confirm/Apply control that appears once pending points exist — fired, in the same instant, the read-only hooks: `FUN_1427789a0` (`ApplyAttributeChanges`) ×1, the builder `FUN_142760cf0` ×1 and the writer `FUN_1427484d0` ×1. The `+` alone fired none. On the wire the world logged `inbound-typed channel 0 type 0x5de type_dec 1502 size 54` at the exact apply time, and `re segment-types` over the session tail reported `0x5de` present only in the apply window (`AttributeComponentServerFacet_RequestSpendAttributePoints`, total 1). The record body (26 bytes, consumed exactly) is `0e 05 59 2a 1d 48 c4 17 | bf 85 31 4b bc 4a 95 1a | 01 00 00 00 02 | 01 00 00 00 01`: `field_a` u64 BE `0xe05592a1d48c417` and `field_b` u64 BE `0xbf85314bbc4a951a` (byte-identical to the builder's `*param_2`/`*param_3`), then a varint-counted u32 attribute-index vector `[2]` (≤4) and a varint-counted u32 points vector `[1]` (≤700) — the static layout **field for field**. `re field-differential --type 0x5de` used to return **0 bodies**: its channel-0 reader wanted the `00 01` marker at offset 0 while a client channel-0 record carries it at offset 24 (record header + 16-byte actor id == `1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0`). That was a tool gap, not a missing message, and it is **fixed (2026-10-27)**: `_channel0_body` now tries offset 0 then 24 (offset 0 first, so server records are unchanged — the 0x635 channel-1 path and its 20,000-body read are identical before and after), pinned by `reverse/tools/tests/test_field_differential.py::Channel0ClientRecordTest`, and `--type 0x5de` now returns the single 26-byte body. **Attribute index → attribute (settled 2026-10-27).** The wire index is the `CharacterAttributeType` enum. Its own name table — six `lea`s 15 bytes apart in one function (`0x144f48591`…), in the order `Constitution`, `Focus`, `Strength`, `Dexterity`, `Intelligence`, `NumAttributeTypes` — puts **Strength at 2**, which is exactly the index the live FUERZA click sent. So: **0 Constitution, 1 Focus, 2 Strength, 3 Dexterity, 4 Intelligence** (5 = `NumAttributeTypes`, the sentinel the `<=4` assert excludes). `Strength = 2` is measured (live); the other four follow from that name order and are consistent with it, not independently proven. Evidence: `.azoth/logs/run-20261027-attr-apply-5de/`.
+**Live positive, 2026-10-27 — the APPLY step composes a real `0x5de`; evidence word now `measured`.** One measured session on build `30fe6461...` (world env: `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`, `AZOTH_REPLAY_STATE_STREAM=1`, `_SEQ=1`, `_MIN_SEQ=0x94`, `_ONLY_RECORD=1`, `_PERIOD_S=0.25`; world confirmed `state-stream-armed ... only_record 1, player_record 1, period_s 0.25`) drove the confirm. The character panel (`k`) rendered **239 PUNTOS DISPONIBLES**; a click on the FUERZA `+` staged one point (FUERZA 5→6, points 239→238) and activated the **`Asignar`** button, and a click on `Asignar` — the Confirm/Apply control that appears once pending points exist — fired, in the same instant, the read-only hooks: `FUN_1427789a0` (`ApplyAttributeChanges`) ×1, the builder `FUN_142760cf0` ×1 and the writer `FUN_1427484d0` ×1. The `+` alone fired none. On the wire the world logged `inbound-typed channel 0 type 0x5de type_dec 1502 size 54` at the exact apply time, and `re segment-types` over the session tail reported `0x5de` present only in the apply window (`AttributeComponentServerFacet_RequestSpendAttributePoints`, total 1). The record body (26 bytes, consumed exactly) is `0e 05 59 2a 1d 48 c4 17 | bf 85 31 4b bc 4a 95 1a | 01 00 00 00 02 | 01 00 00 00 01`: `field_a` u64 BE `0xe05592a1d48c417` and `local_actor_id_word0` u64 BE `0xbf85314bbc4a951a` (byte-identical to the builder's `*param_2`/`*param_3`), then a varint-counted u32 attribute-index vector `[2]` (≤4) and a varint-counted u32 points vector `[1]` (≤700) — the static layout **field for field**. `re field-differential --type 0x5de` used to return **0 bodies**: its channel-0 reader wanted the `00 01` marker at offset 0 while a client channel-0 record carries it at offset 24 (record header + 16-byte actor id == `1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0`). That was a tool gap, not a missing message, and it is **fixed (2026-10-27)**: `_channel0_body` now tries offset 0 then 24 (offset 0 first, so server records are unchanged — the 0x635 channel-1 path and its 20,000-body read are identical before and after), pinned by `reverse/tools/tests/test_field_differential.py::Channel0ClientRecordTest`, and `--type 0x5de` now returns the single 26-byte body. **Attribute index → attribute (settled 2026-10-27).** The wire index is the `CharacterAttributeType` enum. Its own name table — six `lea`s 15 bytes apart in one function (`0x144f48591`…), in the order `Constitution`, `Focus`, `Strength`, `Dexterity`, `Intelligence`, `NumAttributeTypes` — puts **Strength at 2**, which is exactly the index the live FUERZA click sent. So: **0 Constitution, 1 Focus, 2 Strength, 3 Dexterity, 4 Intelligence** (5 = `NumAttributeTypes`, the sentinel the `<=4` assert excludes). `Strength = 2` is measured (live); the other four follow from that name order and are consistent with it, not independently proven. Evidence: `.azoth/logs/run-20261027-attr-apply-5de/`.
 
 ### The gate under the whole interaction contract: "local only GDE"
 
@@ -2071,7 +2071,7 @@ So the blocker under `INTERACTION-DECOMP-PLAN.md` is one precondition, not 564 s
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian | `+0x10` |
 | 3 | `field_c` | `u32` BE, an int in `[-1, 501]` (`FUN_142e6bae0`) | `+0x60` |
 | 4 | `field_d` | `u32` BE, validated by `FUN_142d94d20` | `+0x58` |
 | 5 | `field_e` | `u32` BE, validated by `FUN_142d94df0` | `+0x50` |
@@ -2098,7 +2098,7 @@ The body is 45 bytes; the head (`FUN_1414dbca0`, two `u64` BE) is the shared env
 
 **Equip path anchored, 2026-10-29 - the client handler is `FUN_1469229c0`, and the vtable dispatch is server-side.** The data-ref scanner closed the anchor: the vtable base containing slot `0x14853b838` is **`0x14853b750`** (slot at offset `0xE8`, index 29), set by all three constructors `FUN_14670d5d0`, `FUN_14670dcf0`, `FUN_14670e360` (class object 0x518 B, reflection factory `FUN_1465e0620`); the adjacent `0x14853b740` is a 2-entry base-subobject vtable (candidate, unconfirmed). This build has **no** MSVC COL / game-class RTTI (`/GR-`; `reverse/tools/type/rtti.py selftest` -> 0 in-text COL slots), so an RTTI walk-back cannot find the base - it was proven structurally instead (the `"PaperdollComponentServerFacet"` name + GUID sit at `0x14853b6f8`, immediately before the vtable group). **There is no client-side call or jump to `0x1467a6f20`** and no paperdoll `call [vfptr+0xE8]`; the equip-request dispatch is server-side (message `ClientMessages::ServerEquipItem`, decorated name `0x14a24b86c`, method descriptor `0x14852cc70`). The **client side is the equip action handler `FUN_1469229c0`** (`0x1469229c0-0x146922d64`), which surfaces `"ServerEquipItem did not succeed."` at `0x146922c83` - that is the function a live probe must hook, not `FUN_1467a6f20`. Client build `30fe6461...`. Instrument: `reverse/tools/pe/xref-data.py` (`re xref-data`). **Still unknown:** the exact UI control that runs `FUN_1469229c0`, and whether it composes the message in a replay-driven session. Evidence word stays **partial**.
 
-**Live attempt #6, 2026-10-29 - MEASURED: the double-click is the trigger, and the body matches the layout field for field.** One in-world session (client pid 11892) with read-only hooks on gate `FUN_14679da70`, bus `FUN_1467a6f20`, handler `FUN_1469229c0`, builder `FUN_146681060` and writer `FUN_1465ad7e0`: after opening the inventory (hold TAB 0.6 s) and **double-clicking a weapon cell** in the ARMAS grid (window `(897,642)`, `mouse.py dblclick`), the **gate, bus, builder and writer each fired exactly once** and the client sent `inbound-typed channel 0 type 0xf37 type_dec 3895 size 73`. The channel-0 record is `[24-byte header + 16-byte actor id][00 01][b7 3c = 3895][body]`, and the **45-byte body** is `307df08e15b85dab | bf85314bbc4a951a | 0000013f | 00000018 | 00000001 | d4a8f40d618a4a67ae390da64abc15bb | 00` - the static layout **field for field**: `field_a` u64 BE `0x307df08e15b85dab`; `field_b` u64 BE `0xbf85314bbc4a951a` (the local-player key the atlas already documents); `field_c` u32 BE `319` (inside the `[-1,501]` bound); `field_d` u32 BE `24`; `field_e` u32 BE `1`; `field_f` the 16-byte item id `d4a8f40d618a4a67ae390da64abc15bb`; `field_g` bool `0x00`. **Corrected:** the earlier "there is no client-side call to `FUN_1467a6f20`" reading was about *static* references only; the bus **does** run client-side in a real session, reached by vtable dispatch (which `xref-data` cannot see as a rel32 call), and the double-click drives it. The `FUN_1469229c0` handler did **not** fire on this path - it is the failure/notification side. **What the server must do:** read the two `u64` BE head fields, then `field_c`/`field_d`/`field_e` (u32 BE), the 16-byte item id and the bool, then change the paperdoll replicated state; `Paperdoll` has reply messages, unlike `Attribute`. Drag-onto-a-slot (attempt #5) and right-click (attempt #3) do **not** trigger it. **Evidence word: measured.** Evidence: `.azoth/logs/run-20261029c-equip-handler-0xf37/`.
+**Live attempt #6, 2026-10-29 - MEASURED: the double-click is the trigger, and the body matches the layout field for field.** One in-world session (client pid 11892) with read-only hooks on gate `FUN_14679da70`, bus `FUN_1467a6f20`, handler `FUN_1469229c0`, builder `FUN_146681060` and writer `FUN_1465ad7e0`: after opening the inventory (hold TAB 0.6 s) and **double-clicking a weapon cell** in the ARMAS grid (window `(897,642)`, `mouse.py dblclick`), the **gate, bus, builder and writer each fired exactly once** and the client sent `inbound-typed channel 0 type 0xf37 type_dec 3895 size 73`. The channel-0 record is `[24-byte header + 16-byte actor id][00 01][b7 3c = 3895][body]`, and the **45-byte body** is `307df08e15b85dab | bf85314bbc4a951a | 0000013f | 00000018 | 00000001 | d4a8f40d618a4a67ae390da64abc15bb | 00` - the static layout **field for field**: `field_a` u64 BE `0x307df08e15b85dab`; `local_actor_id_word0` u64 BE `0xbf85314bbc4a951a` (the local-player key the atlas already documents); `field_c` u32 BE `319` (inside the `[-1,501]` bound); `field_d` u32 BE `24`; `field_e` u32 BE `1`; `field_f` the 16-byte item id `d4a8f40d618a4a67ae390da64abc15bb`; `field_g` bool `0x00`. **Corrected:** the earlier "there is no client-side call to `FUN_1467a6f20`" reading was about *static* references only; the bus **does** run client-side in a real session, reached by vtable dispatch (which `xref-data` cannot see as a rel32 call), and the double-click drives it. The `FUN_1469229c0` handler did **not** fire on this path - it is the failure/notification side. **What the server must do:** read the two `u64` BE head fields, then `field_c`/`field_d`/`field_e` (u32 BE), the 16-byte item id and the bool, then change the paperdoll replicated state; `Paperdoll` has reply messages, unlike `Attribute`. Drag-onto-a-slot (attempt #5) and right-click (attempt #3) do **not** trigger it. **Evidence word: measured.** Evidence: `.azoth/logs/run-20261029c-equip-handler-0xf37/`.
 
 ### The third field layout: `0xda2`, decoded statically
 
@@ -2107,7 +2107,7 @@ The body is 45 bytes; the head (`FUN_1414dbca0`, two `u64` BE) is the shared env
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u64`, big-endian (`FUN_140877280`, htonl64 `FUN_1461668a0`) | `+0x20` |
 
 The body is 24 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) that `0x5de` and `0xf37` also use, then one more `u64` BE. The writer takes its third field from the message object's `+0x20` and the reader stores its third field at the same `+0x20`; the u64 reader is `FUN_14087af30`. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0xda2` as a 24-byte body - read the two `u64` BE head fields, then one `u64` BE - before sending anything back, since a wrong length desynchronizes the stream.
@@ -2121,21 +2121,21 @@ Decoded 2026-10-29 with the same method as `0xda2`/`0x55` (registration accessor
 | # | field | codec | object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64` BE (shared head `FUN_1414dbca0`) | `+0x08` |
-| 2 | `field_b` | `u64` BE (shared head) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64` BE (shared head) | `+0x10` |
 | 3 | `field_c` | `u8` raw (`FUN_140876e10`/`FUN_14087a330`), asserted `<= 0x0e` | `+0x40` |
 | 4 | `field_d` | `u32` BE (`FUN_140876ea0`/`FUN_14087a410`) | `+0x50` |
 | 5 | `field_e` | `u32` BE | `+0x54` |
 | 6 | `field_f` | `u32` BE | `+0x58` |
 | 7 | `field_g` | `u8` bool `< 2` (`FUN_1408787b0`) | `+0x60` |
 
-**`GroupsComponentServerFacet_CancelPing` `0xd9e`** (record `0x1434403e0`, facet `0x1481d1878`, writer `0x14259f170` / reader `FUN_14259f180`) and **`GroupsComponentServerFacet_CancelTargetPing` `0xda3`** (record `0x1434405e0`, facet `0x1481d20b0`, same writer/reader pair) - **both head-only, body 16 B**: `field_a` `u64` BE `+0x08`, `field_b` `u64` BE `+0x10`.
+**`GroupsComponentServerFacet_CancelPing` `0xd9e`** (record `0x1434403e0`, facet `0x1481d1878`, writer `0x14259f170` / reader `FUN_14259f180`) and **`GroupsComponentServerFacet_CancelTargetPing` `0xda3`** (record `0x1434405e0`, facet `0x1481d20b0`, same writer/reader pair) - **both head-only, body 16 B**: `field_a` `u64` BE `+0x08`, `local_actor_id_word0` `u64` BE `+0x10`.
 
 **`GroupsComponentServerFacet_RequestRemoveRaidMember` `0xdac`** (record `0x143445be0`, facet `0x1481d5200`, writer `FUN_1433fc730` / reader `FUN_1432739d0`) - **body `16 + 1 + N`, N <= 40 -> 17..57 B**
 
 | # | field | codec | object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64` BE (shared head) | `+0x08` |
-| 2 | `field_b` | `u64` BE (shared head) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64` BE (shared head) | `+0x10` |
 | 3 | `field_c_len` | prefix-varint length (`FUN_140877b10`/`FUN_14087b760`), bounded `< 0x29` | vector size (`+0x48`-`+0x20`) |
 | 4 | `field_c_data` | `field_c_len` raw bytes (`FUN_140876e10`/`FUN_14087a330` loop) | inline buffer `+0x20..+0x48` |
 
@@ -2366,7 +2366,7 @@ Enumerated and decoded 2026-10-29 (fresh Ghidra) with the same method; **49/49 w
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u32`, big-endian (`FUN_140876e70`, htonl `FUN_146166830`) | `+0x20` |
 
 The body is 20 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37` and `0xda2` also use, then one `u32` BE. The writer takes its third field from the message object's `+0x20` and the reader stores its third field at the same `+0x20`; the u32 reader is `FUN_14087a3c0` and the reader head is `FUN_14150e670`. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x55` as a 20-byte body - read the two `u64` BE head fields, then one `u32` BE - before changing the chat-subscription state, since a wrong length desynchronizes the stream.
@@ -2378,7 +2378,7 @@ The body is 20 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) th
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 
 The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37` and `0xda2` also use. The writer is the head writer reached through a `jmp` thunk and the reader `FUN_14259f180` calls only the head reader `FUN_14150e670`, with no extra codec; there is no third field on either side. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x1676` as a 16-byte body - read the two `u64` BE head fields and nothing else - before summoning the mount, since expecting a longer body would desynchronize the stream.
 
@@ -2389,7 +2389,7 @@ The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that 
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u32`, big-endian (`FUN_140876e70`, reader `FUN_14087a3c0`) | `+0x28` |
 | 4 | `field_d` | `u32`, big-endian (`FUN_140876e70`, reader `FUN_14087a3c0`), validated `<= 100000000` by `FUN_142e6bbb0` | `+0x24` |
 | 5 | `field_e` | `u8` bool (0/1), raw 1-byte block (writer stream vtable `+0x40`, reader `FUN_1408787b0`), must be `< 2` | `+0x20` |
@@ -2403,7 +2403,7 @@ The body is 25 bytes: the shared 16-byte head (`FUN_1414dbca0`, two `u64` BE) th
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 
 The body is 16 bytes: only the shared head (`FUN_1414dbca0`, two `u64` BE) that `0x5de`, `0xf37`, `0xda2`, `0x55` and `0x1676` also use. The writer is the head writer reached through a `jmp` thunk and the reader `FUN_14259f180` calls only the head reader `FUN_14150e670`, with no extra codec; there is no third field on either side. **This differs from its `0x5de` sibling:** `0x5de` (`RequestSpendAttributePoints`) carried two varint-counted `u32` vectors (attribute indices `<= 4`, then points `<= 700`) and its body was 26 bytes, but the refund sibling carries no vectors at all - it is a parameterless 16-byte head-only request. The writer (thunk `0x14259f170`) and reader (`0x14259f180`) are literally the same pair `0x1676` uses. **Evidence word: partial** - the order and the codec come from the writer and the reader independently, but no live record has been matched and the field meanings are unnamed. Client build `30fe6461...`. **What the server must do:** handle inbound `0x969` as a 16-byte body - read the two `u64` BE head fields and nothing else - then refund the spent attribute points in replicated state; the `Attribute` family has zero reply messages, so nothing is sent back.
 
@@ -2447,7 +2447,7 @@ object vtable `+0x60` = `FUN_146566a10` and the reader is `+0x68` = `FUN_1465672
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u32` BE (`FUN_140876e70` writer / `FUN_14087a3c0` reader), validated by `FUN_142d94d20` | `+0x2c` |
 | 4 | `field_d` | `u32` BE (same codec pair), an int in `[-1, 501]` (`FUN_142e6bae0`) | `+0x28` |
 | 5 | `field_e` | `u32` BE (same codec pair), validated by `FUN_142d94df0` | `+0x24` |
@@ -2496,7 +2496,7 @@ is the ctor `0x1435f0110`. That ctor sets the message object's vtable to `0x1482
 | # | Field | Codec | Object slot |
 | --- | --- | --- | --- |
 | 1 | `field_a` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x08` |
-| 2 | `field_b` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
+| 2 | `local_actor_id_word0` | `u64`, big-endian (shared head `FUN_1414dbca0`) | `+0x10` |
 | 3 | `field_c` | `u32` BE (`FUN_140876e70` writer / `FUN_14087a3c0` reader) | `+0x88` |
 | 4 | `field_d` | nested container (see below): presence byte, prefix-varint vector of `0x58`-byte string pairs, one string, one `u32` BE | `+0x20` |
 
@@ -2690,6 +2690,89 @@ The registry has a full facet for every surface in the request —
 The client sent **none** of them in these sessions. A named facet is not a used facet, and
 this is the evidence: the surface exists in the binary and the client never speaks it,
 because the replay never gave it the state that would make the UI live.
+
+## The shared 2 x u64be head, recovered (2026-11-01)
+
+Every client->server `ComponentServerFacet` request that carries the 16-byte head
+is built the same way, and the head is the sending facet's own address, not
+request data. Client build `30fe6461...`.
+
+**The writer.** `FUN_1414dbca0(msg, stream)` is three lines: `FUN_140877280(&local,
+msg+0x08, stream)`, then - after copying `msg+0x10` into a stack local -
+`FUN_140877280(&local, &tmp, stream)` again. `FUN_140877280` is `FUN_1461668a0`
+(htonl64) followed by the stream's own raw-write slot `+0x40` with a length of 8.
+So `field_a` is `msg+0x08` written straight and `field_b` is `msg+0x10` copied
+through a local and written by the same call: one source per field, one codec.
+
+**The reader.** `FUN_14150e670(msg, out, stream)` mirrors it: `FUN_14087af30(..,
+msg+0x08, stream)` reads the first `u64` (ntohll `FUN_146168b00`) and sets the
+success flag at `out+1`; on success a second `FUN_14087af30(.., &tmp, stream)`
+reads the next one and stores it at `msg+0x10`. The message-object constructors
+initialise `msg+0x08 = 0` and `msg+0x10 = 0xffffffff`, so the head is a plain
+pair of message-object slots, not a computed structure.
+
+**Where the two values come from - six wirings, one answer.** Two accessors on
+the component fill them, and every builder found calls exactly these two, in
+this order:
+
+| accessor | reads | becomes |
+| --- | --- | --- |
+| `FUN_1416c1c40(comp)` | `[ [GDE+8] + 8 ] + [GDE+0x10]` | `msg+0x08` (field_a) |
+| `FUN_1416be9f0(comp, &tmp)` | `*[ FUN_14165c230(weak{GDE+0x60,+0x68,+0x70}) + 0x88 ]` | `msg+0x10` (field_b) |
+
+`GDE` is `*(comp+8)`: the object whose null-assert calls `UnsafePtr` / `SafePtr`
+and whose local-only send guard `func_0x000141721010` polices (`"Can't send
+messages with a local only GDE"`, `"ClientGDE"`). `FUN_14165c230` is the
+validated dereference of the weak handle, so `+0x88` is read off the session
+object the GDE holds, not off anything the request carries.
+
+Builders per wire: `0x9d3` `FUN_142a5c250` <- `FUN_142a644e0`; `0x1098`
+`FUN_14407b520` <- `FUN_14408d410`; `0x9fc` `FUN_142dbd490` <- `FUN_142db3ec0`;
+`0x183` `FUN_142ce5c50`; `0x5b2` `FUN_143a06ec0`; `0xa95` `FUN_143a06cb0`; plus
+the two the atlas had already decoded, `0x5de` `FUN_142760cf0` and `0xf37`
+`FUN_146681060`. The first three copy `*param_2`/`*param_3` from their caller and
+that caller is where the two accessors run; the rest call them inline.
+
+**Cross-check against the committed bodies.** Fourteen bodies, six wires, five
+sessions (2026-10-19 20:52, 2026-10-19 21:06, 2026-10-20 17:02, 2026-10-20 17:19,
+2026-10-20 18:38):
+
+| wire | bodies | field_a | field_b |
+| --- | --- | --- | --- |
+| `0x9d3` | 1 | `d1a94ccc870660b0` | `bf85314bbc4a951a` |
+| `0x9fc` | 8 | `4c0c0ed6478a69da` | `bf85314bbc4a951a` |
+| `0x183` | 1 | `e2640b7ce5408036` | `bf85314bbc4a951a` |
+| `0x1098` | 1 | `93a3e477cb5fd51e` | `bf85314bbc4a951a` |
+| `0x5b2` | 2 | `180f8d4e573697c6` | `bf85314bbc4a951a` |
+| `0xa95` | 1 | `180f8d4e573697c6` | `bf85314bbc4a951a` |
+
+field_b is `bf85314bbc4a951a` in 14 of 14, always second. That rules out a nonce,
+a sequence number, a timestamp and any per-message payload, and it rules out a
+*per-session* identity too: the value is identical across all five sessions,
+which it could not be if the server assigned it. field_a is one value per facet -
+identical for `0x5b2` and `0xa95` (same facet, same session), identical for
+`0x9fc` across four sessions, different from `0x1098` in the same session - which
+rules out a heap or arena address (ASLR would move it) and rules out anything
+per-message.
+
+**What each field is, and how far the evidence goes.** On the `0x9d3` record the
+16-byte actor id in the record header is `1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59
+26 18 e0`, i.e. the little-endian bytes of `bf85314bbc4a951a` followed by those of
+`e0182659d8c337be`. Those 16 bytes are the local player's actor id, handed to the
+client by `ClientAddEntryMsg` (`0xa4`, already `known`, three independent
+sources), and field_b is its first `u64` written big-endian. So field_b is named
+`local_actor_id_word0` and marked `meaning: known`: it is the front 8 bytes of
+the client's own actor id, an identity, never request data.
+
+field_a stays `layout-only`. The code says it is `[[GDE+8]+8] + [GDE+0x10]`, a
+base plus an offset, and the bytes say it is stable per facet across sessions -
+but nothing names the base or the offset. That is consistent with "the sending
+facet's local object id" (the 2026-10-14 measurement of the request shape already
+calls the 16 bytes after the type marker the target facet's local id, and a reply
+addressed to `93a3e477cb5fd51ebf85314bbc4a951a` dispatched 642/642 in
+`levers.md`), and being consistent is exactly why it is not a name. To name it:
+find the writer of `[[GDE+8]+8]` and of `[GDE+0x10]`, or the facet registration
+that stamps them, and see what it calls them.
 
 ## Next meaning to earn
 

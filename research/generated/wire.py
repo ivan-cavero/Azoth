@@ -362,7 +362,7 @@ MESSAGES = {
         'direction': 'C2S',
         'fields': (
             ('field_a', 'u64be'),
-            ('field_b', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
             ('field_c', 'bytes(16)'),
         ),
     },
@@ -372,7 +372,7 @@ MESSAGES = {
         'direction': 'C2S',
         'fields': (
             ('field_a', 'u64be'),
-            ('field_b', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
             ('tracked_objective_ids', 'vec<u64be>'),
         ),
     },
@@ -382,7 +382,7 @@ MESSAGES = {
         'direction': 'C2S',
         'fields': (
             ('field_a', 'u64be'),
-            ('field_b', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
             ('attribute_indices', 'vec<u32be>'),
             ('points', 'vec<u32be>'),
         ),
@@ -425,7 +425,7 @@ MESSAGES = {
         'direction': 'C2S',
         'fields': (
             ('field_a', 'u64be'),
-            ('field_b', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
             ('field_c', 'u32be'),
         ),
     },
@@ -435,7 +435,7 @@ MESSAGES = {
         'direction': 'C2S',
         'fields': (
             ('field_a', 'u64be'),
-            ('field_b', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
             ('participant_id', 'bytes(16)'),
             ('u32_be_1', 'u32be'),
             ('u32_be_2', 'u32be'),
@@ -454,7 +454,7 @@ MESSAGES = {
         'direction': 'C2S',
         'fields': (
             ('field_a', 'u64be'),
-            ('field_b', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
             ('auto_pinning_flags', 'vec<bool_byte>'),
         ),
     },
@@ -464,7 +464,7 @@ MESSAGES = {
         'direction': 'C2S',
         'fields': (
             ('field_a', 'u64be'),
-            ('field_b', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
             ('field_c', 'u32be'),
             ('field_d', 'u32be'),
             ('field_e', 'u32be'),
@@ -478,7 +478,7 @@ MESSAGES = {
         'direction': 'C2S',
         'fields': (
             ('field_a', 'u64be'),
-            ('field_b', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
         ),
     },
 }

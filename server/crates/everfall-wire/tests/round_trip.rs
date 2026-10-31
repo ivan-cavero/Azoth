@@ -152,7 +152,7 @@ fn update_tracked_objectives_0x5b2_round_trips() {
         "0x5b2 first head u64"
     );
     assert_eq!(
-        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
         "0x5b2 second head u64"
     );
     assert!(
@@ -182,7 +182,7 @@ fn set_objective_auto_pinning_0xa95_round_trips() {
         "0xa95 first head u64"
     );
     assert_eq!(
-        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
         "0xa95 second head u64"
     );
     assert!(
@@ -209,7 +209,7 @@ fn receive_settings_from_client_0x9d3_round_trips() {
         "0x9d3 first head u64"
     );
     assert_eq!(
-        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
         "0x9d3 second head u64"
     );
     assert_eq!(decoded.field_c, 0x0000_97c9, "0x9d3 trailing u32");
@@ -245,7 +245,7 @@ fn contracts_lookup_by_participant_0x9fc_round_trips_both_widths() {
             "0x9fc first head u64"
         );
         assert_eq!(
-            decoded.field_b, 0xbf85_314b_bc4a_951a,
+            decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
             "0x9fc second head u64"
         );
         assert_eq!(
@@ -304,7 +304,7 @@ fn set_replicate_storage_0x183_round_trips() {
         "0x183 first head u64"
     );
     assert_eq!(
-        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
         "0x183 second head u64"
     );
     assert_eq!(decoded.field_c.len(), 16, "0x183 trailing run is 16 bytes");
@@ -333,7 +333,7 @@ fn time_sync_to_client_0x1098_round_trips() {
         "0x1098 first head u64"
     );
     assert_eq!(
-        decoded.field_b, 0xbf85_314b_bc4a_951a,
+        decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
         "0x1098 second head u64"
     );
 

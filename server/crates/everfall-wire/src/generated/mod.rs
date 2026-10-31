@@ -150,8 +150,8 @@ impl MsgUpdate {
 pub struct MsgSetReplicateStorage {
     /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`); meaning unnamed.
-    pub field_b: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
     /// Body field `field_c` (`bytes(16)`); meaning unnamed.
     pub field_c: Opaque,
 }
@@ -170,12 +170,12 @@ impl MsgSetReplicateStorage {
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
         let field_a = reader.u64be("field_a")?;
-        let field_b = reader.u64be("field_b")?;
+        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let field_c = reader.opaque("field_c", "msg.set-replicate-storage.field_c", 16)?;
         reader.finish()?;
         Ok(Self {
             field_a,
-            field_b,
+            local_actor_id_word0,
             field_c,
         })
     }
@@ -187,7 +187,7 @@ impl MsgSetReplicateStorage {
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
         writer.u64be(self.field_a);
-        writer.u64be(self.field_b);
+        writer.u64be(self.local_actor_id_word0);
         writer.opaque(&self.field_c);
         Ok(())
     }
@@ -200,8 +200,8 @@ impl MsgSetReplicateStorage {
 pub struct MsgObjectivesUpdateTrackedObjectives {
     /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`); meaning unnamed.
-    pub field_b: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
     /// Body field `tracked_objective_ids` (`vec<u64be>`).
     pub tracked_objective_ids: Vec<u64>,
 }
@@ -220,7 +220,7 @@ impl MsgObjectivesUpdateTrackedObjectives {
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
         let field_a = reader.u64be("field_a")?;
-        let field_b = reader.u64be("field_b")?;
+        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let count = reader.prefix_varint("tracked_objective_ids")?;
         if count > 8 {
             return Err(WireError::OutOfRange {
@@ -236,7 +236,7 @@ impl MsgObjectivesUpdateTrackedObjectives {
         reader.finish()?;
         Ok(Self {
             field_a,
-            field_b,
+            local_actor_id_word0,
             tracked_objective_ids,
         })
     }
@@ -248,7 +248,7 @@ impl MsgObjectivesUpdateTrackedObjectives {
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
         writer.u64be(self.field_a);
-        writer.u64be(self.field_b);
+        writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.tracked_objective_ids.len() as u64)?;
         for value in &self.tracked_objective_ids {
             writer.u64be(*value);
@@ -264,8 +264,8 @@ impl MsgObjectivesUpdateTrackedObjectives {
 pub struct MsgRequestSpendAttributePoints {
     /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`); meaning unnamed.
-    pub field_b: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
     /// Body field `attribute_indices` (`vec<u32be>`).
     pub attribute_indices: Vec<u32>,
     /// Body field `points` (`vec<u32be>`).
@@ -286,7 +286,7 @@ impl MsgRequestSpendAttributePoints {
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
         let field_a = reader.u64be("field_a")?;
-        let field_b = reader.u64be("field_b")?;
+        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let count = reader.prefix_varint("attribute_indices")?;
         if count > 4 {
             return Err(WireError::OutOfRange {
@@ -314,7 +314,7 @@ impl MsgRequestSpendAttributePoints {
         reader.finish()?;
         Ok(Self {
             field_a,
-            field_b,
+            local_actor_id_word0,
             attribute_indices,
             points,
         })
@@ -327,7 +327,7 @@ impl MsgRequestSpendAttributePoints {
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
         writer.u64be(self.field_a);
-        writer.u64be(self.field_b);
+        writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.attribute_indices.len() as u64)?;
         for value in &self.attribute_indices {
             writer.u32be(*value);
@@ -540,8 +540,8 @@ impl FlowWorldEntryRungLevelInfo {
 pub struct MsgReceiveSettingsFromClient {
     /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`); meaning unnamed.
-    pub field_b: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
     /// Body field `field_c` (`u32be`); meaning unnamed.
     pub field_c: u32,
 }
@@ -560,12 +560,12 @@ impl MsgReceiveSettingsFromClient {
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
         let field_a = reader.u64be("field_a")?;
-        let field_b = reader.u64be("field_b")?;
+        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let field_c = reader.u32be("field_c")?;
         reader.finish()?;
         Ok(Self {
             field_a,
-            field_b,
+            local_actor_id_word0,
             field_c,
         })
     }
@@ -577,7 +577,7 @@ impl MsgReceiveSettingsFromClient {
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
         writer.u64be(self.field_a);
-        writer.u64be(self.field_b);
+        writer.u64be(self.local_actor_id_word0);
         writer.u32be(self.field_c);
         Ok(())
     }
@@ -590,8 +590,8 @@ impl MsgReceiveSettingsFromClient {
 pub struct MsgContractsLookupContractsByParticipant {
     /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`); meaning unnamed.
-    pub field_b: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
     /// Body field `participant_id` (`bytes(16)`); meaning unnamed.
     pub participant_id: Opaque,
     /// Body field `u32_be_1` (`u32be`); meaning unnamed.
@@ -628,7 +628,7 @@ impl MsgContractsLookupContractsByParticipant {
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
         let field_a = reader.u64be("field_a")?;
-        let field_b = reader.u64be("field_b")?;
+        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let participant_id = reader.opaque(
             "participant_id",
             "msg.contracts-lookup-contracts-by-participant.participant_id",
@@ -692,7 +692,7 @@ impl MsgContractsLookupContractsByParticipant {
         reader.finish()?;
         Ok(Self {
             field_a,
-            field_b,
+            local_actor_id_word0,
             participant_id,
             u32_be_1,
             u32_be_2,
@@ -713,7 +713,7 @@ impl MsgContractsLookupContractsByParticipant {
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
         writer.u64be(self.field_a);
-        writer.u64be(self.field_b);
+        writer.u64be(self.local_actor_id_word0);
         writer.opaque(&self.participant_id);
         writer.u32be(self.u32_be_1);
         writer.u32be(self.u32_be_2);
@@ -741,8 +741,8 @@ impl MsgContractsLookupContractsByParticipant {
 pub struct MsgObjectivesSetObjectiveAutoPinning {
     /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`); meaning unnamed.
-    pub field_b: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
     /// Body field `auto_pinning_flags` (`vec<bool_byte>`).
     pub auto_pinning_flags: Vec<bool>,
 }
@@ -761,7 +761,7 @@ impl MsgObjectivesSetObjectiveAutoPinning {
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
         let field_a = reader.u64be("field_a")?;
-        let field_b = reader.u64be("field_b")?;
+        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let count = reader.prefix_varint("auto_pinning_flags")?;
         if count > 36 {
             return Err(WireError::OutOfRange {
@@ -777,7 +777,7 @@ impl MsgObjectivesSetObjectiveAutoPinning {
         reader.finish()?;
         Ok(Self {
             field_a,
-            field_b,
+            local_actor_id_word0,
             auto_pinning_flags,
         })
     }
@@ -789,7 +789,7 @@ impl MsgObjectivesSetObjectiveAutoPinning {
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
         writer.u64be(self.field_a);
-        writer.u64be(self.field_b);
+        writer.u64be(self.local_actor_id_word0);
         writer.prefix_varint(self.auto_pinning_flags.len() as u64)?;
         for value in &self.auto_pinning_flags {
             writer.u8(u8::from(*value));
@@ -805,8 +805,8 @@ impl MsgObjectivesSetObjectiveAutoPinning {
 pub struct MsgServerEquipItem {
     /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`); meaning unnamed.
-    pub field_b: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
     /// Body field `field_c` (`u32be`); meaning unnamed.
     pub field_c: u32,
     /// Body field `field_d` (`u32be`); meaning unnamed.
@@ -833,7 +833,7 @@ impl MsgServerEquipItem {
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
         let field_a = reader.u64be("field_a")?;
-        let field_b = reader.u64be("field_b")?;
+        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         let field_c = reader.u32be("field_c")?;
         let field_d = reader.u32be("field_d")?;
         let field_e = reader.u32be("field_e")?;
@@ -842,7 +842,7 @@ impl MsgServerEquipItem {
         reader.finish()?;
         Ok(Self {
             field_a,
-            field_b,
+            local_actor_id_word0,
             field_c,
             field_d,
             field_e,
@@ -858,7 +858,7 @@ impl MsgServerEquipItem {
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
         writer.u64be(self.field_a);
-        writer.u64be(self.field_b);
+        writer.u64be(self.local_actor_id_word0);
         writer.u32be(self.field_c);
         writer.u32be(self.field_d);
         writer.u32be(self.field_e);
@@ -875,8 +875,8 @@ impl MsgServerEquipItem {
 pub struct MsgTimeSyncToClient {
     /// Body field `field_a` (`u64be`); meaning unnamed.
     pub field_a: u64,
-    /// Body field `field_b` (`u64be`); meaning unnamed.
-    pub field_b: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
 }
 
 impl MsgTimeSyncToClient {
@@ -893,9 +893,12 @@ impl MsgTimeSyncToClient {
     pub fn decode(body: &[u8]) -> Result<Self, WireError> {
         let mut reader = Reader::new(body);
         let field_a = reader.u64be("field_a")?;
-        let field_b = reader.u64be("field_b")?;
+        let local_actor_id_word0 = reader.u64be("local_actor_id_word0")?;
         reader.finish()?;
-        Ok(Self { field_a, field_b })
+        Ok(Self {
+            field_a,
+            local_actor_id_word0,
+        })
     }
 
     /// Encode one `msg.time-sync-to-client` body, appending to `out`.
@@ -905,7 +908,7 @@ impl MsgTimeSyncToClient {
     pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
         let mut writer = Writer::new(out);
         writer.u64be(self.field_a);
-        writer.u64be(self.field_b);
+        writer.u64be(self.local_actor_id_word0);
         Ok(())
     }
 }

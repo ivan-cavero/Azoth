@@ -221,7 +221,7 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | partial | layout-only | First of the shared 16-byte head (FUN_1414dbca0). meanings.md 'The Journal families' row 0x9fc: 'head'. |
-| field_b | u64be | 0x08 | partial | layout-only | Second head u64. meanings.md 'The Journal families' row 0x9fc: 'head'. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | participant_id | bytes(16) | 0x10 | partial | layout-only | The first '16-byte id': a raw run written from object +0x40 and read by FUN_1408787b0(object +0x40, 0x10). |
 | u32_be_1 | u32be | 0x20 | measured | layout-only | First of the three '3x u32', at object +0x50; range validator FUN_142de8190. meaning unnamed. |
 | u32_be_2 | u32be | 0x24 | measured | layout-only | Second of the three '3x u32', at object +0x54; range validator FUN_142de8330. meaning unnamed. |
@@ -273,7 +273,7 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | measured | layout-only | First of the shared 16-byte head (FUN_1414dbca0, reader FUN_14150e670). Measured 0x180f8d4e573697c6 in the live channel-0 body. meanings.md 'The Journal families' row 0xa95: 'head'. |
-| field_b | u64be | 0x08 | measured | layout-only | Second head u64. Measured 0xbf85314bbc4a951a. meanings.md 'The Journal families' row 0xa95: 'head'. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | auto_pinning_flags | vec<bool_byte> | 0x10 | measured | known | Prefix-varint count (stated <= 36) then count bool bytes. meanings.md 'The Journal families' row 0xa95: 'head + varint(len <= 36) + N bool bytes'. The live channel-0 body carries count 36 (0x24) and 36 flag bytes. |
 
 ## msg.objectives-update-tracked-objectives — ObjectivesComponentServerFacet_UpdateTrackedObjectives
@@ -285,7 +285,7 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | measured | layout-only | First of the shared 16-byte head (FUN_1414dbca0, reader FUN_14150e670). Measured 0x180f8d4e573697c6 in the live channel-0 bodies. meanings.md 'The Journal families' row 0x5b2: 'head'. |
-| field_b | u64be | 0x08 | measured | layout-only | Second head u64. Measured 0xbf85314bbc4a951a (the local-player key the atlas already documents). meanings.md 'The Journal families' row 0x5b2: 'head'. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | tracked_objective_ids | vec<u64be> | 0x10 | measured | known | Prefix-varint count (stated <= 8) then count x u64 BE. meanings.md 'The Journal families' row 0x5b2: 'head + varint(len <= 8) + N u64 BE'. Live bodies show count 0 (17-byte body) and count 6 (65-byte body). |
 
 ## msg.receive-player-spawn-point — ReceivePlayerSpawnPointMsg
@@ -303,7 +303,7 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | measured | layout-only | First of the shared 16-byte head, written by FUN_1414dbca0 through htonl64 FUN_140877280 and read by FUN_14150e670. Field meaning unnamed. Body offset 0x00. |
-| field_b | u64be | 0x08 | measured | layout-only | Second head u64; the local-player key 0xbf85314bbc4a951a in every committed body. Body offset 0x08. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | field_c | u32be | 0x10 | measured | layout-only | One u32 BE written by FUN_140876e70 (htonl FUN_146166830) from the message object at +0x20 and read by FUN_14087a3c0. Meaning unnamed. Body offset 0x10. |
 
 ## msg.replicate-client — ReplicateClient
@@ -327,7 +327,7 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | measured | layout-only | First of the shared 16-byte head (FUN_1414dbca0). Measured 0xe05592a1d48c417 on the 2026-10-27 live record, byte-identical to the builder's *param_2. meanings.md 'The first field layout: 0x5de'. |
-| field_b | u64be | 0x08 | measured | layout-only | Second head u64. Measured 0xbf85314bbc4a951a, byte-identical to the builder's *param_3 and the local-player key the atlas already documents. meanings.md 'The first field layout: 0x5de'. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | attribute_indices | vec<u32be> | 0x10 | measured | known | Prefix-varint count, then count x u32 BE. Measured [2] (Strength) on the live record. Each index is a CharacterAttributeType in 0..4; the client asserts an index above 4 (FUN_141788630) and the runtime cap is 4. meanings.md 'The first field layout: 0x5de'. |
 | points | vec<u32be> | 0x15 | measured | known | Prefix-varint count, then count x u32 BE. Measured [1] on the live record. Each value is a points amount the client asserts <= 700 (FUN_14279bb40); the runtime cap is 700. meanings.md 'The first field layout: 0x5de'. |
 
@@ -340,7 +340,7 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | measured | layout-only | First of the shared 16-byte head (FUN_1414dbca0). Measured 0x307df08e15b85dab in all six live records. meanings.md 'The second field layout: 0xf37'. |
-| field_b | u64be | 0x08 | measured | layout-only | Second head u64. Measured 0xbf85314bbc4a951a (the local-player key the atlas already documents). meanings.md 'The second field layout: 0xf37'. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | field_c | u32be | 0x10 | measured | layout-only | u32 BE validated as an int in [-1, 501] (FUN_142e6bae0). Measured 0x147, 0x14a, 0x142, 0x120 across the six live records. meanings.md 'The second field layout: 0xf37'. |
 | field_d | u32be | 0x14 | measured | layout-only | u32 BE, validated by FUN_142d94d20. Measured 0x18/0x1b/0x19. meanings.md 'The second field layout: 0xf37'. |
 | field_e | u32be | 0x18 | measured | layout-only | u32 BE, validated by FUN_142d94df0. Measured 0x1 on every live record. meanings.md 'The second field layout: 0xf37'. |
@@ -356,7 +356,7 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | measured | layout-only | First of the shared 16-byte head (FUN_1414dbca0). Meaning unnamed. Body offset 0x00. |
-| field_b | u64be | 0x08 | measured | layout-only | Second head u64; the local-player key 0xbf85314bbc4a951a in the committed body. Body offset 0x08. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | field_c | bytes(16) | 0x10 | measured | layout-only | A raw 16-byte run written by the writer context's slot +0x40 (param_2, object +0x20, 0x10) and read by FUN_1408787b0(object +0x20, 0x10). The atlas does not say GUID, so it is not claimed as one. Body offset 0x10. |
 
 ## msg.spawn-actors — SpawnActorsMsg
@@ -378,7 +378,7 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | field_a | u64be | 0x00 | measured | layout-only | First of the shared 16-byte head, written by FUN_1414dbca0 through htonl64 FUN_140877280 and read by FUN_14150e670. Meaning unnamed. Body offset 0x00. |
-| field_b | u64be | 0x08 | measured | layout-only | Second head u64; the local-player key 0xbf85314bbc4a951a in the committed body. Body offset 0x08. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 
 ## msg.update — UpdateMsg
 
