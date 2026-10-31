@@ -23,76 +23,80 @@
     "direction": "Bidi",
     "transport": "rep"
   },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 03: the typed envelope plus the prefix varint 0x03, a one-byte varint because the value is below 0x80.",
   "fields": [
     {
       "name": "request_version_map",
       "where": "wire",
       "offset": "0x20",
       "size": "var",
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Inside RegistrationRequestV3Msg the client sends its version as repeated `<u32 big-endian key><u8 length><bytes>`. Measured on the 1.400 capture: key 1 = 'Javelin', key 2 = '1', key 3 = '400', key 4 = '6031', key 5 = '6004151', key 8 = 91 bytes beginning '[RETAIL]'. Read together that is product, major, minor, build, revision and channel, i.e. 1.400.6031.6004151. The record begins with a 16-byte datagram preamble (ff c4 4f f7 ...) because it is the first message of its datagram."
-    },
-    {
-      "name": "typed_header",
-      "where": "wire",
-      "offset": "0x00",
-      "size": 3,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Measured 00 01 03: the typed envelope plus the prefix varint 0x03, a one-byte varint because the value is below 0x80."
+      "type": "opaque(request_version_map)",
+      "evidence": "measured",
+      "note": "Inside RegistrationRequestV3Msg the client sends its version as repeated `<u32 big-endian key><u8 length><bytes>`. Measured on the 1.400 capture: key 1 = 'Javelin', key 2 = '1', key 3 = '400', key 4 = '6031', key 5 = '6004151', key 8 = 91 bytes beginning '[RETAIL]'. Read together that is product, major, minor, build, revision and channel, i.e. 1.400.6031.6004151. The record begins with a 16-byte datagram preamble (ff c4 4f f7 ...) because it is the first message of its datagram.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "unresolved_u32_at_0x03",
       "where": "wire",
       "offset": "0x03",
       "size": 4,
-      "status": "candidate",
-      "note": "Zero on the measured record. No second signal for what it is."
+      "type": "u32be",
+      "evidence": "unknown",
+      "note": "Zero on the measured record. No second signal for what it is. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "unresolved_u8_at_0x07",
       "where": "wire",
       "offset": "0x07",
       "size": 1,
-      "status": "candidate",
-      "note": "Measured 0x0b. Plausibly a count or a length, but nothing confirms which."
+      "type": "u8",
+      "evidence": "unknown",
+      "note": "Measured 0x0b. Plausibly a count or a length, but nothing confirms which.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "unresolved_8_at_0x08",
       "where": "wire",
       "offset": "0x08",
       "size": 8,
-      "status": "candidate",
-      "note": "Measured 88 8d 68 70 6c 41 5b 20. Not an id that appears anywhere else in the capture."
+      "type": "u64be",
+      "evidence": "unknown",
+      "note": "Measured 88 8d 68 70 6c 41 5b 20. Not an id that appears anywhere else in the capture. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "unresolved_ids_at_0x10",
       "where": "wire",
       "offset": "0x10",
       "size": 32,
-      "status": "candidate",
-      "note": "32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids."
+      "type": "opaque(unresolved_ids_at_0x10)",
+      "evidence": "unknown",
+      "note": "32 bytes, fully redacted in the published dump, so the original content is lost. Could be one 32-byte id or two 16-byte ids.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "server_version",
       "where": "wire",
       "offset": "0x30",
       "size": 36,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "The 36-byte ASCII string '#[RETAIL].Javelin.1.365.6031.6006993', with no length prefix in front of it: its start is fixed and its length is fixed by the format. This is the server's version, and its shape matches the client's own version format exactly. The captured server reports 1.365.6031.6006993 because that capture was taken on build 1.365, so server and client agreed."
+      "type": "fixed_string(36)",
+      "evidence": "measured",
+      "note": "The 36-byte ASCII string '#[RETAIL].Javelin.1.365.6031.6006993', with no length prefix in front of it: its start is fixed and its length is fixed by the format. This is the server's version, and its shape matches the client's own version format exactly. The captured server reports 1.365.6031.6006993 because that capture was taken on build 1.365, so server and client agreed.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "trailing_flags",
       "where": "wire",
       "offset": "0x54",
       "size": 4,
-      "status": "candidate",
-      "evidence": "capture",
-      "note": "Measured 01 00 00 01, the last four bytes of the record."
+      "type": "u32be",
+      "evidence": "unknown",
+      "note": "Measured 01 00 00 01, the last four bytes of the record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "provenance": "legacy status=candidate evidence=capture"
     }
   ],
+  "legacy": true,
   "relations": [
     {
       "op": "part_of",

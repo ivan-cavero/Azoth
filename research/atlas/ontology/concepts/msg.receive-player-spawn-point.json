@@ -11,17 +11,7 @@
     "if_absent": "unknown; the rung it sits under is named WaitingForSpawnPoint, so its absence is a candidate for a client that never leaves that rung. Not measured: no run has withheld it while holding everything else constant"
   },
   "wire": { "id": "0x651", "direction": "S2C", "transport": "rep" },
-  "fields": [
-    {
-      "name": "typed_header",
-      "where": "wire",
-      "offset": "0x00",
-      "size": 4,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Measured 00 01 91 19. The prefix varint 91 19 is 1617 = 0x651, which is the whole record: there is no body to lay out."
-    }
-  ],
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 91 19. The prefix varint 91 19 is 1617 = 0x651, which is the whole record: there is no body to lay out.",
   "relations": [
     { "op": "part_of", "to": "flow.world-entry" }
   ],

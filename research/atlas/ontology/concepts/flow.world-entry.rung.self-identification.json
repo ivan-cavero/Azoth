@@ -25,45 +25,53 @@
       "where": "memory",
       "offset": "0x00",
       "size": 4,
-      "status": "candidate",
-      "evidence": "decompile",
-      "note": "First field of the decoded struct. Copied into the player-manager component at -0x7e8; nothing reads that component slot, so its role is unknown."
+      "type": "opaque(unresolved_u32_at_0x00)",
+      "evidence": "unknown",
+      "note": "First field of the decoded struct. Copied into the player-manager component at -0x7e8; nothing reads that component slot, so its role is unknown.",
+      "provenance": "legacy status=candidate evidence=decompile"
     },
     {
       "name": "unresolved_u32_vector_at_0x08",
       "where": "memory",
       "offset": "0x08",
       "size": 24,
-      "status": "candidate",
-      "evidence": "decompile",
-      "note": "std::vector of 4-byte elements: begin, end, capacity. Proven by the copy helper FUN_1402d1540, which computes (src_end - src_begin) >> 2 and reallocates by element count. This is the only variable-length member of the struct, so it is what makes the message worth sending, and it is the member the wire form replaces with an explicit count plus elements."
+      "type": "opaque(unresolved_u32_vector_at_0x08)",
+      "evidence": "partial",
+      "note": "std::vector of 4-byte elements: begin, end, capacity. Proven by the copy helper FUN_1402d1540, which computes (src_end - src_begin) >> 2 and reallocates by element count. This is the only variable-length member of the struct, so it is what makes the message worth sending, and it is the member the wire form replaces with an explicit count plus elements.",
+      "provenance": "legacy status=candidate evidence=decompile"
     },
     {
       "name": "spawn_from_debug_cvars",
       "where": "memory",
       "offset": "0x28",
       "size": 1,
-      "status": "verified",
-      "evidence": "decompile",
-      "note": "Non-zero makes the handler read two debug cvars as strings, atof them into three position floats and four rotation floats, log 'spawning player at location by editor' and 'using spawn rotation [%.3f, %.3f, %.3f, %.3f]', and skip the real spawn delegate FUN_14167cc70 entirely. Verified in two separate branches of the same function."
+      "type": "opaque(spawn_from_debug_cvars)",
+      "evidence": "partial",
+      "note": "Non-zero makes the handler read two debug cvars as strings, atof them into three position floats and four rotation floats, log 'spawning player at location by editor' and 'using spawn rotation [%.3f, %.3f, %.3f, %.3f]', and skip the real spawn delegate FUN_14167cc70 entirely. Verified in two separate branches of the same function.",
+      "provenance": "legacy status=verified evidence=decompile"
     },
     {
       "name": "unresolved_u64_at_0x2c",
       "where": "memory",
       "offset": "0x2c",
       "size": 8,
-      "status": "candidate",
-      "note": "Copied into the player-manager component at -0x7bc. Negative evidence: no function in the 423,609-function corpus reads that component slot, and the value never reaches a log, a comparison or a serialization call."
+      "type": "opaque(unresolved_u64_at_0x2c)",
+      "evidence": "unknown",
+      "note": "Copied into the player-manager component at -0x7bc. Negative evidence: no function in the 423,609-function corpus reads that component slot, and the value never reaches a log, a comparison or a serialization call.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "unresolved_u32_at_0x34",
       "where": "memory",
       "offset": "0x34",
       "size": 4,
-      "status": "candidate",
-      "note": "Copied into the player-manager component at -0x7b4. Same negative evidence as the u64 above: written once, read nowhere."
+      "type": "opaque(unresolved_u32_at_0x34)",
+      "evidence": "unknown",
+      "note": "Copied into the player-manager component at -0x7b4. Same negative evidence as the u64 above: written once, read nowhere.",
+      "provenance": "legacy status=candidate"
     }
   ],
+  "legacy": true,
   "relations": [
     {
       "op": "part_of",

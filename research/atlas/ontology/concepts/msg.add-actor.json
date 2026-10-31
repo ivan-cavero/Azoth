@@ -28,34 +28,40 @@
       "name": "head16",
       "offset": "0x00",
       "size": 16,
-      "status": "candidate",
-      "evidence": "decompile",
-      "note": "A raw 16-byte fixed-size read. The unmarshal facet FUN_146a6b3e0 begins with FUN_1408787b0(param_2, param_3, 0x10, &ok), and FUN_1408787b0 is a bounds-checked fixed-size read: it checks cursor + n <= end, copies n bytes, and advances the cursor. What is NOT proven is that these bytes are an ActorGuid: nothing in the facet interprets them, and a corpus-wide search found no 16-byte comparison in an actor context. The old 'candidate ActorGuid' label is therefore unsupported and stays a candidate."
+      "type": "opaque(head16)",
+      "evidence": "partial",
+      "note": "A raw 16-byte fixed-size read. The unmarshal facet FUN_146a6b3e0 begins with FUN_1408787b0(param_2, param_3, 0x10, &ok), and FUN_1408787b0 is a bounds-checked fixed-size read: it checks cursor + n <= end, copies n bytes, and advances the cursor. What is NOT proven is that these bytes are an ActorGuid: nothing in the facet interprets them, and a corpus-wide search found no 16-byte comparison in an actor context. The old 'candidate ActorGuid' label is therefore unsupported and stays a candidate.",
+      "provenance": "legacy status=candidate evidence=decompile"
     },
     {
       "name": "u8_at_0x10",
       "offset": "0x10",
       "size": 1,
-      "status": "candidate",
-      "evidence": "decompile",
-      "note": "Assigned as a plain byte right after the 16-byte read: *(char *)(param_3 + 0x10) = cStack_38."
+      "type": "u8",
+      "evidence": "partial",
+      "note": "Assigned as a plain byte right after the 16-byte read: *(char *)(param_3 + 0x10) = cStack_38.",
+      "provenance": "legacy status=candidate evidence=decompile"
     },
     {
       "name": "count_payload",
       "offset": "0x18",
       "size": "var",
-      "status": "candidate",
-      "evidence": "decompile",
-      "note": "FUN_146a6ebe0(&state, param_3 + 0x18, param_2) fills it immediately after the byte at 0x10."
+      "type": "opaque(count_payload)",
+      "evidence": "unknown",
+      "note": "FUN_146a6ebe0(&state, param_3 + 0x18, param_2) fills it immediately after the byte at 0x10.",
+      "provenance": "legacy status=candidate evidence=decompile"
     },
     {
       "name": "tail_from_0x28",
       "offset": "0x28",
       "size": "var",
-      "status": "candidate",
-      "note": "The facet then reads at 0x28, 0x30, and a nested group through FUN_146a6e090 at 0x38, 0x40, 0x48, 0x50, 0x78, 0xa0 and 0xc8. The 15-field list carried over from the deleted crate is consistent with these offsets but its individual meanings were never decoded."
+      "type": "opaque(tail_from_0x28)",
+      "evidence": "partial",
+      "note": "The facet then reads at 0x28, 0x30, and a nested group through FUN_146a6e090 at 0x38, 0x40, 0x48, 0x50, 0x78, 0xa0 and 0xc8. The 15-field list carried over from the deleted crate is consistent with these offsets but its individual meanings were never decoded.",
+      "provenance": "legacy status=candidate"
     }
   ],
+  "legacy": true,
   "relations": [
     {
       "op": "part_of",

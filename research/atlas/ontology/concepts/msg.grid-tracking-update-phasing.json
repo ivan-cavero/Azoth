@@ -11,59 +11,60 @@
     "if_absent": "unknown; a periodic refresh that stops is the usual cause of a silent disconnect, which is consistent with the lab's observed 10 s drop after silence"
   },
   "wire": { "id": "0x18a6", "direction": "S2C", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 a6 62: the typed envelope plus the prefix varint a6 62 = 0x18a6.",
   "fields": [
-    {
-      "name": "typed_header",
-      "where": "wire",
-      "offset": "0x00",
-      "size": 4,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Measured 00 01 a6 62: the typed envelope plus the prefix varint a6 62 = 0x18a6."
-    },
     {
       "name": "unresolved_id_at_0x04",
       "where": "wire",
       "offset": "0x04",
       "size": 16,
-      "status": "candidate",
-      "note": "Measured f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a, identical in all four instances. As a GUID with the first three fields little-endian it is 57EDCBF8-8BC6-F418-BF85-314BBC4A951A. It is NOT the player's actor id (1a954abc4b3185bfbe37c3d8592618e0), so it names something else. The message name does not settle it: grid tracking is the component, not the subject."
+      "type": "guid16",
+      "evidence": "partial",
+      "note": "Measured f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a, identical in all four instances. As a GUID with the first three fields little-endian it is 57EDCBF8-8BC6-F418-BF85-314BBC4A951A. It is NOT the player's actor id (1a954abc4b3185bfbe37c3d8592618e0), so it names something else. The message name does not settle it: grid tracking is the component, not the subject.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "flags_at_0x14",
       "where": "wire",
       "offset": "0x14",
       "size": 4,
-      "status": "candidate",
-      "note": "Measured 01 01 00 00, the same four bytes that open the level-info tail. Shared envelope, meaning unknown."
+      "type": "u32be",
+      "evidence": "unknown",
+      "note": "Measured 01 01 00 00, the same four bytes that open the level-info tail. Shared envelope, meaning unknown. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "session_nonce",
       "where": "wire",
       "offset": "0x18",
       "size": 8,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Measured 9c fa 58 61 78 14 69 f2, the SAME value that LevelInfoChangedMsg carries at 0x54. Two different message types sharing a value is the strongest kind of field evidence in this inventory, and the value differs per session rather than per record, which is why it is called a session nonce."
+      "type": "u64be",
+      "evidence": "partial",
+      "note": "Measured 9c fa 58 61 78 14 69 f2, the SAME value that LevelInfoChangedMsg carries at 0x54. Two different message types sharing a value is the strongest kind of field evidence in this inventory, and the value differs per session rather than per record, which is why it is called a session nonce. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "unresolved_tag_at_0x20",
       "where": "wire",
       "offset": "0x20",
       "size": 6,
-      "status": "candidate",
-      "note": "Measured 65 03 00 00 00 00, also present at the same place in the level-info tail. 65 03 00 00 is 869 as a little-endian u32, which reads like a version or protocol tag; unproven."
+      "type": "opaque(unresolved_tag_at_0x20)",
+      "evidence": "unknown",
+      "note": "Measured 65 03 00 00 00 00, also present at the same place in the level-info tail. 65 03 00 00 is 869 as a little-endian u32, which reads like a version or protocol tag; unproven.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "sequence_counter",
       "where": "wire",
       "offset": "0x26",
       "size": 1,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "The last byte of the record. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order. The byte before it is 0x02 in all four instances."
+      "type": "u8",
+      "evidence": "measured",
+      "note": "The last byte of the record. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order. The byte before it is 0x02 in all four instances.",
+      "provenance": "legacy status=verified evidence=capture"
     }
   ],
+  "legacy": true,
   "relations": [
     { "op": "part_of", "to": "flow.world-entry" }
   ],

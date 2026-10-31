@@ -12,9 +12,10 @@
   },
   "wire": { "id": 422, "direction": "S2C", "transport": "rep" },
   "fields": [
-    { "name": "first", "offset": "0x00", "size": 8, "endian": "be", "note": "meaning unproven" },
-    { "name": "second", "offset": "0x08", "size": 4, "endian": "be", "note": "meaning unproven" }
+    { "name": "first", "offset": "0x00", "size": 8, "endian": "be", "type": "u64be", "evidence": "unknown", "note": "meaning unproven", "provenance": "legacy (none)" },
+    { "name": "second", "offset": "0x08", "size": 4, "endian": "be", "type": "u32be", "evidence": "unknown", "note": "meaning unproven", "provenance": "legacy (none)" }
   ],
+  "legacy": true,
   "relations": [
     { "op": "part_of", "to": "flow.presence" },
     { "op": "measured_on", "to": "atlas.presence-codecs" },

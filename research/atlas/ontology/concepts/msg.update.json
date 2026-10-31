@@ -12,8 +12,14 @@
   },
   "wire": { "id": 106, "direction": "S2C", "transport": "rep" },
   "fields": [
-    { "name": "length", "size": "varint", "note": "prefix-varint; reject if >= 0x201" },
-    { "name": "blob", "size": "length", "note": "raw bytes, max 512" }
+    {
+      "name": "blob",
+      "type": "prefixed_bytes",
+      "evidence": "partial",
+      "max": 512,
+      "note": "prefix-varint; reject if >= 0x201; then raw bytes, max 512. The length prefix is part of prefixed_bytes, so there is no separate length field.",
+      "provenance": "legacy (none); merged from the former length + blob pair (double-count repair)"
+    }
   ],
   "relations": [
     { "op": "part_of", "to": "flow.presence" },

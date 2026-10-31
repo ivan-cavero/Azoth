@@ -3,6 +3,77 @@
   "$id": "https://azoth.local/atlas/ontology/concept.schema.json",
   "title": "AzothOntologyConcept",
   "type": "object",
+  "$defs": {
+    "codec": {
+      "$comment": "Frozen codec vocabulary. Fixed-width integers carry their endianness in the name; u8 is the one endian-free width. bytes(n) and fixed_string(n) match a pattern, and vec<T>/matrix<T> match a pattern whose element T is itself a vocabulary member. opaque(id) is the honest escape when an item's own text does not determine a codec: it is valid but blocks codegen. PREFIXED LENGTHS: prefixed_bytes and prefixed_string INCLUDE their length prefix -- the prefix varint is part of the codec itself -- so a separate prefix_varint field immediately before one of them double-counts the length and would make a code generator emit the prefix twice.",
+      "oneOf": [
+        {
+          "enum": [
+            "u8",
+            "u16be",
+            "u16le",
+            "u32be",
+            "u32le",
+            "u64be",
+            "u64le",
+            "i8",
+            "i16be",
+            "i32be",
+            "i64be",
+            "f32be",
+            "f32le",
+            "f64be",
+            "prefix_varint",
+            "varint",
+            "bool_byte",
+            "prefixed_bytes",
+            "prefixed_string",
+            "guid16",
+            "enum8",
+            "enum16be",
+            "enum32be",
+            "bitset8",
+            "bitset16",
+            "bitset32be"
+          ]
+        },
+        { "pattern": "^bytes\\([1-9][0-9]*\\)$" },
+        { "pattern": "^fixed_string\\([1-9][0-9]*\\)$" },
+        { "pattern": "^vec<(u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint)>$" },
+        { "pattern": "^matrix<(u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint)>$" },
+        { "pattern": "^opaque\\([a-z][a-z0-9_.-]*\\)$" }
+      ]
+    },
+    "field": {
+      "$comment": "CODEGEN-READY RULE: a card is codegen-ready iff it has at least one field and every field is where:'wire' with a type that is not opaque(...), and the card's own status is not unknown. partial does NOT block codegen; unknown and opaque do. A card with no fields[] is neither ready nor not-ready, so it must never count toward the codegen-ready number. BODY-ONLY RULE: fields[] describes the message BODY only. The record envelope is `[vlq32 length][00 01][prefix-varint type]`, generic framing owned by `services/world/src/azoth_world/javelin/frame.py` (and `bundle.py`); it must never appear as a field. Keep that knowledge in the card-level `envelope` string instead. MEMORY RULE: a where:'memory' field carries a decoded-struct offset, can never drive codegen, and must still declare a type (a vocabulary member, or opaque(id) when unknown).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "evidence"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "$ref": "#/$defs/codec" },
+        "where": {
+          "type": "string",
+          "enum": ["wire", "memory"],
+          "default": "wire"
+        },
+        "evidence": {
+          "type": "string",
+          "enum": ["measured", "partial", "unknown"]
+        },
+        "offset": { "type": ["integer", "string"] },
+        "size": { "type": ["integer", "string"] },
+        "count": { "type": ["integer", "string"] },
+        "min": { "type": "integer" },
+        "max": { "type": "integer" },
+        "values": { "type": "object" },
+        "endian": { "type": "string", "enum": ["be", "le"] },
+        "kind": { "type": "string" },
+        "note": { "type": "string" },
+        "provenance": { "type": "string" }
+      }
+    }
+  },
   "required": [
     "uid",
     "kind",
@@ -76,7 +147,17 @@
     },
     "fields": {
       "type": "array",
-      "items": { "type": "object" }
+      "items": { "$ref": "#/$defs/field" },
+      "description": "The message BODY only. The [vlq32 length][00 01][prefix-varint type] record envelope is framing owned by javelin/frame.py and is never a field; record it in the card-level `envelope` string."
+    },
+    "envelope": {
+      "type": "string",
+      "description": "Card-level record envelope text: the [vlq32 length][00 01][prefix-varint type] framing owned by javelin/frame.py, kept out of fields[] because fields[] is the body only."
+    },
+    "legacy": {
+      "type": "boolean",
+      "default": false,
+      "description": "Grandfathered card: at least one field item is still opaque or unknown, so its field items are exempt from the closed field schema."
     },
     "relations": {
       "type": "array",

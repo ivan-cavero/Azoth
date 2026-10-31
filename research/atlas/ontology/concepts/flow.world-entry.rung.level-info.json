@@ -26,18 +26,20 @@
       "where": "wire",
       "offset": "0x04",
       "size": "1 + n",
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Length byte then characters. Measured value: 0x14 followed by 'NewWorld_VitaeEterna'."
+      "type": "prefixed_string",
+      "evidence": "measured",
+      "note": "Length byte then characters. Measured value: 0x14 followed by 'NewWorld_VitaeEterna'.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "level_path",
       "where": "wire",
       "offset": "0x19",
       "size": "1 + n",
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Length byte then characters. Measured value: 0x1e followed by 'coatlicue/NewWorld_VitaeEterna'."
+      "type": "prefixed_string",
+      "evidence": "measured",
+      "note": "Length byte then characters. Measured value: 0x1e followed by 'coatlicue/NewWorld_VitaeEterna'.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "level_bounds",
@@ -45,9 +47,10 @@
       "offset": "0x38",
       "size": 16,
       "endian": "be",
-      "status": "candidate",
-      "evidence": "capture",
-      "note": "Four big-endian floats: 2048.0, 16.0, 12272.0, 10250.0 on the measured record. A world extent or a far/near plane pair is plausible and unproven."
+      "type": "opaque(level_bounds)",
+      "evidence": "unknown",
+      "note": "Four big-endian floats: 2048.0, 16.0, 12272.0, 10250.0 on the measured record. A world extent or a far/near plane pair is plausible and unproven.",
+      "provenance": "legacy status=candidate evidence=capture"
     },
     {
       "name": "unresolved_u64_at_0x48",
@@ -55,34 +58,40 @@
       "offset": "0x48",
       "size": 8,
       "endian": "be",
-      "status": "candidate",
-      "note": "Zero on the measured record. No reader found in the handler."
+      "type": "u64be",
+      "evidence": "unknown",
+      "note": "Zero on the measured record. No reader found in the handler.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "level_flags",
       "where": "wire",
       "offset": "0x50",
       "size": 4,
-      "status": "candidate",
-      "evidence": "capture",
-      "note": "Measured 01 01 00 00. The project's previous parse read the first two as level_is_loading and in_game; that reading is not proven by the decompile."
+      "type": "u32be",
+      "evidence": "unknown",
+      "note": "Measured 01 01 00 00. The project's previous parse read the first two as level_is_loading and in_game; that reading is not proven by the decompile. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "provenance": "legacy status=candidate evidence=capture"
     },
     {
       "name": "session_nonce",
       "where": "wire",
       "offset": "0x54",
       "size": 8,
-      "status": "verified",
-      "note": "Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record.",
-      "evidence": "capture"
+      "type": "u64be",
+      "evidence": "partial",
+      "note": "Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "unresolved_group_at_0x5c",
       "where": "wire",
       "offset": "0x5c",
       "size": 10,
-      "status": "candidate",
-      "note": "Measured 65 03 00 00 00 00 01 01 01 00. Not read by the handler, so it is either consumed by the deserializer or ignored."
+      "type": "opaque(unresolved_group_at_0x5c)",
+      "evidence": "unknown",
+      "note": "Measured 65 03 00 00 00 00 01 01 01 00. Not read by the handler, so it is either consumed by the deserializer or ignored.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "level_context_key",
@@ -90,9 +99,10 @@
       "offset": "0x66",
       "size": 8,
       "endian": "be",
-      "status": "verified",
-      "evidence": "decompile",
-      "note": "The last 8 bytes of the record, measured 00 00 00 c1 7f 9b e4 8f. The handler compares it against the component slot it cached last time and RETURNS EARLY when they match, then stores the new value. So it is the dedup key: a repeated LevelInfo with the same key is ignored by the client. This is a second, independent signal for the same fact the lab had already recorded from the capture (the repeated seq 0x663 at 0x4d carries the same key and is ignored)."
+      "type": "u64be",
+      "evidence": "partial",
+      "note": "The last 8 bytes of the record, measured 00 00 00 c1 7f 9b e4 8f. The handler compares it against the component slot it cached last time and RETURNS EARLY when they match, then stores the new value. So it is the dedup key: a repeated LevelInfo with the same key is ignored by the client. This is a second, independent signal for the same fact the lab had already recorded from the capture (the repeated seq 0x663 at 0x4d carries the same key and is ignored).",
+      "provenance": "legacy status=verified evidence=decompile"
     },
     {
       "name": "level_name",
@@ -100,8 +110,10 @@
       "offset": "0x00",
       "size": 32,
       "kind": "std::string",
-      "status": "verified",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(level_name)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=verified"
     },
     {
       "name": "unresolved_at_0x20",
@@ -109,8 +121,10 @@
       "offset": "0x20",
       "size": 8,
       "kind": "u64",
-      "status": "candidate",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(unresolved_at_0x20)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "level_path",
@@ -118,8 +132,10 @@
       "offset": "0x28",
       "size": 32,
       "kind": "std::string",
-      "status": "verified",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(level_path)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=verified"
     },
     {
       "name": "unresolved_at_0x48",
@@ -127,8 +143,10 @@
       "offset": "0x48",
       "size": 8,
       "kind": "u64",
-      "status": "candidate",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(unresolved_at_0x48)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "level_bounds",
@@ -136,8 +154,10 @@
       "offset": "0x50",
       "size": 16,
       "kind": "4 x f32",
-      "status": "verified",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(level_bounds)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=verified"
     },
     {
       "name": "unresolved_at_0x60",
@@ -145,8 +165,10 @@
       "offset": "0x60",
       "size": 8,
       "kind": "u64",
-      "status": "candidate",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(unresolved_at_0x60)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "unresolved_at_0x68",
@@ -154,8 +176,10 @@
       "offset": "0x68",
       "size": 56,
       "kind": "sub-object copied by FUN_141608020",
-      "status": "candidate",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(unresolved_at_0x68)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "unresolved_at_0xa0",
@@ -163,8 +187,10 @@
       "offset": "0xa0",
       "size": 1,
       "kind": "u8",
-      "status": "candidate",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(unresolved_at_0xa0)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "m_clientContextInstanceId",
@@ -172,8 +198,10 @@
       "offset": "0xa1",
       "size": 1,
       "kind": "u8",
-      "status": "verified",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(m_client_context_instance_id)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=verified"
     },
     {
       "name": "unresolved_at_0xa2",
@@ -181,8 +209,10 @@
       "offset": "0xa2",
       "size": 1,
       "kind": "bool",
-      "status": "candidate",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(unresolved_at_0xa2)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "unresolved_at_0xa3",
@@ -190,8 +220,10 @@
       "offset": "0xa3",
       "size": 1,
       "kind": "u8",
-      "status": "candidate",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(unresolved_at_0xa3)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "unresolved_at_0xa4",
@@ -199,8 +231,10 @@
       "offset": "0xa4",
       "size": 4,
       "kind": "padding",
-      "status": "candidate",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(unresolved_at_0xa4)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "level_context_key",
@@ -208,10 +242,13 @@
       "offset": "0xa8",
       "size": 8,
       "kind": "u64",
-      "status": "verified",
-      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70."
+      "type": "opaque(level_context_key)",
+      "evidence": "unknown",
+      "note": "Member of the decoded LevelInfo struct, read from the copy constructor FUN_146403a70.",
+      "provenance": "legacy status=verified"
     }
   ],
+  "legacy": true,
   "relations": [
     {
       "op": "part_of",

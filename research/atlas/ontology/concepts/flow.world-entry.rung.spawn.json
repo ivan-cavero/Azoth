@@ -22,59 +22,57 @@
     "direction": "S2C",
     "transport": "rep"
   },
+  "envelope": "Record envelope (owned by javelin/frame.py and bundle.py, not a body field): measured 00 01 08 01 01 01 01 01 01 00 00: the typed envelope, the record type 0x8, and a run of 01/00 flags. The first message of its datagram carries a datagram-level preamble, which is why this prefix is longer than the two-byte typed header the other rungs use.",
   "fields": [
-    {
-      "name": "record_header",
-      "where": "wire",
-      "offset": "0x00",
-      "size": 11,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Measured 00 01 08 01 01 01 01 01 01 00 00: the typed envelope, the record type 0x8, and a run of 01/00 flags. The first message of its datagram carries a datagram-level preamble, which is why this prefix is longer than the two-byte typed header the other rungs use."
-    },
     {
       "name": "payload_length",
       "where": "wire",
       "offset": "0x0b",
       "size": 3,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Prefix varint d9 a9 05 = 46,393, and the bytes after it are exactly 46,393. The record is self-delimiting here, which is what makes the payload slice provable."
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "note": "Prefix varint d9 a9 05 = 46,393, and the bytes after it are exactly 46,393. The record is self-delimiting here, which is what makes the payload slice provable.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "record_id",
       "where": "wire",
       "offset": "0x0e",
       "size": 1,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "1. The other variant of record_id 1 is the ongoing 9-fragment, 7,154-byte record, which carries no position; the two are not interchangeable."
+      "type": "u8",
+      "evidence": "measured",
+      "note": "1. The other variant of record_id 1 is the ongoing 9-fragment, 7,154-byte record, which carries no position; the two are not interchangeable.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "fragment_count",
       "where": "wire",
       "offset": "0x0f",
       "size": 1,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "0x30 = 48, matching the client's own nested-call count (FUN_146af20d0 -> FUN_146af2340) recorded by the deleted crate. This is a measured agreement, not a guess."
+      "type": "u8",
+      "evidence": "measured",
+      "note": "0x30 = 48, matching the client's own nested-call count (FUN_146af20d0 -> FUN_146af2340) recorded by the deleted crate. This is a measured agreement, not a guess.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "fragments",
       "where": "wire",
       "offset": "0x10",
       "size": "46375",
-      "status": "candidate",
-      "note": "48 concatenated [varint key][varint type_index][payload] fragments with NO length field: a fragment's payload length is implied by its type, which only the client's reader knows. 48 distinct keys, 47 distinct types, keys sparse and all <= 77. The individual boundaries are not recovered; see the evidence for the measured negative result."
+      "type": "opaque(fragments)",
+      "evidence": "partial",
+      "note": "48 concatenated [varint key][varint type_index][payload] fragments with NO length field: a fragment's payload length is implied by its type, which only the client's reader knows. 48 distinct keys, 47 distinct types, keys sparse and all <= 77. The individual boundaries are not recovered; see the evidence for the measured negative result.",
+      "provenance": "legacy status=candidate"
     },
     {
       "name": "actor_id",
       "where": "wire",
       "offset": "0x10+29731",
       "size": 16,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Payload offset 29,731. Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, which is byte-identical to the ACTOR_ID constant the deleted crate pinned, and it is preceded at 29,727 by 00 00 00 02 exactly as that crate's census anchor describes. This is the one field a private server must rewrite, and nothing else may move."
+      "type": "opaque(actor_id)",
+      "evidence": "measured",
+      "note": "Payload offset 29,731. Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, which is byte-identical to the ACTOR_ID constant the deleted crate pinned, and it is preceded at 29,727 by 00 00 00 02 exactly as that crate's census anchor describes. This is the one field a private server must rewrite, and nothing else may move.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "position_x",
@@ -82,9 +80,10 @@
       "offset": "0x10+38332",
       "size": 4,
       "endian": "be",
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Payload offset 38,332, big-endian f32. Measured 46 11 fe 91 = 9343.6416, a plausible world coordinate."
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Payload offset 38,332, big-endian f32. Measured 46 11 fe 91 = 9343.6416, a plausible world coordinate.",
+      "provenance": "legacy status=verified evidence=capture"
     },
     {
       "name": "position_y",
@@ -92,11 +91,13 @@
       "offset": "0x10+38336",
       "size": 4,
       "endian": "be",
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Payload offset 38,336, big-endian f32. Measured 45 2e 2b b9 = 2786.7327."
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Payload offset 38,336, big-endian f32. Measured 45 2e 2b b9 = 2786.7327.",
+      "provenance": "legacy status=verified evidence=capture"
     }
   ],
+  "legacy": true,
   "relations": [
     {
       "op": "part_of",

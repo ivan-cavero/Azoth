@@ -12,26 +12,20 @@
   },
   "wire": { "id": "0xa4", "direction": "S2C", "transport": "rep" },
   "domain_types": ["ActorId"],
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 a4 02: the typed envelope, the prefix varint 0xa4, then the byte 0x02.",
   "fields": [
-    {
-      "name": "typed_header",
-      "where": "wire",
-      "offset": "0x00",
-      "size": 4,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Measured 00 01 a4 02: the typed envelope, the prefix varint 0xa4, then the byte 0x02."
-    },
     {
       "name": "actor_id",
       "where": "wire",
       "offset": "0x04",
       "size": 16,
-      "status": "verified",
-      "evidence": "capture",
-      "note": "Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0. This is the strongest cross-check in the whole inventory: the same 16 bytes appear as the spawn record's actor id at payload offset 29,731 and as the pinned ACTOR_ID constant in the deleted azoth-wire crate. Three independent sources, one value."
+      "type": "opaque(actor_id)",
+      "evidence": "measured",
+      "note": "Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0. This is the strongest cross-check in the whole inventory: the same 16 bytes appear as the spawn record's actor id at payload offset 29,731 and as the pinned ACTOR_ID constant in the deleted azoth-wire crate. Three independent sources, one value.",
+      "provenance": "legacy status=verified evidence=capture"
     }
   ],
+  "legacy": true,
   "relations": [
     { "op": "part_of", "to": "flow.world-entry" }
   ],
