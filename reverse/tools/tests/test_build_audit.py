@@ -29,14 +29,21 @@ import unittest
 REPO = pathlib.Path(__file__).resolve().parents[3]
 AUDIT = REPO / "scripts" / "ops" / "build-audit.py"
 
-# The six tracked artifacts named by the audit table, in print order.
+# The gated artifacts named by the discovered build table, in print order.
 ARTIFACTS = (
-    "research/atlas/az-type-registry.json",
     "research/atlas/aoi-trait-registry.json",
+    "research/atlas/az-type-registry.json",
     "research/atlas/javelin-messages.json",
-    "research/derived/wire-type-names.json",
+    "research/atlas/presence-codecs.json",
+    "research/atlas/presence-live-capture.json",
     "research/derived/client-facet-factories.json",
+    "research/derived/field-tables.json",
+    "research/derived/message-names.json",
+    "research/derived/pak-summary.json",
+    "research/derived/replay-type-names.json",
     "research/derived/rtti-classes.json",
+    "research/derived/spawn-fragments.json",
+    "research/derived/wire-type-names.json",
 )
 
 
@@ -155,6 +162,44 @@ class StaleBuildGateTest(unittest.TestCase):
             self.assertTrue(
                 audit.build_mismatch(stale, "exe_sha256_prefix", installed, True)
             )
+
+
+class DeclaredBuildCoverageTest(unittest.TestCase):
+    """Coverage is discovered: every declared-build artifact is gated, and the
+    ones that declare no build field are reported as omitted, never failed."""
+
+    def test_every_declared_build_artifact_is_gated(self) -> None:
+        audit = load_audit()
+        gated = {rel for rel, _field, _prefix in audit.discover_declared_builds()}
+        for rel in ARTIFACTS:
+            self.assertIn(rel, gated)
+        self.assertGreaterEqual(len(gated), 13)
+
+    def test_artifacts_without_a_build_field_are_omitted_not_failed(self) -> None:
+        audit = load_audit()
+        gated = {rel for rel, _field, _prefix in audit.discover_declared_builds()}
+        omitted = set(audit.ungated_artifacts())
+        # The known artifact whose build_sha256 is present but null.
+        self.assertIn("research/derived/state-bundle-fragments.json", omitted)
+        self.assertFalse(gated & omitted)
+
+
+class SubprocessTimeoutTest(unittest.TestCase):
+    """A subprocess that overruns the audit's timeout is a reported FAIL, never
+    a hang: `_run` returns a synthetic exit 124."""
+
+    def test_run_reports_timeout_instead_of_hanging(self) -> None:
+        audit = load_audit()
+        original = audit.SUBPROCESS_TIMEOUT_S
+        audit.SUBPROCESS_TIMEOUT_S = 1
+        try:
+            proc = audit._run(
+                [sys.executable, "-c", "import time; time.sleep(30)"]
+            )
+        finally:
+            audit.SUBPROCESS_TIMEOUT_S = original
+        self.assertEqual(proc.returncode, 124)
+        self.assertTrue(audit._failure_reason(proc).startswith("timed out"))
 
 
 if __name__ == "__main__":
