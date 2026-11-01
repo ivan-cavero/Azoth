@@ -1,0 +1,33 @@
+{
+  "$comment": "First DTLS session between a server written in this repository and the real New World client. The prose note lives beside this file as REPORT.md, which research/.gitignore keeps local; this JSON is the tracked evidence, following the sessions/**/extracted/*.json convention.",
+  "date": "2026-11-01",
+  "server": {
+    "crate": "everfall-net",
+    "language": "Rust",
+    "tls": "OpenSSL 4.1.0 (prebuilt development package, linked, no C compiled by us)",
+    "certificate": "RSA 2048 self-signed, CN=New World",
+    "port": 9000,
+    "bound": "127.0.0.1:9000 (DTLS 1.2)"
+  },
+  "client": {
+    "build_sha256": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+    "driver": "scripts/session/private-run.py",
+    "verdict": "login started on attempt 2, then stuck before REP registration"
+  },
+  "server_log_facts": {
+    "connected": "2026-11-01T22:24:07Z",
+    "handshake_flights_sent": 5,
+    "largest_flight_bytes": 256,
+    "client_hello_bytes": 159,
+    "application_data_received": true,
+    "application_data_sizes": [14, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 50],
+    "cadence_ms": 113
+  },
+  "conclusion": "The real client completed a DTLS 1.2 handshake against the Rust server and sent carrier application data. This is the first encrypted session between a server from this repository and the game; every previous session was the client talking to a Python replay rig.",
+  "why_it_stalls": "everfall-net implements the handshake and nothing above it. The client's next steps are the Carrier CONNECT_REQUEST and the registration ladder, and this server answers neither, so the client waits and gives up. The stall is the implemented layer's boundary, not a defect.",
+  "next": [
+    "Carrier record framing over the established session (the envelope is already ported and parity-proved)",
+    "CONNECT_REQUEST and its ACK",
+    "the V3 registration response, wire 0x3, whose layout is measured to the byte"
+  ]
+}
