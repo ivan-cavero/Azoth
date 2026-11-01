@@ -1097,6 +1097,322 @@ impl MsgTimeSyncToClient {
     }
 }
 
+/// `codec.alc-replicated-state` — one Atlas card.
+///
+/// Presence-masked sub-codec card (no wire id).
+/// Its body is a two-level presence mask: one group mask byte, then for
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecAlcReplicatedState {
+    /// The `group_mask` mask: bit i set means group i is
+    /// on the wire.
+    pub group_mask: u64,
+    /// The present groups, ascending by group index.
+    pub groups: Vec<CodecAlcReplicatedStateGroup>,
+}
+
+/// One present group of [`CodecAlcReplicatedState`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecAlcReplicatedStateGroup {
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
+    /// The present members, ascending by member index.
+    pub entries: Vec<CodecAlcReplicatedStateEntry>,
+}
+
+/// One present member of a [`CodecAlcReplicatedStateGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodecAlcReplicatedStateEntry {
+    /// Group 0 member 0, `idRel`.
+    IdRel(u8),
+    /// Group 0 member 1, `timeOffsetRel`.
+    TimeOffsetRel(u8),
+    /// Group 0 member 2, `slayerSeqTimeRel0`.
+    SlayerSeqTimeRel0(u8),
+    /// Group 0 member 3, `slayerSeqTimeAbs0`.
+    SlayerSeqTimeAbs0(u16),
+    /// Group 0 member 4, `slayerSeqTimeRel1`.
+    SlayerSeqTimeRel1(u8),
+    /// Group 0 member 5, `slayerSeqTimeAbs1`.
+    SlayerSeqTimeAbs1(u16),
+    /// Group 0 member 6, `slayerSeqTimeRel2`.
+    SlayerSeqTimeRel2(u8),
+    /// Group 0 member 7, `slayerSeqTimeAbs2`.
+    SlayerSeqTimeAbs2(u16),
+    /// Group 0 member 8, `slayerSeqTimeRel3`.
+    SlayerSeqTimeRel3(u8),
+    /// Group 0 member 9, `slayerSeqTimeAbs3`.
+    SlayerSeqTimeAbs3(u16),
+    /// Group 0 member 10, `worldPosRel`.
+    WorldPosRel(Opaque),
+    /// Group 0 member 12, `lookDir`.
+    LookDir(Opaque),
+    /// Group 0 member 13, `slayerStateId0`.
+    SlayerStateId0(u64),
+    /// Group 0 member 14, `slayerStateIdStarted0`.
+    SlayerStateIdStarted0(u16),
+    /// Group 0 member 15, `slayerSequenceId0`.
+    SlayerSequenceId0(u64),
+    /// Group 0 member 16, `slayerStateId1`.
+    SlayerStateId1(u64),
+    /// Group 0 member 17, `slayerStateIdStarted1`.
+    SlayerStateIdStarted1(u16),
+    /// Group 0 member 18, `slayerSequenceId1`.
+    SlayerSequenceId1(u64),
+    /// Group 0 member 19, `slayerStateId2`.
+    SlayerStateId2(u64),
+    /// Group 0 member 20, `slayerStateIdStarted2`.
+    SlayerStateIdStarted2(u16),
+    /// Group 0 member 21, `slayerSequenceId2`.
+    SlayerSequenceId2(u64),
+    /// Group 0 member 22, `slayerStateId3`.
+    SlayerStateId3(u64),
+    /// Group 0 member 23, `slayerStateIdStarted3`.
+    SlayerStateIdStarted3(u16),
+    /// Group 0 member 24, `slayerSequenceId3`.
+    SlayerSequenceId3(u64),
+    /// Group 0 member 26, `timeOffsetAbs`.
+    TimeOffsetAbs(u8),
+    /// Group 0 member 36, `wpnaccrystance`.
+    Wpnaccrystance(u16),
+    /// Group 0 member 47, `slayerScriptLayers`.
+    SlayerScriptLayers(u8),
+    /// Group 0 member 48, `slayerScriptFlags`.
+    SlayerScriptFlags(u64),
+}
+
+impl CodecAlcReplicatedState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.alc-replicated-state";
+
+    /// Decode one `codec.alc-replicated-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, outside a bound
+    /// the card states, or its mask selects a group or member the card does
+    /// not declare.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, or a mask selects a group
+    /// or member the card does not declare.
+    #[expect(clippy::too_many_lines, reason = "one arm per declared member")]
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b1;
+        if unknown != 0 {
+            return Err(WireError::UnknownPresence {
+                what: "group",
+                index: u64::from(unknown.trailing_zeros()),
+            });
+        }
+        let mut groups = Vec::new();
+        if group_mask & 0b1 != 0 {
+            let entry_mask = reader.mask_varint("entry_mask")?;
+            let unknown =
+                entry_mask & !0b1_1000_0000_0001_0000_0000_0101_1111_1111_1111_0111_1111_1111;
+            if unknown != 0 {
+                return Err(WireError::UnknownPresence {
+                    what: "member",
+                    index: u64::from(unknown.trailing_zeros()),
+                });
+            }
+            let mut entries = Vec::new();
+            if entry_mask & (1_u64 << 0) != 0 {
+                let value = reader.u8("idRel")?;
+                entries.push(CodecAlcReplicatedStateEntry::IdRel(value));
+            }
+            if entry_mask & (1_u64 << 1) != 0 {
+                let value = reader.u8("timeOffsetRel")?;
+                entries.push(CodecAlcReplicatedStateEntry::TimeOffsetRel(value));
+            }
+            if entry_mask & (1_u64 << 2) != 0 {
+                let value = reader.u8("slayerSeqTimeRel0")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSeqTimeRel0(value));
+            }
+            if entry_mask & (1_u64 << 3) != 0 {
+                let value = reader.u16be("slayerSeqTimeAbs0")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSeqTimeAbs0(value));
+            }
+            if entry_mask & (1_u64 << 4) != 0 {
+                let value = reader.u8("slayerSeqTimeRel1")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSeqTimeRel1(value));
+            }
+            if entry_mask & (1_u64 << 5) != 0 {
+                let value = reader.u16be("slayerSeqTimeAbs1")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSeqTimeAbs1(value));
+            }
+            if entry_mask & (1_u64 << 6) != 0 {
+                let value = reader.u8("slayerSeqTimeRel2")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSeqTimeRel2(value));
+            }
+            if entry_mask & (1_u64 << 7) != 0 {
+                let value = reader.u16be("slayerSeqTimeAbs2")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSeqTimeAbs2(value));
+            }
+            if entry_mask & (1_u64 << 8) != 0 {
+                let value = reader.u8("slayerSeqTimeRel3")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSeqTimeRel3(value));
+            }
+            if entry_mask & (1_u64 << 9) != 0 {
+                let value = reader.u16be("slayerSeqTimeAbs3")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSeqTimeAbs3(value));
+            }
+            if entry_mask & (1_u64 << 10) != 0 {
+                let value =
+                    reader.opaque("worldPosRel", "codec.alc-replicated-state.worldPosRel", 3)?;
+                entries.push(CodecAlcReplicatedStateEntry::WorldPosRel(value));
+            }
+            if entry_mask & (1_u64 << 12) != 0 {
+                let value = reader.opaque("lookDir", "codec.alc-replicated-state.lookDir", 2)?;
+                entries.push(CodecAlcReplicatedStateEntry::LookDir(value));
+            }
+            if entry_mask & (1_u64 << 13) != 0 {
+                let value = reader.prefix_varint("slayerStateId0")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerStateId0(value));
+            }
+            if entry_mask & (1_u64 << 14) != 0 {
+                let value = reader.u16be("slayerStateIdStarted0")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerStateIdStarted0(value));
+            }
+            if entry_mask & (1_u64 << 15) != 0 {
+                let value = reader.prefix_varint("slayerSequenceId0")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSequenceId0(value));
+            }
+            if entry_mask & (1_u64 << 16) != 0 {
+                let value = reader.prefix_varint("slayerStateId1")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerStateId1(value));
+            }
+            if entry_mask & (1_u64 << 17) != 0 {
+                let value = reader.u16be("slayerStateIdStarted1")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerStateIdStarted1(value));
+            }
+            if entry_mask & (1_u64 << 18) != 0 {
+                let value = reader.prefix_varint("slayerSequenceId1")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSequenceId1(value));
+            }
+            if entry_mask & (1_u64 << 19) != 0 {
+                let value = reader.prefix_varint("slayerStateId2")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerStateId2(value));
+            }
+            if entry_mask & (1_u64 << 20) != 0 {
+                let value = reader.u16be("slayerStateIdStarted2")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerStateIdStarted2(value));
+            }
+            if entry_mask & (1_u64 << 21) != 0 {
+                let value = reader.prefix_varint("slayerSequenceId2")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSequenceId2(value));
+            }
+            if entry_mask & (1_u64 << 22) != 0 {
+                let value = reader.prefix_varint("slayerStateId3")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerStateId3(value));
+            }
+            if entry_mask & (1_u64 << 23) != 0 {
+                let value = reader.u16be("slayerStateIdStarted3")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerStateIdStarted3(value));
+            }
+            if entry_mask & (1_u64 << 24) != 0 {
+                let value = reader.prefix_varint("slayerSequenceId3")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerSequenceId3(value));
+            }
+            if entry_mask & (1_u64 << 26) != 0 {
+                let value = reader.u8("timeOffsetAbs")?;
+                entries.push(CodecAlcReplicatedStateEntry::TimeOffsetAbs(value));
+            }
+            if entry_mask & (1_u64 << 36) != 0 {
+                let value = reader.u16be("wpnaccrystance")?;
+                entries.push(CodecAlcReplicatedStateEntry::Wpnaccrystance(value));
+            }
+            if entry_mask & (1_u64 << 47) != 0 {
+                let value = reader.u8("slayerScriptLayers")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerScriptLayers(value));
+            }
+            if entry_mask & (1_u64 << 48) != 0 {
+                let value = reader.prefix_varint("slayerScriptFlags")?;
+                entries.push(CodecAlcReplicatedStateEntry::SlayerScriptFlags(value));
+            }
+            groups.push(CodecAlcReplicatedStateGroup {
+                entry_mask,
+                entries,
+            });
+        }
+        Ok(Self { group_mask, groups })
+    }
+
+    /// Encode one `codec.alc-replicated-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.group_mask as u8);
+        for group in &self.groups {
+            writer.mask_varint(group.entry_mask)?;
+            for entry in &group.entries {
+                match entry {
+                    CodecAlcReplicatedStateEntry::IdRel(value)
+                    | CodecAlcReplicatedStateEntry::TimeOffsetRel(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSeqTimeRel0(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSeqTimeRel1(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSeqTimeRel2(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSeqTimeRel3(value)
+                    | CodecAlcReplicatedStateEntry::TimeOffsetAbs(value)
+                    | CodecAlcReplicatedStateEntry::SlayerScriptLayers(value) => {
+                        writer.u8(*value);
+                    }
+                    CodecAlcReplicatedStateEntry::SlayerSeqTimeAbs0(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSeqTimeAbs1(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSeqTimeAbs2(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSeqTimeAbs3(value)
+                    | CodecAlcReplicatedStateEntry::SlayerStateIdStarted0(value)
+                    | CodecAlcReplicatedStateEntry::SlayerStateIdStarted1(value)
+                    | CodecAlcReplicatedStateEntry::SlayerStateIdStarted2(value)
+                    | CodecAlcReplicatedStateEntry::SlayerStateIdStarted3(value)
+                    | CodecAlcReplicatedStateEntry::Wpnaccrystance(value) => {
+                        writer.u16be(*value);
+                    }
+                    CodecAlcReplicatedStateEntry::WorldPosRel(value)
+                    | CodecAlcReplicatedStateEntry::LookDir(value) => {
+                        writer.opaque(value);
+                    }
+                    CodecAlcReplicatedStateEntry::SlayerStateId0(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSequenceId0(value)
+                    | CodecAlcReplicatedStateEntry::SlayerStateId1(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSequenceId1(value)
+                    | CodecAlcReplicatedStateEntry::SlayerStateId2(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSequenceId2(value)
+                    | CodecAlcReplicatedStateEntry::SlayerStateId3(value)
+                    | CodecAlcReplicatedStateEntry::SlayerSequenceId3(value)
+                    | CodecAlcReplicatedStateEntry::SlayerScriptFlags(value) => {
+                        writer.prefix_varint(*value)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 /// `codec.contracts.blob-256` — one Atlas card.
 ///
 /// Nested sub-codec card (no wire id).

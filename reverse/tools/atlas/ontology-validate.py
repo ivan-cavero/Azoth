@@ -358,8 +358,10 @@ def presence_errors(concept: dict) -> list[str]:
     `continuation` is ONE mask byte, so an index has to fit its `bits`. A level
     WITH one is a continuation sequence: the reader keeps reading mask bytes
     while the continuation bit (the single bit above the member bits) is set, so
-    an index wider than `bits` is legal and lands in a later byte. Two fields
-    still cannot share a coordinate.
+    an index wider than `bits` is legal and lands in a later byte. A level WITH
+    `varint` is one wide prefix varint whose integer value is the bitmask, so an
+    index wider than `bits` is legal there too. Two fields still cannot share a
+    coordinate.
     """
     errors: list[str] = []
     declared = concept.get("presence")
@@ -388,7 +390,13 @@ def presence_errors(concept: dict) -> list[str]:
             continue
         bounds[level] = bits
         continuation = node.get("continuation")
-        sequences[level] = continuation is not None
+        varint = bool(node.get("varint", False))
+        if continuation is not None and varint:
+            errors.append(
+                f"presence level {level!r} cannot be both a continuation sequence "
+                f"and a prefix-varint bitmask"
+            )
+        sequences[level] = continuation is not None or varint
         if continuation is None:
             continue
         if isinstance(continuation, bool) or not isinstance(continuation, int):

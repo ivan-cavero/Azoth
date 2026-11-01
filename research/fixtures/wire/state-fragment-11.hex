@@ -1,0 +1,29 @@
+# State fragment body for wire type index 11 (key 16, Javelin
+# ALCReplicatedState), build sha256 30fe6461.
+#
+# 49 bytes, the payload of fragment index 6 of record 1. Extracted from the
+# committed bundle corpus research/fixtures/wire/wire-fixtures.json by
+# research/derived/state-bundle-fragments.json (offset_in_record 5335,
+# size 51 = 2 header bytes 10 0b + this payload). The header bytes are not
+# part of this file: the fragment is [prefix-varint key][prefix-varint type]
+# [payload] with no length field.
+#
+# Layout and provenance: research/atlas/ontology/concepts/
+# codec.alc-replicated-state.json. Group 0 selects the 28 members below with a
+# WIDE PREFIX-VARINT bitmask (reader 0x142a44650 -> FUN_14087b910), not a
+# seven-bit continuation sequence: top mask 01, entry mask value
+# 0x1801005fff7ff encoded as fd ff fb ff 02 08 c0, then the members ascending:
+#   idRel                u8            (0)
+#   timeOffsetRel        u8            (1)
+#   slayerSeqTimeRel0-3  u8            (2,4,6,8)
+#   slayerSeqTimeAbs0-3  u16be         (3,5,7,9)
+#   worldPosRel          bytes(3)      (10)
+#   lookDir              bytes(2)      (12)
+#   slayerStateId0-3     prefix_varint (13,16,19,22)
+#   slayerStateIdStarted0-3 u16be      (14,17,20,23)
+#   slayerSequenceId0-3  prefix_varint (15,18,21,24)
+#   timeOffsetAbs        u8            (26)
+#   wpnaccrystance       u16be         (36)
+#   slayerScriptLayers   u8            (47)
+#   slayerScriptFlags    prefix_varint (48)
+01fdfffbff0208c00975bf480c7f00007f00007f00007f7f7f39cc1f0003b9102d0003000000000000000000224a200400

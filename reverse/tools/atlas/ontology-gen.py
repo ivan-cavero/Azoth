@@ -370,13 +370,57 @@ def _lowest_bit(value):
     return (value & -value).bit_length() - 1
 
 
-def _decode_mask(bits, continuation, data, offset):
+def _decode_wide_varint(data, offset):
+    """The client's wide prefix varint (FUN_14087b910): up to eight bytes.
+
+    The number of leading 1-bits in the first byte gives the continuation count;
+    the first byte's low bits are the value's lowest bits and the continuation
+    bytes are little-endian above them. A mask can therefore be 56 bits wide.
+    """
+    if offset >= len(data):
+        raise WireCodecError("truncated wide prefix varint")
+    first = data[offset]
+    n = 0
+    bit = 0x80
+    while first & bit:
+        n += 1
+        bit >>= 1
+    if n > 7:
+        raise WireCodecError("wide prefix varint longer than eight bytes")
+    end = offset + 1 + n
+    if end > len(data):
+        raise WireCodecError("truncated wide prefix varint")
+    if n == 0:
+        return first, end
+    shift = 7 - n
+    cont = int.from_bytes(data[offset + 1:end], "little")
+    return (cont << shift) | (first & ((1 << shift) - 1)), end
+
+
+def _encode_wide_varint(value):
+    """The canonical bytes of the client's wide prefix varint."""
+    if value < 0 or value >= (1 << 56):
+        raise WireCodecError(f"wide prefix varint {value:#x} out of range")
+    if value < 0x80:
+        return bytes([value])
+    n = 1
+    while n < 7 and value >= (1 << (7 + 7 * n)):
+        n += 1
+    shift = 7 - n
+    leading = ((0xFF << (8 - n)) & 0xFF) | (value & ((1 << shift) - 1))
+    return bytes([leading]) + (value >> shift).to_bytes(n, "little")
+
+
+def _decode_mask(bits, continuation, varint, data, offset):
     """One presence-mask value: the bitmask over the items it selects.
 
     A level WITH a continuation is a sequence: it reads mask bytes while the
     continuation bit is set, and each byte contributes `bits` low-first item
-    bits. A level WITHOUT one is exactly one byte.
+    bits. A level WITH `varint` is one wide prefix varint whose value is the
+    bitmask. A level WITHOUT either is exactly one byte.
     """
+    if varint:
+        return _decode_wide_varint(data, offset)
     mask = 0
     shift = 0
     while True:
@@ -388,8 +432,10 @@ def _decode_mask(bits, continuation, data, offset):
         shift += bits
 
 
-def _encode_mask(bits, continuation, mask):
+def _encode_mask(bits, continuation, varint, mask):
     """The canonical bytes of one presence-mask value (the fewest bytes)."""
+    if varint:
+        return _encode_wide_varint(mask)
     out = bytearray()
     rest = mask
     while True:
@@ -415,10 +461,12 @@ def _decode_members(spec, data, offset):
             values[name], offset = decode_field(type_name, data, offset)
         return values, offset
 
-    group_name, group_bits, group_continuation = presence["group"]
-    member_name, member_bits, continuation = presence["member"]
+    group_name, group_bits, group_continuation, group_varint = presence["group"]
+    member_name, member_bits, continuation, member_varint = presence["member"]
     values = {}
-    group_mask, offset = _decode_mask(group_bits, group_continuation, data, offset)
+    group_mask, offset = _decode_mask(
+        group_bits, group_continuation, group_varint, data, offset
+    )
     declared = 0
     for _index, bits, _members in presence["groups"]:
         declared |= bits
@@ -432,7 +480,9 @@ def _decode_members(spec, data, offset):
     for _index, bits, members in presence["groups"]:
         if not group_mask & bits:
             continue
-        entry_mask, offset = _decode_mask(member_bits, continuation, data, offset)
+        entry_mask, offset = _decode_mask(
+            member_bits, continuation, member_varint, data, offset
+        )
         declared_members = 0
         for _member, member_bit, _name, _codec in members:
             declared_members |= member_bit
@@ -461,10 +511,12 @@ def _encode_members(spec, values):
             out += encode_field(type_name, values[name])
         return bytes(out)
 
-    group_name, group_bits, group_continuation = presence["group"]
-    member_name, member_bits, continuation = presence["member"]
+    group_name, group_bits, group_continuation, group_varint = presence["group"]
+    member_name, member_bits, continuation, member_varint = presence["member"]
     group_mask = values[group_name]
-    out = bytearray(_encode_mask(group_bits, group_continuation, group_mask))
+    out = bytearray(
+        _encode_mask(group_bits, group_continuation, group_varint, group_mask)
+    )
     written = values.get("groups") or []
     cursor = 0
     for _index, bits, members in presence["groups"]:
@@ -475,7 +527,7 @@ def _encode_members(spec, values):
         group = written[cursor]
         cursor += 1
         entry_mask = group[member_name]
-        out += _encode_mask(member_bits, continuation, entry_mask)
+        out += _encode_mask(member_bits, continuation, member_varint, entry_mask)
         for member, bit, name, type_name in members:
             if entry_mask & bit:
                 if name not in group["entries"]:
@@ -772,11 +824,13 @@ def _presence_spec(card: dict, fields: list[dict]) -> dict | None:
             "name": declared["group"]["name"],
             "bits": declared["group"]["bits"],
             "continuation": declared["group"].get("continuation"),
+            "varint": bool(declared["group"].get("varint", False)),
         },
         "member": {
             "name": declared["member"]["name"],
             "bits": declared["member"]["bits"],
             "continuation": declared["member"].get("continuation"),
+            "varint": bool(declared["member"].get("varint", False)),
         },
         "groups": groups,
     }
@@ -789,11 +843,11 @@ def _render_presence_py(presence: dict, indent: str) -> list[str]:
     lines = [f"{indent}'presence': {{"]
     lines.append(
         f"{indent}    'group': ({group['name']!r}, {group['bits']}, "
-        f"{group['continuation']}),"
+        f"{group['continuation']}, {group['varint']}),"
     )
     lines.append(
         f"{indent}    'member': ({member['name']!r}, {member['bits']}, "
-        f"{member['continuation']}),"
+        f"{member['continuation']}, {member['varint']}),"
     )
     lines.append(f"{indent}    'groups': (")
     for declared in presence["groups"]:
@@ -1522,15 +1576,18 @@ def _mask_literal(value: int) -> str:
 
 
 def _rust_read_mask_lines(
-    ident: str, name: str, bits: int, continuation: int | None
+    ident: str, name: str, bits: int, continuation: int | None, varint: bool = False
 ) -> list[str]:
     """Rust that reads one presence-mask value into `ident`.
 
     With no continuation the level is exactly one byte. With one it is a
     sequence: mask bytes accumulate low-first, `bits` item bits each, while the
-    continuation bit stays set.
+    continuation bit stays set. With `varint` the level is one wide prefix
+    varint whose value is the bitmask.
     """
     mask_lit = hex((1 << bits) - 1)
+    if varint:
+        return [f'let {ident} = reader.mask_varint("{name}")?;']
     if continuation is None:
         return [f'let {ident} = u64::from(reader.u8("{name}")?);']
     cont_lit = hex(continuation)
@@ -1549,10 +1606,12 @@ def _rust_read_mask_lines(
 
 
 def _rust_write_mask_lines(
-    expr: str, bits: int, continuation: int | None
+    expr: str, bits: int, continuation: int | None, varint: bool = False
 ) -> list[str]:
     """Rust that writes one presence-mask value, canonical and low-first."""
     mask_lit = hex((1 << bits) - 1)
+    if varint:
+        return [f"writer.mask_varint({expr})?;"]
     if continuation is None:
         return [f"writer.u8({expr} as u8);"]
     cont_lit = hex(continuation)
@@ -1690,7 +1749,11 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
     group_level = presence["group"]
     member_level = presence["member"]
     for line in _rust_read_mask_lines(
-        group_mask_ident, group_level["name"], group_level["bits"], group_level.get("continuation")
+        group_mask_ident,
+        group_level["name"],
+        group_level["bits"],
+        group_level.get("continuation"),
+        group_level.get("varint", False),
     ):
         lines.append("        " + line)
     lines.append(f"        let unknown = {group_mask_ident} & !{_mask_literal(declared_groups)};")
@@ -1713,6 +1776,7 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
             member_level["name"],
             member_level["bits"],
             member_level.get("continuation"),
+            member_level.get("varint", False),
         ):
             lines.append("            " + line)
         lines.append(
@@ -1744,6 +1808,7 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
         lines.append("        }")
     lines.append(f"        Ok(Self {{ {group_mask_ident}, groups }})")
     lines.append("    }")
+    _maybe_expect_too_many_lines(lines, "pub fn read_from")
     lines.append("")
     lines.append(f"    /// Encode one `{uid}` body, appending to `out`.")
     lines.append("    ///")
@@ -1762,12 +1827,18 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
         "    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {"
     )
     for line in _rust_write_mask_lines(
-        f"self.{group_mask_ident}", group_level["bits"], group_level.get("continuation")
+        f"self.{group_mask_ident}",
+        group_level["bits"],
+        group_level.get("continuation"),
+        group_level.get("varint", False),
     ):
         lines.append("        " + line)
     lines.append("        for group in &self.groups {")
     for line in _rust_write_mask_lines(
-        f"group.{member_mask_ident}", member_level["bits"], member_level.get("continuation")
+        f"group.{member_mask_ident}",
+        member_level["bits"],
+        member_level.get("continuation"),
+        member_level.get("varint", False),
     ):
         lines.append("            " + line)
     lines.append("            for entry in &group.entries {")
@@ -1798,6 +1869,7 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
     lines.append("        }")
     lines.append("        Ok(())")
     lines.append("    }")
+    _maybe_expect_too_many_lines(lines, "pub fn write_to")
     lines.append("}")
     return lines
 
@@ -1813,6 +1885,26 @@ def render_wire_rs(
         lines.append("")
         lines.extend(_render_card(spec, wire=False))
     return "\n".join(lines) + "\n"
+
+
+def _maybe_expect_too_many_lines(lines: list[str], marker: str) -> None:
+    """Add `#[expect(clippy::too_many_lines)]` when a rendered fn exceeds 100 lines.
+
+    Clippy's `allow_attributes` refuses a bare `#[allow]`, and `#[expect]` is only
+    fulfilled when the lint actually fires, so the attribute is emitted only when
+    the just-appended function is long enough to trigger `too_many_lines`. This is
+    what keeps a card with one arm per declared member (the 28-member ALC state)
+    compiling under `-D warnings` without a reasonless suppression.
+    """
+    index = max(
+        (i for i, line in enumerate(lines) if marker in line),
+        default=None,
+    )
+    if index is not None and len(lines) - index > 100:
+        lines.insert(
+            index,
+            '    #[expect(clippy::too_many_lines, reason = "one arm per declared member")]',
+        )
 
 
 # --- generated markdown -------------------------------------------------------

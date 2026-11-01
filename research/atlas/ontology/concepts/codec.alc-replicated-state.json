@@ -1,0 +1,389 @@
+{
+  "uid": "codec.alc-replicated-state",
+  "kind": "codec",
+  "name": "ALCReplicatedState",
+  "aliases": [
+    "wire-type:11",
+    "state-fragment:key16"
+  ],
+  "summary": "The payload carried by state fragment type index 11 (key 16) in the local-player record: the action-list component's replicated state, a group mask then a WIDE PREFIX-VARINT member bitmask over the registered ALC members, then the members it selects. MEASURED SUBSET ONLY: this card models the 28 members the measured 0x9e body sets, out of the 54 the class registers in group 0. The type index resolves through record fn 0x142a3d290 -> facet vtable 0x1480ffd00 -> facet +8 0x142a33830 -> class vtable 0x148100b10 (ctor 0x142a36d50). The class's +0x88 writer 0x142a3f120 and +0x90 reader 0x142a44650 are ALC's OWN pair: the member mask is FUN_14087b910, a wide prefix varint whose integer value's bits select the members (up to 56 bits), NOT the shared 0x1417b5330 seven-bit continuation sequence. An undeclared set bit is refused.",
+  "purpose": "Name the ALC members the measured local-player ALC body carries, so the fragment is authored from typed values instead of replayed. Because the mask is a prefix-varint bitmask, the schema's member level carries the new `varint` flag.",
+  "authority": "server",
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `16`, type varint `0b` = 11, then 49 payload bytes. Below that, the payload is the two-level presence mask declared by this card's `presence` block: [group mask u8][for each present group: WIDE PREFIX-VARINT member mask][for each present member: that member's body, ascending by member index].",
+  "presence": {
+    "group": {
+      "name": "group_mask",
+      "bits": 8
+    },
+    "member": {
+      "name": "entry_mask",
+      "bits": 8,
+      "varint": true
+    }
+  },
+  "fields": [
+    {
+      "name": "idRel",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 0
+      },
+      "note": "The client's own reflection string for this member is `idRel`. One raw byte, measured 0x09. Reader vtable 0x148100520 +0x30 = 0x142a43ce0 -> 0x14087a330."
+    },
+    {
+      "name": "timeOffsetRel",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 1
+      },
+      "note": "The client's own reflection string for this member is `timeOffsetRel`. One raw byte, measured 0x75. Same u8 reader as idRel."
+    },
+    {
+      "name": "slayerSeqTimeRel0",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 2
+      },
+      "note": "The client's own reflection string for this member is `slayerSeqTimeRel`. (member slot 0). One raw byte, measured 0xbf. Reader vtable 0x1481008b8 +0x30 = 0x142a43e50 -> 0x14087a330."
+    },
+    {
+      "name": "slayerSeqTimeAbs0",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 3
+      },
+      "note": "The client's own reflection string for this member is `slayerSeqTimeAbs`. (member slot 0). One big-endian u16, measured 0x480c. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read."
+    },
+    {
+      "name": "slayerSeqTimeRel1",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 4
+      },
+      "note": "The client's own reflection string for this member is `slayerSeqTimeRel`. (member slot 1). One raw byte, measured 0x7f. Reader vtable 0x1481008b8 +0x30 = 0x142a43e50 -> 0x14087a330."
+    },
+    {
+      "name": "slayerSeqTimeAbs1",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 5
+      },
+      "note": "The client's own reflection string for this member is `slayerSeqTimeAbs`. (member slot 1). One big-endian u16, measured 0x0000. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read."
+    },
+    {
+      "name": "slayerSeqTimeRel2",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 6
+      },
+      "note": "The client's own reflection string for this member is `slayerSeqTimeRel`. (member slot 2). One raw byte, measured 0x7f. Reader vtable 0x1481008b8 +0x30 = 0x142a43e50 -> 0x14087a330."
+    },
+    {
+      "name": "slayerSeqTimeAbs2",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 7
+      },
+      "note": "The client's own reflection string for this member is `slayerSeqTimeAbs`. (member slot 2). One big-endian u16, measured 0x0000. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read."
+    },
+    {
+      "name": "slayerSeqTimeRel3",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 8
+      },
+      "note": "The client's own reflection string for this member is `slayerSeqTimeRel`. (member slot 3). One raw byte, measured 0x7f. Reader vtable 0x1481008b8 +0x30 = 0x142a43e50 -> 0x14087a330."
+    },
+    {
+      "name": "slayerSeqTimeAbs3",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 9
+      },
+      "note": "The client's own reflection string for this member is `slayerSeqTimeAbs`. (member slot 3). One big-endian u16, measured 0x0000. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read."
+    },
+    {
+      "name": "worldPosRel",
+      "meaning": "known",
+      "where": "wire",
+      "type": "bytes(3)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 10
+      },
+      "note": "The client's own reflection string for this member is `worldPosRel`. Three raw bytes, measured 7f 7f 7f. Reader vtable 0x148100300 +0x30 = 0x142a442d0 -> 0x1417b2d10, which reads three raw bytes. The absolute worldPosAbs (member 27) is NOT set in this body."
+    },
+    {
+      "name": "lookDir",
+      "meaning": "known",
+      "where": "wire",
+      "type": "bytes(2)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 12
+      },
+      "note": "The client's own reflection string for this member is `lookDir`. Two bytes, measured 39 cc. The reader vtable 0x148100688 +0x30 = 0x142a44450 -> 0x14087b180 is a BIT-PACKED quaternion (variable width, not a vocabulary codec), so the card's width is the byte-exact parse's, not a resolved fixed reader's."
+    },
+    {
+      "name": "slayerStateId0",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 13
+      },
+      "note": "The client's own reflection string for this member is `slayerStateId`. (member slot 0). A prefix varint, measured 31. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    },
+    {
+      "name": "slayerStateIdStarted0",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 14
+      },
+      "note": "The client's own reflection string for this member is `slayerStateIdStarted`. (member slot 0). A big-endian u16, measured 0x0003. Reader vtable 0x148100848 +0x30 = 0x142a43db0 -> 0x14087a360."
+    },
+    {
+      "name": "slayerSequenceId0",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 15
+      },
+      "note": "The client's own reflection string for this member is `slayerSequenceId`. (member slot 0). A prefix varint, measured 1081. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    },
+    {
+      "name": "slayerStateId1",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 16
+      },
+      "note": "The client's own reflection string for this member is `slayerStateId`. (member slot 1). A prefix varint, measured 45. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    },
+    {
+      "name": "slayerStateIdStarted1",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 17
+      },
+      "note": "The client's own reflection string for this member is `slayerStateIdStarted`. (member slot 1). A big-endian u16, measured 0x0003. Reader vtable 0x148100848 +0x30 = 0x142a43db0 -> 0x14087a360."
+    },
+    {
+      "name": "slayerSequenceId1",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 18
+      },
+      "note": "The client's own reflection string for this member is `slayerSequenceId`. (member slot 1). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    },
+    {
+      "name": "slayerStateId2",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 19
+      },
+      "note": "The client's own reflection string for this member is `slayerStateId`. (member slot 2). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    },
+    {
+      "name": "slayerStateIdStarted2",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 20
+      },
+      "note": "The client's own reflection string for this member is `slayerStateIdStarted`. (member slot 2). A big-endian u16, measured 0x0000. Reader vtable 0x148100848 +0x30 = 0x142a43db0 -> 0x14087a360."
+    },
+    {
+      "name": "slayerSequenceId2",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 21
+      },
+      "note": "The client's own reflection string for this member is `slayerSequenceId`. (member slot 2). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    },
+    {
+      "name": "slayerStateId3",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 22
+      },
+      "note": "The client's own reflection string for this member is `slayerStateId`. (member slot 3). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    },
+    {
+      "name": "slayerStateIdStarted3",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 23
+      },
+      "note": "The client's own reflection string for this member is `slayerStateIdStarted`. (member slot 3). A big-endian u16, measured 0x0000. Reader vtable 0x148100848 +0x30 = 0x142a43db0 -> 0x14087a360."
+    },
+    {
+      "name": "slayerSequenceId3",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 24
+      },
+      "note": "The client's own reflection string for this member is `slayerSequenceId`. (member slot 3). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    },
+    {
+      "name": "timeOffsetAbs",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 26
+      },
+      "note": "The client's own reflection string for this member is `timeOffsetAbs`. One raw byte, measured 0x22. Reader vtable 0x1481004b0 +0x30 = 0x142a43d40 -> 0x14087a330."
+    },
+    {
+      "name": "wpnaccrystance",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u16be",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 36
+      },
+      "note": "The client's own reflection string for this member is `wpnaccrystance`. One big-endian u16, measured 0x4a20. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read."
+    },
+    {
+      "name": "slayerScriptLayers",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 47
+      },
+      "note": "The client's own reflection string for this member is `slayerScriptLayers`. One raw byte, measured 0x04. Reader vtable 0x1480bab50 +0x30 = 0x14279f1b0 -> 0x14087a330."
+    },
+    {
+      "name": "slayerScriptFlags",
+      "meaning": "known",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 48
+      },
+      "note": "The client's own reflection string for this member is `slayerScriptFlags`. A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-11.hex holds the 49 payload bytes of fragment index 6 of record 1 of the committed bundle 0x9e_T0x8_R.bin, behind the header 10 0b (key 16, type 11). The body parses field by field and re-encodes byte-exactly: group mask 01, entry-mask wide prefix varint fd ff fb ff 02 08 c0 = 0x1801005fff7ff, then the 28 selected member bodies (41 bytes) = 49, zero bytes left."
+    },
+    {
+      "type": "decompile",
+      "ref": "IDENTITY (build 30fe6461): record function 0x142a3d290 installs facet vtable 0x1480ffd00 (+8 = 0x142a33830), which calls the class ctor 0x142a36d50; that ctor sets vtable 0x148100b10. Vtable 0x148100b10 +0x88 = 0x142a3f120 (writer) and +0x90 = 0x142a44650 (reader). The reader calls FUN_14087b910 for the member mask and masks it with 0x3fffffffffffff (54 bits), then calls each selected member's vtable +0x30; the writer back-patches the same mask. Member readers: 0x142a43ce0 (u8), 0x142a43e50 (u8), 0x142a43f20 -> 0x14087b030 (u16), 0x142a442d0 -> 0x1417b2d10 (3 bytes), 0x142a44450 -> 0x14087b180 (packed quaternion), 0x142a43e00 -> 0x14087b760 (prefix varint), 0x142a43db0 -> 0x14087a360 (u16be), 0x142a43d40 (u8), 0x14279f1b0 (u8)."
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The six replayed fragments are resolved' (method table) and 'Recovered 2026-10-26' (the ALC reader/writer, the 54-bit mask, worldPosRel/Abs and the delta rule)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

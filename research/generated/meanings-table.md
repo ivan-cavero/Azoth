@@ -18,6 +18,71 @@
 - kind: command; status: implemented; confidence: semantics
 - codegen: field-less — neither emitted nor refused
 
+## codec.alc-replicated-state — ALCReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (8 bits)
+  - group 0 member 0: `idRel` (`u8`)
+  - group 0 member 1: `timeOffsetRel` (`u8`)
+  - group 0 member 2: `slayerSeqTimeRel0` (`u8`)
+  - group 0 member 3: `slayerSeqTimeAbs0` (`u16be`)
+  - group 0 member 4: `slayerSeqTimeRel1` (`u8`)
+  - group 0 member 5: `slayerSeqTimeAbs1` (`u16be`)
+  - group 0 member 6: `slayerSeqTimeRel2` (`u8`)
+  - group 0 member 7: `slayerSeqTimeAbs2` (`u16be`)
+  - group 0 member 8: `slayerSeqTimeRel3` (`u8`)
+  - group 0 member 9: `slayerSeqTimeAbs3` (`u16be`)
+  - group 0 member 10: `worldPosRel` (`bytes(3)`)
+  - group 0 member 12: `lookDir` (`bytes(2)`)
+  - group 0 member 13: `slayerStateId0` (`prefix_varint`)
+  - group 0 member 14: `slayerStateIdStarted0` (`u16be`)
+  - group 0 member 15: `slayerSequenceId0` (`prefix_varint`)
+  - group 0 member 16: `slayerStateId1` (`prefix_varint`)
+  - group 0 member 17: `slayerStateIdStarted1` (`u16be`)
+  - group 0 member 18: `slayerSequenceId1` (`prefix_varint`)
+  - group 0 member 19: `slayerStateId2` (`prefix_varint`)
+  - group 0 member 20: `slayerStateIdStarted2` (`u16be`)
+  - group 0 member 21: `slayerSequenceId2` (`prefix_varint`)
+  - group 0 member 22: `slayerStateId3` (`prefix_varint`)
+  - group 0 member 23: `slayerStateIdStarted3` (`u16be`)
+  - group 0 member 24: `slayerSequenceId3` (`prefix_varint`)
+  - group 0 member 26: `timeOffsetAbs` (`u8`)
+  - group 0 member 36: `wpnaccrystance` (`u16be`)
+  - group 0 member 47: `slayerScriptLayers` (`u8`)
+  - group 0 member 48: `slayerScriptFlags` (`prefix_varint`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| idRel | u8 | — | measured | known | The client's own reflection string for this member is `idRel`. One raw byte, measured 0x09. Reader vtable 0x148100520 +0x30 = 0x142a43ce0 -> 0x14087a330. |
+| timeOffsetRel | u8 | — | measured | known | The client's own reflection string for this member is `timeOffsetRel`. One raw byte, measured 0x75. Same u8 reader as idRel. |
+| slayerSeqTimeRel0 | u8 | — | measured | known | The client's own reflection string for this member is `slayerSeqTimeRel`. (member slot 0). One raw byte, measured 0xbf. Reader vtable 0x1481008b8 +0x30 = 0x142a43e50 -> 0x14087a330. |
+| slayerSeqTimeAbs0 | u16be | — | measured | known | The client's own reflection string for this member is `slayerSeqTimeAbs`. (member slot 0). One big-endian u16, measured 0x480c. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read. |
+| slayerSeqTimeRel1 | u8 | — | measured | known | The client's own reflection string for this member is `slayerSeqTimeRel`. (member slot 1). One raw byte, measured 0x7f. Reader vtable 0x1481008b8 +0x30 = 0x142a43e50 -> 0x14087a330. |
+| slayerSeqTimeAbs1 | u16be | — | measured | known | The client's own reflection string for this member is `slayerSeqTimeAbs`. (member slot 1). One big-endian u16, measured 0x0000. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read. |
+| slayerSeqTimeRel2 | u8 | — | measured | known | The client's own reflection string for this member is `slayerSeqTimeRel`. (member slot 2). One raw byte, measured 0x7f. Reader vtable 0x1481008b8 +0x30 = 0x142a43e50 -> 0x14087a330. |
+| slayerSeqTimeAbs2 | u16be | — | measured | known | The client's own reflection string for this member is `slayerSeqTimeAbs`. (member slot 2). One big-endian u16, measured 0x0000. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read. |
+| slayerSeqTimeRel3 | u8 | — | measured | known | The client's own reflection string for this member is `slayerSeqTimeRel`. (member slot 3). One raw byte, measured 0x7f. Reader vtable 0x1481008b8 +0x30 = 0x142a43e50 -> 0x14087a330. |
+| slayerSeqTimeAbs3 | u16be | — | measured | known | The client's own reflection string for this member is `slayerSeqTimeAbs`. (member slot 3). One big-endian u16, measured 0x0000. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read. |
+| worldPosRel | bytes(3) | — | measured | known | The client's own reflection string for this member is `worldPosRel`. Three raw bytes, measured 7f 7f 7f. Reader vtable 0x148100300 +0x30 = 0x142a442d0 -> 0x1417b2d10, which reads three raw bytes. The absolute worldPosAbs (member 27) is NOT set in this body. |
+| lookDir | bytes(2) | — | measured | known | The client's own reflection string for this member is `lookDir`. Two bytes, measured 39 cc. The reader vtable 0x148100688 +0x30 = 0x142a44450 -> 0x14087b180 is a BIT-PACKED quaternion (variable width, not a vocabulary codec), so the card's width is the byte-exact parse's, not a resolved fixed reader's. |
+| slayerStateId0 | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerStateId`. (member slot 0). A prefix varint, measured 31. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+| slayerStateIdStarted0 | u16be | — | measured | known | The client's own reflection string for this member is `slayerStateIdStarted`. (member slot 0). A big-endian u16, measured 0x0003. Reader vtable 0x148100848 +0x30 = 0x142a43db0 -> 0x14087a360. |
+| slayerSequenceId0 | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerSequenceId`. (member slot 0). A prefix varint, measured 1081. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+| slayerStateId1 | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerStateId`. (member slot 1). A prefix varint, measured 45. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+| slayerStateIdStarted1 | u16be | — | measured | known | The client's own reflection string for this member is `slayerStateIdStarted`. (member slot 1). A big-endian u16, measured 0x0003. Reader vtable 0x148100848 +0x30 = 0x142a43db0 -> 0x14087a360. |
+| slayerSequenceId1 | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerSequenceId`. (member slot 1). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+| slayerStateId2 | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerStateId`. (member slot 2). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+| slayerStateIdStarted2 | u16be | — | measured | known | The client's own reflection string for this member is `slayerStateIdStarted`. (member slot 2). A big-endian u16, measured 0x0000. Reader vtable 0x148100848 +0x30 = 0x142a43db0 -> 0x14087a360. |
+| slayerSequenceId2 | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerSequenceId`. (member slot 2). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+| slayerStateId3 | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerStateId`. (member slot 3). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+| slayerStateIdStarted3 | u16be | — | measured | known | The client's own reflection string for this member is `slayerStateIdStarted`. (member slot 3). A big-endian u16, measured 0x0000. Reader vtable 0x148100848 +0x30 = 0x142a43db0 -> 0x14087a360. |
+| slayerSequenceId3 | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerSequenceId`. (member slot 3). A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+| timeOffsetAbs | u8 | — | measured | known | The client's own reflection string for this member is `timeOffsetAbs`. One raw byte, measured 0x22. Reader vtable 0x1481004b0 +0x30 = 0x142a43d40 -> 0x14087a330. |
+| wpnaccrystance | u16be | — | measured | known | The client's own reflection string for this member is `wpnaccrystance`. One big-endian u16, measured 0x4a20. Reader vtable 0x148100768 +0x30 = 0x142a43f20 -> 0x14087b030, a two-byte quantized read. |
+| slayerScriptLayers | u8 | — | measured | known | The client's own reflection string for this member is `slayerScriptLayers`. One raw byte, measured 0x04. Reader vtable 0x1480bab50 +0x30 = 0x14279f1b0 -> 0x14087a330. |
+| slayerScriptFlags | prefix_varint | — | measured | known | The client's own reflection string for this member is `slayerScriptFlags`. A prefix varint, measured 0. Reader vtable 0x1481007d8 +0x30 = 0x142a43e00 -> 0x14087b760. |
+
 ## codec.contracts.blob-256 — Contracts nested sub-codec B
 
 - kind: codec; status: candidate; confidence: layout

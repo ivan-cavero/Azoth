@@ -156,13 +156,57 @@ def _lowest_bit(value):
     return (value & -value).bit_length() - 1
 
 
-def _decode_mask(bits, continuation, data, offset):
+def _decode_wide_varint(data, offset):
+    """The client's wide prefix varint (FUN_14087b910): up to eight bytes.
+
+    The number of leading 1-bits in the first byte gives the continuation count;
+    the first byte's low bits are the value's lowest bits and the continuation
+    bytes are little-endian above them. A mask can therefore be 56 bits wide.
+    """
+    if offset >= len(data):
+        raise WireCodecError("truncated wide prefix varint")
+    first = data[offset]
+    n = 0
+    bit = 0x80
+    while first & bit:
+        n += 1
+        bit >>= 1
+    if n > 7:
+        raise WireCodecError("wide prefix varint longer than eight bytes")
+    end = offset + 1 + n
+    if end > len(data):
+        raise WireCodecError("truncated wide prefix varint")
+    if n == 0:
+        return first, end
+    shift = 7 - n
+    cont = int.from_bytes(data[offset + 1:end], "little")
+    return (cont << shift) | (first & ((1 << shift) - 1)), end
+
+
+def _encode_wide_varint(value):
+    """The canonical bytes of the client's wide prefix varint."""
+    if value < 0 or value >= (1 << 56):
+        raise WireCodecError(f"wide prefix varint {value:#x} out of range")
+    if value < 0x80:
+        return bytes([value])
+    n = 1
+    while n < 7 and value >= (1 << (7 + 7 * n)):
+        n += 1
+    shift = 7 - n
+    leading = ((0xFF << (8 - n)) & 0xFF) | (value & ((1 << shift) - 1))
+    return bytes([leading]) + (value >> shift).to_bytes(n, "little")
+
+
+def _decode_mask(bits, continuation, varint, data, offset):
     """One presence-mask value: the bitmask over the items it selects.
 
     A level WITH a continuation is a sequence: it reads mask bytes while the
     continuation bit is set, and each byte contributes `bits` low-first item
-    bits. A level WITHOUT one is exactly one byte.
+    bits. A level WITH `varint` is one wide prefix varint whose value is the
+    bitmask. A level WITHOUT either is exactly one byte.
     """
+    if varint:
+        return _decode_wide_varint(data, offset)
     mask = 0
     shift = 0
     while True:
@@ -174,8 +218,10 @@ def _decode_mask(bits, continuation, data, offset):
         shift += bits
 
 
-def _encode_mask(bits, continuation, mask):
+def _encode_mask(bits, continuation, varint, mask):
     """The canonical bytes of one presence-mask value (the fewest bytes)."""
+    if varint:
+        return _encode_wide_varint(mask)
     out = bytearray()
     rest = mask
     while True:
@@ -201,10 +247,12 @@ def _decode_members(spec, data, offset):
             values[name], offset = decode_field(type_name, data, offset)
         return values, offset
 
-    group_name, group_bits, group_continuation = presence["group"]
-    member_name, member_bits, continuation = presence["member"]
+    group_name, group_bits, group_continuation, group_varint = presence["group"]
+    member_name, member_bits, continuation, member_varint = presence["member"]
     values = {}
-    group_mask, offset = _decode_mask(group_bits, group_continuation, data, offset)
+    group_mask, offset = _decode_mask(
+        group_bits, group_continuation, group_varint, data, offset
+    )
     declared = 0
     for _index, bits, _members in presence["groups"]:
         declared |= bits
@@ -218,7 +266,9 @@ def _decode_members(spec, data, offset):
     for _index, bits, members in presence["groups"]:
         if not group_mask & bits:
             continue
-        entry_mask, offset = _decode_mask(member_bits, continuation, data, offset)
+        entry_mask, offset = _decode_mask(
+            member_bits, continuation, member_varint, data, offset
+        )
         declared_members = 0
         for _member, member_bit, _name, _codec in members:
             declared_members |= member_bit
@@ -247,10 +297,12 @@ def _encode_members(spec, values):
             out += encode_field(type_name, values[name])
         return bytes(out)
 
-    group_name, group_bits, group_continuation = presence["group"]
-    member_name, member_bits, continuation = presence["member"]
+    group_name, group_bits, group_continuation, group_varint = presence["group"]
+    member_name, member_bits, continuation, member_varint = presence["member"]
     group_mask = values[group_name]
-    out = bytearray(_encode_mask(group_bits, group_continuation, group_mask))
+    out = bytearray(
+        _encode_mask(group_bits, group_continuation, group_varint, group_mask)
+    )
     written = values.get("groups") or []
     cursor = 0
     for _index, bits, members in presence["groups"]:
@@ -261,7 +313,7 @@ def _encode_members(spec, values):
         group = written[cursor]
         cursor += 1
         entry_mask = group[member_name]
-        out += _encode_mask(member_bits, continuation, entry_mask)
+        out += _encode_mask(member_bits, continuation, member_varint, entry_mask)
         for member, bit, name, type_name in members:
             if entry_mask & bit:
                 if name not in group["entries"]:
@@ -673,6 +725,75 @@ MESSAGES = {
 
 # --- card-derived nested sub-codecs (not messages) ---
 CODECS = {
+    'codec.alc-replicated-state': {
+        'name': 'ALCReplicatedState',
+        'fields': (
+            ('idRel', 'u8'),
+            ('timeOffsetRel', 'u8'),
+            ('slayerSeqTimeRel0', 'u8'),
+            ('slayerSeqTimeAbs0', 'u16be'),
+            ('slayerSeqTimeRel1', 'u8'),
+            ('slayerSeqTimeAbs1', 'u16be'),
+            ('slayerSeqTimeRel2', 'u8'),
+            ('slayerSeqTimeAbs2', 'u16be'),
+            ('slayerSeqTimeRel3', 'u8'),
+            ('slayerSeqTimeAbs3', 'u16be'),
+            ('worldPosRel', 'bytes(3)'),
+            ('lookDir', 'bytes(2)'),
+            ('slayerStateId0', 'prefix_varint'),
+            ('slayerStateIdStarted0', 'u16be'),
+            ('slayerSequenceId0', 'prefix_varint'),
+            ('slayerStateId1', 'prefix_varint'),
+            ('slayerStateIdStarted1', 'u16be'),
+            ('slayerSequenceId1', 'prefix_varint'),
+            ('slayerStateId2', 'prefix_varint'),
+            ('slayerStateIdStarted2', 'u16be'),
+            ('slayerSequenceId2', 'prefix_varint'),
+            ('slayerStateId3', 'prefix_varint'),
+            ('slayerStateIdStarted3', 'u16be'),
+            ('slayerSequenceId3', 'prefix_varint'),
+            ('timeOffsetAbs', 'u8'),
+            ('wpnaccrystance', 'u16be'),
+            ('slayerScriptLayers', 'u8'),
+            ('slayerScriptFlags', 'prefix_varint'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 8, None, True),
+            'groups': (
+                (0, 1, (
+                    (0, 1, 'idRel', 'u8'),
+                    (1, 2, 'timeOffsetRel', 'u8'),
+                    (2, 4, 'slayerSeqTimeRel0', 'u8'),
+                    (3, 8, 'slayerSeqTimeAbs0', 'u16be'),
+                    (4, 16, 'slayerSeqTimeRel1', 'u8'),
+                    (5, 32, 'slayerSeqTimeAbs1', 'u16be'),
+                    (6, 64, 'slayerSeqTimeRel2', 'u8'),
+                    (7, 128, 'slayerSeqTimeAbs2', 'u16be'),
+                    (8, 256, 'slayerSeqTimeRel3', 'u8'),
+                    (9, 512, 'slayerSeqTimeAbs3', 'u16be'),
+                    (10, 1024, 'worldPosRel', 'bytes(3)'),
+                    (12, 4096, 'lookDir', 'bytes(2)'),
+                    (13, 8192, 'slayerStateId0', 'prefix_varint'),
+                    (14, 16384, 'slayerStateIdStarted0', 'u16be'),
+                    (15, 32768, 'slayerSequenceId0', 'prefix_varint'),
+                    (16, 65536, 'slayerStateId1', 'prefix_varint'),
+                    (17, 131072, 'slayerStateIdStarted1', 'u16be'),
+                    (18, 262144, 'slayerSequenceId1', 'prefix_varint'),
+                    (19, 524288, 'slayerStateId2', 'prefix_varint'),
+                    (20, 1048576, 'slayerStateIdStarted2', 'u16be'),
+                    (21, 2097152, 'slayerSequenceId2', 'prefix_varint'),
+                    (22, 4194304, 'slayerStateId3', 'prefix_varint'),
+                    (23, 8388608, 'slayerStateIdStarted3', 'u16be'),
+                    (24, 16777216, 'slayerSequenceId3', 'prefix_varint'),
+                    (26, 67108864, 'timeOffsetAbs', 'u8'),
+                    (36, 68719476736, 'wpnaccrystance', 'u16be'),
+                    (47, 140737488355328, 'slayerScriptLayers', 'u8'),
+                    (48, 281474976710656, 'slayerScriptFlags', 'prefix_varint'),
+                )),
+            ),
+        },
+    },
     'codec.contracts.blob-256': {
         'name': 'Contracts nested sub-codec B',
         'fields': (
@@ -734,8 +855,8 @@ CODECS = {
             ('entitlementsReceived', 'nested(codec.entitlement-received)'),
         ),
         'presence': {
-            'group': ('group_mask', 8, None),
-            'member': ('entry_mask', 7, 128),
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 7, 128, False),
             'groups': (
                 (0, 1, (
                     (0, 1, 'entitlements', 'nested(codec.entitlement-entitlements)'),
@@ -786,8 +907,8 @@ CODECS = {
             ('taskStates', 'nested(codec.objectives-task-states)'),
         ),
         'presence': {
-            'group': ('group_mask', 8, None),
-            'member': ('entry_mask', 7, 128),
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 7, 128, False),
             'groups': (
                 (1, 2, (
                     (1, 2, 'trackedObjectives', 'nested(codec.objectives-tracked-objectives)'),
@@ -836,8 +957,8 @@ CODECS = {
             ('lookingThroughLoadout', 'nested(codec.player-looking-through-loadout)'),
         ),
         'presence': {
-            'group': ('group_mask', 8, None),
-            'member': ('entry_mask', 7, 128),
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 7, 128, False),
             'groups': (
                 (1, 2, (
                     (3, 8, 'lookingThroughLoadout', 'nested(codec.player-looking-through-loadout)'),
@@ -864,8 +985,8 @@ CODECS = {
             ('wildStampAwardBound', 'u32be'),
         ),
         'presence': {
-            'group': ('group_mask', 8, None),
-            'member': ('entry_mask', 7, 128),
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 7, 128, False),
             'groups': (
                 (0, 1, (
                     (0, 1, 'cardTemplate', 'nested(codec.seasons-rewards-u8-list)'),
@@ -890,8 +1011,8 @@ CODECS = {
             ('groupStatValue', 'nested(codec.seasons-rewards-u32-list)'),
         ),
         'presence': {
-            'group': ('group_mask', 8, None),
-            'member': ('entry_mask', 7, 128),
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 7, 128, False),
             'groups': (
                 (0, 1, (
                     (0, 1, 'initialized', 'bool_byte'),
@@ -949,8 +1070,8 @@ CODECS = {
             ('friendInvites', 'nested(codec.social-string-set)'),
         ),
         'presence': {
-            'group': ('group_mask', 8, None),
-            'member': ('entry_mask', 7, 128),
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 7, 128, False),
             'groups': (
                 (1, 2, (
                     (3, 8, 'lastDailyResetTime', 'u64be'),
@@ -980,8 +1101,8 @@ CODECS = {
             ('m_lightweightLocalEffectsMap', 'nested(codec.status-effects-entries)'),
         ),
         'presence': {
-            'group': ('group_mask', 8, None),
-            'member': ('entry_mask', 7, 128),
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 7, 128, False),
             'groups': (
                 (1, 2, (
                     (1, 2, 'm_lightweightLocalEffectsMap', 'nested(codec.status-effects-entries)'),
@@ -1042,8 +1163,8 @@ CODECS = {
             ('inventoryServicesReady', 'nested(codec.transmog-inventory-ready)'),
         ),
         'presence': {
-            'group': ('group_mask', 8, None),
-            'member': ('entry_mask', 7, 128),
+            'group': ('group_mask', 8, None, False),
+            'member': ('entry_mask', 7, 128, False),
             'groups': (
                 (0, 1, (
                     (0, 1, 'capturedArmorAppearances', 'nested(codec.transmog-appearance-map)'),

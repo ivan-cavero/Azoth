@@ -184,7 +184,7 @@ fn the_measured_bundle_decodes_into_typed_fragments() {
 }
 
 #[test]
-fn eight_fragments_are_typed_components_and_one_is_a_replayed_run() {
+fn every_fragment_is_a_typed_component() {
     let (_, bundle) = decode();
     let record = &bundle.records()[0];
 
@@ -196,11 +196,11 @@ fn eight_fragments_are_typed_components_and_one_is_a_replayed_run() {
         .collect();
     assert_eq!(
         typed,
-        [55, 19, 73, 9, 72, 74, 22, 44],
-        "keys 55, 19, 73, 9, 72, 74, 22 and 44 carry recovered layouts"
+        [55, 19, 73, 9, 72, 74, 16, 22, 44],
+        "every fragment carries a recovered layout"
     );
 
-    // The rest stay measured runs: the Atlas has no payload card for type 11.
+    // Nothing stays a measured run: the Atlas now has a payload card for type 11.
     let widths: Vec<usize> = record
         .fragments()
         .iter()
@@ -209,10 +209,10 @@ fn eight_fragments_are_typed_components_and_one_is_a_replayed_run() {
             FragmentPayload::Component(_) => None,
         })
         .collect();
-    assert_eq!(widths, [49]);
+    assert_eq!(widths, [] as [usize; 0]);
 
     let components: Vec<&LocalPlayerState> = bundle.components().collect();
-    assert_eq!(components.len(), 8, "one component per typed fragment");
+    assert_eq!(components.len(), 9, "one component per typed fragment");
 
     let player = components
         .iter()
@@ -467,17 +467,17 @@ fn the_authored_fraction_is_the_typed_payload_bytes() {
 
     assert_eq!(
         authored,
-        3892 + 834 + 1736 + 3 + 55 + 26 + 337 + 194,
-        "3133, 5691, 3857, 3935, 4176, 4236, 5606 and 5485"
+        3892 + 834 + 1736 + 3 + 55 + 26 + 337 + 194 + 49,
+        "3133, 5691, 3857, 3935, 4176, 4236, 5606, 5485 and 11"
     );
-    assert_eq!(replayed, 49, "the one run");
+    assert_eq!(replayed, 0, "nothing is replayed");
     assert_eq!(
         authored + replayed,
         7126,
         "every payload byte of the record"
     );
-    // 7077 / 7126 = 99.3 %, up from 1736 / 7126 = 24.4 % with one typed type.
-    assert!(authored * 100 > 99 * (authored + replayed));
+    // 7126 / 7126 = 100 %, up from 1736 / 7126 = 24.4 % with one typed type.
+    assert_eq!(authored, authored + replayed);
 }
 
 #[test]

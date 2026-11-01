@@ -12,10 +12,9 @@
 //! 2. its bytes are identical to the recorded bundle everywhere the decision did
 //!    not change data, and the changed span is exactly one count prefix byte plus
 //!    one deleted 56-byte element;
-//! 3. eight of the nine fragments (keys 55, 19, 73, 72, 9, 74, 22 and 44) are
-//!    AUTHORED from typed values rather than replayed, so 7,077 of the record's
-//!    7,126 payload bytes come from the server's own model; the one that remains
-//!    is named;
+//! 3. all nine fragments (keys 55, 19, 73, 72, 9, 74, 22, 44 and 16) are
+//!    AUTHORED from typed values rather than replayed, so all 7,126 of the
+//!    record's payload bytes come from the server's own model;
 //! 4. the chunking respects the measured 1,100-byte working cut, which exists
 //!    because 1,200 bytes is the datagram ceiling.
 //!
@@ -270,27 +269,26 @@ fn the_emission_authors_the_typed_fragments_and_names_the_replayed_ones() {
     let emission = emit(recorded_bundle(), &rejected).expect("assembles");
     assert_eq!(
         emission.state().components().count(),
-        8,
-        "keys 55, 19, 73, 72, 9, 74, 22 and 44 are typed components"
+        9,
+        "keys 55, 19, 73, 72, 9, 74, 22, 44 and 16 are typed components"
     );
 
     // The anti-emulator KPI, from the bytes rather than from a comment: 3892
     // (type 3133) + 1736 (3857) + 834 (5691) + 3 (3935) + 55 (4176) + 26 (4236)
-    // + 337 (5606) + 194 (5485) of 7126 payload bytes.
-    assert_eq!(emission.authored_payload_bytes().expect("authors"), 7_077);
+    // + 337 (5606) + 194 (5485) + 49 (11) of 7126 payload bytes.
+    assert_eq!(emission.authored_payload_bytes().expect("authors"), 7_126);
     assert_eq!(emission.total_payload_bytes().expect("total"), 7_126);
 
-    // Every fragment the server cannot author, named with its type index and its
-    // recorded width, in wire order.
-    assert_eq!(emission.replayed_fragments(), [(16, 11, 49)]);
+    // Every fragment is authored now, so nothing is replayed.
+    assert_eq!(emission.replayed_fragments(), []);
 
     // The decided path authors the objectives fragment at its new width: the
     // decision deleted one 56-byte element, so 1736 - 56 = 1680.
     let decided = emit(recorded_bundle(), &correction()).expect("assembles");
     assert_eq!(
         decided.authored_payload_bytes().expect("authors"),
-        7_021,
-        "3892 + 1680 + 834 + 3 + 55 + 26 + 337 + 194"
+        7_070,
+        "3892 + 1680 + 834 + 3 + 55 + 26 + 337 + 194 + 49"
     );
     assert_eq!(decided.total_payload_bytes().expect("total"), 7_070);
 }

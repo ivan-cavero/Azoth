@@ -15,6 +15,9 @@ pub const RECORD_TYPE_MARKER: [u8; 2] = [0x00, 0x01];
 /// Largest value the measured prefix varint can carry (four continuation bytes).
 pub(crate) const PREFIX_VARINT_MAX: u64 = (1 << 35) - 1;
 
+/// Largest value the wide prefix varint can carry (seven continuation bytes).
+pub(crate) const MASK_VARINT_MAX: u64 = (1 << 56) - 1;
+
 /// A body that does not match the layout its Atlas card states.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -283,6 +286,34 @@ impl<'a> Reader<'a> {
         Ok((continuation << shift) | u64::from(first & ((1u8 << shift) - 1)))
     }
 
+    /// Read the wide prefix varint the ALC presence-mask reader uses.
+    ///
+    /// It is the same encoding as [`Self::prefix_varint`] with a larger ceiling:
+    /// the leading 1-bits of the first byte give up to seven continuation bytes,
+    /// so a mask can be 56 bits wide. A first byte of `0xff` (eight leading ones)
+    /// is refused, never guessed.
+    ///
+    /// # Errors
+    /// Returns [`WireError::Truncated`] when the sequence is incomplete, or
+    /// [`WireError::VarintTooLong`] when the first byte carries eight leading ones.
+    pub fn mask_varint(&mut self, field: &'static str) -> Result<u64, WireError> {
+        let first = self.u8(field)?;
+        let n = first.leading_ones() as usize;
+        if n > 7 {
+            return Err(WireError::VarintTooLong);
+        }
+        if n == 0 {
+            return Ok(u64::from(first));
+        }
+        let raw = self.take(field, n)?;
+        let mut continuation = 0u64;
+        for (index, byte) in raw.iter().enumerate() {
+            continuation |= u64::from(*byte) << (8 * index as u32);
+        }
+        let shift = 7 - n as u32;
+        Ok((continuation << shift) | u64::from(first & ((1u8 << shift) - 1)))
+    }
+
     /// Read a plain LEB128 varint.
     pub fn varint(&mut self, field: &'static str) -> Result<u64, WireError> {
         let mut result = 0u64;
@@ -458,6 +489,36 @@ impl<'a> Writer<'a> {
         }
         let n = prefix_varint_size(value) - 1;
         let shift = 7 - n;
+        let low = (value & ((1u64 << shift) - 1)) as u8;
+        let high = value >> shift;
+        let leading = (((0xffu16 << (8 - n)) & 0xff) as u8) | low;
+        self.out.push(leading);
+        self.out.extend_from_slice(&high.to_le_bytes()[..n]);
+        Ok(())
+    }
+
+    /// Write the wide prefix varint the ALC presence-mask writer uses.
+    ///
+    /// # Errors
+    /// Returns [`WireError::OutOfRange`] when `value` needs more than seven
+    /// continuation bytes.
+    pub fn mask_varint(&mut self, value: u64) -> Result<(), WireError> {
+        if value > MASK_VARINT_MAX {
+            return Err(WireError::OutOfRange {
+                field: "mask_varint",
+                max: MASK_VARINT_MAX,
+                value,
+            });
+        }
+        if value < 0x80 {
+            self.out.push(value as u8);
+            return Ok(());
+        }
+        let mut n = 1usize;
+        while n < 7 && value >= (1u64 << (7 + 7 * n)) {
+            n += 1;
+        }
+        let shift = 7 - n as u32;
         let low = (value & ((1u64 << shift) - 1)) as u8;
         let high = value >> shift;
         let leading = (((0xffu16 << (8 - n)) & 0xff) as u8) | low;

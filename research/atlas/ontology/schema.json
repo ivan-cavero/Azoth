@@ -61,14 +61,15 @@
       ]
     },
     "mask_level": {
-      "$comment": "ONE PRESENCE MASK LEVEL: `name` is the generated field name for the mask (`group_mask`, `entry_mask`); `bits` is how many low-first item bits each mask byte carries. WITHOUT `continuation` the level is exactly one byte. WITH `continuation` -- the single bit above the item bits (e.g. 128 for a seven-bit level) -- the level is a CONTINUATION SEQUENCE: the reader keeps reading mask bytes while that bit is set, and item index m lives in byte m//bits at bit m%bits. A level with a continuation may therefore declare items wider than `bits`; a level without one may not.",
+      "$comment": "ONE PRESENCE MASK LEVEL: `name` is the generated field name for the mask (`group_mask`, `entry_mask`); `bits` is how many low-first item bits each mask byte carries. WITHOUT `continuation` the level is exactly one byte. WITH `continuation` -- the single bit above the item bits (e.g. 128 for a seven-bit level) -- the level is a CONTINUATION SEQUENCE: the reader keeps reading mask bytes while that bit is set, and item index m lives in byte m//bits at bit m%bits. WITH `varint` the level is ONE WIDE PREFIX VARINT whose integer value IS the bitmask: the number of leading 1-bits in the first byte gives the continuation count, the first byte's low bits are the value's lowest bits and the continuation bytes are little-endian above them (the client's own mask reader FUN_14087b910, up to eight bytes / 56 bits). `varint` and `continuation` are mutually exclusive, and `varint` makes `bits` advisory. A level with a continuation or a varint may declare items wider than `bits`; a level without either may not.",
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "bits"],
       "properties": {
         "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
         "bits": { "type": "integer", "minimum": 1, "maximum": 8 },
-        "continuation": { "type": "integer", "minimum": 1, "maximum": 255 }
+        "continuation": { "type": "integer", "minimum": 1, "maximum": 255 },
+        "varint": { "type": "boolean", "default": false }
       }
     },
     "presence": {

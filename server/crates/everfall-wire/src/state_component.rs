@@ -13,7 +13,7 @@
 //! those two slots are the two-level presence-mask pair, so every binding here
 //! resolves to a card whose body is `[group mask][member mask][members]`.
 //!
-//! Six fragments of the local-player record are typed today:
+//! Nine fragments of the local-player record are typed today:
 //!
 //! | key | type | card | writer / reader |
 //! | --- | --- | --- | --- |
@@ -24,14 +24,18 @@
 //! | 55 | 4176 | `codec.social-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //! | 44 | 4236 | `codec.status-effects-component-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //! | 73 | 5606 | `codec.seasons-rewards-tracked-stat-replicated-state` | `0x141728b30` / `0x1417b5080` |
+//! | 72 | 5485 | `codec.seasons-rewards-replicated-state` | `0x141728b30` / `0x1417b5080` |
+//! | 16 | 11 | `codec.alc-replicated-state` | `0x142a3f120` / `0x142a44650` |
 //!
-//! The seven classes share the generic mask pair because the pair belongs to the
-//! replicated-state container base, not to a specific component. What differs per
-//! component is the registered member list its constructor builds.
+//! The eight shared classes use the generic mask pair because the pair belongs to
+//! the replicated-state container base, not to a specific component. What differs
+//! per component is the registered member list its constructor builds. ALC uses its
+//! OWN pair because its member mask is a wide prefix-varint bitmask, not the shared
+//! seven-bit continuation sequence.
 
 use crate::framing::{Reader, WireError, Writer};
 use crate::generated::{
-    CodecEntitlementReplicatedState, CodecObjectivesReplicatedState,
+    CodecAlcReplicatedState, CodecEntitlementReplicatedState, CodecObjectivesReplicatedState,
     CodecPlayerComponentReplicatedState, CodecSeasonsRewardsReplicatedState,
     CodecSeasonsRewardsTrackedStatReplicatedState, CodecSocialReplicatedState,
     CodecStatusEffectsComponentReplicatedState, CodecTransmogReplicatedState,
@@ -254,8 +258,36 @@ impl CodecSeasonsRewardsReplicatedState {
     pub const SEASONS_REWARDS_TYPE_INDEX: u64 = 5485;
 }
 
-/// The eight type indices the local-player record carries a layout for, ascending.
-const LOCAL_PLAYER_TYPE_INDICES: [u64; 8] = [
+impl StateComponent for CodecAlcReplicatedState {
+    const UID: &'static str = "codec.alc-replicated-state";
+
+    /// `wire-type:11`, the alias the card itself states.
+    fn type_indices() -> &'static [u64] {
+        &[Self::ALC_TYPE_INDEX]
+    }
+
+    fn type_index(&self) -> u64 {
+        Self::ALC_TYPE_INDEX
+    }
+
+    fn read_body(type_index: u64, reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        check(type_index, Self::ALC_TYPE_INDEX)?;
+        Self::read_from(reader)
+    }
+
+    fn write_body(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        self.write_to(writer)
+    }
+}
+
+impl CodecAlcReplicatedState {
+    /// `wire-type:11`: the ALC replicated state, fragment key 16.
+    pub const ALC_TYPE_INDEX: u64 = 11;
+}
+
+/// The nine type indices the local-player record carries a layout for, ascending.
+const LOCAL_PLAYER_TYPE_INDICES: [u64; 9] = [
+    CodecAlcReplicatedState::ALC_TYPE_INDEX,
     CodecEntitlementReplicatedState::ENTITLEMENT_TYPE_INDEX,
     CodecObjectivesReplicatedState::OBJECTIVES_TYPE_INDEX,
     CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX,
@@ -274,6 +306,8 @@ const LOCAL_PLAYER_TYPE_INDICES: [u64; 8] = [
 /// the fragment's type index binds.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LocalPlayerState {
+    /// Fragment key 16, type index 11.
+    Alc(CodecAlcReplicatedState),
     /// Fragment key 19, type index 3133.
     Entitlement(CodecEntitlementReplicatedState),
     /// Fragment key 22, type index 3857.
@@ -293,11 +327,27 @@ pub enum LocalPlayerState {
 }
 
 impl LocalPlayerState {
+    /// The ALC component, if this fragment carries it.
+    pub const fn alc(&self) -> Option<&CodecAlcReplicatedState> {
+        match self {
+            Self::Alc(value) => Some(value),
+            Self::Entitlement(_)
+            | Self::Objectives(_)
+            | Self::Player(_)
+            | Self::Social(_)
+            | Self::StatusEffects(_)
+            | Self::SeasonsRewards(_)
+            | Self::SeasonsRewardsTrackedStat(_)
+            | Self::Transmog(_) => None,
+        }
+    }
+
     /// The objectives component, if this fragment carries it.
     pub const fn objectives(&self) -> Option<&CodecObjectivesReplicatedState> {
         match self {
             Self::Objectives(value) => Some(value),
-            Self::Entitlement(_)
+            Self::Alc(_)
+            | Self::Entitlement(_)
             | Self::Player(_)
             | Self::Social(_)
             | Self::StatusEffects(_)
@@ -311,7 +361,8 @@ impl LocalPlayerState {
     pub fn objectives_mut(&mut self) -> Option<&mut CodecObjectivesReplicatedState> {
         match self {
             Self::Objectives(value) => Some(value),
-            Self::Entitlement(_)
+            Self::Alc(_)
+            | Self::Entitlement(_)
             | Self::Player(_)
             | Self::Social(_)
             | Self::StatusEffects(_)
@@ -325,7 +376,8 @@ impl LocalPlayerState {
     pub const fn entitlement(&self) -> Option<&CodecEntitlementReplicatedState> {
         match self {
             Self::Entitlement(value) => Some(value),
-            Self::Objectives(_)
+            Self::Alc(_)
+            | Self::Objectives(_)
             | Self::Player(_)
             | Self::Social(_)
             | Self::StatusEffects(_)
@@ -339,7 +391,8 @@ impl LocalPlayerState {
     pub const fn player(&self) -> Option<&CodecPlayerComponentReplicatedState> {
         match self {
             Self::Player(value) => Some(value),
-            Self::Entitlement(_)
+            Self::Alc(_)
+            | Self::Entitlement(_)
             | Self::Objectives(_)
             | Self::Social(_)
             | Self::StatusEffects(_)
@@ -353,7 +406,8 @@ impl LocalPlayerState {
     pub const fn social(&self) -> Option<&CodecSocialReplicatedState> {
         match self {
             Self::Social(value) => Some(value),
-            Self::Entitlement(_)
+            Self::Alc(_)
+            | Self::Entitlement(_)
             | Self::Objectives(_)
             | Self::Player(_)
             | Self::StatusEffects(_)
@@ -367,7 +421,8 @@ impl LocalPlayerState {
     pub const fn status_effects(&self) -> Option<&CodecStatusEffectsComponentReplicatedState> {
         match self {
             Self::StatusEffects(value) => Some(value),
-            Self::Entitlement(_)
+            Self::Alc(_)
+            | Self::Entitlement(_)
             | Self::Objectives(_)
             | Self::Player(_)
             | Self::Social(_)
@@ -381,7 +436,8 @@ impl LocalPlayerState {
     pub const fn seasons_rewards(&self) -> Option<&CodecSeasonsRewardsReplicatedState> {
         match self {
             Self::SeasonsRewards(value) => Some(value),
-            Self::Entitlement(_)
+            Self::Alc(_)
+            | Self::Entitlement(_)
             | Self::Objectives(_)
             | Self::Player(_)
             | Self::Social(_)
@@ -395,7 +451,8 @@ impl LocalPlayerState {
     pub const fn transmog(&self) -> Option<&CodecTransmogReplicatedState> {
         match self {
             Self::Transmog(value) => Some(value),
-            Self::Entitlement(_)
+            Self::Alc(_)
+            | Self::Entitlement(_)
             | Self::Objectives(_)
             | Self::Player(_)
             | Self::Social(_)
@@ -417,6 +474,7 @@ impl StateComponent for LocalPlayerState {
 
     fn type_index(&self) -> u64 {
         match self {
+            Self::Alc(_) => CodecAlcReplicatedState::ALC_TYPE_INDEX,
             Self::Entitlement(_) => CodecEntitlementReplicatedState::ENTITLEMENT_TYPE_INDEX,
             Self::Objectives(_) => CodecObjectivesReplicatedState::OBJECTIVES_TYPE_INDEX,
             Self::Player(_) => CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX,
@@ -434,6 +492,9 @@ impl StateComponent for LocalPlayerState {
 
     fn read_body(type_index: u64, reader: &mut Reader<'_>) -> Result<Self, WireError> {
         match type_index {
+            CodecAlcReplicatedState::ALC_TYPE_INDEX => {
+                Ok(Self::Alc(CodecAlcReplicatedState::read_from(reader)?))
+            }
             CodecEntitlementReplicatedState::ENTITLEMENT_TYPE_INDEX => Ok(Self::Entitlement(
                 CodecEntitlementReplicatedState::read_from(reader)?,
             )),
@@ -468,6 +529,7 @@ impl StateComponent for LocalPlayerState {
 
     fn write_body(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         match self {
+            Self::Alc(value) => value.write_to(writer),
             Self::Entitlement(value) => value.write_to(writer),
             Self::Objectives(value) => value.write_to(writer),
             Self::Player(value) => value.write_to(writer),

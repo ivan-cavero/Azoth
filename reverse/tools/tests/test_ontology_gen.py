@@ -53,6 +53,7 @@ SEASONS_TRACKED_STAT_FIXTURE = (
     REPO / "research" / "fixtures" / "wire" / "state-fragment-5606.hex"
 )
 SEASONS_REWARDS_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-5485.hex"
+ALC_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-11.hex"
 
 # The generated module imports the measured prefix-varint primitive from the
 # world service by a path relative to itself, so a copy written into a temp
@@ -531,6 +532,91 @@ class OntologyGenTest(unittest.TestCase):
             # 0x0f sets members 7, 8, 9 and 10; 9 and 10 are undeclared.
             with self.assertRaises(module.WireCodecError):
                 module.decode_codec("codec.example-wide", bytes.fromhex("01ff0f"))
+
+    def test_a_prefix_varint_mask_level_needs_no_new_generator_code(self) -> None:
+        """Generality: a card whose member mask is a WIDE PREFIX VARINT.
+
+        ALC's member mask is FUN_14087b910, a prefix varint whose integer value's
+        bits select the members (up to 56 bits) -- not the seven-bit continuation
+        sequence. The schema states it with `varint: true`; if the generator had
+        special-cased any one width this thirty-member body could not decode, so
+        the test is the proof the vocabulary carries the bitmask.
+        """
+        generator = load_generator()
+        with tempfile.TemporaryDirectory() as tmp:
+            concepts = Path(tmp) / "concepts"
+            out = Path(tmp) / "out"
+            concepts.mkdir()
+            wide = concept(
+                uid="codec.example-varint-mask",
+                kind="codec",
+                name="ExampleVarintMask",
+                presence={
+                    "group": {"name": "group_mask", "bits": 8},
+                    "member": {"name": "entry_mask", "bits": 8, "varint": True},
+                },
+                fields=[
+                    {
+                        "name": f"member_{index}",
+                        "type": "u8",
+                        "evidence": "measured",
+                        "meaning": "layout-only",
+                        "presence": {"group": 0, "member": index},
+                    }
+                    for index in range(30)
+                ],
+            )
+            (concepts / "codec.example-varint-mask.json").write_text(
+                json.dumps(wide), encoding="utf-8"
+            )
+            report = generator.generate(SCHEMA, concepts, out)
+            self.assertEqual(report["refused"], [])
+
+            spec = importlib.util.spec_from_file_location(
+                "varint_mask_wire_under_test", out / "wire.py"
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # group 0 present, entry mask 0x3fffffff (members 0..29) as the wide
+            # prefix varint f7 ff ff ff 07, then one body byte per member.
+            body = bytes.fromhex("01f7ffffff07" + "".join(f"{i:02x}" for i in range(30)))
+            decoded = module.decode_codec("codec.example-varint-mask", body)
+            self.assertEqual(decoded["group_mask"], 0x01)
+            self.assertEqual(decoded["groups"][0]["entry_mask"], 0x3FFFFFFF)
+            self.assertEqual(len(decoded["groups"][0]["entries"]), 30)
+            self.assertEqual(
+                module.encode_codec("codec.example-varint-mask", decoded), body
+            )
+
+    def test_measured_alc_body_round_trips_through_the_generated_codec(self) -> None:
+        """The 49-byte body of state type 11, through the GENERATED codec table.
+
+        Its member mask is a WIDE PREFIX VARINT: the bytes fd ff fb ff 02 08 c0
+        decode to 0x1801005fff7ff, whose bits select the 28 members. The test pins
+        both the prefix-varint bitmask and the byte-exact re-encode.
+        """
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        body = hex_body(ALC_FIXTURE)
+        self.assertEqual(len(body), 49)
+        self.assertEqual(body[:2], bytes([0x01, 0xFD]))
+        decoded = wire.decode_codec("codec.alc-replicated-state", body)
+        self.assertEqual(decoded["group_mask"], 0x01)
+        self.assertEqual(
+            decoded["groups"][0]["entry_mask"],
+            0x1801005FFF7FF,
+            "members 0..10, 12..24, 26, 36, 47, 48 across the prefix-varint mask",
+        )
+        entries = decoded["groups"][0]["entries"]
+        self.assertEqual(entries["idRel"], 0x09)
+        self.assertEqual(entries["worldPosRel"], bytes.fromhex("7f7f7f"))
+        self.assertEqual(entries["slayerStateId0"], 31)
+        self.assertEqual(entries["slayerSequenceId0"], 1081)
+        self.assertEqual(entries["slayerScriptLayers"], 0x04)
+        self.assertEqual(
+            wire.encode_codec("codec.alc-replicated-state", decoded), body
+        )
 
     def test_measured_presence_body_round_trips_through_the_generated_codec(self) -> None:
         """The 1736-byte measured body through the GENERATED sub-codec table."""
