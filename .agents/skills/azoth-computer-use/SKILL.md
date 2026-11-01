@@ -29,10 +29,10 @@ from pixels alone when a log line or counter can settle it.
 
 | Channel | Tool | Use for | Do not use for |
 | --- | --- | --- | --- |
-| Window messages | `scripts/post-input.py` | Keys/clicks without stealing the user's focus or cursor | Anything the engine reads via Raw Input (movement may not register) |
-| Real SendInput keys | `scripts/send-input.py` | Console (`~` = VK 0xC0), text, single keys the game ignores via messages | Holding a key |
-| Real SendInput hold | `scripts/hold-key.py` | Movement (W = scan `0x11` / VK `0x57`), ~1.5 s holds | Single menu keys (overkill) |
-| Real SendInput click | `scripts/click-window.py` | Game UI buttons (window-local x y) | — |
+| Window messages | `scripts/gui/post-input.py` | Keys/clicks without stealing the user's focus or cursor | Anything the engine reads via Raw Input (movement may not register) |
+| Real SendInput keys | `scripts/gui/send-input.py` | Console (`~` = VK 0xC0), text, single keys the game ignores via messages | Holding a key |
+| Real SendInput hold | `scripts/gui/hold-key.py` | Movement (W = scan `0x11` / VK `0x57`), ~1.5 s holds | Single menu keys (overkill) |
+| Real SendInput click | `scripts/gui/click-window.py` | Game UI buttons (window-local x y) | — |
 | orca computer | harness skill | Other apps (browsers, editors) | The game: its press-key cannot hold, lacks `~`, and its clicks do not reach a Raw Input window |
 
 The game reads Raw Input; only `SendInput` with a real scan code reaches its
@@ -45,7 +45,7 @@ verify per action, one variable at a time.
 key then lands in whatever window the user is in (measured 2026-10-04: an
 entire "W does not move" round went to Discord). Always:
 
-1. `python scripts/focus-window.py "<title substring>" --check` — refuses if
+1. `python scripts/gui/focus-window.py "<title substring>" --check` — refuses if
    focus failed; never send input after a refused focus.
 2. Send the input.
 3. Verify the effect on state (log/counter) or a fresh screenshot.
@@ -57,7 +57,7 @@ typing; use focus-stealing channels only for the measured action, then release.
 
 1. `python ef.py shot <out.png>` — captures the game window (PrintWindow; no
    focus steal).
-2. `python scripts/shrink-image.py <capture.png>` — ALWAYS; never read the
+2. `python scripts/gui/shrink-image.py <capture.png>` — ALWAYS; never read the
    raw PNG.
 3. Read the shrunk image. It is scaled: map any coordinate back
    (`window_x = shrunk_x * window_width / shrunk_width`) before passing
@@ -67,7 +67,7 @@ typing; use focus-stealing channels only for the measured action, then release.
 
 ## Measure change, do not eyeball it
 
-For "did X change the screen" questions, use `scripts/bmp-diff.py` on before/
+For "did X change the screen" questions, use `scripts/gui/bmp-diff.py` on before/
 after captures and report the motion ratio; the repo threshold for "no
 movement" is ~0.12–0.13x. One action per measurement, fresh captures both
 sides, and record the exact input sent (scan code, hold duration, focus

@@ -3161,3 +3161,24 @@ a single `LocalPlayerState` family answers `StateComponent::type_indices()` with
 `[3133, 3857, 5691]`, so the bundle frame is generic over a *set* of typed
 fragments instead of one, and `Emission` reports `authored_payload_bytes()` from the
 bytes it actually composed rather than from a comment.
+
+## The lab cannot drive server-authoritative state (measured 2026-11-01)
+
+A live session was run to obtain a replicated objectives body with `trackedObjectives`
+set, because the captured body has in-group bits 1 and 2 clear. The session reached
+`InGame` with the player possessed, and the journal was opened and an objective row was
+clicked; the frame was captured rather than assumed.
+
+**The measurement cannot be made in this rig, and the reason is structural.** The world
+REPLAYS a fixed capture: the `state-stream` re-sends the same captured bytes (`seq`
+`0xa4`/`0xa6`, 1007 bytes, repeating), so the replicated state the client receives does
+not change no matter what the client does. `inbound-typed` in this session carries only
+channel-3 system messages of 4 bytes. A client request the world ignores cannot alter
+what the world sends, so no click can produce the body.
+
+Consequence: `trackedObjectives` and the pin flags cannot be MEASURED until a capture
+exists from a session where the player had objectives tracked. Their element layouts can
+still be read from the client's own code — the path that recovered members 3 and 4 — but
+the evidence word for them is `partial` (writer and reader agree, no live record), never
+`measured`. An emulator rig can teach what the client SENDS; it cannot teach what an
+authoritative server SENDS when state changes.
