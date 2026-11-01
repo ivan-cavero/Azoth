@@ -639,6 +639,91 @@ impl FlowWorldEntryRungLevelInfo {
     }
 }
 
+/// `msg.territory-detector-attempt-territory-unlock` — one Atlas card.
+///
+/// Message card, wire id `2297`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgTerritoryDetectorAttemptTerritoryUnlock {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `unlock_token` (`guid16`); meaning unnamed.
+    pub unlock_token: Opaque,
+    /// Body field `field_c` (`u64be`); meaning unnamed.
+    pub field_c: u64,
+    /// Body field `field_d` (`u64be`); meaning unnamed.
+    pub field_d: u64,
+    /// Body field `field_e` (`u16be`); meaning unnamed.
+    pub field_e: u16,
+    /// Body field `field_f` (`u32be`); meaning unnamed.
+    pub field_f: u32,
+}
+
+impl MsgTerritoryDetectorAttemptTerritoryUnlock {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.territory-detector-attempt-territory-unlock";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 2297;
+
+    /// Decode one `msg.territory-detector-attempt-territory-unlock` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            unlock_token: reader.opaque(
+                "unlock_token",
+                "msg.territory-detector-attempt-territory-unlock.unlock_token",
+                16,
+            )?,
+            field_c: reader.u64be("field_c")?,
+            field_d: reader.u64be("field_d")?,
+            field_e: reader.u16be("field_e")?,
+            field_f: reader.u32be("field_f")?,
+        })
+    }
+
+    /// Encode one `msg.territory-detector-attempt-territory-unlock` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.opaque(&self.unlock_token);
+        writer.u64be(self.field_c);
+        writer.u64be(self.field_d);
+        writer.u16be(self.field_e);
+        writer.u32be(self.field_f);
+        Ok(())
+    }
+}
+
 /// `msg.receive-settings-from-client` — one Atlas card.
 ///
 /// Message card, wire id `2515`.
@@ -873,6 +958,71 @@ impl MsgContractsLookupContractsByParticipant {
     }
 }
 
+/// `msg.objectives-notify-open-ui-screen` — one Atlas card.
+///
+/// Message card, wire id `2617`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgObjectivesNotifyOpenUiScreen {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `screen_id` (`u32be`).
+    pub screen_id: u32,
+}
+
+impl MsgObjectivesNotifyOpenUiScreen {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.objectives-notify-open-ui-screen";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 2617;
+
+    /// Decode one `msg.objectives-notify-open-ui-screen` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            screen_id: reader.u32be("screen_id")?,
+        })
+    }
+
+    /// Encode one `msg.objectives-notify-open-ui-screen` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.u32be(self.screen_id);
+        Ok(())
+    }
+}
+
 /// `msg.objectives-set-objective-auto-pinning` — one Atlas card.
 ///
 /// Message card, wire id `2709`.
@@ -970,8 +1120,8 @@ pub struct MsgServerEquipItem {
     pub field_d: u32,
     /// Body field `field_e` (`u32be`); meaning unnamed.
     pub field_e: u32,
-    /// Body field `field_f` (`guid16`); meaning unnamed.
-    pub field_f: Opaque,
+    /// Body field `item_id` (`guid16`).
+    pub item_id: Opaque,
     /// Body field `field_g` (`bool_byte`); meaning unnamed.
     pub field_g: bool,
 }
@@ -1006,7 +1156,7 @@ impl MsgServerEquipItem {
             field_c: reader.u32be("field_c")?,
             field_d: reader.u32be("field_d")?,
             field_e: reader.u32be("field_e")?,
-            field_f: reader.opaque("field_f", "msg.server-equip-item.field_f", 16)?,
+            item_id: reader.opaque("item_id", "msg.server-equip-item.item_id", 16)?,
             field_g: reader.bool_byte("field_g")?,
         })
     }
@@ -1030,7 +1180,7 @@ impl MsgServerEquipItem {
         writer.u32be(self.field_c);
         writer.u32be(self.field_d);
         writer.u32be(self.field_e);
-        writer.opaque(&self.field_f);
+        writer.opaque(&self.item_id);
         writer.u8(u8::from(self.field_g));
         Ok(())
     }

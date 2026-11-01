@@ -73,6 +73,16 @@
    "source": "corpus:0x10_T0x663_R.bin"
   },
   {
+   "wire_id": 2297,
+   "name": "TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 82,
+   "body": "759beaec651b75fcbf85314bbc4a951a43de2bbb1478eea20365f26914786158a2ee7814bb2bde43f29e99bd29238cbd9cfa00000000",
+   "source": "log:world.log@2026-10-19T20:52:44Z"
+  },
+  {
    "wire_id": 2515,
    "name": "PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient",
    "channel": 0,
@@ -161,6 +171,86 @@
    "payload_len": 100,
    "body": "4c0c0ed6478a69dabf85314bbc4a951a1a954abc4b3185bfbe37c3d8592618e0000000000000000000000000000000000064010000000200bc395f92a994447dace674801c04e5a1",
    "source": "log:world.log@2026-10-20T17:19:19Z"
+  },
+  {
+   "wire_id": 2617,
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 48,
+   "body": "180f8d4e573697c6bf85314bbc4a951aa1126b78",
+   "source": "log:world.log@2026-10-19T20:52:48Z"
+  },
+  {
+   "wire_id": 2617,
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 48,
+   "body": "180f8d4e573697c6bf85314bbc4a951a93adaabb",
+   "source": "log:world.log@2026-10-26T20:17:39Z"
+  },
+  {
+   "wire_id": 2617,
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 48,
+   "body": "180f8d4e573697c6bf85314bbc4a951a002f27e8",
+   "source": "log:world.log@2026-10-26T20:17:41Z"
+  },
+  {
+   "wire_id": 2617,
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 48,
+   "body": "180f8d4e573697c6bf85314bbc4a951a6cb0696c",
+   "source": "log:world.log@2026-10-26T20:17:41Z"
+  },
+  {
+   "wire_id": 2617,
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 48,
+   "body": "180f8d4e573697c6bf85314bbc4a951ae0843b8c",
+   "source": "log:world.log@2026-10-26T20:17:48Z"
+  },
+  {
+   "wire_id": 2617,
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 48,
+   "body": "180f8d4e573697c6bf85314bbc4a951ad5311670",
+   "source": "log:world.log@2026-10-26T20:17:49Z"
+  },
+  {
+   "wire_id": 2617,
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 48,
+   "body": "180f8d4e573697c6bf85314bbc4a951a278d2a6b",
+   "source": "log:world.log@2026-10-26T20:17:55Z"
+  },
+  {
+   "wire_id": 2617,
+   "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+   "channel": 0,
+   "marker_offset": 24,
+   "header_len": 4,
+   "payload_len": 48,
+   "body": "180f8d4e573697c6bf85314bbc4a951ab12d4a36",
+   "source": "log:world.log@2026-10-26T20:57:30Z"
   },
   {
    "wire_id": 2709,

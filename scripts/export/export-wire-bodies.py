@@ -67,6 +67,12 @@ TARGETS: dict[int, str] = {
     0x9fc: "ContractsComponentServerFacet_LookupContractsByParticipant",
     0x183: "GlobalStorageComponentServerFacet_SetReplicateStorage",
     0x1098: "TimeComponentServerFacet_SyncToClient",
+    # The next decoded inbound requests whose bodies are actually in a local
+    # session log. 0xa39 fires on every panel transition and 0x8f9 on a
+    # territory-unlock attempt; both are C2S, so only a client channel-0/1
+    # record (a local log) carries them.
+    0xa39: "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+    0x8f9: "TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock",
 }
 
 

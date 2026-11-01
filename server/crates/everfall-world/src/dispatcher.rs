@@ -7,10 +7,12 @@
 
 use core::fmt;
 
-use everfall_sim::{ActorId, Decision, ObjectiveId, ObjectiveRequest, Sim};
+use everfall_sim::{ActorId, ClientState, Decision, ObjectiveId, ObjectiveRequest, ScreenId, Sim};
 use everfall_wire::WireError;
 use everfall_wire::generated::{
-    MsgObjectivesSetObjectiveAutoPinning, MsgObjectivesUpdateTrackedObjectives,
+    MsgObjectivesNotifyOpenUiScreen, MsgObjectivesSetObjectiveAutoPinning,
+    MsgObjectivesUpdateTrackedObjectives, MsgServerEquipItem,
+    MsgTerritoryDetectorAttemptTerritoryUnlock,
 };
 
 /// The reply wire id for the Objectives family, which has none.
@@ -81,6 +83,7 @@ pub struct DecisionRecord {
 #[derive(Debug, Clone, Default)]
 pub struct World {
     sim: Sim,
+    client: ClientState,
 }
 
 impl World {
@@ -88,6 +91,7 @@ impl World {
     pub fn new(known: impl IntoIterator<Item = ObjectiveId>) -> Self {
         Self {
             sim: Sim::new(known),
+            client: ClientState::default(),
         }
     }
 
@@ -99,6 +103,11 @@ impl World {
     /// The simulation this world drives, for a caller inside the process.
     pub fn sim_mut(&mut self) -> &mut Sim {
         &mut self.sim
+    }
+
+    /// The client-reported state this world holds.
+    pub fn client_state(&self) -> &ClientState {
+        &self.client
     }
 
     /// Route one inbound body to the simulation.
@@ -138,6 +147,44 @@ impl World {
                 );
                 Ok(DecisionRecord {
                     card: MsgObjectivesSetObjectiveAutoPinning::UID,
+                    facet_id: decoded.local_facet_id,
+                    actor,
+                    decision,
+                })
+            }
+            MsgServerEquipItem::WIRE_ID => {
+                let decoded = MsgServerEquipItem::decode(body)
+                    .map_err(|source| DispatchError::Malformed { wire_id, source })?;
+                let actor = ActorId::new(decoded.local_actor_id_word0);
+                let decision = self.client.note_equip_request(actor);
+                Ok(DecisionRecord {
+                    card: MsgServerEquipItem::UID,
+                    facet_id: decoded.local_facet_id,
+                    actor,
+                    decision,
+                })
+            }
+            MsgObjectivesNotifyOpenUiScreen::WIRE_ID => {
+                let decoded = MsgObjectivesNotifyOpenUiScreen::decode(body)
+                    .map_err(|source| DispatchError::Malformed { wire_id, source })?;
+                let actor = ActorId::new(decoded.local_actor_id_word0);
+                let decision = self
+                    .client
+                    .note_screen(actor, ScreenId::new(decoded.screen_id));
+                Ok(DecisionRecord {
+                    card: MsgObjectivesNotifyOpenUiScreen::UID,
+                    facet_id: decoded.local_facet_id,
+                    actor,
+                    decision,
+                })
+            }
+            MsgTerritoryDetectorAttemptTerritoryUnlock::WIRE_ID => {
+                let decoded = MsgTerritoryDetectorAttemptTerritoryUnlock::decode(body)
+                    .map_err(|source| DispatchError::Malformed { wire_id, source })?;
+                let actor = ActorId::new(decoded.local_actor_id_word0);
+                let decision = self.client.note_unlock_attempt(actor);
+                Ok(DecisionRecord {
+                    card: MsgTerritoryDetectorAttemptTerritoryUnlock::UID,
                     facet_id: decoded.local_facet_id,
                     actor,
                     decision,

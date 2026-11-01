@@ -1,0 +1,76 @@
+{
+  "uid": "msg.objectives-notify-open-ui-screen",
+  "kind": "message",
+  "name": "ObjectivesComponentServerFacet_NotifyOpenUiScreen",
+  "aliases": ["wire:0xa39", "NotifyOpenUiScreen"],
+  "summary": "The client's UI-screen notification: the shared 16-byte head (two u64 BE) then one u32 BE screen id. 20-byte body, C2S. Eight live channel-0 records match the layout field for field.",
+  "purpose": "Tell the server which UI screen the client just showed. The Objectives family has no reply for this request; the server only records the reported screen.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["a panel opens or is dismissed and the client changes its active screen"],
+    "if_absent": "the server never learns which screen the player is looking at"
+  },
+  "wire": {
+    "id": "0xa39",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the prefix varint b9 28, i.e. type_dec 2617. A client channel-0 record carries that typed header at offset 24, after the 8-byte frame head and the 16-byte actor id - reading only offset 0 reports zero records for a type present 20 times.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "First u64 of the shared message head, and the sending facet's own local id - identity, not request data. The send builder fills msg+0x08 from FUN_1416c1c40(facet) = *[*[facet+8]+8] + [GDE+0x10]: [GDE+0x10] is the id handed out by the global id dispenser FUN_14144a9f0 at ClientGDE attach (writer FUN_141464890 <- FUN_14167c760), and *[*[facet+8]+8] is a base read off the object the GDE's server-GDE reference resolves to (FUN_1417db510). That same value is the key the facet registers itself under in the Context's facet map (FUN_14167c560) and the key the RMI dispatcher looks up, so it is the local id the server must address. Measured 0x180f8d4e573697c6 in every live 0xa39 body, the same value its 0x5b2/0xa95 siblings carry - one per facet, not per message.",
+      "provenance": "meanings.md#the-shared-heads-first-u64-is-the-sending-facets-local-id-2026-11-01"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40; the send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all live 0xa39 bodies and in all 14 committed bodies of the six head-prefixed messages across five sessions.",
+      "provenance": "meanings.md#the-shared-2-x-u64be-head-recovered-2026-11-01"
+    },
+    {
+      "name": "screen_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 4,
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "The UI screen class id the client is now showing, taken from the message's own name (NotifyOpenUiScreen) and measured across the panel-transition sequence in meanings.md: a1126b78 appears after EVERY panel dismissal (the HUD, 8 times), and each panel transition is a panel id then the HUD id (map-close a1126b78, journal-open 002f27e8 then 6cb0696c, social-open 1fe4393e, guild 75407dab/6282c070, seasons 6282c070, token ea562b4e, emote 278d2a6b). How the client derives the id is unknown; the id space is opaque, the field is the screen. Reader/writer agree.",
+      "provenance": "meanings.md#0xa39-is-the-screen-transition-message-and-it-carries-the-screen-id"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "measured_on", "to": "atlas.interaction-contract" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The second batch, 2026-10-29' row 0xa39: ObjectivesComponentServerFacet_NotifyOpenUiScreen, '20 B: head + u32 BE (+0x20)', writer 0x1426d64f0 / reader 0x1426ffc00 (the same pair as 0x55); and meanings.md '0xa39 is the screen-transition message, and it carries the screen id' for the measured screen-id values"
+    },
+    {
+      "type": "capture",
+      "ref": "local log .azoth/logs/world.log: eight channel-0 records for wire 0xa39, each a 20-byte body head + u32 BE screen id, all consumed exactly; extracted by scripts/export/export-wire-bodies.py"
+    },
+    {
+      "type": "decompile",
+      "ref": "research/atlas/client-functions.json objectives_notify_open_ui_screen_writer_20261106: writer 0x1426d64f0 / reader 0x1426ffc00, object vtable 0x1481d30e8-adjacent pair shared with Chat AddSubscription 0x55"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

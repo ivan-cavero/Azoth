@@ -73,14 +73,14 @@
       "provenance": "meanings.md#the-second-field-layout-0xf37"
     },
     {
-      "name": "field_f",
-      "meaning": "layout-only",
+      "name": "item_id",
+      "meaning": "known",
       "where": "wire",
       "offset": "0x1c",
       "size": 16,
       "type": "guid16",
       "evidence": "measured",
-      "note": "The 16-byte item id, written and read verbatim with no byte swap (from FUN_145c495c0(itemDescriptor)). Carried as guid16 because the codec is exactly 16 raw bytes. meanings.md 'The second field layout: 0xf37'.",
+      "note": "The 16-byte item instance id the client asks to equip, written and read verbatim with no byte swap; the builder FUN_146681060 fills msg+0x40 from FUN_145c495c0(itemDescriptor), so the client's own code names it the item's id. Carried as guid16 because the codec is exactly 16 raw bytes. Measured d4a8f40d618a4a67ae390da64abc15bb and five more item ids across the live records.",
       "provenance": "meanings.md#the-second-field-layout-0xf37"
     },
     {
@@ -100,7 +100,7 @@
     { "op": "measured_on", "to": "atlas.interaction-contract" }
   ],
   "confidence": "layout",
-  "status": "candidate",
+  "status": "verified",
   "evidence": [
     {
       "type": "decompile",

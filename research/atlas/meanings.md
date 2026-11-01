@@ -2691,6 +2691,52 @@ The client sent **none** of them in these sessions. A named facet is not a used 
 this is the evidence: the surface exists in the binary and the client never speaks it,
 because the replay never gave it the state that would make the UI live.
 
+### The next three inbound requests: equip, UI screen, territory unlock (2026-11-06)
+
+The plan's section-5 order starts Attribute (`0x5de`) then Paperdoll (`0xf37`/`0xf38`)
+then Groups (`0xda2`), Chat (`0x55`), Mount (`0x1676`), CurrencyConversion (`0x1b7`),
+then Journal / map / crafting / inventory / social. The atlas decodes all of those, but
+the evidence standard is a REAL body in the session log, and only some have one.
+`0x5de` has **no** body anywhere - `export-wire-bodies.py` reports it NOT FOUND in
+`.azoth/logs/world.log` and `services/world/rep_traffic.jsonl`, and
+`test_seeded_spend_layout_is_typed_but_has_no_body` pins that honesty - so Attribute is
+skipped. `0xda2`, `0x55`, `0x1676` and `0x1b7` are decoded but also have **no** body in
+either log (the extractor reports each NOT FOUND). Families the atlas does not decode yet
+(Guilds, Social, VoiceChat, MetaAchievement, Traversal, SpectatedPlayer, Twitch, the Player
+bandwidth/cull requests, the ActionList throttle) are skipped on that ground alone.
+
+The next three decoded requests that carry a real body are therefore Paperdoll
+`0xf37` (plan #2), then within plan #7 Journal -> Objectives `0xa39` and map/territory ->
+TerritoryDetector `0x8f9`. Each layout below is matched against a real record field for
+field and round-trips byte for byte; **the atlas agrees with the bytes and no correction was
+needed**. All three share the 16-byte head and have no reply message, so the server writes
+replicated state. Client build `30fe6461...`.
+
+| wire | message | body | writer / reader | bodies | evidence |
+| --- | --- | --- | --- | --- | --- |
+| `0xf37` | `PaperdollComponentServerFacet_ServerEquipItem` | **45 B**: head + 3x `u32` BE + 16-byte `item_id` + bool | `FUN_1465ad7e0` / `FUN_1465ae570` | 4 (rep_traffic) | measured |
+| `0xa39` | `ObjectivesComponentServerFacet_NotifyOpenUiScreen` | **20 B**: head + `u32` BE `screen_id` | `FUN_1426d64f0` / `FUN_1426ffc00` | 8 (world.log) | measured |
+| `0x8f9` | `TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock` | **54 B**: head + 16 raw token + 2x `u64` BE + `u16` BE + `u32` BE | `0x1429c1f60` / `0x1429c2010` | 1 (world.log) | measured |
+
+**`0xf37` `field_f` is named `item_id`.** The builder `FUN_146681060` fills object `+0x40`
+from `FUN_145c495c0(itemDescriptor)`, so the client's own code names the 16-byte run the
+item's id; its meaning moves from `layout-only` to `known` (offset and bytes unchanged).
+The three `u32` and the bool stay `layout-only`. **`0xa39` `field_c` is named `screen_id`**:
+the message's own name says it is the screen, and the measured transition sequence gives
+its values (`a1126b78` after every dismissal - the HUD - and one id per panel). **`0x8f9`**
+names only its head; `unlock_token` and the two `u64`, the `u16` and the `u32` are
+`layout-only`.
+
+The cards are `msg.server-equip-item` (promoted candidate -> verified),
+`msg.objectives-notify-open-ui-screen` and `msg.territory-detector-attempt-territory-unlock`.
+Their functions are filed in `research/atlas/client-functions.json`
+(`paperdoll_server_equip_item_writer_20261027`,
+`objectives_notify_open_ui_screen_writer_20261106`,
+`territory_detector_attempt_territory_unlock_writer_20261106`), and their bodies are in
+`research/fixtures/wire/wire-bodies.json` (31 records, extracted by
+`scripts/export/export-wire-bodies.py`). The `item_id` and `unlock_token` runs stay
+`Opaque` in the codec, so the world records the report rather than reading an unnamed run.
+
 ## The shared 2 x u64be head, recovered (2026-11-01)
 
 Every client->server `ComponentServerFacet` request that carries the 16-byte head

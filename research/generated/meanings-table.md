@@ -739,6 +739,18 @@
 | unresolved_tag_at_0x20 | opaque(unresolved_tag_at_0x20) | 0x20 | unknown | layout-only | Measured 65 03 00 00 00 00, also present at the same place in the level-info tail. 65 03 00 00 is 869 as a little-endian u32, which reads like a version or protocol tag; unproven. |
 | sequence_counter | u8 | 0x26 | measured | known | The last byte of the record. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order. The byte before it is 0x02 in all four instances. |
 
+## msg.objectives-notify-open-ui-screen — ObjectivesComponentServerFacet_NotifyOpenUiScreen
+
+- wire 0xa39, C2S
+- kind: message; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | First u64 of the shared message head, and the sending facet's own local id - identity, not request data. The send builder fills msg+0x08 from FUN_1416c1c40(facet) = *[*[facet+8]+8] + [GDE+0x10]: [GDE+0x10] is the id handed out by the global id dispenser FUN_14144a9f0 at ClientGDE attach (writer FUN_141464890 <- FUN_14167c760), and *[*[facet+8]+8] is a base read off the object the GDE's server-GDE reference resolves to (FUN_1417db510). That same value is the key the facet registers itself under in the Context's facet map (FUN_14167c560) and the key the RMI dispatcher looks up, so it is the local id the server must address. Measured 0x180f8d4e573697c6 in every live 0xa39 body, the same value its 0x5b2/0xa95 siblings carry - one per facet, not per message. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40; the send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all live 0xa39 bodies and in all 14 committed bodies of the six head-prefixed messages across five sessions. |
+| screen_id | u32be | 0x10 | measured | known | The UI screen class id the client is now showing, taken from the message's own name (NotifyOpenUiScreen) and measured across the panel-transition sequence in meanings.md: a1126b78 appears after EVERY panel dismissal (the HUD, 8 times), and each panel transition is a panel id then the HUD id (map-close a1126b78, journal-open 002f27e8 then 6cb0696c, social-open 1fe4393e, guild 75407dab/6282c070, seasons 6282c070, token ea562b4e, emote 278d2a6b). How the client derives the id is unknown; the id space is opaque, the field is the screen. Reader/writer agree. |
+
 ## msg.objectives-set-objective-auto-pinning — ObjectivesComponentServerFacet_SetObjectiveAutoPinning
 
 - wire 0xa95, C2S
@@ -809,7 +821,7 @@
 ## msg.server-equip-item — PaperdollComponentServerFacet_ServerEquipItem
 
 - wire 0xf37, C2S
-- kind: message; status: candidate; confidence: layout
+- kind: message; status: verified; confidence: layout
 - codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | meaning | note |
@@ -819,7 +831,7 @@
 | field_c | u32be | 0x10 | measured | layout-only | u32 BE validated as an int in [-1, 501] (FUN_142e6bae0). Measured 0x147, 0x14a, 0x142, 0x120 across the six live records. meanings.md 'The second field layout: 0xf37'. |
 | field_d | u32be | 0x14 | measured | layout-only | u32 BE, validated by FUN_142d94d20. Measured 0x18/0x1b/0x19. meanings.md 'The second field layout: 0xf37'. |
 | field_e | u32be | 0x18 | measured | layout-only | u32 BE, validated by FUN_142d94df0. Measured 0x1 on every live record. meanings.md 'The second field layout: 0xf37'. |
-| field_f | guid16 | 0x1c | measured | layout-only | The 16-byte item id, written and read verbatim with no byte swap (from FUN_145c495c0(itemDescriptor)). Carried as guid16 because the codec is exactly 16 raw bytes. meanings.md 'The second field layout: 0xf37'. |
+| item_id | guid16 | 0x1c | measured | known | The 16-byte item instance id the client asks to equip, written and read verbatim with no byte swap; the builder FUN_146681060 fills msg+0x40 from FUN_145c495c0(itemDescriptor), so the client's own code names it the item's id. Carried as guid16 because the codec is exactly 16 raw bytes. Measured d4a8f40d618a4a67ae390da64abc15bb and five more item ids across the live records. |
 | field_g | bool_byte | 0x2c | measured | layout-only | A u8 bool (0/1) passed on the stack. Measured 0x00. meanings.md 'The second field layout: 0xf37'. |
 
 ## msg.set-replicate-storage — GlobalStorageComponentServerFacet_SetReplicateStorage
@@ -843,6 +855,22 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | id | u64be | 0x00 | unknown | layout-only | meaning unproven; not a count or vector |
+
+## msg.territory-detector-attempt-territory-unlock — TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock
+
+- wire 0x8f9, C2S
+- kind: message; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | First u64 of the shared message head, and the sending facet's own local id - identity, not request data. Filled by FUN_1416c1c40(facet) = *[*[facet+8]+8] + [GDE+0x10], the key the facet registers itself under in the Context's facet map (FUN_14167c560) and the key the RMI dispatcher looks up. Measured 0x759beaec651b75fc in the live 0x8f9 body. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies msg+0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0); the send builder fills it from FUN_1416be9f0 = [session+0x88]. Measured 0xbf85314bbc4a951a in the live 0x8f9 body and in every committed request head. |
+| unlock_token | guid16 | 0x10 | measured | layout-only | 16 raw bytes copied verbatim by the writer and read verbatim by the reader (no byte swap); the atlas names the run a token (meanings.md row 0x8f9: '16 raw token (+0x38)') but what it identifies is unnamed. Measured 43de2bbb1478eea20365f26914786158 in the live body. |
+| field_c | u64be | 0x20 | measured | layout-only | u64 BE (object slot +0x48, writer/reader agree); meaning unnamed. Measured 0xa2ee7814bb2bde43. meanings.md row 0x8f9. |
+| field_d | u64be | 0x28 | measured | layout-only | u64 BE (object slot +0x50, writer/reader agree); meaning unnamed. Measured 0xf29e99bd29238cbd. meanings.md row 0x8f9. |
+| field_e | u16be | 0x30 | measured | layout-only | u16 BE (object slot +0x24); meaning unnamed. Measured 0x9cfa. meanings.md row 0x8f9. |
+| field_f | u32be | 0x32 | measured | layout-only | u32 BE (object slot +0x20, the LAST field on the wire although the first in the object); meaning unnamed. Measured 0x00000000. meanings.md row 0x8f9. |
 
 ## msg.time-sync-to-client — TimeComponentServerFacet_SyncToClient
 

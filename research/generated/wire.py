@@ -659,6 +659,20 @@ MESSAGES = {
             ('level_context_key', 'u64be'),
         ),
     },
+    2297: {
+        'uid': 'msg.territory-detector-attempt-territory-unlock',
+        'name': 'TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('unlock_token', 'guid16'),
+            ('field_c', 'u64be'),
+            ('field_d', 'u64be'),
+            ('field_e', 'u16be'),
+            ('field_f', 'u32be'),
+        ),
+    },
     2515: {
         'uid': 'msg.receive-settings-from-client',
         'name': 'PlayerSettingsComponentServerFacet_ReceiveSettingsFromClient',
@@ -688,6 +702,16 @@ MESSAGES = {
             ('trailing_id', 'bytes(16)'),
         ),
     },
+    2617: {
+        'uid': 'msg.objectives-notify-open-ui-screen',
+        'name': 'ObjectivesComponentServerFacet_NotifyOpenUiScreen',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('screen_id', 'u32be'),
+        ),
+    },
     2709: {
         'uid': 'msg.objectives-set-objective-auto-pinning',
         'name': 'ObjectivesComponentServerFacet_SetObjectiveAutoPinning',
@@ -708,7 +732,7 @@ MESSAGES = {
             ('field_c', 'u32be'),
             ('field_d', 'u32be'),
             ('field_e', 'u32be'),
-            ('field_f', 'guid16'),
+            ('item_id', 'guid16'),
             ('field_g', 'bool_byte'),
         ),
     },
