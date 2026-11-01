@@ -1,0 +1,58 @@
+{
+  "uid": "codec.seasons-rewards-u8-list",
+  "kind": "codec",
+  "name": "SeasonsRewardsU8List",
+  "aliases": [
+    "cardTemplate / stampedSquares member body",
+    "0x14279ec10 zero branch 0x14279f4f0"
+  ],
+  "summary": "One byte-set member body of the SeasonsRewards replicated state in the client reader's element-count-zero branch: a prefix-varint delta count (pinned to 0), the strict zero-or-one delta, then a prefix-varint element count and that many raw bytes. The non-zero branch is the client's masked id-keyed byte map; no recorded body takes it, so the card pins the count to 0 and refuses anything else.",
+  "purpose": "Name the byte-set member layout the SeasonsRewards presence mask selects (group 0 members 0 and 2 of codec.seasons-rewards-replicated-state), so the mask card references a record instead of carrying the container's layout itself.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "deltaCount",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "max": 0,
+      "note": "The prefix-varint count 0x14279ec10 reads before it branches. It is 0 in both measured members, which select the reader's +0x78 branch 0x14279f4f0; the non-zero masked-map branch has no instance in the recorded bundle, so the card bounds this field to 0 and refuses anything else."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "The zero-count branch 0x14279f4f0: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 08 (delta 8) in cardTemplate."
+    },
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "counted(nested(codec.seasons-rewards-u8))",
+      "evidence": "measured",
+      "note": "A second prefix-varint count and that many one-byte elements, read by the raw one-byte reader 0x14087a330. cardTemplate carries one byte 0x00, stampedSquares one byte 0x08. The element is a card of one u8 rather than a bare byte run, so the generated struct never declares an unnamed Vec<u8>."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.seasons-rewards-replicated-state" },
+    { "op": "consumes", "to": "codec.seasons-rewards-u8" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5485.hex: two instances, byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x14279ec10 and its zero-count branch 0x14279f4f0 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

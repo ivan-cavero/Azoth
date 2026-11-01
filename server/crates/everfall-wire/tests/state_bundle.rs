@@ -18,7 +18,8 @@ use std::path::{Path, PathBuf};
 use everfall_wire::generated::{
     CodecEntitlementReplicatedStateEntry, CodecObjectivesActiveObjectives,
     CodecObjectivesReplicatedState, CodecObjectivesReplicatedStateEntry, CodecObjectivesTaskStates,
-    CodecPlayerComponentReplicatedStateEntry, CodecSeasonsRewardsTrackedStatReplicatedState,
+    CodecPlayerComponentReplicatedStateEntry, CodecSeasonsRewardsReplicatedStateEntry,
+    CodecSeasonsRewardsTrackedStatReplicatedState,
     CodecSeasonsRewardsTrackedStatReplicatedStateEntry, CodecSocialReplicatedState,
     CodecSocialReplicatedStateEntry, CodecStatusEffectsComponentReplicatedState,
     CodecStatusEffectsComponentReplicatedStateEntry, CodecTransmogReplicatedStateEntry,
@@ -183,7 +184,7 @@ fn the_measured_bundle_decodes_into_typed_fragments() {
 }
 
 #[test]
-fn seven_fragments_are_typed_components_and_two_are_replayed_runs() {
+fn eight_fragments_are_typed_components_and_one_is_a_replayed_run() {
     let (_, bundle) = decode();
     let record = &bundle.records()[0];
 
@@ -195,12 +196,11 @@ fn seven_fragments_are_typed_components_and_two_are_replayed_runs() {
         .collect();
     assert_eq!(
         typed,
-        [55, 19, 73, 9, 74, 22, 44],
-        "keys 55, 19, 73, 9, 74, 22 and 44 carry recovered layouts"
+        [55, 19, 73, 9, 72, 74, 22, 44],
+        "keys 55, 19, 73, 9, 72, 74, 22 and 44 carry recovered layouts"
     );
 
-    // The rest stay measured runs: the Atlas has no payload card for types
-    // 5485 and 11.
+    // The rest stay measured runs: the Atlas has no payload card for type 11.
     let widths: Vec<usize> = record
         .fragments()
         .iter()
@@ -209,10 +209,10 @@ fn seven_fragments_are_typed_components_and_two_are_replayed_runs() {
             FragmentPayload::Component(_) => None,
         })
         .collect();
-    assert_eq!(widths, [194, 49]);
+    assert_eq!(widths, [49]);
 
     let components: Vec<&LocalPlayerState> = bundle.components().collect();
-    assert_eq!(components.len(), 7, "one component per typed fragment");
+    assert_eq!(components.len(), 8, "one component per typed fragment");
 
     let player = components
         .iter()
@@ -307,6 +307,30 @@ fn the_tracked_stat_fragment_is_a_typed_component() {
         })
         .expect("key 73 carries the tracked-stat state");
     assert_tracked_stat(tracked);
+}
+
+#[test]
+fn the_seasons_rewards_fragment_is_a_typed_component() {
+    let (_, bundle) = decode();
+    let rewards = bundle
+        .components()
+        .find_map(|state| state.seasons_rewards())
+        .expect("key 72 carries the seasons-rewards state");
+    assert_eq!(rewards.group_mask, 0x01, "group 0 is present");
+    assert_eq!(
+        rewards.groups[0].entry_mask, 0x37D,
+        "members 0,2,3,4,5,6,8 and 9 across the continuation sequence"
+    );
+    let entries = &rewards.groups[0].entries;
+    assert_eq!(entries.len(), 8, "all eight members are present");
+    let tasks = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSeasonsRewardsReplicatedStateEntry::ActivitiesTasks(value) => Some(value),
+            _ => None,
+        })
+        .expect("member 6 is activitiesTasks");
+    assert_eq!(tasks.elements.len(), 21, "21 u64 task entries");
 }
 
 /// The measured `SeasonsRewardsTrackedStat` body: group 0, members 0 to 4.
@@ -443,17 +467,17 @@ fn the_authored_fraction_is_the_typed_payload_bytes() {
 
     assert_eq!(
         authored,
-        3892 + 834 + 1736 + 3 + 55 + 26 + 337,
-        "3133, 5691, 3857, 3935, 4176, 4236 and 5606"
+        3892 + 834 + 1736 + 3 + 55 + 26 + 337 + 194,
+        "3133, 5691, 3857, 3935, 4176, 4236, 5606 and 5485"
     );
-    assert_eq!(replayed, 194 + 49, "the two runs");
+    assert_eq!(replayed, 49, "the one run");
     assert_eq!(
         authored + replayed,
         7126,
         "every payload byte of the record"
     );
-    // 6883 / 7126 = 96.6 %, up from 1736 / 7126 = 24.4 % with one typed type.
-    assert!(authored * 100 > 96 * (authored + replayed));
+    // 7077 / 7126 = 99.3 %, up from 1736 / 7126 = 24.4 % with one typed type.
+    assert!(authored * 100 > 99 * (authored + replayed));
 }
 
 #[test]

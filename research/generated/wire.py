@@ -156,6 +156,42 @@ def _lowest_bit(value):
     return (value & -value).bit_length() - 1
 
 
+def _decode_mask(bits, continuation, data, offset):
+    """One presence-mask value: the bitmask over the items it selects.
+
+    A level WITH a continuation is a sequence: it reads mask bytes while the
+    continuation bit is set, and each byte contributes `bits` low-first item
+    bits. A level WITHOUT one is exactly one byte.
+    """
+    mask = 0
+    shift = 0
+    while True:
+        raw, offset = _read_exact(data, offset, 1)
+        byte = raw[0]
+        mask |= (byte & ((1 << bits) - 1)) << shift
+        if continuation is None or not byte & continuation:
+            return mask, offset
+        shift += bits
+
+
+def _encode_mask(bits, continuation, mask):
+    """The canonical bytes of one presence-mask value (the fewest bytes)."""
+    out = bytearray()
+    rest = mask
+    while True:
+        byte = rest & ((1 << bits) - 1)
+        rest >>= bits
+        if rest and continuation is None:
+            raise WireCodecError(
+                f"presence mask {mask:#x} does not fit one {bits}-bit byte"
+            )
+        if rest:
+            byte |= continuation
+        out.append(byte)
+        if not rest:
+            return bytes(out)
+
+
 def _decode_members(spec, data, offset):
     """Decode one record: a flat field list, or a two-level presence mask."""
     presence = spec.get("presence")
@@ -165,14 +201,14 @@ def _decode_members(spec, data, offset):
             values[name], offset = decode_field(type_name, data, offset)
         return values, offset
 
-    group_name, _group_bits, _group_continuation = presence["group"]
+    group_name, group_bits, group_continuation = presence["group"]
     member_name, member_bits, continuation = presence["member"]
     values = {}
-    group_mask, offset = decode_field("u8", data, offset)
+    group_mask, offset = _decode_mask(group_bits, group_continuation, data, offset)
     declared = 0
     for _index, bits, _members in presence["groups"]:
         declared |= bits
-    unknown = group_mask & ~declared & 0xFF
+    unknown = group_mask & ~declared
     if unknown:
         raise WireCodecError(
             f"{group_name} bit {_lowest_bit(unknown)} names no declared group"
@@ -182,16 +218,11 @@ def _decode_members(spec, data, offset):
     for _index, bits, members in presence["groups"]:
         if not group_mask & bits:
             continue
-        entry_mask, offset = decode_field("u8", data, offset)
-        if continuation is not None and entry_mask & continuation:
-            raise WireCodecError(
-                f"{member_name} asks for a further mask byte, which the card "
-                f"does not model"
-            )
+        entry_mask, offset = _decode_mask(member_bits, continuation, data, offset)
         declared_members = 0
         for _member, member_bit, _name, _codec in members:
             declared_members |= member_bit
-        unknown = entry_mask & ~declared_members & ~(continuation or 0) & 0xFF
+        unknown = entry_mask & ~declared_members
         if unknown:
             raise WireCodecError(
                 f"{member_name} bit {_lowest_bit(unknown)} names no declared member"
@@ -216,10 +247,10 @@ def _encode_members(spec, values):
             out += encode_field(type_name, values[name])
         return bytes(out)
 
-    group_name = presence["group"][0]
-    member_name = presence["member"][0]
+    group_name, group_bits, group_continuation = presence["group"]
+    member_name, member_bits, continuation = presence["member"]
     group_mask = values[group_name]
-    out = bytearray(encode_field("u8", group_mask))
+    out = bytearray(_encode_mask(group_bits, group_continuation, group_mask))
     written = values.get("groups") or []
     cursor = 0
     for _index, bits, members in presence["groups"]:
@@ -230,7 +261,7 @@ def _encode_members(spec, values):
         group = written[cursor]
         cursor += 1
         entry_mask = group[member_name]
-        out += encode_field("u8", entry_mask)
+        out += _encode_mask(member_bits, continuation, entry_mask)
         for member, bit, name, type_name in members:
             if entry_mask & bit:
                 if name not in group["entries"]:
@@ -820,6 +851,35 @@ CODECS = {
             ('value', 'bool_byte'),
         ),
     },
+    'codec.seasons-rewards-replicated-state': {
+        'name': 'SeasonsRewardsReplicatedState',
+        'fields': (
+            ('cardTemplate', 'nested(codec.seasons-rewards-u8-list)'),
+            ('stampedSquares', 'nested(codec.seasons-rewards-u8-list)'),
+            ('wildStampedSquares', 'u8'),
+            ('rewardClaimed', 'bool_byte'),
+            ('rerollCount', 'u8'),
+            ('activitiesTasks', 'nested(codec.seasons-rewards-u64-list)'),
+            ('wildStampCount', 'u32be'),
+            ('wildStampAwardBound', 'u32be'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None),
+            'member': ('entry_mask', 7, 128),
+            'groups': (
+                (0, 1, (
+                    (0, 1, 'cardTemplate', 'nested(codec.seasons-rewards-u8-list)'),
+                    (2, 4, 'stampedSquares', 'nested(codec.seasons-rewards-u8-list)'),
+                    (3, 8, 'wildStampedSquares', 'u8'),
+                    (4, 16, 'rewardClaimed', 'bool_byte'),
+                    (5, 32, 'rerollCount', 'u8'),
+                    (6, 64, 'activitiesTasks', 'nested(codec.seasons-rewards-u64-list)'),
+                    (8, 256, 'wildStampCount', 'u32be'),
+                    (9, 512, 'wildStampAwardBound', 'u32be'),
+                )),
+            ),
+        },
+    },
     'codec.seasons-rewards-tracked-stat-replicated-state': {
         'name': 'SeasonsRewardsTrackedStatReplicatedState',
         'fields': (
@@ -857,6 +917,28 @@ CODECS = {
             ('deltaCount', 'prefix_varint'),
             ('delta', 'optional(prefix_varint)'),
             ('elements', 'counted(u32be)'),
+        ),
+    },
+    'codec.seasons-rewards-u64-list': {
+        'name': 'SeasonsRewardsU64List',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(u64be)'),
+        ),
+    },
+    'codec.seasons-rewards-u8': {
+        'name': 'SeasonsRewardsU8',
+        'fields': (
+            ('value', 'u8'),
+        ),
+    },
+    'codec.seasons-rewards-u8-list': {
+        'name': 'SeasonsRewardsU8List',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(nested(codec.seasons-rewards-u8))'),
         ),
     },
     'codec.social-replicated-state': {

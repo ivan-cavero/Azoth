@@ -1,0 +1,122 @@
+{
+  "uid": "codec.seasons-rewards-replicated-state",
+  "kind": "codec",
+  "name": "SeasonsRewardsReplicatedState",
+  "aliases": [
+    "wire-type:5485",
+    "state-fragment:key72"
+  ],
+  "summary": "The payload carried by state fragment type index 5485 (key 72) in the local-player record: a group mask, then a CONTINUATION member mask over the registered SeasonsRewards members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS. The identity is resolved: the record function 0x143db73c0 installs the facet whose vtable is 0x1482baa90, its +8 slot (0x143d92660) constructs the class at vtable 0x1482bc3c8 (ctor 0x143daa030), and that class's +0x88/+0x90 are the shared replicated-state mask pair 0x141728b30/0x1417b5080. The class name comes from the client's own reflection string `.?AV<lambda_1>@?1???$InstallRegistrationHook@VSeasonsRewardsReplicatedState@Javelin@@@Hub@Amazon@@YA_NXZ@`. The real 194-byte body parses field by field and re-encodes byte-exactly.",
+  "purpose": "Carry the local player's SeasonsRewards state to the client. The ctor registers twenty group-0 members; this card models the eight the measured body selects.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `48` (72), type varint `dd 2a` = 5485 under the 6-bit-continuation prefix-varint scheme, then 194 payload bytes.",
+  "presence": {
+    "group": {
+      "name": "group_mask",
+      "bits": 8
+    },
+    "member": {
+      "name": "entry_mask",
+      "bits": 7,
+      "continuation": 128
+    }
+  },
+  "fields": [
+    {
+      "name": "cardTemplate",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.seasons-rewards-u8-list)",
+      "evidence": "measured",
+      "presence": { "group": 0, "member": 0 },
+      "note": "The client's own reflection string for this member is `cardTemplate` (the activities block function 0x143d8b1b0, build sha256 in field-tables.json). The measured body is the u8-set zero branch: delta count 0, delta 8, one byte 0x00."
+    },
+    {
+      "name": "stampedSquares",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.seasons-rewards-u8-list)",
+      "evidence": "measured",
+      "presence": { "group": 0, "member": 2 },
+      "note": "The client's own reflection string for this member is `stampedSquares`. The measured body is the u8-set zero branch: delta count 0, no delta, one byte 0x08."
+    },
+    {
+      "name": "wildStampedSquares",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": { "group": 0, "member": 3 },
+      "note": "The client's own reflection string for this member is `wildStampedSquares`. One raw byte, measured 0x01. Its reader was not separately decompiled, so the one-byte width is the byte-exact parse's, not a resolved reader's."
+    },
+    {
+      "name": "rewardClaimed",
+      "meaning": "known",
+      "where": "wire",
+      "type": "bool_byte",
+      "evidence": "measured",
+      "presence": { "group": 0, "member": 4 },
+      "note": "The client's own reflection string for this member is `rewardClaimed`. One strict zero-or-one byte, measured 0. A byte above one is refused."
+    },
+    {
+      "name": "rerollCount",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "presence": { "group": 0, "member": 5 },
+      "note": "The client's own reflection string for this member is `rerollCount`. One raw byte, measured 0."
+    },
+    {
+      "name": "activitiesTasks",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.seasons-rewards-u64-list)",
+      "evidence": "measured",
+      "presence": { "group": 0, "member": 6 },
+      "note": "The client's own reflection string for this member is `activitiesTasks`. The measured body is the u64-set zero branch: delta count 0, no delta, 21 big-endian u64. The element count 21 sits at payload offset 17."
+    },
+    {
+      "name": "wildStampCount",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u32be",
+      "evidence": "measured",
+      "presence": { "group": 0, "member": 8 },
+      "note": "The client's own reflection string for this member is `wildStampCount`. One big-endian u32, measured 0x18068693. Its reader was not separately decompiled, so the four-byte width is the byte-exact parse's."
+    },
+    {
+      "name": "wildStampAwardBound",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u32be",
+      "evidence": "measured",
+      "presence": { "group": 0, "member": 9 },
+      "note": "The client's own reflection string for this member is `wildStampAwardBound`. One big-endian u32, measured 0x654f3038. Its reader was not separately decompiled, so the four-byte width is the byte-exact parse's."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "consumes", "to": "codec.seasons-rewards-u8-list" },
+    { "op": "consumes", "to": "codec.seasons-rewards-u64-list" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5485.hex holds the 194 payload bytes of fragment index 4 of record 1 of the committed bundle 0x9e_T0x8_R.bin, behind the header 48 dd 2a (key 72, type 5485). The body parses field by field and re-encodes byte-exactly: group mask 01, entry mask sequence fd 06, cardTemplate (5) + stampedSquares (4) + wildStampedSquares (1) + rewardClaimed (1) + rerollCount (1) + activitiesTasks (171) + wildStampCount (4) + wildStampAwardBound (4) = 191 body bytes, plus the 3 mask bytes = 194, zero bytes left."
+    },
+    {
+      "type": "decompile",
+      "ref": "IDENTITY (build 30fe6461): record function 0x143db73c0 installs facet vtable 0x1482baa90 (+8 = 0x143d92660), which calls ctor 0x143daa030. The ctor sets vtable 0x1482bc3c8. Vtable 0x1482bc3c8 has +0x88 = 0x141728b30 (writer) and +0x90 = 0x1417b5080 (reader). The reader 0x1417b5080 reads the group mask and calls 0x1417b5330, which reads a 7-bit member mask whose top bit 0x80 continues to a further byte and calls each present member's vtable +0x30."
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'key 72 / type 5485 ... still replayed'; research/derived/field-tables.json (activities block 0x143d8b1b0 identifier strings)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

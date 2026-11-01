@@ -370,6 +370,42 @@ def _lowest_bit(value):
     return (value & -value).bit_length() - 1
 
 
+def _decode_mask(bits, continuation, data, offset):
+    """One presence-mask value: the bitmask over the items it selects.
+
+    A level WITH a continuation is a sequence: it reads mask bytes while the
+    continuation bit is set, and each byte contributes `bits` low-first item
+    bits. A level WITHOUT one is exactly one byte.
+    """
+    mask = 0
+    shift = 0
+    while True:
+        raw, offset = _read_exact(data, offset, 1)
+        byte = raw[0]
+        mask |= (byte & ((1 << bits) - 1)) << shift
+        if continuation is None or not byte & continuation:
+            return mask, offset
+        shift += bits
+
+
+def _encode_mask(bits, continuation, mask):
+    """The canonical bytes of one presence-mask value (the fewest bytes)."""
+    out = bytearray()
+    rest = mask
+    while True:
+        byte = rest & ((1 << bits) - 1)
+        rest >>= bits
+        if rest and continuation is None:
+            raise WireCodecError(
+                f"presence mask {mask:#x} does not fit one {bits}-bit byte"
+            )
+        if rest:
+            byte |= continuation
+        out.append(byte)
+        if not rest:
+            return bytes(out)
+
+
 def _decode_members(spec, data, offset):
     """Decode one record: a flat field list, or a two-level presence mask."""
     presence = spec.get("presence")
@@ -379,14 +415,14 @@ def _decode_members(spec, data, offset):
             values[name], offset = decode_field(type_name, data, offset)
         return values, offset
 
-    group_name, _group_bits, _group_continuation = presence["group"]
+    group_name, group_bits, group_continuation = presence["group"]
     member_name, member_bits, continuation = presence["member"]
     values = {}
-    group_mask, offset = decode_field("u8", data, offset)
+    group_mask, offset = _decode_mask(group_bits, group_continuation, data, offset)
     declared = 0
     for _index, bits, _members in presence["groups"]:
         declared |= bits
-    unknown = group_mask & ~declared & 0xFF
+    unknown = group_mask & ~declared
     if unknown:
         raise WireCodecError(
             f"{group_name} bit {_lowest_bit(unknown)} names no declared group"
@@ -396,16 +432,11 @@ def _decode_members(spec, data, offset):
     for _index, bits, members in presence["groups"]:
         if not group_mask & bits:
             continue
-        entry_mask, offset = decode_field("u8", data, offset)
-        if continuation is not None and entry_mask & continuation:
-            raise WireCodecError(
-                f"{member_name} asks for a further mask byte, which the card "
-                f"does not model"
-            )
+        entry_mask, offset = _decode_mask(member_bits, continuation, data, offset)
         declared_members = 0
         for _member, member_bit, _name, _codec in members:
             declared_members |= member_bit
-        unknown = entry_mask & ~declared_members & ~(continuation or 0) & 0xFF
+        unknown = entry_mask & ~declared_members
         if unknown:
             raise WireCodecError(
                 f"{member_name} bit {_lowest_bit(unknown)} names no declared member"
@@ -430,10 +461,10 @@ def _encode_members(spec, values):
             out += encode_field(type_name, values[name])
         return bytes(out)
 
-    group_name = presence["group"][0]
-    member_name = presence["member"][0]
+    group_name, group_bits, group_continuation = presence["group"]
+    member_name, member_bits, continuation = presence["member"]
     group_mask = values[group_name]
-    out = bytearray(encode_field("u8", group_mask))
+    out = bytearray(_encode_mask(group_bits, group_continuation, group_mask))
     written = values.get("groups") or []
     cursor = 0
     for _index, bits, members in presence["groups"]:
@@ -444,7 +475,7 @@ def _encode_members(spec, values):
         group = written[cursor]
         cursor += 1
         entry_mask = group[member_name]
-        out += encode_field("u8", entry_mask)
+        out += _encode_mask(member_bits, continuation, entry_mask)
         for member, bit, name, type_name in members:
             if entry_mask & bit:
                 if name not in group["entries"]:
@@ -1475,13 +1506,71 @@ def _render_card(spec: dict, *, wire: bool) -> list[str]:
 
 
 def _mask_literal(value: int) -> str:
-    """One mask byte as a Rust binary literal, low bit first and byte-wide.
+    """A mask value as a Rust binary literal, grouped in nibbles.
 
-    Always eight digits so the continuation bit (0x80) sits visibly at the left
-    of a seven-bit member level.
+    The bit width is whatever the card's mask needs: a group level's declared
+    bits stay eight wide, and a member level that spans more than one byte
+    grows to as many bits as it declares.
     """
-    digits = format(value, "08b")
-    return "0b" + "_".join((digits[0:4], digits[4:8]))
+    digits = format(value, "b") if value else "0"
+    groups: list[str] = []
+    while len(digits) > 4:
+        groups.append(digits[-4:])
+        digits = digits[:-4]
+    groups.append(digits)
+    return "0b" + "_".join(reversed(groups))
+
+
+def _rust_read_mask_lines(
+    ident: str, name: str, bits: int, continuation: int | None
+) -> list[str]:
+    """Rust that reads one presence-mask value into `ident`.
+
+    With no continuation the level is exactly one byte. With one it is a
+    sequence: mask bytes accumulate low-first, `bits` item bits each, while the
+    continuation bit stays set.
+    """
+    mask_lit = hex((1 << bits) - 1)
+    if continuation is None:
+        return [f'let {ident} = u64::from(reader.u8("{name}")?);']
+    cont_lit = hex(continuation)
+    return [
+        f"let mut {ident} = 0_u64;",
+        "let mut shift = 0_u32;",
+        "loop {",
+        f'    let byte = reader.u8("{name}")?;',
+        f"    {ident} |= u64::from(byte & {mask_lit}) << shift;",
+        f"    if byte & {cont_lit} == 0 {{",
+        "        break;",
+        "    }",
+        f"    shift += {bits};",
+        "}",
+    ]
+
+
+def _rust_write_mask_lines(
+    expr: str, bits: int, continuation: int | None
+) -> list[str]:
+    """Rust that writes one presence-mask value, canonical and low-first."""
+    mask_lit = hex((1 << bits) - 1)
+    if continuation is None:
+        return [f"writer.u8({expr} as u8);"]
+    cont_lit = hex(continuation)
+    return [
+        f"let mut rest = {expr};",
+        "loop {",
+        f"    let byte = (rest & {mask_lit}) as u8;",
+        f"    rest >>= {bits};",
+        "    if rest != 0 {",
+        f"        writer.u8(byte | {cont_lit});",
+        "    } else {",
+        "        writer.u8(byte);",
+        "    }",
+        "    if rest == 0 {",
+        "        break;",
+        "    }",
+        "}",
+    ]
 
 
 def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
@@ -1530,15 +1619,21 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
         "/// Its body is a two-level presence mask: one group mask byte, then for"
     )
     lines.append(
-        "/// each present group one member mask byte, then the present members'"
+        "/// each present group a member mask, then the present members' bodies in"
     )
-    lines.append("/// bodies in ascending member order.")
+    lines.append(
+        "/// ascending member order. A member level whose members do not fit one"
+    )
+    lines.append(
+        "/// seven-bit byte is read as a continuation sequence: its top bit asks for"
+    )
+    lines.append("/// a further mask byte.")
     derive = "Debug, Clone, PartialEq" + ("" if has_float else ", Eq")
     lines.append(f"#[derive({derive})]")
     lines.append(f"pub struct {base} {{")
-    lines.append(f"    /// The `{presence['group']['name']}` byte: bit i set means group i is")
+    lines.append(f"    /// The `{presence['group']['name']}` mask: bit i set means group i is")
     lines.append("    /// on the wire.")
-    lines.append(f"    pub {group_mask_ident}: u8,")
+    lines.append(f"    pub {group_mask_ident}: u64,")
     lines.append("    /// The present groups, ascending by group index.")
     lines.append(f"    pub groups: Vec<{group_type}>,")
     lines.append("}")
@@ -1546,9 +1641,10 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
     lines.append(f"/// One present group of [`{base}`].")
     lines.append(f"#[derive({derive})]")
     lines.append(f"pub struct {group_type} {{")
-    lines.append(f"    /// The `{presence['member']['name']}` byte: bit i set means member i is")
-    lines.append("    /// on the wire.")
-    lines.append(f"    pub {member_mask_ident}: u8,")
+    lines.append(f"    /// The `{presence['member']['name']}` mask: bit i set means member i is")
+    lines.append("    /// on the wire. A level that needs more than one byte accumulates its")
+    lines.append("    /// members across the sequence, low-first.")
+    lines.append(f"    pub {member_mask_ident}: u64,")
     lines.append("    /// The present members, ascending by member index.")
     lines.append(f"    pub entries: Vec<{entry_type}>,")
     lines.append("}")
@@ -1591,7 +1687,12 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
     lines.append(
         "    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {"
     )
-    lines.append(f'        let {group_mask_ident} = reader.u8("{presence["group"]["name"]}")?;')
+    group_level = presence["group"]
+    member_level = presence["member"]
+    for line in _rust_read_mask_lines(
+        group_mask_ident, group_level["name"], group_level["bits"], group_level.get("continuation")
+    ):
+        lines.append("        " + line)
     lines.append(f"        let unknown = {group_mask_ident} & !{_mask_literal(declared_groups)};")
     lines.append("        if unknown != 0 {")
     lines.append("            return Err(WireError::UnknownPresence {")
@@ -1607,9 +1708,13 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
         lines.append(
             f"        if {group_mask_ident} & {_mask_literal(declared['bit'])} != 0 {{"
         )
-        lines.append(
-            f'            let {member_mask_ident} = reader.u8("{presence["member"]["name"]}")?;'
-        )
+        for line in _rust_read_mask_lines(
+            member_mask_ident,
+            member_level["name"],
+            member_level["bits"],
+            member_level.get("continuation"),
+        ):
+            lines.append("            " + line)
         lines.append(
             f"            let unknown = {member_mask_ident} & "
             f"!{_mask_literal(declared_members)};"
@@ -1624,8 +1729,9 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
         for field in members:
             if field["group"] != declared["index"]:
                 continue
-            bit = _mask_literal(field["bit"])
-            lines.append(f"            if {member_mask_ident} & {bit} != 0 {{")
+            lines.append(
+                f"            if {member_mask_ident} & (1_u64 << {field['index']}) != 0 {{"
+            )
             lines.extend("                " + line for line in field["decode"])
             lines.append(
                 f"                entries.push({entry_type}::{field['variant']}(value));"
@@ -1655,9 +1761,15 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
     lines.append(
         "    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {"
     )
-    lines.append(f"        writer.u8(self.{group_mask_ident});")
+    for line in _rust_write_mask_lines(
+        f"self.{group_mask_ident}", group_level["bits"], group_level.get("continuation")
+    ):
+        lines.append("        " + line)
     lines.append("        for group in &self.groups {")
-    lines.append(f"            writer.u8(group.{member_mask_ident});")
+    for line in _rust_write_mask_lines(
+        f"group.{member_mask_ident}", member_level["bits"], member_level.get("continuation")
+    ):
+        lines.append("            " + line)
     lines.append("            for entry in &group.entries {")
     lines.append("                match entry {")
     # Members whose bodies share one codec produce the same encode lines, and a

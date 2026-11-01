@@ -354,11 +354,12 @@ def presence_errors(concept: dict) -> list[str]:
     """The two-level presence mask's semantics, which the schema cannot state.
 
     A card either declares `presence` and puts coordinates on every wire field,
-    or declares none and puts coordinates on no field. Each level models ONE mask
-    byte, so an index has to fit its level's `bits`, two fields cannot share a
-    coordinate, and a continuation bit has to be the single bit above the member
-    bits -- otherwise the mask would claim a second byte this vocabulary does not
-    model.
+    or declares none and puts coordinates on no field. A level WITHOUT a
+    `continuation` is ONE mask byte, so an index has to fit its `bits`. A level
+    WITH one is a continuation sequence: the reader keeps reading mask bytes
+    while the continuation bit (the single bit above the member bits) is set, so
+    an index wider than `bits` is legal and lands in a later byte. Two fields
+    still cannot share a coordinate.
     """
     errors: list[str] = []
     declared = concept.get("presence")
@@ -374,6 +375,7 @@ def presence_errors(concept: dict) -> list[str]:
 
     bounds: dict[str, int] = {}
     names: dict[str, object] = {}
+    sequences: dict[str, bool] = {}
     for level in ("group", "member"):
         node = declared.get(level)
         if not isinstance(node, dict):
@@ -386,6 +388,7 @@ def presence_errors(concept: dict) -> list[str]:
             continue
         bounds[level] = bits
         continuation = node.get("continuation")
+        sequences[level] = continuation is not None
         if continuation is None:
             continue
         if isinstance(continuation, bool) or not isinstance(continuation, int):
@@ -433,12 +436,16 @@ def presence_errors(concept: dict) -> list[str]:
                 f"field {name!r} presence member must be a non-negative integer"
             )
             continue
-        if "group" in bounds and group >= bounds["group"]:
+        if "group" in bounds and not sequences.get("group") and group >= bounds["group"]:
             errors.append(
                 f"field {name!r} names group {group}, which does not fit the "
                 f"{bounds['group']}-bit group mask"
             )
-        if "member" in bounds and member >= bounds["member"]:
+        if (
+            "member" in bounds
+            and not sequences.get("member")
+            and member >= bounds["member"]
+        ):
             errors.append(
                 f"field {name!r} names member {member}, which does not fit the "
                 f"{bounds['member']}-bit member mask"

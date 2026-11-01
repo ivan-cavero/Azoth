@@ -61,7 +61,7 @@
       ]
     },
     "mask_level": {
-      "$comment": "ONE PRESENCE MASK BYTE: `name` is the generated field name for the mask (`group_mask`, `entry_mask`); `bits` is how many low-first bits carry members; `continuation`, when present, is the single bit above them that means a further mask byte follows. Exactly one mask byte per level is modelled, so a continuation bit is refused rather than followed.",
+      "$comment": "ONE PRESENCE MASK LEVEL: `name` is the generated field name for the mask (`group_mask`, `entry_mask`); `bits` is how many low-first item bits each mask byte carries. WITHOUT `continuation` the level is exactly one byte. WITH `continuation` -- the single bit above the item bits (e.g. 128 for a seven-bit level) -- the level is a CONTINUATION SEQUENCE: the reader keeps reading mask bytes while that bit is set, and item index m lives in byte m//bits at bit m%bits. A level with a continuation may therefore declare items wider than `bits`; a level without one may not.",
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "bits"],

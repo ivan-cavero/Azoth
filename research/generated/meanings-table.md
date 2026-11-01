@@ -232,6 +232,31 @@
 | --- | --- | --- | --- | --- | --- |
 | value | bool_byte | — | measured | layout-only | One raw byte read by 0x1417b4c20 through FUN_1408787b0; the reader stores it only when it is below 2. The measured 0x9e body carries 00. The reflection string at 0x14855a500 says lookingThroughLoadout; what the flag enables is not proven, so the field stays layout-only. |
 
+## codec.seasons-rewards-replicated-state — SeasonsRewardsReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 0 member 0: `cardTemplate` (`nested(codec.seasons-rewards-u8-list)`)
+  - group 0 member 2: `stampedSquares` (`nested(codec.seasons-rewards-u8-list)`)
+  - group 0 member 3: `wildStampedSquares` (`u8`)
+  - group 0 member 4: `rewardClaimed` (`bool_byte`)
+  - group 0 member 5: `rerollCount` (`u8`)
+  - group 0 member 6: `activitiesTasks` (`nested(codec.seasons-rewards-u64-list)`)
+  - group 0 member 8: `wildStampCount` (`u32be`)
+  - group 0 member 9: `wildStampAwardBound` (`u32be`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| cardTemplate | nested(codec.seasons-rewards-u8-list) | — | measured | known | The client's own reflection string for this member is `cardTemplate` (the activities block function 0x143d8b1b0, build sha256 in field-tables.json). The measured body is the u8-set zero branch: delta count 0, delta 8, one byte 0x00. |
+| stampedSquares | nested(codec.seasons-rewards-u8-list) | — | measured | known | The client's own reflection string for this member is `stampedSquares`. The measured body is the u8-set zero branch: delta count 0, no delta, one byte 0x08. |
+| wildStampedSquares | u8 | — | measured | known | The client's own reflection string for this member is `wildStampedSquares`. One raw byte, measured 0x01. Its reader was not separately decompiled, so the one-byte width is the byte-exact parse's, not a resolved reader's. |
+| rewardClaimed | bool_byte | — | measured | known | The client's own reflection string for this member is `rewardClaimed`. One strict zero-or-one byte, measured 0. A byte above one is refused. |
+| rerollCount | u8 | — | measured | known | The client's own reflection string for this member is `rerollCount`. One raw byte, measured 0. |
+| activitiesTasks | nested(codec.seasons-rewards-u64-list) | — | measured | known | The client's own reflection string for this member is `activitiesTasks`. The measured body is the u64-set zero branch: delta count 0, no delta, 21 big-endian u64. The element count 21 sits at payload offset 17. |
+| wildStampCount | u32be | — | measured | known | The client's own reflection string for this member is `wildStampCount`. One big-endian u32, measured 0x18068693. Its reader was not separately decompiled, so the four-byte width is the byte-exact parse's. |
+| wildStampAwardBound | u32be | — | measured | known | The client's own reflection string for this member is `wildStampAwardBound`. One big-endian u32, measured 0x654f3038. Its reader was not separately decompiled, so the four-byte width is the byte-exact parse's. |
+
 ## codec.seasons-rewards-tracked-stat-replicated-state — SeasonsRewardsTrackedStatReplicatedState
 
 - kind: codec; status: verified; confidence: layout
@@ -272,6 +297,37 @@
 | deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint delta count 0x14377a160 reads before it branches. It is 0 in both measured bodies, which select the zero branch (0x14293da60 for groupList, 0x142d99270 for groupStatValue); the non-zero masked-map branch has no instance, so the card bounds this field to 0 and refuses anything else. |
 | delta | optional(prefix_varint) | — | measured | layout-only | The zero branch: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Both measured bodies carry 01 08 (8). |
 | elements | counted(u32be) | — | measured | layout-only | A second prefix-varint element count and that many big-endian u32, read by FUN_14087a3c0. groupList carries 2 elements (572611289, 2365596905), groupStatValue 51 (all zero). Meaning not established. |
+
+## codec.seasons-rewards-u64-list — SeasonsRewardsU64List
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint count 0x14365f1e0 reads before it branches. It is 0 in the measured activitiesTasks member, which selects the reader's +0x78 branch 0x14365f520; the non-zero masked-map branch has no instance, so the card bounds this field to 0 and refuses anything else. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The zero-count branch 0x14365f520: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. The measured activitiesTasks body carries flag 0 (no delta). |
+| elements | counted(u64be) | — | measured | layout-only | A second prefix-varint element count and that many big-endian u64, read by 0x1415bcdb0 through 0x14087af30. 21 elements in the measured body. |
+
+## codec.seasons-rewards-u8-list — SeasonsRewardsU8List
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint count 0x14279ec10 reads before it branches. It is 0 in both measured members, which select the reader's +0x78 branch 0x14279f4f0; the non-zero masked-map branch has no instance in the recorded bundle, so the card bounds this field to 0 and refuses anything else. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The zero-count branch 0x14279f4f0: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 08 (delta 8) in cardTemplate. |
+| elements | counted(nested(codec.seasons-rewards-u8)) | — | measured | layout-only | A second prefix-varint count and that many one-byte elements, read by the raw one-byte reader 0x14087a330. cardTemplate carries one byte 0x00, stampedSquares one byte 0x08. The element is a card of one u8 rather than a bare byte run, so the generated struct never declares an unnamed Vec<u8>. |
+
+## codec.seasons-rewards-u8 — SeasonsRewardsU8
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| value | u8 | — | measured | layout-only | Read and written with the client's raw one-byte stream slot (reader 0x14087a330), inside the 0x14279f4f0 element loop. Measured 0x00 in cardTemplate and 0x08 in stampedSquares; the byte's meaning is unnamed. |
 
 ## codec.social-replicated-state — SocialReplicatedState
 

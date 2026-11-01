@@ -1,0 +1,40 @@
+{
+  "uid": "codec.seasons-rewards-u8",
+  "kind": "codec",
+  "name": "SeasonsRewardsU8",
+  "aliases": [
+    "cardTemplate / stampedSquares element",
+    "one-byte element of the u8 set"
+  ],
+  "summary": "One element of a SeasonsRewards byte set: a single raw byte. The client reads and writes it through its raw one-byte stream slot, so the element is one u8 with no structure of its own.",
+  "purpose": "Give the byte set a named element card so the container is counted(nested(...)) and the generated struct never declares a bare Vec<u8>.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "value",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Read and written with the client's raw one-byte stream slot (reader 0x14087a330), inside the 0x14279f4f0 element loop. Measured 0x00 in cardTemplate and 0x08 in stampedSquares; the byte's meaning is unnamed."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.seasons-rewards-u8-list" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5485.hex: two one-byte elements, byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "0x14279f4f0 reads each element with the raw one-byte reader 0x14087a330 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

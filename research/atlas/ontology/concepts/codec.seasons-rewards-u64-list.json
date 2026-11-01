@@ -1,0 +1,57 @@
+{
+  "uid": "codec.seasons-rewards-u64-list",
+  "kind": "codec",
+  "name": "SeasonsRewardsU64List",
+  "aliases": [
+    "activitiesTasks member body",
+    "0x14365f1e0 zero branch 0x14365f520 -> 0x1415bcdb0"
+  ],
+  "summary": "One u64-set member body of the SeasonsRewards replicated state in the client reader's element-count-zero branch: a prefix-varint delta count (pinned to 0), the strict zero-or-one delta, then a prefix-varint element count and that many big-endian u64. The non-zero branch is the client's masked id-keyed map; the recorded body takes the zero branch, so the card pins the count to 0 and refuses anything else.",
+  "purpose": "Name the u64 member layout the SeasonsRewards presence mask selects (group 0 member 6 of codec.seasons-rewards-replicated-state), so the mask card references a record instead of carrying the container's layout itself.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "deltaCount",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "max": 0,
+      "note": "The prefix-varint count 0x14365f1e0 reads before it branches. It is 0 in the measured activitiesTasks member, which selects the reader's +0x78 branch 0x14365f520; the non-zero masked-map branch has no instance, so the card bounds this field to 0 and refuses anything else."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "The zero-count branch 0x14365f520: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. The measured activitiesTasks body carries flag 0 (no delta)."
+    },
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "counted(u64be)",
+      "evidence": "measured",
+      "note": "A second prefix-varint element count and that many big-endian u64, read by 0x1415bcdb0 through 0x14087af30. 21 elements in the measured body."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.seasons-rewards-replicated-state" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5485.hex: one instance of 21 u64, byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x14365f1e0 and its zero-count branch 0x14365f520 -> 0x1415bcdb0 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

@@ -1,0 +1,30 @@
+# State fragment body for wire type index 5485 (key 72, Javelin
+# SeasonsRewardsReplicatedState), build sha256 30fe6461.
+#
+# 194 bytes, the payload of fragment index 4 of record 1. Extracted from the
+# committed bundle corpus research/fixtures/wire/wire-fixtures.json by
+# research/derived/state-bundle-fragments.json. The header bytes are not part
+# of this file: the fragment is [prefix-varint key][prefix-varint type]
+# [payload] with no length field.
+#
+# Layout and provenance: research/atlas/ontology/concepts/
+# codec.seasons-rewards-replicated-state.json. Group 0 carries eight declared
+# members: cardTemplate (0), stampedSquares (2), wildStampedSquares (3),
+# rewardClaimed (4), rerollCount (5), activitiesTasks (6), wildStampCount (8),
+# wildStampAwardBound (9). The entry mask is a continuation sequence: byte 0
+# 0xfd selects members 0,2,3,4,5,6 and asks for byte 1 0x06, which selects 8
+# and 9, so the reader ends at {0,2,3,4,5,6,8,9}.
+#
+01 fd 06 00 01 08 01 00 00 00 01 08 01 00 00 00
+00 15 db d3 eb 38 0d 7c 94 68 d6 ce eb f2 14 80
+1d 04 64 ea e9 8b 6e 9a 2d 58 a5 62 97 85 69 f7
+e9 41 8e 2b 3b 0d 8e 4f c4 46 89 46 ff 14 38 c0
+8a de f3 38 30 03 fa 8e 7c 28 f7 93 7c e2 e3 72
+f5 44 17 22 6a b7 ac d4 db ae fe 41 cf 82 4f c7
+ba 48 8d 89 4c be ff 00 00 00 03 18 ab e5 1f 2d
+a0 00 00 ff 00 01 01 00 01 08 02 22 21 5a d9 22
+fd 98 92 37 00 01 08 06 01 00 01 00 00 00 00 01
+08 02 00 00 00 00 00 00 0a be 00 00 00 00 00 00
+00 00 00 01 08 01 00 00 00 00 00 00 00 01 00 01
+08 01 00 00 00 00 00 00 00 00 18 06 86 93 65 4f
+30 38

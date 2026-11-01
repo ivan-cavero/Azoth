@@ -52,6 +52,7 @@ STATUS_EFFECTS_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragme
 SEASONS_TRACKED_STAT_FIXTURE = (
     REPO / "research" / "fixtures" / "wire" / "state-fragment-5606.hex"
 )
+SEASONS_REWARDS_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-5485.hex"
 
 # The generated module imports the measured prefix-varint primitive from the
 # world service by a path relative to itself, so a copy written into a temp
@@ -464,6 +465,73 @@ class OntologyGenTest(unittest.TestCase):
             with self.assertRaises(module.WireCodecError):
                 module.decode_codec("codec.example-presence", bytes.fromhex("0401"))
 
+    def test_a_member_level_wide_of_one_byte_is_a_continuation_sequence(self) -> None:
+        """Generality: a second card with NINE members in one group, unmoved.
+
+        Seven member bits fit one mask byte; a nine-member group cannot. The
+        reader accumulates seven bits per byte while the continuation bit 0x80
+        is set, so members 7 and 8 land in a second mask byte. If the generator
+        had special-cased the seven-member cards this body could not decode, so
+        the test is the proof the vocabulary carries the sequence, not the
+        generator.
+        """
+        generator = load_generator()
+        with tempfile.TemporaryDirectory() as tmp:
+            concepts = Path(tmp) / "concepts"
+            out = Path(tmp) / "out"
+            concepts.mkdir()
+            wide = concept(
+                uid="codec.example-wide",
+                kind="codec",
+                name="ExampleWide",
+                presence={
+                    "group": {"name": "group_mask", "bits": 8},
+                    "member": {"name": "entry_mask", "bits": 7, "continuation": 128},
+                },
+                fields=[
+                    {
+                        "name": f"member_{index}",
+                        "type": "u8",
+                        "evidence": "measured",
+                        "meaning": "layout-only",
+                        "presence": {"group": 0, "member": index},
+                    }
+                    for index in range(9)
+                ],
+            )
+            (concepts / "codec.example-wide.json").write_text(
+                json.dumps(wide), encoding="utf-8"
+            )
+            report = generator.generate(SCHEMA, concepts, out)
+            self.assertEqual(report["refused"], [])
+            self.assertEqual(
+                [spec["uid"] for spec in report["codecs"]], ["codec.example-wide"]
+            )
+
+            spec = importlib.util.spec_from_file_location(
+                "wide_wire_under_test", out / "wire.py"
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # group 0 present, members 0..8 across two mask bytes: byte 0 is the
+            # low seven members plus the continuation (0xff), byte 1 the rest
+            # (0x03), then one body byte per member.
+            body = bytes.fromhex("01ff03" + "010203040506070809")
+            decoded = module.decode_codec("codec.example-wide", body)
+            self.assertEqual(decoded["group_mask"], 0x01)
+            self.assertEqual(decoded["groups"][0]["entry_mask"], 0x1FF)
+            self.assertEqual(len(decoded["groups"][0]["entries"]), 9)
+            self.assertEqual(
+                module.encode_codec("codec.example-wide", decoded), body
+            )
+
+            # A set bit that names member 9, which the card does not declare, is
+            # refused instead of read as a later member. The second mask byte
+            # 0x0f sets members 7, 8, 9 and 10; 9 and 10 are undeclared.
+            with self.assertRaises(module.WireCodecError):
+                module.decode_codec("codec.example-wide", bytes.fromhex("01ff0f"))
+
     def test_measured_presence_body_round_trips_through_the_generated_codec(self) -> None:
         """The 1736-byte measured body through the GENERATED sub-codec table."""
         wire = load_generated_wire()
@@ -588,6 +656,44 @@ class OntologyGenTest(unittest.TestCase):
                 "codec.status-effects-component-replicated-state", decoded
             ),
             body,
+        )
+
+    def test_measured_seasons_rewards_body_round_trips_through_the_generated_codec(
+        self,
+    ) -> None:
+        """The 194-byte body of state type 5485, through the GENERATED codec table.
+
+        Its member mask is a CONTINUATION sequence: the entry byte 0xfd selects
+        members 0,2,3,4,5,6 and asks for byte 0x06, which selects 8 and 9. The test
+        pins both the sequence and the byte-exact re-encode.
+        """
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        body = hex_body(SEASONS_REWARDS_FIXTURE)
+        self.assertEqual(len(body), 194)
+        self.assertEqual(body[:3], bytes([0x01, 0xFD, 0x06]))
+        decoded = wire.decode_codec("codec.seasons-rewards-replicated-state", body)
+        self.assertEqual(decoded["group_mask"], 0x01)
+        self.assertEqual(
+            decoded["groups"][0]["entry_mask"],
+            0x37D,
+            "members 0,2,3,4,5,6,8 and 9 across the continuation sequence",
+        )
+        entries = decoded["groups"][0]["entries"]
+        self.assertEqual(
+            entries["cardTemplate"],
+            {"deltaCount": 0, "delta": 8, "elements": [{"value": 0}]},
+        )
+        self.assertEqual(
+            entries["stampedSquares"],
+            {"deltaCount": 0, "delta": None, "elements": [{"value": 8}]},
+        )
+        self.assertEqual(len(entries["activitiesTasks"]["elements"]), 21)
+        self.assertEqual(entries["activitiesTasks"]["elements"][0], 0xDBD3_EB38_0D7C_9468)
+        self.assertEqual(entries["wildStampCount"], 0x18068693)
+        self.assertEqual(entries["wildStampAwardBound"], 0x654F3038)
+        self.assertEqual(
+            wire.encode_codec("codec.seasons-rewards-replicated-state", decoded), body
         )
 
     def test_measured_tracked_stat_body_round_trips_through_the_generated_codec(

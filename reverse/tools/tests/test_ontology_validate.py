@@ -329,7 +329,32 @@ class OntologyValidateTest(unittest.TestCase):
         self.assertTrue(lines[0].startswith("FAIL codec.example"))
         self.assertIn("presence", lines[0])
 
-    def test_presence_index_beyond_the_mask_bits_fails(self):
+    def test_presence_index_beyond_a_single_byte_mask_fails(self):
+        # No continuation, so the member level is exactly one seven-bit byte and a
+        # member index at or above `bits` has no byte to live in.
+        card = self.presence_card(
+            presence={
+                "group": {"name": "group_mask", "bits": 8},
+                "member": {"name": "entry_mask", "bits": 7},
+            },
+            fields=[
+                field(
+                    "active",
+                    "u64be",
+                    "known",
+                    "the active set",
+                    presence={"group": 1, "member": 7},
+                )
+            ],
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 1)
+        self.assertTrue(lines[0].startswith("FAIL codec.example"))
+        self.assertIn("member", lines[0])
+
+    def test_presence_index_wide_of_one_byte_needs_a_continuation(self):
+        # The same member index 7 is legal once the level declares a continuation:
+        # it lands in the second mask byte of the sequence.
         card = self.presence_card(
             fields=[
                 field(
@@ -342,9 +367,26 @@ class OntologyValidateTest(unittest.TestCase):
             ]
         )
         lines, code = run({"codec.example": card})
-        self.assertEqual(code, 1)
-        self.assertTrue(lines[0].startswith("FAIL codec.example"))
-        self.assertIn("member", lines[0])
+        self.assertEqual(code, 0)
+        self.assertIn("OK codec.example  ready", " ".join(lines))
+
+    def test_a_wide_member_level_of_twenty_members_is_ready(self):
+        # Twenty seven-bit members span three mask bytes; the continuation makes
+        # every index 0..19 representable, so the card is valid and ready.
+        card = self.presence_card(
+            fields=[
+                field(
+                    f"m{index}",
+                    "u8",
+                    "layout-only",
+                    presence={"group": 0, "member": index},
+                )
+                for index in range(20)
+            ]
+        )
+        lines, code = run({"codec.example": card})
+        self.assertEqual(code, 0)
+        self.assertIn("OK codec.example  ready", " ".join(lines))
 
     def test_duplicate_presence_coordinates_fail(self):
         card = self.presence_card(

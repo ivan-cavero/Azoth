@@ -1681,13 +1681,15 @@ impl CodecEntitlementReceived {
 ///
 /// Presence-masked sub-codec card (no wire id).
 /// Its body is a two-level presence mask: one group mask byte, then for
-/// each present group one member mask byte, then the present members'
-/// bodies in ascending member order.
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecEntitlementReplicatedState {
-    /// The `group_mask` byte: bit i set means group i is
+    /// The `group_mask` mask: bit i set means group i is
     /// on the wire.
-    pub group_mask: u8,
+    pub group_mask: u64,
     /// The present groups, ascending by group index.
     pub groups: Vec<CodecEntitlementReplicatedStateGroup>,
 }
@@ -1695,9 +1697,10 @@ pub struct CodecEntitlementReplicatedState {
 /// One present group of [`CodecEntitlementReplicatedState`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecEntitlementReplicatedStateGroup {
-    /// The `entry_mask` byte: bit i set means member i is
-    /// on the wire.
-    pub entry_mask: u8,
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
     /// The present members, ascending by member index.
     pub entries: Vec<CodecEntitlementReplicatedStateEntry>,
 }
@@ -1736,8 +1739,8 @@ impl CodecEntitlementReplicatedState {
     /// Returns [`WireError`] when the body is shorter, or a mask selects a group
     /// or member the card does not declare.
     pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
-        let group_mask = reader.u8("group_mask")?;
-        let unknown = group_mask & !0b0000_0001;
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b1;
         if unknown != 0 {
             return Err(WireError::UnknownPresence {
                 what: "group",
@@ -1745,9 +1748,18 @@ impl CodecEntitlementReplicatedState {
             });
         }
         let mut groups = Vec::new();
-        if group_mask & 0b0000_0001 != 0 {
-            let entry_mask = reader.u8("entry_mask")?;
-            let unknown = entry_mask & !0b0000_0111;
+        if group_mask & 0b1 != 0 {
+            let mut entry_mask = 0_u64;
+            let mut shift = 0_u32;
+            loop {
+                let byte = reader.u8("entry_mask")?;
+                entry_mask |= u64::from(byte & 0x7f) << shift;
+                if byte & 0x80 == 0 {
+                    break;
+                }
+                shift += 7;
+            }
+            let unknown = entry_mask & !0b111;
             if unknown != 0 {
                 return Err(WireError::UnknownPresence {
                     what: "member",
@@ -1755,15 +1767,15 @@ impl CodecEntitlementReplicatedState {
                 });
             }
             let mut entries = Vec::new();
-            if entry_mask & 0b0000_0001 != 0 {
+            if entry_mask & (1_u64 << 0) != 0 {
                 let value = CodecEntitlementEntitlements::read_from(reader)?;
                 entries.push(CodecEntitlementReplicatedStateEntry::Entitlements(value));
             }
-            if entry_mask & 0b0000_0010 != 0 {
+            if entry_mask & (1_u64 << 1) != 0 {
                 let value = CodecEntitlementBalances::read_from(reader)?;
                 entries.push(CodecEntitlementReplicatedStateEntry::Balances(value));
             }
-            if entry_mask & 0b0000_0100 != 0 {
+            if entry_mask & (1_u64 << 2) != 0 {
                 let value = CodecEntitlementReceived::read_from(reader)?;
                 entries.push(CodecEntitlementReplicatedStateEntry::EntitlementsReceived(
                     value,
@@ -1791,9 +1803,21 @@ impl CodecEntitlementReplicatedState {
     /// # Errors
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
-        writer.u8(self.group_mask);
+        writer.u8(self.group_mask as u8);
         for group in &self.groups {
-            writer.u8(group.entry_mask);
+            let mut rest = group.entry_mask;
+            loop {
+                let byte = (rest & 0x7f) as u8;
+                rest >>= 7;
+                if rest != 0 {
+                    writer.u8(byte | 0x80);
+                } else {
+                    writer.u8(byte);
+                }
+                if rest == 0 {
+                    break;
+                }
+            }
             for entry in &group.entries {
                 match entry {
                     CodecEntitlementReplicatedStateEntry::Entitlements(value) => {
@@ -2128,13 +2152,15 @@ impl CodecObjectivesCompletedObjectives {
 ///
 /// Presence-masked sub-codec card (no wire id).
 /// Its body is a two-level presence mask: one group mask byte, then for
-/// each present group one member mask byte, then the present members'
-/// bodies in ascending member order.
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecObjectivesReplicatedState {
-    /// The `group_mask` byte: bit i set means group i is
+    /// The `group_mask` mask: bit i set means group i is
     /// on the wire.
-    pub group_mask: u8,
+    pub group_mask: u64,
     /// The present groups, ascending by group index.
     pub groups: Vec<CodecObjectivesReplicatedStateGroup>,
 }
@@ -2142,9 +2168,10 @@ pub struct CodecObjectivesReplicatedState {
 /// One present group of [`CodecObjectivesReplicatedState`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecObjectivesReplicatedStateGroup {
-    /// The `entry_mask` byte: bit i set means member i is
-    /// on the wire.
-    pub entry_mask: u8,
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
     /// The present members, ascending by member index.
     pub entries: Vec<CodecObjectivesReplicatedStateEntry>,
 }
@@ -2185,8 +2212,8 @@ impl CodecObjectivesReplicatedState {
     /// Returns [`WireError`] when the body is shorter, or a mask selects a group
     /// or member the card does not declare.
     pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
-        let group_mask = reader.u8("group_mask")?;
-        let unknown = group_mask & !0b0000_0010;
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b10;
         if unknown != 0 {
             return Err(WireError::UnknownPresence {
                 what: "group",
@@ -2194,9 +2221,18 @@ impl CodecObjectivesReplicatedState {
             });
         }
         let mut groups = Vec::new();
-        if group_mask & 0b0000_0010 != 0 {
-            let entry_mask = reader.u8("entry_mask")?;
-            let unknown = entry_mask & !0b0001_1110;
+        if group_mask & 0b10 != 0 {
+            let mut entry_mask = 0_u64;
+            let mut shift = 0_u32;
+            loop {
+                let byte = reader.u8("entry_mask")?;
+                entry_mask |= u64::from(byte & 0x7f) << shift;
+                if byte & 0x80 == 0 {
+                    break;
+                }
+                shift += 7;
+            }
+            let unknown = entry_mask & !0b1_1110;
             if unknown != 0 {
                 return Err(WireError::UnknownPresence {
                     what: "member",
@@ -2204,23 +2240,23 @@ impl CodecObjectivesReplicatedState {
                 });
             }
             let mut entries = Vec::new();
-            if entry_mask & 0b0000_0010 != 0 {
+            if entry_mask & (1_u64 << 1) != 0 {
                 let value = CodecObjectivesTrackedObjectives::read_from(reader)?;
                 entries.push(CodecObjectivesReplicatedStateEntry::TrackedObjectives(
                     value,
                 ));
             }
-            if entry_mask & 0b0000_0100 != 0 {
+            if entry_mask & (1_u64 << 2) != 0 {
                 let value = CodecObjectivesCompletedObjectives::read_from(reader)?;
                 entries.push(CodecObjectivesReplicatedStateEntry::CompletedObjectives(
                     value,
                 ));
             }
-            if entry_mask & 0b0000_1000 != 0 {
+            if entry_mask & (1_u64 << 3) != 0 {
                 let value = CodecObjectivesActiveObjectives::read_from(reader)?;
                 entries.push(CodecObjectivesReplicatedStateEntry::ActiveObjectives(value));
             }
-            if entry_mask & 0b0001_0000 != 0 {
+            if entry_mask & (1_u64 << 4) != 0 {
                 let value = CodecObjectivesTaskStates::read_from(reader)?;
                 entries.push(CodecObjectivesReplicatedStateEntry::TaskStates(value));
             }
@@ -2246,9 +2282,21 @@ impl CodecObjectivesReplicatedState {
     /// # Errors
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
-        writer.u8(self.group_mask);
+        writer.u8(self.group_mask as u8);
         for group in &self.groups {
-            writer.u8(group.entry_mask);
+            let mut rest = group.entry_mask;
+            loop {
+                let byte = (rest & 0x7f) as u8;
+                rest >>= 7;
+                if rest != 0 {
+                    writer.u8(byte | 0x80);
+                } else {
+                    writer.u8(byte);
+                }
+                if rest == 0 {
+                    break;
+                }
+            }
             for entry in &group.entries {
                 match entry {
                     CodecObjectivesReplicatedStateEntry::TrackedObjectives(value) => {
@@ -2617,13 +2665,15 @@ impl CodecObjectivesTrackedObjectives {
 ///
 /// Presence-masked sub-codec card (no wire id).
 /// Its body is a two-level presence mask: one group mask byte, then for
-/// each present group one member mask byte, then the present members'
-/// bodies in ascending member order.
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecPlayerComponentReplicatedState {
-    /// The `group_mask` byte: bit i set means group i is
+    /// The `group_mask` mask: bit i set means group i is
     /// on the wire.
-    pub group_mask: u8,
+    pub group_mask: u64,
     /// The present groups, ascending by group index.
     pub groups: Vec<CodecPlayerComponentReplicatedStateGroup>,
 }
@@ -2631,9 +2681,10 @@ pub struct CodecPlayerComponentReplicatedState {
 /// One present group of [`CodecPlayerComponentReplicatedState`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecPlayerComponentReplicatedStateGroup {
-    /// The `entry_mask` byte: bit i set means member i is
-    /// on the wire.
-    pub entry_mask: u8,
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
     /// The present members, ascending by member index.
     pub entries: Vec<CodecPlayerComponentReplicatedStateEntry>,
 }
@@ -2668,8 +2719,8 @@ impl CodecPlayerComponentReplicatedState {
     /// Returns [`WireError`] when the body is shorter, or a mask selects a group
     /// or member the card does not declare.
     pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
-        let group_mask = reader.u8("group_mask")?;
-        let unknown = group_mask & !0b0000_0010;
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b10;
         if unknown != 0 {
             return Err(WireError::UnknownPresence {
                 what: "group",
@@ -2677,9 +2728,18 @@ impl CodecPlayerComponentReplicatedState {
             });
         }
         let mut groups = Vec::new();
-        if group_mask & 0b0000_0010 != 0 {
-            let entry_mask = reader.u8("entry_mask")?;
-            let unknown = entry_mask & !0b0000_1000;
+        if group_mask & 0b10 != 0 {
+            let mut entry_mask = 0_u64;
+            let mut shift = 0_u32;
+            loop {
+                let byte = reader.u8("entry_mask")?;
+                entry_mask |= u64::from(byte & 0x7f) << shift;
+                if byte & 0x80 == 0 {
+                    break;
+                }
+                shift += 7;
+            }
+            let unknown = entry_mask & !0b1000;
             if unknown != 0 {
                 return Err(WireError::UnknownPresence {
                     what: "member",
@@ -2687,7 +2747,7 @@ impl CodecPlayerComponentReplicatedState {
                 });
             }
             let mut entries = Vec::new();
-            if entry_mask & 0b0000_1000 != 0 {
+            if entry_mask & (1_u64 << 3) != 0 {
                 let value = CodecPlayerLookingThroughLoadout::read_from(reader)?;
                 entries
                     .push(CodecPlayerComponentReplicatedStateEntry::LookingThroughLoadout(value));
@@ -2714,9 +2774,21 @@ impl CodecPlayerComponentReplicatedState {
     /// # Errors
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
-        writer.u8(self.group_mask);
+        writer.u8(self.group_mask as u8);
         for group in &self.groups {
-            writer.u8(group.entry_mask);
+            let mut rest = group.entry_mask;
+            loop {
+                let byte = (rest & 0x7f) as u8;
+                rest >>= 7;
+                if rest != 0 {
+                    writer.u8(byte | 0x80);
+                } else {
+                    writer.u8(byte);
+                }
+                if rest == 0 {
+                    break;
+                }
+            }
             for entry in &group.entries {
                 match entry {
                     CodecPlayerComponentReplicatedStateEntry::LookingThroughLoadout(value) => {
@@ -2784,17 +2856,225 @@ impl CodecPlayerLookingThroughLoadout {
     }
 }
 
+/// `codec.seasons-rewards-replicated-state` — one Atlas card.
+///
+/// Presence-masked sub-codec card (no wire id).
+/// Its body is a two-level presence mask: one group mask byte, then for
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsReplicatedState {
+    /// The `group_mask` mask: bit i set means group i is
+    /// on the wire.
+    pub group_mask: u64,
+    /// The present groups, ascending by group index.
+    pub groups: Vec<CodecSeasonsRewardsReplicatedStateGroup>,
+}
+
+/// One present group of [`CodecSeasonsRewardsReplicatedState`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsReplicatedStateGroup {
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
+    /// The present members, ascending by member index.
+    pub entries: Vec<CodecSeasonsRewardsReplicatedStateEntry>,
+}
+
+/// One present member of a [`CodecSeasonsRewardsReplicatedStateGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodecSeasonsRewardsReplicatedStateEntry {
+    /// Group 0 member 0, `cardTemplate`.
+    CardTemplate(CodecSeasonsRewardsU8List),
+    /// Group 0 member 2, `stampedSquares`.
+    StampedSquares(CodecSeasonsRewardsU8List),
+    /// Group 0 member 3, `wildStampedSquares`.
+    WildStampedSquares(u8),
+    /// Group 0 member 4, `rewardClaimed`.
+    RewardClaimed(bool),
+    /// Group 0 member 5, `rerollCount`.
+    RerollCount(u8),
+    /// Group 0 member 6, `activitiesTasks`.
+    ActivitiesTasks(CodecSeasonsRewardsU64List),
+    /// Group 0 member 8, `wildStampCount`.
+    WildStampCount(u32),
+    /// Group 0 member 9, `wildStampAwardBound`.
+    WildStampAwardBound(u32),
+}
+
+impl CodecSeasonsRewardsReplicatedState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.seasons-rewards-replicated-state";
+
+    /// Decode one `codec.seasons-rewards-replicated-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, outside a bound
+    /// the card states, or its mask selects a group or member the card does
+    /// not declare.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, or a mask selects a group
+    /// or member the card does not declare.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b1;
+        if unknown != 0 {
+            return Err(WireError::UnknownPresence {
+                what: "group",
+                index: u64::from(unknown.trailing_zeros()),
+            });
+        }
+        let mut groups = Vec::new();
+        if group_mask & 0b1 != 0 {
+            let mut entry_mask = 0_u64;
+            let mut shift = 0_u32;
+            loop {
+                let byte = reader.u8("entry_mask")?;
+                entry_mask |= u64::from(byte & 0x7f) << shift;
+                if byte & 0x80 == 0 {
+                    break;
+                }
+                shift += 7;
+            }
+            let unknown = entry_mask & !0b11_0111_1101;
+            if unknown != 0 {
+                return Err(WireError::UnknownPresence {
+                    what: "member",
+                    index: u64::from(unknown.trailing_zeros()),
+                });
+            }
+            let mut entries = Vec::new();
+            if entry_mask & (1_u64 << 0) != 0 {
+                let value = CodecSeasonsRewardsU8List::read_from(reader)?;
+                entries.push(CodecSeasonsRewardsReplicatedStateEntry::CardTemplate(value));
+            }
+            if entry_mask & (1_u64 << 2) != 0 {
+                let value = CodecSeasonsRewardsU8List::read_from(reader)?;
+                entries.push(CodecSeasonsRewardsReplicatedStateEntry::StampedSquares(
+                    value,
+                ));
+            }
+            if entry_mask & (1_u64 << 3) != 0 {
+                let value = reader.u8("wildStampedSquares")?;
+                entries.push(CodecSeasonsRewardsReplicatedStateEntry::WildStampedSquares(
+                    value,
+                ));
+            }
+            if entry_mask & (1_u64 << 4) != 0 {
+                let value = reader.bool_byte("rewardClaimed")?;
+                entries.push(CodecSeasonsRewardsReplicatedStateEntry::RewardClaimed(
+                    value,
+                ));
+            }
+            if entry_mask & (1_u64 << 5) != 0 {
+                let value = reader.u8("rerollCount")?;
+                entries.push(CodecSeasonsRewardsReplicatedStateEntry::RerollCount(value));
+            }
+            if entry_mask & (1_u64 << 6) != 0 {
+                let value = CodecSeasonsRewardsU64List::read_from(reader)?;
+                entries.push(CodecSeasonsRewardsReplicatedStateEntry::ActivitiesTasks(
+                    value,
+                ));
+            }
+            if entry_mask & (1_u64 << 8) != 0 {
+                let value = reader.u32be("wildStampCount")?;
+                entries.push(CodecSeasonsRewardsReplicatedStateEntry::WildStampCount(
+                    value,
+                ));
+            }
+            if entry_mask & (1_u64 << 9) != 0 {
+                let value = reader.u32be("wildStampAwardBound")?;
+                entries.push(CodecSeasonsRewardsReplicatedStateEntry::WildStampAwardBound(value));
+            }
+            groups.push(CodecSeasonsRewardsReplicatedStateGroup {
+                entry_mask,
+                entries,
+            });
+        }
+        Ok(Self { group_mask, groups })
+    }
+
+    /// Encode one `codec.seasons-rewards-replicated-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.group_mask as u8);
+        for group in &self.groups {
+            let mut rest = group.entry_mask;
+            loop {
+                let byte = (rest & 0x7f) as u8;
+                rest >>= 7;
+                if rest != 0 {
+                    writer.u8(byte | 0x80);
+                } else {
+                    writer.u8(byte);
+                }
+                if rest == 0 {
+                    break;
+                }
+            }
+            for entry in &group.entries {
+                match entry {
+                    CodecSeasonsRewardsReplicatedStateEntry::CardTemplate(value)
+                    | CodecSeasonsRewardsReplicatedStateEntry::StampedSquares(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecSeasonsRewardsReplicatedStateEntry::WildStampedSquares(value)
+                    | CodecSeasonsRewardsReplicatedStateEntry::RerollCount(value) => {
+                        writer.u8(*value);
+                    }
+                    CodecSeasonsRewardsReplicatedStateEntry::RewardClaimed(value) => {
+                        writer.u8(u8::from(*value));
+                    }
+                    CodecSeasonsRewardsReplicatedStateEntry::ActivitiesTasks(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecSeasonsRewardsReplicatedStateEntry::WildStampCount(value)
+                    | CodecSeasonsRewardsReplicatedStateEntry::WildStampAwardBound(value) => {
+                        writer.u32be(*value);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 /// `codec.seasons-rewards-tracked-stat-replicated-state` — one Atlas card.
 ///
 /// Presence-masked sub-codec card (no wire id).
 /// Its body is a two-level presence mask: one group mask byte, then for
-/// each present group one member mask byte, then the present members'
-/// bodies in ascending member order.
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecSeasonsRewardsTrackedStatReplicatedState {
-    /// The `group_mask` byte: bit i set means group i is
+    /// The `group_mask` mask: bit i set means group i is
     /// on the wire.
-    pub group_mask: u8,
+    pub group_mask: u64,
     /// The present groups, ascending by group index.
     pub groups: Vec<CodecSeasonsRewardsTrackedStatReplicatedStateGroup>,
 }
@@ -2802,9 +3082,10 @@ pub struct CodecSeasonsRewardsTrackedStatReplicatedState {
 /// One present group of [`CodecSeasonsRewardsTrackedStatReplicatedState`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecSeasonsRewardsTrackedStatReplicatedStateGroup {
-    /// The `entry_mask` byte: bit i set means member i is
-    /// on the wire.
-    pub entry_mask: u8,
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
     /// The present members, ascending by member index.
     pub entries: Vec<CodecSeasonsRewardsTrackedStatReplicatedStateEntry>,
 }
@@ -2847,8 +3128,8 @@ impl CodecSeasonsRewardsTrackedStatReplicatedState {
     /// Returns [`WireError`] when the body is shorter, or a mask selects a group
     /// or member the card does not declare.
     pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
-        let group_mask = reader.u8("group_mask")?;
-        let unknown = group_mask & !0b0000_0001;
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b1;
         if unknown != 0 {
             return Err(WireError::UnknownPresence {
                 what: "group",
@@ -2856,9 +3137,18 @@ impl CodecSeasonsRewardsTrackedStatReplicatedState {
             });
         }
         let mut groups = Vec::new();
-        if group_mask & 0b0000_0001 != 0 {
-            let entry_mask = reader.u8("entry_mask")?;
-            let unknown = entry_mask & !0b0001_1111;
+        if group_mask & 0b1 != 0 {
+            let mut entry_mask = 0_u64;
+            let mut shift = 0_u32;
+            loop {
+                let byte = reader.u8("entry_mask")?;
+                entry_mask |= u64::from(byte & 0x7f) << shift;
+                if byte & 0x80 == 0 {
+                    break;
+                }
+                shift += 7;
+            }
+            let unknown = entry_mask & !0b1_1111;
             if unknown != 0 {
                 return Err(WireError::UnknownPresence {
                     what: "member",
@@ -2866,28 +3156,28 @@ impl CodecSeasonsRewardsTrackedStatReplicatedState {
                 });
             }
             let mut entries = Vec::new();
-            if entry_mask & 0b0000_0001 != 0 {
+            if entry_mask & (1_u64 << 0) != 0 {
                 let value = reader.bool_byte("initialized")?;
                 entries
                     .push(CodecSeasonsRewardsTrackedStatReplicatedStateEntry::Initialized(value));
             }
-            if entry_mask & 0b0000_0010 != 0 {
+            if entry_mask & (1_u64 << 1) != 0 {
                 let value = CodecSeasonsRewardsU32List::read_from(reader)?;
                 entries.push(CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupList(value));
             }
-            if entry_mask & 0b0000_0100 != 0 {
+            if entry_mask & (1_u64 << 2) != 0 {
                 let value = CodecSeasonsRewardsU16List::read_from(reader)?;
                 entries.push(
                     CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupCountList(value),
                 );
             }
-            if entry_mask & 0b0000_1000 != 0 {
+            if entry_mask & (1_u64 << 3) != 0 {
                 let value = CodecSeasonsRewardsU16List::read_from(reader)?;
                 entries.push(
                     CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupStatIndex(value),
                 );
             }
-            if entry_mask & 0b0001_0000 != 0 {
+            if entry_mask & (1_u64 << 4) != 0 {
                 let value = CodecSeasonsRewardsU32List::read_from(reader)?;
                 entries.push(
                     CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupStatValue(value),
@@ -2915,9 +3205,21 @@ impl CodecSeasonsRewardsTrackedStatReplicatedState {
     /// # Errors
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
-        writer.u8(self.group_mask);
+        writer.u8(self.group_mask as u8);
         for group in &self.groups {
-            writer.u8(group.entry_mask);
+            let mut rest = group.entry_mask;
+            loop {
+                let byte = (rest & 0x7f) as u8;
+                rest >>= 7;
+                if rest != 0 {
+                    writer.u8(byte | 0x80);
+                } else {
+                    writer.u8(byte);
+                }
+                if rest == 0 {
+                    break;
+                }
+            }
             for entry in &group.entries {
                 match entry {
                     CodecSeasonsRewardsTrackedStatReplicatedStateEntry::Initialized(value) => {
@@ -3146,17 +3448,282 @@ impl CodecSeasonsRewardsU32List {
     }
 }
 
+/// `codec.seasons-rewards-u64-list` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsU64List {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(u64be)`); meaning unnamed.
+    pub elements: Vec<u64>,
+}
+
+impl CodecSeasonsRewardsU64List {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.seasons-rewards-u64-list";
+
+    /// Decode one `codec.seasons-rewards-u64-list` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u64be("elements")?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.seasons-rewards-u64-list` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            writer.u64be(*value);
+        }
+        Ok(())
+    }
+}
+
+/// `codec.seasons-rewards-u8` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsU8 {
+    /// Body field `value` (`u8`); meaning unnamed.
+    pub value: u8,
+}
+
+impl CodecSeasonsRewardsU8 {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.seasons-rewards-u8";
+
+    /// Decode one `codec.seasons-rewards-u8` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            value: reader.u8("value")?,
+        })
+    }
+
+    /// Encode one `codec.seasons-rewards-u8` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.value);
+        Ok(())
+    }
+}
+
+/// `codec.seasons-rewards-u8-list` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsU8List {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(nested(codec.seasons-rewards-u8))`); meaning unnamed.
+    pub elements: Vec<CodecSeasonsRewardsU8>,
+}
+
+impl CodecSeasonsRewardsU8List {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.seasons-rewards-u8-list";
+
+    /// Decode one `codec.seasons-rewards-u8-list` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(CodecSeasonsRewardsU8::read_from(reader)?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.seasons-rewards-u8-list` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            value.write_to(writer)?;
+        }
+        Ok(())
+    }
+}
+
 /// `codec.social-replicated-state` — one Atlas card.
 ///
 /// Presence-masked sub-codec card (no wire id).
 /// Its body is a two-level presence mask: one group mask byte, then for
-/// each present group one member mask byte, then the present members'
-/// bodies in ascending member order.
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecSocialReplicatedState {
-    /// The `group_mask` byte: bit i set means group i is
+    /// The `group_mask` mask: bit i set means group i is
     /// on the wire.
-    pub group_mask: u8,
+    pub group_mask: u64,
     /// The present groups, ascending by group index.
     pub groups: Vec<CodecSocialReplicatedStateGroup>,
 }
@@ -3164,9 +3731,10 @@ pub struct CodecSocialReplicatedState {
 /// One present group of [`CodecSocialReplicatedState`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecSocialReplicatedStateGroup {
-    /// The `entry_mask` byte: bit i set means member i is
-    /// on the wire.
-    pub entry_mask: u8,
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
     /// The present members, ascending by member index.
     pub entries: Vec<CodecSocialReplicatedStateEntry>,
 }
@@ -3205,8 +3773,8 @@ impl CodecSocialReplicatedState {
     /// Returns [`WireError`] when the body is shorter, or a mask selects a group
     /// or member the card does not declare.
     pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
-        let group_mask = reader.u8("group_mask")?;
-        let unknown = group_mask & !0b0000_0010;
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b10;
         if unknown != 0 {
             return Err(WireError::UnknownPresence {
                 what: "group",
@@ -3214,9 +3782,18 @@ impl CodecSocialReplicatedState {
             });
         }
         let mut groups = Vec::new();
-        if group_mask & 0b0000_0010 != 0 {
-            let entry_mask = reader.u8("entry_mask")?;
-            let unknown = entry_mask & !0b0011_1000;
+        if group_mask & 0b10 != 0 {
+            let mut entry_mask = 0_u64;
+            let mut shift = 0_u32;
+            loop {
+                let byte = reader.u8("entry_mask")?;
+                entry_mask |= u64::from(byte & 0x7f) << shift;
+                if byte & 0x80 == 0 {
+                    break;
+                }
+                shift += 7;
+            }
+            let unknown = entry_mask & !0b11_1000;
             if unknown != 0 {
                 return Err(WireError::UnknownPresence {
                     what: "member",
@@ -3224,15 +3801,15 @@ impl CodecSocialReplicatedState {
                 });
             }
             let mut entries = Vec::new();
-            if entry_mask & 0b0000_1000 != 0 {
+            if entry_mask & (1_u64 << 3) != 0 {
                 let value = reader.u64be("lastDailyResetTime")?;
                 entries.push(CodecSocialReplicatedStateEntry::LastDailyResetTime(value));
             }
-            if entry_mask & 0b0001_0000 != 0 {
+            if entry_mask & (1_u64 << 4) != 0 {
                 let value = CodecSocialStringSet::read_from(reader)?;
                 entries.push(CodecSocialReplicatedStateEntry::Friends(value));
             }
-            if entry_mask & 0b0010_0000 != 0 {
+            if entry_mask & (1_u64 << 5) != 0 {
                 let value = CodecSocialStringSet::read_from(reader)?;
                 entries.push(CodecSocialReplicatedStateEntry::FriendInvites(value));
             }
@@ -3258,9 +3835,21 @@ impl CodecSocialReplicatedState {
     /// # Errors
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
-        writer.u8(self.group_mask);
+        writer.u8(self.group_mask as u8);
         for group in &self.groups {
-            writer.u8(group.entry_mask);
+            let mut rest = group.entry_mask;
+            loop {
+                let byte = (rest & 0x7f) as u8;
+                rest >>= 7;
+                if rest != 0 {
+                    writer.u8(byte | 0x80);
+                } else {
+                    writer.u8(byte);
+                }
+                if rest == 0 {
+                    break;
+                }
+            }
             for entry in &group.entries {
                 match entry {
                     CodecSocialReplicatedStateEntry::LastDailyResetTime(value) => {
@@ -3440,13 +4029,15 @@ impl CodecSocialStringSet {
 ///
 /// Presence-masked sub-codec card (no wire id).
 /// Its body is a two-level presence mask: one group mask byte, then for
-/// each present group one member mask byte, then the present members'
-/// bodies in ascending member order.
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecStatusEffectsComponentReplicatedState {
-    /// The `group_mask` byte: bit i set means group i is
+    /// The `group_mask` mask: bit i set means group i is
     /// on the wire.
-    pub group_mask: u8,
+    pub group_mask: u64,
     /// The present groups, ascending by group index.
     pub groups: Vec<CodecStatusEffectsComponentReplicatedStateGroup>,
 }
@@ -3454,9 +4045,10 @@ pub struct CodecStatusEffectsComponentReplicatedState {
 /// One present group of [`CodecStatusEffectsComponentReplicatedState`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecStatusEffectsComponentReplicatedStateGroup {
-    /// The `entry_mask` byte: bit i set means member i is
-    /// on the wire.
-    pub entry_mask: u8,
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
     /// The present members, ascending by member index.
     pub entries: Vec<CodecStatusEffectsComponentReplicatedStateEntry>,
 }
@@ -3491,8 +4083,8 @@ impl CodecStatusEffectsComponentReplicatedState {
     /// Returns [`WireError`] when the body is shorter, or a mask selects a group
     /// or member the card does not declare.
     pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
-        let group_mask = reader.u8("group_mask")?;
-        let unknown = group_mask & !0b0000_0010;
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b10;
         if unknown != 0 {
             return Err(WireError::UnknownPresence {
                 what: "group",
@@ -3500,9 +4092,18 @@ impl CodecStatusEffectsComponentReplicatedState {
             });
         }
         let mut groups = Vec::new();
-        if group_mask & 0b0000_0010 != 0 {
-            let entry_mask = reader.u8("entry_mask")?;
-            let unknown = entry_mask & !0b0000_0010;
+        if group_mask & 0b10 != 0 {
+            let mut entry_mask = 0_u64;
+            let mut shift = 0_u32;
+            loop {
+                let byte = reader.u8("entry_mask")?;
+                entry_mask |= u64::from(byte & 0x7f) << shift;
+                if byte & 0x80 == 0 {
+                    break;
+                }
+                shift += 7;
+            }
+            let unknown = entry_mask & !0b10;
             if unknown != 0 {
                 return Err(WireError::UnknownPresence {
                     what: "member",
@@ -3510,7 +4111,7 @@ impl CodecStatusEffectsComponentReplicatedState {
                 });
             }
             let mut entries = Vec::new();
-            if entry_mask & 0b0000_0010 != 0 {
+            if entry_mask & (1_u64 << 1) != 0 {
                 let value = CodecStatusEffectsEntries::read_from(reader)?;
                 entries.push(
                     CodecStatusEffectsComponentReplicatedStateEntry::MLightweightLocalEffectsMap(
@@ -3540,9 +4141,21 @@ impl CodecStatusEffectsComponentReplicatedState {
     /// # Errors
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
-        writer.u8(self.group_mask);
+        writer.u8(self.group_mask as u8);
         for group in &self.groups {
-            writer.u8(group.entry_mask);
+            let mut rest = group.entry_mask;
+            loop {
+                let byte = (rest & 0x7f) as u8;
+                rest >>= 7;
+                if rest != 0 {
+                    writer.u8(byte | 0x80);
+                } else {
+                    writer.u8(byte);
+                }
+                if rest == 0 {
+                    break;
+                }
+            }
             for entry in &group.entries {
                 match entry {
                     CodecStatusEffectsComponentReplicatedStateEntry::MLightweightLocalEffectsMap(value) => {
@@ -4049,13 +4662,15 @@ impl CodecTransmogInventoryReady {
 ///
 /// Presence-masked sub-codec card (no wire id).
 /// Its body is a two-level presence mask: one group mask byte, then for
-/// each present group one member mask byte, then the present members'
-/// bodies in ascending member order.
+/// each present group a member mask, then the present members' bodies in
+/// ascending member order. A member level whose members do not fit one
+/// seven-bit byte is read as a continuation sequence: its top bit asks for
+/// a further mask byte.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecTransmogReplicatedState {
-    /// The `group_mask` byte: bit i set means group i is
+    /// The `group_mask` mask: bit i set means group i is
     /// on the wire.
-    pub group_mask: u8,
+    pub group_mask: u64,
     /// The present groups, ascending by group index.
     pub groups: Vec<CodecTransmogReplicatedStateGroup>,
 }
@@ -4063,9 +4678,10 @@ pub struct CodecTransmogReplicatedState {
 /// One present group of [`CodecTransmogReplicatedState`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodecTransmogReplicatedStateGroup {
-    /// The `entry_mask` byte: bit i set means member i is
-    /// on the wire.
-    pub entry_mask: u8,
+    /// The `entry_mask` mask: bit i set means member i is
+    /// on the wire. A level that needs more than one byte accumulates its
+    /// members across the sequence, low-first.
+    pub entry_mask: u64,
     /// The present members, ascending by member index.
     pub entries: Vec<CodecTransmogReplicatedStateEntry>,
 }
@@ -4108,8 +4724,8 @@ impl CodecTransmogReplicatedState {
     /// Returns [`WireError`] when the body is shorter, or a mask selects a group
     /// or member the card does not declare.
     pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
-        let group_mask = reader.u8("group_mask")?;
-        let unknown = group_mask & !0b0000_0001;
+        let group_mask = u64::from(reader.u8("group_mask")?);
+        let unknown = group_mask & !0b1;
         if unknown != 0 {
             return Err(WireError::UnknownPresence {
                 what: "group",
@@ -4117,9 +4733,18 @@ impl CodecTransmogReplicatedState {
             });
         }
         let mut groups = Vec::new();
-        if group_mask & 0b0000_0001 != 0 {
-            let entry_mask = reader.u8("entry_mask")?;
-            let unknown = entry_mask & !0b0001_1111;
+        if group_mask & 0b1 != 0 {
+            let mut entry_mask = 0_u64;
+            let mut shift = 0_u32;
+            loop {
+                let byte = reader.u8("entry_mask")?;
+                entry_mask |= u64::from(byte & 0x7f) << shift;
+                if byte & 0x80 == 0 {
+                    break;
+                }
+                shift += 7;
+            }
+            let unknown = entry_mask & !0b1_1111;
             if unknown != 0 {
                 return Err(WireError::UnknownPresence {
                     what: "member",
@@ -4127,29 +4752,29 @@ impl CodecTransmogReplicatedState {
                 });
             }
             let mut entries = Vec::new();
-            if entry_mask & 0b0000_0001 != 0 {
+            if entry_mask & (1_u64 << 0) != 0 {
                 let value = CodecTransmogAppearanceMap::read_from(reader)?;
                 entries.push(CodecTransmogReplicatedStateEntry::CapturedArmorAppearances(
                     value,
                 ));
             }
-            if entry_mask & 0b0000_0010 != 0 {
+            if entry_mask & (1_u64 << 1) != 0 {
                 let value = CodecTransmogAppearanceList::read_from(reader)?;
                 entries.push(CodecTransmogReplicatedStateEntry::CapturedWeaponAppearances(value));
             }
-            if entry_mask & 0b0000_0100 != 0 {
+            if entry_mask & (1_u64 << 2) != 0 {
                 let value = CodecTransmogAppearanceMap::read_from(reader)?;
                 entries.push(CodecTransmogReplicatedStateEntry::OwnedArmorAppearances(
                     value,
                 ));
             }
-            if entry_mask & 0b0000_1000 != 0 {
+            if entry_mask & (1_u64 << 3) != 0 {
                 let value = CodecTransmogAppearanceMap::read_from(reader)?;
                 entries.push(CodecTransmogReplicatedStateEntry::OwnedWeaponAppearances(
                     value,
                 ));
             }
-            if entry_mask & 0b0001_0000 != 0 {
+            if entry_mask & (1_u64 << 4) != 0 {
                 let value = CodecTransmogInventoryReady::read_from(reader)?;
                 entries.push(CodecTransmogReplicatedStateEntry::InventoryServicesReady(
                     value,
@@ -4177,9 +4802,21 @@ impl CodecTransmogReplicatedState {
     /// # Errors
     /// Returns [`WireError`] when a value exceeds a width the card states.
     pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
-        writer.u8(self.group_mask);
+        writer.u8(self.group_mask as u8);
         for group in &self.groups {
-            writer.u8(group.entry_mask);
+            let mut rest = group.entry_mask;
+            loop {
+                let byte = (rest & 0x7f) as u8;
+                rest >>= 7;
+                if rest != 0 {
+                    writer.u8(byte | 0x80);
+                } else {
+                    writer.u8(byte);
+                }
+                if rest == 0 {
+                    break;
+                }
+            }
             for entry in &group.entries {
                 match entry {
                     CodecTransmogReplicatedStateEntry::CapturedArmorAppearances(value)
