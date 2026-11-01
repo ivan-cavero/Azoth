@@ -1,0 +1,37 @@
+{
+  "$comment": "Second milestone in the same night: the Rust server answers the Carrier handshake and the V3 registration, and the REAL client accepts it. Tracked evidence for a session whose prose note (REPORT.md) research/.gitignore keeps local.",
+  "date": "2026-11-01",
+  "server": {
+    "binary": "everfall-netd (everfall-net + everfall-world::rep)",
+    "tls": "OpenSSL 4.1.0 prebuilt, RSA 2048 CN=New World",
+    "port": 9000,
+    "layer_added": "Carrier acceptance flight (CLOCK_SYNC, CONNECT_ACK, CT_ACKS), LZ4 for the 0x81 body, V3 registration response from the generated 0x3 card"
+  },
+  "server_log_facts": {
+    "connected": "2026-11-01T23:14:08Z",
+    "rep_reply_sent_bytes": [39, 101, 18],
+    "no_carrier_reply": 91,
+    "registration_answered": 1,
+    "rep_errors": 0
+  },
+  "client_log_facts": {
+    "rep_address": "127.0.0.1:9000, worldId 00000000-0000-4000-8000-000000000005",
+    "received_registration_response_from_rep": 1,
+    "state_transitions": [
+      "ObtainREPRequirements -> StartREPConnection",
+      "StartREPConnection -> WaitingForREPConnection",
+      "WaitingForREPConnection -> Disconnected"
+    ],
+    "client_errors": [
+      "@mm_csdkerr_disconnect (4), retry true/0 (23:14:18)",
+      "@mm_csdkerr_connection_failed (0) (23:14:55)"
+    ]
+  },
+  "conclusion": "The real client accepted the Rust server's Carrier handshake and V3 registration: it logged 'received registration response from REP'. This is the first time a server from this repository was accepted by the client as a REP server rather than merely completing a DTLS handshake.",
+  "why_it_then_disconnects": "The layer above registration is not implemented. The client's next rung is the Carrier actor game connection and then the self-identification / level-info / spawn ladder, and this server sends none of them, so the client times out and disconnects. The disconnect is the boundary of the implemented layer.",
+  "next": [
+    "the Carrier actor game connection (the rung the atlas calls a transport job, not a message)",
+    "self-identification and level info after it",
+    "the state bundles, which the emitter already authors byte-for-byte with zero replayed fragments"
+  ]
+}
