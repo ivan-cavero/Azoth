@@ -223,8 +223,8 @@
 
 - kind: codec; status: verified; confidence: layout
 - presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
-  - group 0 member 0: `collectedArmorAppearances` (`nested(codec.transmog-appearance-map)`)
-  - group 0 member 1: `collectedWeaponAppearances` (`nested(codec.transmog-appearance-list)`)
+  - group 0 member 0: `capturedArmorAppearances` (`nested(codec.transmog-appearance-map)`)
+  - group 0 member 1: `capturedWeaponAppearances` (`nested(codec.transmog-appearance-list)`)
   - group 0 member 2: `ownedArmorAppearances` (`nested(codec.transmog-appearance-map)`)
   - group 0 member 3: `ownedWeaponAppearances` (`nested(codec.transmog-appearance-map)`)
   - group 0 member 4: `inventoryServicesReady` (`nested(codec.transmog-inventory-ready)`)
@@ -232,8 +232,8 @@
 
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
-| collectedArmorAppearances | nested(codec.transmog-appearance-map) | — | measured | known | The client's own reflection string for this member is `capturedArmorAppearances`; the generated identifier cannot contain the substring `capture` because the anti-emulator guard refuses it in library source, so the field is named `collected...` and the reflection string is kept here.  |
-| collectedWeaponAppearances | nested(codec.transmog-appearance-list) | — | measured | known | The client's own reflection string for this member is `capturedWeaponAppearances`; the generated identifier cannot contain the substring `capture` because the anti-emulator guard refuses it in library source, so the field is named `collected...` and the reflection string is kept here.  |
+| capturedArmorAppearances | nested(codec.transmog-appearance-map) | — | measured | known | The client's own reflection string for this member is `capturedArmorAppearances`, so the field carries that name. The anti-emulator guard checks for recording I/O (a file read or a recording-path string literal), never for a substring of an identifier, so no protocol name is renamed to satisfy it. |
+| capturedWeaponAppearances | nested(codec.transmog-appearance-list) | — | measured | known | The client's own reflection string for this member is `capturedWeaponAppearances`, so the field carries that name. The anti-emulator guard checks for recording I/O (a file read or a recording-path string literal), never for a substring of an identifier, so no protocol name is renamed to satisfy it. |
 | ownedArmorAppearances | nested(codec.transmog-appearance-map) | — | measured | known | Group 0 member 2, named by the reflection string at 0x148310950; member object at ctor offset 0xc30, same vtable and reader. Its mask bit is CLEAR in the measured body, so this card declares it with the captured layout it shares but has no measured instance of its own. |
 | ownedWeaponAppearances | nested(codec.transmog-appearance-map) | — | measured | known | Group 0 member 3, named by the reflection string at 0x148310968; member object at ctor offset 0xe68, same vtable and reader. Its mask bit is CLEAR in the measured body, so this card declares it with the captured layout it shares but has no measured instance of its own. |
 | inventoryServicesReady | nested(codec.transmog-inventory-ready) | — | measured | known | Group 0 member 4, named by the reflection string at 0x148310980; the member object at ctor offset 0x10a0 carries vtable 0x148040208 and its reader is vtable +0x30 = 0x1417b4c20, one strict zero-or-one byte. |

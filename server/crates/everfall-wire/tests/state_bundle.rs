@@ -258,11 +258,11 @@ fn three_fragments_are_typed_components_and_six_are_replayed_runs() {
     assert_eq!(members.len(), 3, "members 0, 1 and 4 are present");
     assert!(matches!(
         members[0],
-        CodecTransmogReplicatedStateEntry::CollectedArmorAppearances(_)
+        CodecTransmogReplicatedStateEntry::CapturedArmorAppearances(_)
     ));
     assert!(matches!(
         members[1],
-        CodecTransmogReplicatedStateEntry::CollectedWeaponAppearances(_)
+        CodecTransmogReplicatedStateEntry::CapturedWeaponAppearances(_)
     ));
     assert!(matches!(
         members[2],

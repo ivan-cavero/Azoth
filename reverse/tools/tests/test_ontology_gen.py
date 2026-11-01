@@ -514,8 +514,8 @@ class OntologyGenTest(unittest.TestCase):
         decoded = wire.decode_codec("codec.transmog-replicated-state", body)
         self.assertEqual(decoded["group_mask"], 0x01)
         self.assertEqual(decoded["groups"][0]["entry_mask"], 0x13)
-        armor = decoded["groups"][0]["entries"]["collectedArmorAppearances"]
-        weapon = decoded["groups"][0]["entries"]["collectedWeaponAppearances"]
+        armor = decoded["groups"][0]["entries"]["capturedArmorAppearances"]
+        weapon = decoded["groups"][0]["entries"]["capturedWeaponAppearances"]
         self.assertEqual(len(armor["elements"]), 39)
         self.assertEqual(armor["elements"][0]["id"], 0)
         self.assertEqual(armor["elements"][0]["delta"], 17)

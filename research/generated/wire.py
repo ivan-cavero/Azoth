@@ -806,8 +806,8 @@ CODECS = {
     'codec.transmog-replicated-state': {
         'name': 'TransmogComponentReplicatedState',
         'fields': (
-            ('collectedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
-            ('collectedWeaponAppearances', 'nested(codec.transmog-appearance-list)'),
+            ('capturedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
+            ('capturedWeaponAppearances', 'nested(codec.transmog-appearance-list)'),
             ('ownedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
             ('ownedWeaponAppearances', 'nested(codec.transmog-appearance-map)'),
             ('inventoryServicesReady', 'nested(codec.transmog-inventory-ready)'),
@@ -817,8 +817,8 @@ CODECS = {
             'member': ('entry_mask', 7, 128),
             'groups': (
                 (0, 1, (
-                    (0, 1, 'collectedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
-                    (1, 2, 'collectedWeaponAppearances', 'nested(codec.transmog-appearance-list)'),
+                    (0, 1, 'capturedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
+                    (1, 2, 'capturedWeaponAppearances', 'nested(codec.transmog-appearance-list)'),
                     (2, 4, 'ownedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
                     (3, 8, 'ownedWeaponAppearances', 'nested(codec.transmog-appearance-map)'),
                     (4, 16, 'inventoryServicesReady', 'nested(codec.transmog-inventory-ready)'),

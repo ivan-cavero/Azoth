@@ -27,7 +27,7 @@
   },
   "fields": [
     {
-      "name": "collectedArmorAppearances",
+      "name": "capturedArmorAppearances",
       "meaning": "known",
       "where": "wire",
       "type": "nested(codec.transmog-appearance-map)",
@@ -36,10 +36,10 @@
         "group": 0,
         "member": 0
       },
-      "note": "The client's own reflection string for this member is `capturedArmorAppearances`; the generated identifier cannot contain the substring `capture` because the anti-emulator guard refuses it in library source, so the field is named `collected...` and the reflection string is kept here. "
+      "note": "The client's own reflection string for this member is `capturedArmorAppearances`, so the field carries that name. The anti-emulator guard checks for recording I/O (a file read or a recording-path string literal), never for a substring of an identifier, so no protocol name is renamed to satisfy it."
     },
     {
-      "name": "collectedWeaponAppearances",
+      "name": "capturedWeaponAppearances",
       "meaning": "known",
       "where": "wire",
       "type": "nested(codec.transmog-appearance-list)",
@@ -48,7 +48,7 @@
         "group": 0,
         "member": 1
       },
-      "note": "The client's own reflection string for this member is `capturedWeaponAppearances`; the generated identifier cannot contain the substring `capture` because the anti-emulator guard refuses it in library source, so the field is named `collected...` and the reflection string is kept here. "
+      "note": "The client's own reflection string for this member is `capturedWeaponAppearances`, so the field carries that name. The anti-emulator guard checks for recording I/O (a file read or a recording-path string literal), never for a substring of an identifier, so no protocol name is renamed to satisfy it."
     },
     {
       "name": "ownedArmorAppearances",

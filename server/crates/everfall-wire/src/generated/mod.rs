@@ -2694,10 +2694,10 @@ pub struct CodecTransmogReplicatedStateGroup {
 /// One present member of a [`CodecTransmogReplicatedStateGroup`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CodecTransmogReplicatedStateEntry {
-    /// Group 0 member 0, `collectedArmorAppearances`.
-    CollectedArmorAppearances(CodecTransmogAppearanceMap),
-    /// Group 0 member 1, `collectedWeaponAppearances`.
-    CollectedWeaponAppearances(CodecTransmogAppearanceList),
+    /// Group 0 member 0, `capturedArmorAppearances`.
+    CapturedArmorAppearances(CodecTransmogAppearanceMap),
+    /// Group 0 member 1, `capturedWeaponAppearances`.
+    CapturedWeaponAppearances(CodecTransmogAppearanceList),
     /// Group 0 member 2, `ownedArmorAppearances`.
     OwnedArmorAppearances(CodecTransmogAppearanceMap),
     /// Group 0 member 3, `ownedWeaponAppearances`.
@@ -2750,11 +2750,13 @@ impl CodecTransmogReplicatedState {
             let mut entries = Vec::new();
             if entry_mask & 0b0000_0001 != 0 {
                 let value = CodecTransmogAppearanceMap::read_from(reader)?;
-                entries.push(CodecTransmogReplicatedStateEntry::CollectedArmorAppearances(value));
+                entries.push(CodecTransmogReplicatedStateEntry::CapturedArmorAppearances(
+                    value,
+                ));
             }
             if entry_mask & 0b0000_0010 != 0 {
                 let value = CodecTransmogAppearanceList::read_from(reader)?;
-                entries.push(CodecTransmogReplicatedStateEntry::CollectedWeaponAppearances(value));
+                entries.push(CodecTransmogReplicatedStateEntry::CapturedWeaponAppearances(value));
             }
             if entry_mask & 0b0000_0100 != 0 {
                 let value = CodecTransmogAppearanceMap::read_from(reader)?;
@@ -2801,12 +2803,12 @@ impl CodecTransmogReplicatedState {
             writer.u8(group.entry_mask);
             for entry in &group.entries {
                 match entry {
-                    CodecTransmogReplicatedStateEntry::CollectedArmorAppearances(value)
+                    CodecTransmogReplicatedStateEntry::CapturedArmorAppearances(value)
                     | CodecTransmogReplicatedStateEntry::OwnedArmorAppearances(value)
                     | CodecTransmogReplicatedStateEntry::OwnedWeaponAppearances(value) => {
                         value.write_to(writer)?;
                     }
-                    CodecTransmogReplicatedStateEntry::CollectedWeaponAppearances(value) => {
+                    CodecTransmogReplicatedStateEntry::CapturedWeaponAppearances(value) => {
                         value.write_to(writer)?;
                     }
                     CodecTransmogReplicatedStateEntry::InventoryServicesReady(value) => {
