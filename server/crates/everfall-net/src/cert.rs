@@ -1,58 +1,114 @@
-//! ECDSA P-256 self-signed certificate for the DTLS spike.
+//! RSA 2048 self-signed certificate for the DTLS server.
 //!
-//! dimpl ships a certificate generator, but it lives behind the `rcgen`
-//! feature, which enables `aws-lc-rs` -- the C library this spike exists to
-//! avoid. So the certificate is minted here with `p256` and `x509-cert`, both
-//! pure Rust.
+//! # Why RSA, and why this is measured
+//!
+//! The certificate is **not** an implementation detail here; it is the whole
+//! reason OpenSSL replaced `dimpl`. With `dimpl` bound on the REP port and a
+//! clean client run against it, the client sent **twelve 159-byte
+//! `ClientHellos`** and `dimpl` produced no flight at all, ending in
+//! `dtls error: timeout: connect`. The client's DTLS works against the Python
+//! lab world, which signs with an **RSA 2048** certificate (`CN=New World`),
+//! and `dimpl` lists RSA as an explicit non-goal. So the server must present an
+//! RSA certificate, and this module mints one.
+//!
+//! # Shape
+//!
+//! It matches `services/world/src/azoth_world/rep.py` (`make_self_signed_cert`):
+//! RSA 2048, `CN=New World`, subject == issuer, serial number from the current
+//! unix time, valid for ten years, signed with SHA-256.
 //!
 //! # Provenance
 //!
-//! The certificate is generated **fresh in memory at process start**, not read
-//! from disk. `self_signed_p256` draws a P-256 key from the OS RNG, builds a
-//! one-year v3 self-signed certificate around the matching public key, and
-//! returns dimpl's [`DtlsCertificate`] (DER certificate + PKCS#8 DER private
-//! key). Nothing is persisted, so no private key is ever committed or logged.
-//!
-//! The same function mints the certificate for the loopback client in the
-//! `handshake` test; each side gets its own key.
+//! The certificate and key are generated **fresh in memory at process start**,
+//! never read from disk and never written to it. `RsaIdentity::generate` draws
+//! a fresh RSA key from OpenSSL's RNG and builds the certificate around it, so
+//! no private key is ever committed or logged.
 
-use std::str::FromStr;
-use std::time::Duration;
+use openssl::asn1::{Asn1Integer, Asn1Time};
+use openssl::bn::BigNum;
+use openssl::error::ErrorStack;
+use openssl::hash::MessageDigest;
+use openssl::nid::Nid;
+use openssl::pkey::{PKey, PKeyRef, Private};
+use openssl::rsa::Rsa;
+use openssl::x509::{X509, X509Builder, X509NameBuilder, X509Ref};
 
-use dimpl::DtlsCertificate;
-use p256::ecdsa::SigningKey;
-use p256::elliptic_curve::Generate;
-use p256::pkcs8::EncodePrivateKey;
-use x509_cert::builder::profile::BuilderProfile;
-use x509_cert::builder::{Builder, CertificateBuilder};
-use x509_cert::certificate::TbsCertificate;
-use x509_cert::der::Encode;
-use x509_cert::ext::pkix::BasicConstraints;
-use x509_cert::ext::{Extension, ToExtension};
-use x509_cert::name::Name;
-use x509_cert::serial_number::SerialNumber;
-use x509_cert::spki::{SubjectPublicKeyInfo, SubjectPublicKeyInfoRef};
-use x509_cert::time::Validity;
+/// Subject and issuer common name, matching the Python lab certificate.
+const COMMON_NAME: &str = "New World";
 
-/// Subject distinguished name of the spike certificate.
-const SUBJECT: &str = "CN=Everfall DTLS Spike";
+/// RSA modulus size in bits. The client's pinned trust root is RSA 2048.
+const RSA_BITS: u32 = 2048;
 
-/// Serial number of the spike certificate. One certificate per process, so a
-/// constant serial keeps the DER stable across runs for diffing.
-const SERIAL: u32 = 1;
+/// Validity window, matching `make_self_signed_cert` (ten years).
+const VALIDITY_DAYS: u32 = 10 * 365;
 
-/// The certificate is valid for one year from mint time.
-const VALIDITY: Duration = Duration::from_hours(365 * 24);
-
-/// Error minting the spike certificate.
+/// An RSA 2048 self-signed certificate and its matching private key.
+///
+/// The key material stays in memory for the process lifetime; the type is
+/// deliberately not `Clone` so a second copy cannot be made by accident.
 #[derive(Debug)]
-pub struct CertError(Box<dyn std::error::Error + Send + Sync + 'static>);
+pub struct RsaIdentity {
+    certificate: X509,
+    private_key: PKey<Private>,
+}
 
-impl CertError {
-    fn new<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
-        Self(Box::new(error))
+impl RsaIdentity {
+    /// Mint a fresh RSA 2048 self-signed certificate with `CN=New World`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CertError`] if OpenSSL cannot generate the key or build or
+    /// sign the certificate.
+    pub fn generate() -> Result<Self, CertError> {
+        let private_key = PKey::from_rsa(Rsa::generate(RSA_BITS)?)?;
+
+        let name = {
+            let mut builder = X509NameBuilder::new()?;
+            builder.append_entry_by_nid(Nid::COMMONNAME, COMMON_NAME)?;
+            builder.build()
+        };
+
+        let serial = serial_number_from_now()?;
+        let not_before = Asn1Time::days_from_now(0)?;
+        let not_after = Asn1Time::days_from_now(VALIDITY_DAYS)?;
+
+        let mut builder = X509Builder::new()?;
+        builder.set_version(2)?;
+        builder.set_serial_number(&serial)?;
+        builder.set_subject_name(&name)?;
+        builder.set_issuer_name(&name)?;
+        builder.set_pubkey(&private_key)?;
+        builder.set_not_before(&not_before)?;
+        builder.set_not_after(&not_after)?;
+        builder.sign(&private_key, MessageDigest::sha256())?;
+
+        Ok(Self {
+            certificate: builder.build(),
+            private_key,
+        })
+    }
+
+    /// The certificate to present to the peer.
+    pub fn certificate(&self) -> &X509Ref {
+        &self.certificate
+    }
+
+    /// The private key matching [`Self::certificate`].
+    pub fn private_key(&self) -> &PKeyRef<Private> {
+        &self.private_key
     }
 }
+
+/// Serial number from the current unix time, as `make_self_signed_cert` does.
+fn serial_number_from_now() -> Result<Asn1Integer, CertError> {
+    let seconds = time::OffsetDateTime::now_utc().unix_timestamp();
+    let big = BigNum::from_dec_str(&seconds.to_string())?;
+    Ok(Asn1Integer::from_bn(&big)?)
+}
+
+/// Error minting the server certificate.
+#[derive(Debug)]
+pub struct CertError(ErrorStack);
 
 impl std::fmt::Display for CertError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -62,82 +118,12 @@ impl std::fmt::Display for CertError {
 
 impl std::error::Error for CertError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(self.0.as_ref())
+        Some(&self.0)
     }
 }
 
-/// A self-signed end-entity profile: issuer == subject, one `BasicConstraints`
-/// extension.
-#[derive(Debug, Clone)]
-struct SpikeProfile {
-    name: Name,
-}
-
-impl BuilderProfile for SpikeProfile {
-    fn get_issuer(&self, _subject: &Name) -> Name {
-        self.name.clone()
+impl From<ErrorStack> for CertError {
+    fn from(error: ErrorStack) -> Self {
+        Self(error)
     }
-
-    fn get_subject(&self) -> Name {
-        self.name.clone()
-    }
-
-    fn build_extensions(
-        &self,
-        _spk: SubjectPublicKeyInfoRef<'_>,
-        _issuer_spk: SubjectPublicKeyInfoRef<'_>,
-        _tbs: &TbsCertificate,
-    ) -> x509_cert::builder::Result<Vec<Extension>> {
-        // A single extension keeps the certificate v3 and tells any validating
-        // stack that this is explicitly a non-CA end-entity certificate.
-        let basic = BasicConstraints {
-            ca: false,
-            path_len_constraint: None,
-        };
-        let extension = (&basic).to_extension(&self.name, &[])?;
-        Ok(vec![extension])
-    }
-}
-
-/// Mint a fresh ECDSA P-256 self-signed certificate and matching private key.
-///
-/// # Errors
-///
-/// Returns [`CertError`] if the subject name, public key or validity cannot be
-/// encoded, or if the certificate or private key cannot be serialized.
-pub fn self_signed_p256() -> Result<DtlsCertificate, CertError> {
-    let mut rng = rand::rng();
-    let signing_key = SigningKey::generate_from_rng(&mut rng);
-
-    let name = Name::from_str(SUBJECT).map_err(CertError::new)?;
-    let spki =
-        SubjectPublicKeyInfo::from_key(signing_key.verifying_key()).map_err(CertError::new)?;
-    let validity = Validity::from_now(VALIDITY).map_err(CertError::new)?;
-
-    let builder = CertificateBuilder::new(
-        SpikeProfile { name },
-        SerialNumber::from(SERIAL),
-        validity,
-        spki,
-    )
-    .map_err(CertError::new)?;
-
-    // ECDSA has more than one `Signer` impl, so the signature type is named
-    // explicitly, as x509-cert's own example requires.
-    let certificate = builder
-        .build::<_, ecdsa::der::Signature<p256::NistP256>>(&signing_key)
-        .map_err(CertError::new)?
-        .to_der()
-        .map_err(CertError::new)?;
-
-    let private_key = signing_key
-        .to_pkcs8_der()
-        .map_err(CertError::new)?
-        .as_bytes()
-        .to_vec();
-
-    Ok(DtlsCertificate {
-        certificate,
-        private_key,
-    })
 }

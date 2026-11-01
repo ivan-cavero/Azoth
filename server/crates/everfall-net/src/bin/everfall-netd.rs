@@ -1,9 +1,10 @@
 //! `everfall-netd` -- the DTLS spike server.
 //!
 //! Binds a UDP socket (default `127.0.0.1:9000`, the client's REP address),
-//! mints an ECDSA P-256 self-signed certificate in memory, and drives a dimpl
-//! DTLS 1.2 handshake from a blocking loop. Every milestone is printed with a
-//! wall-clock timestamp so the live attempt is readable from the terminal.
+//! mints an RSA 2048 self-signed certificate (`CN=New World`) in memory, and
+//! drives an OpenSSL DTLS 1.2 handshake from a blocking loop. Every milestone
+//! is printed with a wall-clock timestamp so the live attempt is readable from
+//! the terminal.
 //!
 //! The port comes from the first CLI argument, else `EVERFALL_NET_PORT`, else
 //! `9000`.
@@ -14,7 +15,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::process::ExitCode;
 use std::time::Duration;
 
-use everfall_net::{Milestone, Server, self_signed_p256};
+use everfall_net::{Milestone, RsaIdentity, Server};
 
 /// Default port: the client's measured REP address.
 const DEFAULT_PORT: u16 = 9000;
@@ -41,15 +42,15 @@ fn main() -> ExitCode {
     };
     let bind = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
 
-    let certificate = match self_signed_p256() {
-        Ok(certificate) => certificate,
+    let certificate = match RsaIdentity::generate() {
+        Ok(identity) => identity,
         Err(error) => {
             log(format_args!("{error}"));
             return ExitCode::FAILURE;
         }
     };
 
-    let mut server = match Server::bind(bind, certificate) {
+    let mut server = match Server::bind(bind, &certificate) {
         Ok(server) => server,
         Err(error) => {
             log(format_args!("bind failed: {error}"));
@@ -58,7 +59,7 @@ fn main() -> ExitCode {
     };
 
     log(format_args!(
-        "everfall-netd listening on {bind} (DTLS 1.2, ECDSA P-256 self-signed, minted in memory)"
+        "everfall-netd listening on {bind} (DTLS 1.2, RSA 2048 self-signed CN=New World, minted in memory)"
     ));
 
     loop {

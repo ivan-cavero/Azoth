@@ -6,3 +6,14 @@
 # (Git for Windows ships one that shadows the real MSVC linker).
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld"
+
+# OpenSSL for `everfall-net`. `openssl-sys` links a prebuilt OpenSSL
+# development package (see `server/README.md`); it is a prerequisite, like the
+# Windows SDK. The package installs system-wide and keeps its VC import
+# libraries under `lib/VC/<CRT>/<arch>/`, not `lib/`, so all three paths are set
+# explicitly. `relative = false` keeps them absolute rather than resolving
+# against this file's directory.
+[env]
+OPENSSL_DIR = { value = "C:/Program Files/OpenSSL-Win64", relative = false }
+OPENSSL_LIB_DIR = { value = "C:/Program Files/OpenSSL-Win64/lib/VC/x64/MD", relative = false }
+OPENSSL_INCLUDE_DIR = { value = "C:/Program Files/OpenSSL-Win64/include", relative = false }

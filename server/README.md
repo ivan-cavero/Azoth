@@ -1,8 +1,8 @@
 # everfall-wire — build and test
 
-`server/` is the Everfall Cargo workspace, one crate: `everfall-wire`. The crate
-encodes and decodes the named fields of the entry bodies the server must send
-(`0x3`, `0x663`, `0x65c`).
+`server/` is the Everfall Cargo workspace. `everfall-wire` encodes and decodes
+the named fields of the entry bodies the server must send (`0x3`, `0x663`,
+`0x65c`). `everfall-net` owns DTLS and links OpenSSL (see below).
 
 ## Prerequisites
 
@@ -15,6 +15,12 @@ encodes and decodes the named fields of the entry bodies the server must send
    component (Visual Studio "Desktop development with C++"). The CRT libraries
    (`msvcrt.lib`, `vcruntime.lib`) come from the MSVC toolset that `windows-msvc`
    already requires.
+3. **OpenSSL development package** — required by `everfall-net` only. Install
+   the 64-bit OpenSSL development package (e.g. `winget install
+   ShiningLight.OpenSSL.Dev`); the crate links it instead of building OpenSSL
+   from source. `server/.cargo/config.toml` points `openssl-sys` at it with
+   `OPENSSL_DIR`, `OPENSSL_LIB_DIR` and `OPENSSL_INCLUDE_DIR`. If the package is
+   installed elsewhere or at a different version, update those three paths.
 
 ## Tests
 

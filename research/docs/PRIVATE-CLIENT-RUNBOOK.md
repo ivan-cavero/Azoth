@@ -6,13 +6,15 @@ and watch whether the DTLS handshake completes.** This is a handshake probe, not
 a world run. The client will not reach character select through this server: the
 carrier handshake, the registration ladder and application data are out of scope.
 
-The open question the spike exists to answer: dimpl implements **ECDSA** DTLS 1.2
-only (no RSA), while the Python lab presents an **RSA 2048** certificate. Does the
-1.460 client accept an ECDSA certificate at all? This runbook is how the parent
-settles that by measurement. Do not run it from the writer's session.
-
-The local loopback proof (`cargo test -p everfall-net`) only shows the crate is
-wired; it says nothing about this client.
+The spike is now **OpenSSL** presenting an **RSA 2048 self-signed certificate**
+(`CN=New World`), matching the Python lab. That was decided by measurement:
+`dimpl` (pure-Rust, ECDSA-only) was bound on the REP port and the client sent
+**twelve 159-byte ClientHellos and `dimpl` produced no flight at all**
+(`dtls error: timeout: connect`), while the client's DTLS works against the
+Python world that signs with RSA 2048. So the remaining open question is only
+whether the stock client completes a handshake with *this* server's certificate;
+the local loopback proof (`cargo test -p everfall-net`) shows the crate is wired,
+not that this client accepts it.
 
 ## Preconditions
 
@@ -51,8 +53,11 @@ python ef.py gateway stop
 ```
 
 Environment: `EVERFALL_NET_PORT` selects the bind port (default `9000`). The
-server always binds `127.0.0.1`. The certificate is an ECDSA P-256 self-signed
-cert minted in memory at process start; nothing is written to disk.
+server always binds `127.0.0.1`. The certificate is an **RSA 2048 self-signed**
+cert with `CN=New World`, minted in memory at process start; nothing is written
+to disk. `everfall-net` links a **prebuilt OpenSSL development package** (the
+Windows OpenSSL installer, e.g. `ShiningLight.OpenSSL.Dev`); it does not build
+OpenSSL from source, and the package is a prerequisite like the Windows SDK.
 
 ## What to watch (server stdout, timestamped)
 
@@ -61,7 +66,7 @@ cert minted in memory at process start; nothing is written to disk.
 | `datagram received: N bytes from …` | the client's DTLS stack reached our port and sent bytes |
 | `flight sent: N bytes to …` | we answered with a real DTLS record |
 | `Connected` | the DTLS 1.2 handshake completed end-to-end |
-| `fatal Error: …` | dimpl gave up; the connection must be dropped |
+| `fatal Error: …` | OpenSSL gave up; the connection must be dropped |
 
 The expected shape of a successful handshake is: `datagram received` (ClientHello)
 → `flight sent` (HelloVerifyRequest / cookie) → `datagram received` (ClientHello
@@ -72,17 +77,18 @@ with cookie) → one or more `flight sent` (ServerHello, Certificate, ServerHell
 
 | Observation | Reading |
 | --- | --- |
-| No `datagram received` at all while the client reports connecting | The client never tried our port. Wrong host/port or wrong `RepAddress`; or it aborted before REP. **Not** an ECDSA result. |
-| `datagram received`, then `fatal Error: … no mutually acceptable cipher suite` | The client offered only RSA suites (measured: `0xC030`). dimpl has no RSA. **This is the ECDSA answer: the client will not accept an ECDSA suite.** |
+| No `datagram received` at all while the client reports connecting | The client never tried our port. Wrong host/port or wrong `RepAddress`; or it aborted before REP. **Not** a certificate result. |
 | `datagram received`, `flight sent` (HelloVerifyRequest), then only repeats with no `Connected` and no `fatal Error` | Cookie roundtrip stuck: the client ignored or replayed the HelloVerifyRequest. Look for a second ClientHello datagram. |
-| `datagram received`, `flight sent` (ServerHello/Certificate), then `fatal Error` naming a certificate or signature failure | The client reached our ECDSA `ServerHello` and rejected it. A different answer from "no shared suite", and still a no to ECDSA. |
-| `Connected` | The client completed a DTLS 1.2 handshake with an ECDSA certificate. Proceed to the carrier work. |
+| `datagram received`, `flight sent` (ServerHello/Certificate), then `fatal Error` naming a certificate or signature failure | The client reached our `ServerHello` and rejected the certificate. A "no" for this cert shape, not necessarily for RSA. |
+| `Connected` | The client completed a DTLS 1.2 handshake with this RSA 2048 certificate. Proceed to the carrier work. |
 
 Report the server's lines verbatim: the exact `fatal Error` text is the evidence.
 
-## Local proof (already observed by the writer)
+## Local proof
 
-`cargo test -p everfall-net` runs `dtls12_handshake_and_round_trip_over_loopback`:
-a dimpl client against this server over loopback, asserting `Connected` on both
-sides and one application-data round trip. Passed; this proves the crate, not the
-client.
+`cargo test -p everfall-net` runs `openssl_dtls12_handshake_and_round_trip_over_loopback`:
+an `openssl`-crate DTLS 1.2 client against this server over loopback, asserting
+`Connected` on both sides plus one application-data round trip, and
+`certificate_is_rsa_2048_with_cn_new_world`, which pins the certificate shape.
+Both require the prebuilt OpenSSL development package (see `server/README.md`);
+with it installed, a plain shell with no environment variables runs them.

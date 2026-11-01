@@ -1,20 +1,29 @@
-//! A single-connection dimpl DTLS server driven from a blocking loop.
+//! A single-connection OpenSSL DTLS 1.2 server driven from a blocking loop.
 //!
-//! No Tokio, no async: dimpl is Sans-IO, so the state machine is fed datagrams
-//! and advanced by a timer, exactly as its model intends. [`Server::step`]
-//! drains pending output, waits for the next datagram or timer, and reports the
-//! milestones it observed. The binary prints them with timestamps; the
-//! `handshake` test asserts on them.
+//! No Tokio, no async. OpenSSL owns the state machine and drives it through a
+//! `Read + Write` transport ([`UdpPeer`]) that reads one datagram per call and
+//! writes one datagram per call, which preserves DTLS record boundaries over
+//! UDP. [`Server::step`] advances the handshake or reads application data for
+//! up to the socket's read timeout, then reports the milestones it observed.
+//! The binary prints them with timestamps; the `handshake` test asserts on them.
 
-use std::io;
+use std::io::{self, Read, Write};
 use std::net::{SocketAddr, UdpSocket};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use dimpl::{Config, Dtls, DtlsCertificate, Error as DtlsError, Output};
+use openssl::error::ErrorStack;
+use openssl::ssl::{
+    Error as SslError, ErrorCode, Ssl, SslContext, SslMethod, SslStream, SslVerifyMode, SslVersion,
+};
 
-/// Largest datagram accepted, and the buffer dimpl is polled with.
-const MAX_DATAGRAM: usize = 2_048;
+use crate::cert::RsaIdentity;
+
+/// Largest application-data payload read from the peer in one record.
+const MAX_APPLICATION: usize = 2_048;
+
+/// DTLS path MTU advertised to OpenSSL. Small enough to stay under any
+/// loopback limit; large enough for the handshake flights.
+const MTU: u32 = 1_200;
 
 /// A milestone the server observed while driving the handshake.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,20 +50,23 @@ pub enum Milestone {
     CloseNotify,
 }
 
-/// A fatal error while driving the server. Either source ends the run.
+/// A fatal error while driving the server. Any source ends the run.
 #[derive(Debug)]
 pub enum NetError {
     /// The UDP socket failed.
     Io(io::Error),
-    /// dimpl reported a fatal DTLS error; the connection must be dropped.
-    Dtls(DtlsError),
+    /// OpenSSL reported a fatal DTLS error; the connection must be dropped.
+    Ssl(SslError),
+    /// An OpenSSL configuration step failed before any datagram was exchanged.
+    Stack(ErrorStack),
 }
 
 impl std::fmt::Display for NetError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(error) => write!(f, "socket error: {error}"),
-            Self::Dtls(error) => write!(f, "dtls error: {error}"),
+            Self::Ssl(error) => write!(f, "dtls error: {error}"),
+            Self::Stack(error) => write!(f, "openssl error: {error}"),
         }
     }
 }
@@ -63,7 +75,8 @@ impl std::error::Error for NetError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io(error) => Some(error),
-            Self::Dtls(error) => Some(error),
+            Self::Ssl(error) => Some(error),
+            Self::Stack(error) => Some(error),
         }
     }
 }
@@ -74,48 +87,45 @@ impl From<io::Error> for NetError {
     }
 }
 
-impl From<DtlsError> for NetError {
-    fn from(error: DtlsError) -> Self {
-        Self::Dtls(error)
+impl From<SslError> for NetError {
+    fn from(error: SslError) -> Self {
+        Self::Ssl(error)
     }
 }
 
-/// One dimpl DTLS 1.2 server bound to a UDP socket.
+impl From<ErrorStack> for NetError {
+    fn from(error: ErrorStack) -> Self {
+        Self::Stack(error)
+    }
+}
+
+/// One OpenSSL DTLS 1.2 server bound to a UDP socket.
 #[derive(Debug)]
 pub struct Server {
-    socket: UdpSocket,
-    dtls: Dtls,
-    peer: Option<SocketAddr>,
-    next_timeout: Option<Instant>,
+    stream: SslStream<UdpPeer>,
     connected: bool,
 }
 
 impl Server {
-    /// Bind `addr` and prepare a DTLS 1.2 server with `certificate`.
+    /// Bind `addr` and prepare a DTLS 1.2 server that presents `identity`.
     ///
-    /// Client certificates are not required: the New World REP client does not
-    /// present one, and requiring it would make dimpl send a `CertificateRequest`
-    /// the spike does not need. The server cookie exchange stays at dimpl's
-    /// default (enabled), which matches the client's mandatory `HelloVerifyRequest`.
+    /// Client certificates are not requested: the New World REP client does not
+    /// present one, so verification stays off and no `CertificateRequest` is
+    /// sent. The DTLS version is pinned to 1.2, the version the client speaks.
     ///
     /// # Errors
     ///
     /// Returns [`NetError::Io`] if the socket cannot be bound, or
-    /// [`NetError::Dtls`] if dimpl rejects the configuration.
-    pub fn bind(addr: SocketAddr, certificate: DtlsCertificate) -> Result<Self, NetError> {
-        let config = Config::builder()
-            .require_client_certificate(false)
-            .build()
-            .map_err(NetError::Dtls)?;
-
+    /// [`NetError::Stack`] if the OpenSSL context cannot be configured.
+    pub fn bind(addr: SocketAddr, identity: &RsaIdentity) -> Result<Self, NetError> {
         let socket = UdpSocket::bind(addr)?;
-        let dtls = Dtls::new_12(Arc::new(config), certificate, Instant::now());
+        let context = dtls_context(identity)?;
+        let mut ssl = Ssl::new(&context)?;
+        ssl.set_mtu(MTU)?;
+        let stream = SslStream::new(ssl, UdpPeer::new(socket))?;
 
         Ok(Self {
-            socket,
-            dtls,
-            peer: None,
-            next_timeout: None,
+            stream,
             connected: false,
         })
     }
@@ -126,7 +136,7 @@ impl Server {
     ///
     /// Returns the socket error from `local_addr`.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        self.socket.local_addr()
+        self.stream.get_ref().socket.local_addr()
     }
 
     /// Whether the handshake has completed.
@@ -138,88 +148,136 @@ impl Server {
     ///
     /// # Errors
     ///
-    /// Returns [`NetError::Dtls`] if the connection is closed or handshaking.
+    /// Returns [`NetError::Ssl`] if the connection is closed or handshaking, or
+    /// [`NetError::Io`] if the underlying datagram could not be sent.
     pub fn send_application_data(&mut self, data: &[u8]) -> Result<usize, NetError> {
-        Ok(self.dtls.send_application_data(data)?)
+        self.stream.ssl_write(data).map_err(NetError::Ssl)
     }
 
-    /// Drive one step: flush output, then wait up to `max_wait` for a datagram
-    /// or the next dimpl timer. Returns the milestones observed this step.
+    /// Drive one step: advance the handshake, then read application data, for
+    /// up to `max_wait`. Returns the milestones observed this step.
     ///
     /// # Errors
     ///
-    /// Returns [`NetError`] if the socket fails or dimpl reports a fatal error.
+    /// Returns [`NetError`] if the socket fails or OpenSSL reports a fatal
+    /// error.
     pub fn step(&mut self, max_wait: Duration) -> Result<Vec<Milestone>, NetError> {
+        self.stream
+            .get_mut()
+            .socket
+            .set_read_timeout(Some(max_wait))?;
+
         let mut events = Vec::new();
 
-        let now = Instant::now();
-        self.dtls.handle_timeout(now)?;
-        self.drain(&mut events)?;
-
-        let wait = match self.next_timeout {
-            Some(deadline) if deadline > now => (deadline - now).min(max_wait),
-            Some(_) => Duration::ZERO,
-            None => max_wait,
-        };
-        self.socket.set_read_timeout(Some(wait))?;
-
-        let mut buffer = [0u8; MAX_DATAGRAM];
-        match self.socket.recv_from(&mut buffer) {
-            Ok((bytes, from)) => {
-                self.peer = Some(from);
-                events.push(Milestone::Datagram { from, bytes });
-                self.dtls.handle_packet(&buffer[..bytes])?;
-                self.drain(&mut events)?;
-            }
-            Err(error) if is_timeout(&error) => {}
-            Err(error) => return Err(NetError::Io(error)),
-        }
-
-        Ok(events)
-    }
-
-    /// Poll dimpl to `Timeout`, sending every record it produces.
-    fn drain(&mut self, events: &mut Vec<Milestone>) -> Result<(), NetError> {
-        let mut buffer = vec![0u8; MAX_DATAGRAM];
-        loop {
-            match self.dtls.poll_output(&mut buffer) {
-                Output::Packet(record) => {
-                    if let Some(to) = self.peer {
-                        self.socket.send_to(record, to)?;
-                        events.push(Milestone::FlightSent {
-                            to,
-                            bytes: record.len(),
-                        });
-                    }
-                }
-                Output::BufferTooSmall { needed } => buffer.resize(needed, 0),
-                Output::Timeout(deadline) => {
-                    self.next_timeout = Some(deadline);
-                    break;
-                }
-                Output::Connected => {
+        if !self.connected {
+            match self.stream.accept() {
+                Ok(()) => {
                     self.connected = true;
                     events.push(Milestone::Connected);
                 }
-                Output::ApplicationData(data) => {
-                    events.push(Milestone::ApplicationData(data.to_vec()));
-                }
-                Output::CloseNotify => events.push(Milestone::CloseNotify),
-                // The spike owns the handshake only; the enum is non-exhaustive,
-                // and peer certificates and SRTP keying material are not part of
-                // its contract.
-                _ => {}
+                Err(error) if wants_io(&error) => {}
+                Err(error) => return Err(NetError::Ssl(error)),
             }
         }
-        Ok(())
+
+        if self.connected {
+            let mut buffer = [0u8; MAX_APPLICATION];
+            match self.stream.ssl_read(&mut buffer) {
+                Ok(0) => events.push(Milestone::CloseNotify),
+                Ok(bytes) => events.push(Milestone::ApplicationData(buffer[..bytes].to_vec())),
+                Err(error) if wants_io(&error) => {}
+                Err(error) if error.code() == ErrorCode::ZERO_RETURN => {
+                    events.push(Milestone::CloseNotify);
+                }
+                Err(error) => return Err(NetError::Ssl(error)),
+            }
+        }
+
+        self.stream.get_mut().drain_events(&mut events);
+        Ok(events)
     }
 }
 
-/// `recv_from` timeout surfaces as `WouldBlock` on Unix and `TimedOut` on
-/// Windows; both mean "no datagram arrived in time".
-fn is_timeout(error: &io::Error) -> bool {
-    matches!(
-        error.kind(),
-        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
-    )
+/// Build the DTLS 1.2 server context around `identity`.
+fn dtls_context(identity: &RsaIdentity) -> Result<SslContext, NetError> {
+    let mut builder = SslContext::builder(SslMethod::dtls_server())?;
+    builder.set_min_proto_version(Some(SslVersion::DTLS1_2))?;
+    builder.set_max_proto_version(Some(SslVersion::DTLS1_2))?;
+    builder.set_certificate(identity.certificate())?;
+    builder.set_private_key(identity.private_key())?;
+    builder.check_private_key()?;
+    builder.set_verify(SslVerifyMode::NONE);
+    Ok(builder.build())
+}
+
+/// `true` when OpenSSL wants more datagrams or writability before continuing.
+fn wants_io(error: &SslError) -> bool {
+    matches!(error.code(), ErrorCode::WANT_READ | ErrorCode::WANT_WRITE)
+}
+
+/// A UDP transport for OpenSSL's memory BIO: one datagram per read and write.
+///
+/// The peer address is learned from the first inbound datagram (the server
+/// socket is unconnected), and every milestone the transport observes is queued
+/// for [`Server::step`] to drain.
+#[derive(Debug)]
+struct UdpPeer {
+    socket: UdpSocket,
+    peer: Option<SocketAddr>,
+    events: Vec<Milestone>,
+}
+
+impl UdpPeer {
+    fn new(socket: UdpSocket) -> Self {
+        Self {
+            socket,
+            peer: None,
+            events: Vec::new(),
+        }
+    }
+
+    /// Move the queued transport milestones into `events`.
+    fn drain_events(&mut self, events: &mut Vec<Milestone>) {
+        events.append(&mut self.events);
+    }
+}
+
+impl Read for UdpPeer {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match self.socket.recv_from(buf) {
+            Ok((bytes, from)) => {
+                if self.peer.is_none() {
+                    self.peer = Some(from);
+                }
+                self.events.push(Milestone::Datagram { from, bytes });
+                Ok(bytes)
+            }
+            // A read timeout means "no datagram yet", which is exactly
+            // retriable for OpenSSL's DTLS state machine. Windows reports a
+            // UDP read timeout as `TimedOut` (WSAETIMEDOUT); OpenSSL's BIO
+            // only treats `WouldBlock` as retriable, so normalise it here.
+            Err(error) if error.kind() == io::ErrorKind::TimedOut => {
+                Err(io::Error::from(io::ErrorKind::WouldBlock))
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
+impl Write for UdpPeer {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let Some(peer) = self.peer else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotConnected,
+                "no peer datagram received yet",
+            ));
+        };
+        let bytes = self.socket.send_to(buf, peer)?;
+        self.events.push(Milestone::FlightSent { to: peer, bytes });
+        Ok(bytes)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }

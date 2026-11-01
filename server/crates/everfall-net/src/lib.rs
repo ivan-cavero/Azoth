@@ -1,28 +1,40 @@
-//! DTLS 1.2 handshake spike for Everfall.
+//! DTLS 1.2 handshake spike for Everfall, on OpenSSL.
 //!
-//! This crate exists to answer one question the atlas cannot: **does the real
-//! New World client accept a DTLS 1.2 handshake with an ECDSA certificate?**
-//! dimpl has no RSA by design, and the Python lab presents an RSA 2048
-//! certificate, so the client's tolerance for ECDSA is unknown until measured.
+//! This crate answers one question the atlas cannot: **does the real New World
+//! REP client accept this crate's DTLS layer?** It binds a UDP socket, runs an
+//! OpenSSL DTLS 1.2 server that presents an RSA 2048 certificate, and reports
+//! what the state machine observed. It deliberately stops at `Connected`. The
+//! carrier handshake, the registration ladder and application data are *not*
+//! owned here, because those fields belong to the atlas.
 //!
-//! # Why this crate exists, and why it is only the handshake
+//! # Why OpenSSL, and why the decision is not open again
 //!
-//! `everfall-wire`, `everfall-sim` and `everfall-world` own the named fields of
-//! the entry path. This crate owns none of them. It is a spike: it binds a UDP
-//! socket, runs a [`dimpl`] server, and reports what the DTLS state machine
-//! observed. It deliberately stops at `Connected`. The carrier handshake, the
-//! registration ladder and any application data are *not* implemented here,
-//! because those fields are the atlas's to name, and because the only open
-//! question is whether the client completes the TLS layer at all.
+//! This was decided by measurement, not preference.
 //!
-//! # Why default features are disabled
+//! `dimpl`, a pure-Rust Sans-IO DTLS 1.2 engine, was tried first. Bound on the
+//! REP port and run against a clean client, the client sent **twelve 159-byte
+//! `ClientHellos` and `dimpl` produced no flight at all**, ending in
+//! `dtls error: timeout: connect`. The client's DTLS works against the Python
+//! lab world, which signs with an **RSA 2048** certificate (`CN=New World`),
+//! and `dimpl` lists RSA as an explicit non-goal. So the server must present an
+//! RSA certificate, which a pure-ECDSA engine cannot do.
 //!
-//! `dimpl`'s default features enable `aws-lc-rs`, which builds `aws-lc-sys` --
-//! a C library. That is unacceptable on this server: the whole point of the
-//! spike is a clone-anywhere, pure-Rust build. `default-features = false` plus
-//! `features = ["rust-crypto"]` selects dimpl's `RustCrypto` backend, and
-//! [`cert`] mints the server certificate with `p256` + `x509-cert` rather than
-//! dimpl's `rcgen` feature (which would also enable `aws-lc-rs`).
+//! OpenSSL does RSA and ECDSA, is the audited stack the Python lab already uses
+//! through pyOpenSSL, and is what `docs/PLAN.md` prescribes for this crate
+//! ("DTLS and UDP. OpenSSL stays inside this crate"). The certificate is minted
+//! in memory by [`cert::RsaIdentity`] with `CN=New World`, matching
+//! `services/world/src/azoth_world/rep.py`.
+//!
+//! # Dependencies
+//!
+//! The only dependency is the [`openssl`] crate, linked against a **prebuilt
+//! OpenSSL development package** (see `server/README.md`);
+//! `server/.cargo/config.toml` points `openssl-sys` at it with `OPENSSL_DIR`,
+//! `OPENSSL_LIB_DIR` and `OPENSSL_INCLUDE_DIR`. The `vendored` feature is
+//! deliberately not used: it compiles OpenSSL from source and needs a C
+//! toolchain and Perl, and on this machine the compiler's PDB handling makes
+//! that build fail reproducibly. No C is compiled by this workspace. [`time`]
+//! is kept for milestone timestamps and the certificate serial.
 //!
 //! The `server` binary proves the crate is wired correctly. It does **not**
 //! prove the game client accepts it; that is the live attempt the parent runs.
@@ -30,5 +42,5 @@
 pub mod cert;
 pub mod server;
 
-pub use crate::cert::{CertError, self_signed_p256};
+pub use crate::cert::{CertError, RsaIdentity};
 pub use crate::server::{Milestone, NetError, Server};
