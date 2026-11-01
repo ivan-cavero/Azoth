@@ -1,0 +1,58 @@
+{
+  "uid": "codec.social-string-set",
+  "kind": "codec",
+  "name": "SocialStringSet",
+  "aliases": [
+    "friends / friendInvites member body",
+    "vtable 0x148040388 zero branch 0x1417b54c0"
+  ],
+  "summary": "One string-set member of the Social replicated state in the client reader's element-count-zero branch: a prefix-varint delta count (pinned to 0), the strict zero-or-one delta, then a prefix-varint element count and that many prefixed strings. The non-zero branch is the client's masked map of id to string; no recorded body takes it, so the card pins the count to 0 and refuses anything else.",
+  "purpose": "Name the member layout the Social presence mask selects for `friends` and `friendInvites` (group 1 members 4 and 5 of codec.social-replicated-state), so the mask card references a record instead of carrying the container's layout itself.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "deltaCount",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "max": 0,
+      "note": "The prefix-varint count 0x1417b4250 reads before it branches. It is 0 in both measured bodies, which select the reader's +0x78 branch 0x1417b54c0; the non-zero masked-map branch has no instance in the recorded bundle, so the card bounds this field to 0 and refuses anything else instead of inventing the layout."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "The zero-count branch 0x1417b54c0: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 07 (delta 7) in both bodies. The writer delta-codes it against the previous element; what the delta indexes is not established."
+    },
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "counted(nested(codec.social-string))",
+      "evidence": "measured",
+      "note": "A second prefix-varint count and that many prefixed strings, read by 0x1415c6fa0 through 0x14087a570. One 36-byte string in `friends`, none in `friendInvites`."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.social-replicated-state" },
+    { "op": "consumes", "to": "codec.social-string" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-4176.hex: friends is 00 01 07 01 24 followed by 36 zero bytes; friendInvites is 00 01 07 00. Both re-encode byte-exactly through the generated codec."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x1417b4250 and its zero branch 0x1417b54c0, whose second reader 0x1415c6fa0 reads the prefixed strings through 0x14087a570 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

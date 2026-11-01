@@ -1,0 +1,17 @@
+# State fragment body for wire type index 4236 (key 44, Javelin
+# StatusEffectsComponentReplicatedState), build sha256 30fe6461.
+#
+# 26 bytes, the payload of fragment index 8 of record 1. Extracted from the
+# committed bundle corpus research/fixtures/wire/wire-fixtures.json by
+# research/derived/state-bundle-fragments.json (offset_in_record 7125,
+# size 29 = 3 header bytes 2c 8c 42 + this payload). The header bytes are not
+# part of this file: the fragment is [prefix-varint key][prefix-varint type]
+# [payload] with no length field.
+#
+# Layout and provenance: research/atlas/ontology/concepts/
+# codec.status-effects-component-replicated-state.json. Group 1 member 1
+# (m_lightweightLocalEffectsMap) is the only member the body sets: group mask
+# 02, entry mask 02, then that member's body. Its reader is 0x144043b20 and its
+# zero-count branch 0x144045080 reads an optional delta and a counted run of
+# (u16be, u64be) elements. Two elements of ten bytes each close the body.
+0202000108020728000000000000ffe5010f000000000000ffe5

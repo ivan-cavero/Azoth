@@ -1,0 +1,18 @@
+# State fragment body for wire type index 4176 (key 55, Javelin
+# SocialReplicatedState), build sha256 30fe6461.
+#
+# 55 bytes, the payload of fragment index 0 of record 1. Extracted from the
+# committed bundle corpus research/fixtures/wire/wire-fixtures.json by
+# research/derived/state-bundle-fragments.json (offset_in_record 2,
+# size 58 = 3 header bytes 37 90 41 + this payload). The header bytes are not
+# part of this file: the fragment is [prefix-varint key][prefix-varint type]
+# [payload] with no length field.
+#
+# Layout and provenance: research/atlas/ontology/concepts/
+# codec.social-replicated-state.json. Group 1 members 3, 4 and 5 are the only
+# members the body sets: group mask 02, entry mask 38, then
+#   lastDailyResetTime   u64be (member 3, reader 0x14279f420)
+#   friends              count 0, delta 7, one 36-byte string (member 4,
+#                        reader 0x1417b4250, zero branch 0x1417b54c0)
+#   friendInvites        count 0, delta 7, no strings (member 5)
+023818abb4029a5cfb9c000107012400000000000000000000000000000000000000000000000000000000000000000000000000010700

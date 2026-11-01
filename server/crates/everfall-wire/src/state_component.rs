@@ -13,7 +13,7 @@
 //! those two slots are the two-level presence-mask pair, so every binding here
 //! resolves to a card whose body is `[group mask][member mask][members]`.
 //!
-//! Four fragments of the local-player record are typed today:
+//! Six fragments of the local-player record are typed today:
 //!
 //! | key | type | card | writer / reader |
 //! | --- | --- | --- | --- |
@@ -21,15 +21,18 @@
 //! | 19 | 3133 | `codec.entitlement-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //! | 74 | 5691 | `codec.transmog-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //! | 9 | 3935 | `codec.player-component-replicated-state` | `0x141728b30` / `0x1417b5080` |
+//! | 55 | 4176 | `codec.social-replicated-state` | `0x141728b30` / `0x1417b5080` |
+//! | 44 | 4236 | `codec.status-effects-component-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //!
-//! The three classes share the generic mask pair because the pair belongs to the
+//! The six classes share the generic mask pair because the pair belongs to the
 //! replicated-state container base, not to a specific component. What differs per
 //! component is the registered member list its constructor builds.
 
 use crate::framing::{Reader, WireError, Writer};
 use crate::generated::{
     CodecEntitlementReplicatedState, CodecObjectivesReplicatedState,
-    CodecPlayerComponentReplicatedState, CodecTransmogReplicatedState,
+    CodecPlayerComponentReplicatedState, CodecSocialReplicatedState,
+    CodecStatusEffectsComponentReplicatedState, CodecTransmogReplicatedState,
 };
 use crate::state_bundle::StateComponent;
 
@@ -141,11 +144,67 @@ impl CodecPlayerComponentReplicatedState {
     pub const PLAYER_TYPE_INDEX: u64 = 3935;
 }
 
-/// The four type indices the local-player record carries a layout for, ascending.
-const LOCAL_PLAYER_TYPE_INDICES: [u64; 4] = [
+impl StateComponent for CodecSocialReplicatedState {
+    const UID: &'static str = "codec.social-replicated-state";
+
+    /// `wire-type:4176`, the alias the card itself states.
+    fn type_indices() -> &'static [u64] {
+        &[Self::SOCIAL_TYPE_INDEX]
+    }
+
+    fn type_index(&self) -> u64 {
+        Self::SOCIAL_TYPE_INDEX
+    }
+
+    fn read_body(type_index: u64, reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        check(type_index, Self::SOCIAL_TYPE_INDEX)?;
+        Self::read_from(reader)
+    }
+
+    fn write_body(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        self.write_to(writer)
+    }
+}
+
+impl CodecSocialReplicatedState {
+    /// `wire-type:4176`: the social replicated state, fragment key 55.
+    pub const SOCIAL_TYPE_INDEX: u64 = 4176;
+}
+
+impl StateComponent for CodecStatusEffectsComponentReplicatedState {
+    const UID: &'static str = "codec.status-effects-component-replicated-state";
+
+    /// `wire-type:4236`, the alias the card itself states.
+    fn type_indices() -> &'static [u64] {
+        &[Self::STATUS_EFFECTS_TYPE_INDEX]
+    }
+
+    fn type_index(&self) -> u64 {
+        Self::STATUS_EFFECTS_TYPE_INDEX
+    }
+
+    fn read_body(type_index: u64, reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        check(type_index, Self::STATUS_EFFECTS_TYPE_INDEX)?;
+        Self::read_from(reader)
+    }
+
+    fn write_body(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        self.write_to(writer)
+    }
+}
+
+impl CodecStatusEffectsComponentReplicatedState {
+    /// `wire-type:4236`: the status-effects replicated state, fragment key 44.
+    pub const STATUS_EFFECTS_TYPE_INDEX: u64 = 4236;
+}
+
+/// The six type indices the local-player record carries a layout for, ascending.
+const LOCAL_PLAYER_TYPE_INDICES: [u64; 6] = [
     CodecEntitlementReplicatedState::ENTITLEMENT_TYPE_INDEX,
     CodecObjectivesReplicatedState::OBJECTIVES_TYPE_INDEX,
     CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX,
+    CodecSocialReplicatedState::SOCIAL_TYPE_INDEX,
+    CodecStatusEffectsComponentReplicatedState::STATUS_EFFECTS_TYPE_INDEX,
     CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX,
 ];
 
@@ -163,6 +222,10 @@ pub enum LocalPlayerState {
     Objectives(CodecObjectivesReplicatedState),
     /// Fragment key 9, type index 3935.
     Player(CodecPlayerComponentReplicatedState),
+    /// Fragment key 55, type index 4176.
+    Social(CodecSocialReplicatedState),
+    /// Fragment key 44, type index 4236.
+    StatusEffects(CodecStatusEffectsComponentReplicatedState),
     /// Fragment key 74, type index 5691.
     Transmog(CodecTransmogReplicatedState),
 }
@@ -172,7 +235,11 @@ impl LocalPlayerState {
     pub const fn objectives(&self) -> Option<&CodecObjectivesReplicatedState> {
         match self {
             Self::Objectives(value) => Some(value),
-            Self::Entitlement(_) | Self::Player(_) | Self::Transmog(_) => None,
+            Self::Entitlement(_)
+            | Self::Player(_)
+            | Self::Social(_)
+            | Self::StatusEffects(_)
+            | Self::Transmog(_) => None,
         }
     }
 
@@ -180,7 +247,11 @@ impl LocalPlayerState {
     pub fn objectives_mut(&mut self) -> Option<&mut CodecObjectivesReplicatedState> {
         match self {
             Self::Objectives(value) => Some(value),
-            Self::Entitlement(_) | Self::Player(_) | Self::Transmog(_) => None,
+            Self::Entitlement(_)
+            | Self::Player(_)
+            | Self::Social(_)
+            | Self::StatusEffects(_)
+            | Self::Transmog(_) => None,
         }
     }
 
@@ -188,7 +259,11 @@ impl LocalPlayerState {
     pub const fn entitlement(&self) -> Option<&CodecEntitlementReplicatedState> {
         match self {
             Self::Entitlement(value) => Some(value),
-            Self::Objectives(_) | Self::Player(_) | Self::Transmog(_) => None,
+            Self::Objectives(_)
+            | Self::Player(_)
+            | Self::Social(_)
+            | Self::StatusEffects(_)
+            | Self::Transmog(_) => None,
         }
     }
 
@@ -196,7 +271,35 @@ impl LocalPlayerState {
     pub const fn player(&self) -> Option<&CodecPlayerComponentReplicatedState> {
         match self {
             Self::Player(value) => Some(value),
-            Self::Entitlement(_) | Self::Objectives(_) | Self::Transmog(_) => None,
+            Self::Entitlement(_)
+            | Self::Objectives(_)
+            | Self::Social(_)
+            | Self::StatusEffects(_)
+            | Self::Transmog(_) => None,
+        }
+    }
+
+    /// The social component, if this fragment carries it.
+    pub const fn social(&self) -> Option<&CodecSocialReplicatedState> {
+        match self {
+            Self::Social(value) => Some(value),
+            Self::Entitlement(_)
+            | Self::Objectives(_)
+            | Self::Player(_)
+            | Self::StatusEffects(_)
+            | Self::Transmog(_) => None,
+        }
+    }
+
+    /// The status-effects component, if this fragment carries it.
+    pub const fn status_effects(&self) -> Option<&CodecStatusEffectsComponentReplicatedState> {
+        match self {
+            Self::StatusEffects(value) => Some(value),
+            Self::Entitlement(_)
+            | Self::Objectives(_)
+            | Self::Player(_)
+            | Self::Social(_)
+            | Self::Transmog(_) => None,
         }
     }
 
@@ -204,7 +307,11 @@ impl LocalPlayerState {
     pub const fn transmog(&self) -> Option<&CodecTransmogReplicatedState> {
         match self {
             Self::Transmog(value) => Some(value),
-            Self::Entitlement(_) | Self::Objectives(_) | Self::Player(_) => None,
+            Self::Entitlement(_)
+            | Self::Objectives(_)
+            | Self::Player(_)
+            | Self::Social(_)
+            | Self::StatusEffects(_) => None,
         }
     }
 }
@@ -223,6 +330,10 @@ impl StateComponent for LocalPlayerState {
             Self::Entitlement(_) => CodecEntitlementReplicatedState::ENTITLEMENT_TYPE_INDEX,
             Self::Objectives(_) => CodecObjectivesReplicatedState::OBJECTIVES_TYPE_INDEX,
             Self::Player(_) => CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX,
+            Self::Social(_) => CodecSocialReplicatedState::SOCIAL_TYPE_INDEX,
+            Self::StatusEffects(_) => {
+                CodecStatusEffectsComponentReplicatedState::STATUS_EFFECTS_TYPE_INDEX
+            }
             Self::Transmog(_) => CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX,
         }
     }
@@ -238,6 +349,14 @@ impl StateComponent for LocalPlayerState {
             CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX => Ok(Self::Player(
                 CodecPlayerComponentReplicatedState::read_from(reader)?,
             )),
+            CodecSocialReplicatedState::SOCIAL_TYPE_INDEX => {
+                Ok(Self::Social(CodecSocialReplicatedState::read_from(reader)?))
+            }
+            CodecStatusEffectsComponentReplicatedState::STATUS_EFFECTS_TYPE_INDEX => {
+                Ok(Self::StatusEffects(
+                    CodecStatusEffectsComponentReplicatedState::read_from(reader)?,
+                ))
+            }
             CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX => Ok(Self::Transmog(
                 CodecTransmogReplicatedState::read_from(reader)?,
             )),
@@ -250,6 +369,8 @@ impl StateComponent for LocalPlayerState {
             Self::Entitlement(value) => value.write_to(writer),
             Self::Objectives(value) => value.write_to(writer),
             Self::Player(value) => value.write_to(writer),
+            Self::Social(value) => value.write_to(writer),
+            Self::StatusEffects(value) => value.write_to(writer),
             Self::Transmog(value) => value.write_to(writer),
         }
     }

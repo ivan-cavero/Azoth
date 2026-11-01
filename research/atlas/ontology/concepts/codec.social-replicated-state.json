@@ -1,0 +1,73 @@
+{
+  "uid": "codec.social-replicated-state",
+  "kind": "codec",
+  "name": "SocialReplicatedState",
+  "aliases": [
+    "wire-type:4176",
+    "guid:92fe39a5-1948-4ee4-a49f-b02ea344dc57",
+    "state-fragment:key55"
+  ],
+  "summary": "The payload carried by state fragment type index 4176 (key 55) in the local-player record: a two-level presence mask over the registered social members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS BEYOND THE MEMBER NAMES. The identity is resolved: the dispatcher FUN_146af38c0 reads the type-index varint, maps it to the AZ id 92fe39a5-1948-4ee4-a49f-b02ea344dc57 through the registry, takes the descriptor's +0x48 facet and calls its +8 slot (0x143eba9d0), which constructs the class at vtable 0x1482dbca0 (ctor 0x143ed8270). That class's +0x88/+0x90 are the shared replicated-state mask pair 0x141728b30/0x1417b5080. The real 55-byte body parses field by field under those readers and re-encodes byte-exactly.",
+  "purpose": "Carry the player's social state to the client: the war counters and data, friend and block sets, friend invites, the daily-reset stamp, the title and pronoun, and the chatting state. The ctor registers eleven members across two groups (the base ctor already owns group 0); the measured body sets only group 1 members 3, 4 and 5 (lastDailyResetTime, friends, friendInvites), which this card models. The other eight members are NOT declared, because no body in hand sets them; the codec refuses an undeclared bit rather than skipping it.",
+  "authority": "server",
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `37` (55), type varint `90 41` = 4176 under the 6-bit-continuation prefix-varint scheme, then 55 payload bytes. Below that, the payload is the two-level presence mask declared by this card's `presence` block: [group mask u8][for each present group: member mask u8][for each present member: that member's body, ascending by member index].",
+  "presence": {
+    "group": { "name": "group_mask", "bits": 8 },
+    "member": { "name": "entry_mask", "bits": 7, "continuation": 128 }
+  },
+  "fields": [
+    {
+      "name": "lastDailyResetTime",
+      "meaning": "known",
+      "where": "wire",
+      "type": "u64be",
+      "evidence": "measured",
+      "presence": { "group": 1, "member": 3 },
+      "note": "Group 1 member 3, named by the ctor's reflection string at 0x1482df690 (`lastDailyResetTime`). The member object at ctor qword offset 0x155 carries vtable 0x1480baae0; its reader is vtable +0x30 = 0x14279f420, which reads exactly one big-endian u64 (0x14087af30). Measured 0x18abb4029a5cfb9c. The base ctor 0x14162fff0 already creates group 0, so the ctor's single FUN_1416789e0 call returns group 1."
+    },
+    {
+      "name": "friends",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.social-string-set)",
+      "evidence": "measured",
+      "presence": { "group": 1, "member": 4 },
+      "note": "Group 1 member 4, named by the ctor's reflection string at 0x1482df6a8 (`friends`). The member object at ctor qword offset 0x15e carries vtable 0x148040388; its reader is vtable +0x30 = 0x1417b4250 and its zero-count branch is +0x78 = 0x1417b54c0. Measured body: count 0, delta 7, one 36-byte string."
+    },
+    {
+      "name": "friendInvites",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.social-string-set)",
+      "evidence": "measured",
+      "presence": { "group": 1, "member": 5 },
+      "note": "Group 1 member 5, named by the ctor's reflection string at 0x1482df6b0 (`friendInvites`). The member object at ctor qword offset 0x1a5 carries the same vtable 0x148040388 as `friends`, so it shares the reader 0x1417b4250 and the zero branch 0x1417b54c0. Measured body: count 0, delta 7, no strings."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "consumes", "to": "codec.social-string-set" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-4176.hex holds the 55 payload bytes of fragment index 0 of record 1 of the committed bundle 0x9e_T0x8_R.bin (research/fixtures/wire/wire-fixtures.json), behind the header 37 90 41 (key 55, type 4176). The body parses field by field and re-encodes byte-exactly: 1 group mask + 1 entry mask + 8-byte u64 + (1+2+1+1+36) string set + (1+2+1) empty string set = 55, zero bytes left."
+    },
+    {
+      "type": "decompile",
+      "ref": "IDENTITY (build 30fe6461): record function 0x143eeff80 parses the GUID text at 0x1482d4170 (92fe39a5-1948-4ee4-a49f-b02ea344dc57) and installs the facet whose vtable is 0x1482db2b8 (+8 = 0x143eba9d0). That slot allocates 0x1288 bytes and calls ctor 0x143ed8270, which sets class vtable 0x1482dbca0. Vtable +0x88 = 0x141728b30 (writer) and +0x90 = 0x1417b5080 (reader), the same generic two-level mask pair types 3857, 3133, 5691, 3935 and 4236 use."
+    },
+    {
+      "type": "decompile",
+      "ref": "MEMBERS AND READERS: the ctor registers warData (0x1482df658, qword 0xf8, group 1 member 0), dailyWarAsAttackerCount (0x1482df660, 0x14d, member 1), dailyWarAsDefenderCount (0x1482df678, 0x151, member 2), lastDailyResetTime (0x1482df690, 0x155, member 3), friends (0x1482df6a8, 0x15e, member 4), friendInvites (0x1482df6b0, 0x1a5, member 5), socialBlocks (0x1482df6c0, 0x1ec, member 6), mostRecentJoinCharacterCall (0x1482df6d0, 0x246, member 7), and playerTitleId (0x1482df6f0, 0x233), pronounType (0x1482df700, 0x241) and chattingStateMessageType (0x1482df710, 0x238) in group 0. lastDailyResetTime's reader 0x14279f420 reads one u64 BE. friends and friendInvites share reader 0x1417b4250: a prefix-varint count, a raw mask byte per chunk of eight, and per element an id (0x14087b910), a strict presence byte with its optional delta (0x1461adf60) and a prefixed string (0x14087a570); on count 0 it takes 0x1417b54c0, an optional delta then a prefix-varint count and that many prefixed strings (0x1415c6fa0)."
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The six replayed fragments are resolved; type 3935 is authored (2026-11-04)' and 'Two more replayed fragments are authored (2026-11-04)'; research/atlas/client-functions.json social_replicated_state_codec_20261104"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

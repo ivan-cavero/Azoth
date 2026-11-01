@@ -232,6 +232,73 @@
 | --- | --- | --- | --- | --- | --- |
 | value | bool_byte | — | measured | layout-only | One raw byte read by 0x1417b4c20 through FUN_1408787b0; the reader stores it only when it is below 2. The measured 0x9e body carries 00. The reflection string at 0x14855a500 says lookingThroughLoadout; what the flag enables is not proven, so the field stays layout-only. |
 
+## codec.social-replicated-state — SocialReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 1 member 3: `lastDailyResetTime` (`u64be`)
+  - group 1 member 4: `friends` (`nested(codec.social-string-set)`)
+  - group 1 member 5: `friendInvites` (`nested(codec.social-string-set)`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| lastDailyResetTime | u64be | — | measured | known | Group 1 member 3, named by the ctor's reflection string at 0x1482df690 (`lastDailyResetTime`). The member object at ctor qword offset 0x155 carries vtable 0x1480baae0; its reader is vtable +0x30 = 0x14279f420, which reads exactly one big-endian u64 (0x14087af30). Measured 0x18abb4029a5cfb9c. The base ctor 0x14162fff0 already creates group 0, so the ctor's single FUN_1416789e0 call returns group 1. |
+| friends | nested(codec.social-string-set) | — | measured | known | Group 1 member 4, named by the ctor's reflection string at 0x1482df6a8 (`friends`). The member object at ctor qword offset 0x15e carries vtable 0x148040388; its reader is vtable +0x30 = 0x1417b4250 and its zero-count branch is +0x78 = 0x1417b54c0. Measured body: count 0, delta 7, one 36-byte string. |
+| friendInvites | nested(codec.social-string-set) | — | measured | known | Group 1 member 5, named by the ctor's reflection string at 0x1482df6b0 (`friendInvites`). The member object at ctor qword offset 0x1a5 carries the same vtable 0x148040388 as `friends`, so it shares the reader 0x1417b4250 and the zero branch 0x1417b54c0. Measured body: count 0, delta 7, no strings. |
+
+## codec.social-string-set — SocialStringSet
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint count 0x1417b4250 reads before it branches. It is 0 in both measured bodies, which select the reader's +0x78 branch 0x1417b54c0; the non-zero masked-map branch has no instance in the recorded bundle, so the card bounds this field to 0 and refuses anything else instead of inventing the layout. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The zero-count branch 0x1417b54c0: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 07 (delta 7) in both bodies. The writer delta-codes it against the previous element; what the delta indexes is not established. |
+| elements | counted(nested(codec.social-string)) | — | measured | layout-only | A second prefix-varint count and that many prefixed strings, read by 0x1415c6fa0 through 0x14087a570. One 36-byte string in `friends`, none in `friendInvites`. |
+
+## codec.social-string — SocialString
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| value | prefixed_string | — | measured | layout-only | One prefix-varint length bounded to 0x2ffff and that many UTF-8 bytes, read by 0x14087a570. The single measured `friends` element is 36 zero bytes; what the string identifies (a character id, a name) is not established, so the field stays layout-only. |
+
+## codec.status-effects-component-replicated-state — StatusEffectsComponentReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 1 member 1: `m_lightweightLocalEffectsMap` (`nested(codec.status-effects-entries)`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| m_lightweightLocalEffectsMap | nested(codec.status-effects-entries) | — | measured | known | Group 1 member 1, named by the ctor's reflection string at 0x1482f9908 (`m_lightweightLocalEffectsMap`). The member object at ctor qword offset 0x1f7 carries vtable 0x1482f90b8; its reader is vtable +0x30 = 0x144043b20 and its zero-count branch is +0x78 = 0x144045080. The measured body is 02 02: group 1, member 1, then the member body. The base ctor 0x14162fff0 already creates group 0, so the ctor's three FUN_1416789e0 calls return groups 1, 2 and 3; group 1 is the first created group, whose members are m_localEffectsMap (0), m_lightweightLocalEffectsMap (1) and m_activeTrayIcons (2). This corrects the meanings.md note that attributed group 1 member 1 to 0x144044720, which is the group-2 member-1 reader: the byte-exact parse selects 0x144043b20/0x144045080. |
+
+## codec.status-effects-entries — StatusEffectsEntries
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint count 0x144043b20 reads before it branches. It is 0 in the measured m_lightweightLocalEffectsMap body, which selects the reader's +0x78 branch 0x144045080; the non-zero masked-map branch has no instance in the recorded bundle, so the card bounds this field to 0 and refuses anything else instead of inventing the layout. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The zero-count branch 0x144045080: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 08 (delta 8). The writer delta-codes it against the previous element; what the delta indexes is not established. |
+| elements | counted(nested(codec.status-effects-entry)) | — | measured | layout-only | A second prefix-varint count and that many ten-byte elements, each a u16 BE followed by a u64 BE. Two elements in the measured body. |
+
+## codec.status-effects-entry — StatusEffectsEntry
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| u16_a00 | u16be | — | measured | layout-only | Element +0x00, a big-endian u16 read by 0x14087a360. Measured values 0x0728 and 0x010f. Meaning not established. |
+| u64_a08 | u64be | — | measured | layout-only | Element +0x08, a big-endian u64 read by 0x14087af30 (eight raw bytes through the byte-swap FUN_146168b00). Both measured elements carry 0x000000000000ffe5. Meaning not established. |
+
 ## codec.transmog-appearance-list — TransmogAppearanceList
 
 - kind: codec; status: verified; confidence: layout

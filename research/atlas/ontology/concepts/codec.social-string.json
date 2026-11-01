@@ -1,0 +1,40 @@
+{
+  "uid": "codec.social-string",
+  "kind": "codec",
+  "name": "SocialString",
+  "aliases": [
+    "friends / friendInvites element",
+    "0x1415c6fa0 element body"
+  ],
+  "summary": "One element of a Social string set: a single prefixed string. The member is named (`friends` or `friendInvites`), but the string's own content has no field name, so the element field stays layout-only.",
+  "purpose": "Give the social string set a named element record so the container is counted(nested(...)) and the generated struct never declares a bare byte vector.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "value",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefixed_string",
+      "evidence": "measured",
+      "note": "One prefix-varint length bounded to 0x2ffff and that many UTF-8 bytes, read by 0x14087a570. The single measured `friends` element is 36 zero bytes; what the string identifies (a character id, a name) is not established, so the field stays layout-only."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.social-string-set" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "One instance in research/fixtures/wire/state-fragment-4176.hex, 36 zero bytes; the whole body re-encodes byte-exactly through the generated codec."
+    },
+    {
+      "type": "decompile",
+      "ref": "String read 0x14087a570, called from 0x1415c6fa0 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

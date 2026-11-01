@@ -1,5 +1,5 @@
 {
-  "generated": "hand-seed-2026-10-24; codec family 3133/5691 added 2026-11-03; tracked/completed objective maps added 2026-11-03; player family 3935 added 2026-11-04",
+  "generated": "hand-seed-2026-10-24; codec family 3133/5691 added 2026-11-03; tracked/completed objective maps added 2026-11-03; player family 3935 added 2026-11-04; social 4176 and status-effects 4236 families added 2026-11-04",
   "uids": [
     "cmd.ban",
     "cmd.grant",
@@ -23,6 +23,12 @@
     "codec.objectives-tracked-objectives",
     "codec.player-component-replicated-state",
     "codec.player-looking-through-loadout",
+    "codec.social-replicated-state",
+    "codec.social-string",
+    "codec.social-string-set",
+    "codec.status-effects-component-replicated-state",
+    "codec.status-effects-entries",
+    "codec.status-effects-entry",
     "codec.transmog-appearance",
     "codec.transmog-appearance-list",
     "codec.transmog-appearance-map",

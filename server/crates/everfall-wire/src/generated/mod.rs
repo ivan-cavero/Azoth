@@ -2784,6 +2784,578 @@ impl CodecPlayerLookingThroughLoadout {
     }
 }
 
+/// `codec.social-replicated-state` — one Atlas card.
+///
+/// Presence-masked sub-codec card (no wire id).
+/// Its body is a two-level presence mask: one group mask byte, then for
+/// each present group one member mask byte, then the present members'
+/// bodies in ascending member order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSocialReplicatedState {
+    /// The `group_mask` byte: bit i set means group i is
+    /// on the wire.
+    pub group_mask: u8,
+    /// The present groups, ascending by group index.
+    pub groups: Vec<CodecSocialReplicatedStateGroup>,
+}
+
+/// One present group of [`CodecSocialReplicatedState`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSocialReplicatedStateGroup {
+    /// The `entry_mask` byte: bit i set means member i is
+    /// on the wire.
+    pub entry_mask: u8,
+    /// The present members, ascending by member index.
+    pub entries: Vec<CodecSocialReplicatedStateEntry>,
+}
+
+/// One present member of a [`CodecSocialReplicatedStateGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodecSocialReplicatedStateEntry {
+    /// Group 1 member 3, `lastDailyResetTime`.
+    LastDailyResetTime(u64),
+    /// Group 1 member 4, `friends`.
+    Friends(CodecSocialStringSet),
+    /// Group 1 member 5, `friendInvites`.
+    FriendInvites(CodecSocialStringSet),
+}
+
+impl CodecSocialReplicatedState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.social-replicated-state";
+
+    /// Decode one `codec.social-replicated-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, outside a bound
+    /// the card states, or its mask selects a group or member the card does
+    /// not declare.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, or a mask selects a group
+    /// or member the card does not declare.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        let group_mask = reader.u8("group_mask")?;
+        let unknown = group_mask & !0b0000_0010;
+        if unknown != 0 {
+            return Err(WireError::UnknownPresence {
+                what: "group",
+                index: u64::from(unknown.trailing_zeros()),
+            });
+        }
+        let mut groups = Vec::new();
+        if group_mask & 0b0000_0010 != 0 {
+            let entry_mask = reader.u8("entry_mask")?;
+            let unknown = entry_mask & !0b0011_1000;
+            if unknown != 0 {
+                return Err(WireError::UnknownPresence {
+                    what: "member",
+                    index: u64::from(unknown.trailing_zeros()),
+                });
+            }
+            let mut entries = Vec::new();
+            if entry_mask & 0b0000_1000 != 0 {
+                let value = reader.u64be("lastDailyResetTime")?;
+                entries.push(CodecSocialReplicatedStateEntry::LastDailyResetTime(value));
+            }
+            if entry_mask & 0b0001_0000 != 0 {
+                let value = CodecSocialStringSet::read_from(reader)?;
+                entries.push(CodecSocialReplicatedStateEntry::Friends(value));
+            }
+            if entry_mask & 0b0010_0000 != 0 {
+                let value = CodecSocialStringSet::read_from(reader)?;
+                entries.push(CodecSocialReplicatedStateEntry::FriendInvites(value));
+            }
+            groups.push(CodecSocialReplicatedStateGroup {
+                entry_mask,
+                entries,
+            });
+        }
+        Ok(Self { group_mask, groups })
+    }
+
+    /// Encode one `codec.social-replicated-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.group_mask);
+        for group in &self.groups {
+            writer.u8(group.entry_mask);
+            for entry in &group.entries {
+                match entry {
+                    CodecSocialReplicatedStateEntry::LastDailyResetTime(value) => {
+                        writer.u64be(*value);
+                    }
+                    CodecSocialReplicatedStateEntry::Friends(value)
+                    | CodecSocialReplicatedStateEntry::FriendInvites(value) => {
+                        value.write_to(writer)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// `codec.social-string` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSocialString {
+    /// Body field `value` (`prefixed_string`); meaning unnamed.
+    pub value: String,
+}
+
+impl CodecSocialString {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.social-string";
+
+    /// Decode one `codec.social-string` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            value: reader.prefixed_string("value")?,
+        })
+    }
+
+    /// Encode one `codec.social-string` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefixed_string(&self.value)?;
+        Ok(())
+    }
+}
+
+/// `codec.social-string-set` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSocialStringSet {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(nested(codec.social-string))`); meaning unnamed.
+    pub elements: Vec<CodecSocialString>,
+}
+
+impl CodecSocialStringSet {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.social-string-set";
+
+    /// Decode one `codec.social-string-set` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(CodecSocialString::read_from(reader)?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.social-string-set` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            value.write_to(writer)?;
+        }
+        Ok(())
+    }
+}
+
+/// `codec.status-effects-component-replicated-state` — one Atlas card.
+///
+/// Presence-masked sub-codec card (no wire id).
+/// Its body is a two-level presence mask: one group mask byte, then for
+/// each present group one member mask byte, then the present members'
+/// bodies in ascending member order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecStatusEffectsComponentReplicatedState {
+    /// The `group_mask` byte: bit i set means group i is
+    /// on the wire.
+    pub group_mask: u8,
+    /// The present groups, ascending by group index.
+    pub groups: Vec<CodecStatusEffectsComponentReplicatedStateGroup>,
+}
+
+/// One present group of [`CodecStatusEffectsComponentReplicatedState`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecStatusEffectsComponentReplicatedStateGroup {
+    /// The `entry_mask` byte: bit i set means member i is
+    /// on the wire.
+    pub entry_mask: u8,
+    /// The present members, ascending by member index.
+    pub entries: Vec<CodecStatusEffectsComponentReplicatedStateEntry>,
+}
+
+/// One present member of a [`CodecStatusEffectsComponentReplicatedStateGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodecStatusEffectsComponentReplicatedStateEntry {
+    /// Group 1 member 1, `m_lightweightLocalEffectsMap`.
+    MLightweightLocalEffectsMap(CodecStatusEffectsEntries),
+}
+
+impl CodecStatusEffectsComponentReplicatedState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.status-effects-component-replicated-state";
+
+    /// Decode one `codec.status-effects-component-replicated-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, outside a bound
+    /// the card states, or its mask selects a group or member the card does
+    /// not declare.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, or a mask selects a group
+    /// or member the card does not declare.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        let group_mask = reader.u8("group_mask")?;
+        let unknown = group_mask & !0b0000_0010;
+        if unknown != 0 {
+            return Err(WireError::UnknownPresence {
+                what: "group",
+                index: u64::from(unknown.trailing_zeros()),
+            });
+        }
+        let mut groups = Vec::new();
+        if group_mask & 0b0000_0010 != 0 {
+            let entry_mask = reader.u8("entry_mask")?;
+            let unknown = entry_mask & !0b0000_0010;
+            if unknown != 0 {
+                return Err(WireError::UnknownPresence {
+                    what: "member",
+                    index: u64::from(unknown.trailing_zeros()),
+                });
+            }
+            let mut entries = Vec::new();
+            if entry_mask & 0b0000_0010 != 0 {
+                let value = CodecStatusEffectsEntries::read_from(reader)?;
+                entries.push(
+                    CodecStatusEffectsComponentReplicatedStateEntry::MLightweightLocalEffectsMap(
+                        value,
+                    ),
+                );
+            }
+            groups.push(CodecStatusEffectsComponentReplicatedStateGroup {
+                entry_mask,
+                entries,
+            });
+        }
+        Ok(Self { group_mask, groups })
+    }
+
+    /// Encode one `codec.status-effects-component-replicated-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.group_mask);
+        for group in &self.groups {
+            writer.u8(group.entry_mask);
+            for entry in &group.entries {
+                match entry {
+                    CodecStatusEffectsComponentReplicatedStateEntry::MLightweightLocalEffectsMap(value) => {
+                        value.write_to(writer)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// `codec.status-effects-entries` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecStatusEffectsEntries {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(nested(codec.status-effects-entry))`); meaning unnamed.
+    pub elements: Vec<CodecStatusEffectsEntry>,
+}
+
+impl CodecStatusEffectsEntries {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.status-effects-entries";
+
+    /// Decode one `codec.status-effects-entries` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(CodecStatusEffectsEntry::read_from(reader)?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.status-effects-entries` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            value.write_to(writer)?;
+        }
+        Ok(())
+    }
+}
+
+/// `codec.status-effects-entry` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecStatusEffectsEntry {
+    /// Body field `u16_a00` (`u16be`); meaning unnamed.
+    pub u16_a00: u16,
+    /// Body field `u64_a08` (`u64be`); meaning unnamed.
+    pub u64_a08: u64,
+}
+
+impl CodecStatusEffectsEntry {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.status-effects-entry";
+
+    /// Decode one `codec.status-effects-entry` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            u16_a00: reader.u16be("u16_a00")?,
+            u64_a08: reader.u64be("u64_a08")?,
+        })
+    }
+
+    /// Encode one `codec.status-effects-entry` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u16be(self.u16_a00);
+        writer.u64be(self.u64_a08);
+        Ok(())
+    }
+}
+
 /// `codec.transmog-appearance` — one Atlas card.
 ///
 /// Nested sub-codec card (no wire id).

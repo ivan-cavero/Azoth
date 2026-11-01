@@ -3209,6 +3209,72 @@ key 9 authored, `6465 / 7126`: `3892 (3133) + 834 (5691) + 1736 (3857) + 3 (3935
 `6465 / 7126 = 0.9072 -> 90.7 %`. Five fragments remain replayed, all because their
 cards are not written yet, not because the layout is unknown.
 
+## Two more replayed fragments are authored (2026-11-04)
+
+Types 4176 (`SocialReplicatedState`) and 4236
+(`StatusEffectsComponentReplicatedState`) are now carded and authored. Both cards
+are written from the resolved readers and then GENERATED; neither is
+hand-written. The byte-exact parse is the arbiter, and it also corrected one
+reader attribution in the table above.
+
+**The base ctor owns group 0.** `FUN_14162fff0` calls `FUN_1416789e0` once, so a
+component ctor's own `FUN_1416789e0` calls return 1, 2, 3, not 0, 1, 2. That is
+why type 3133, 5691 and the Player group-0 members register with a literal `0`
+(the group the base made), and it shifts every later group index by one.
+
+**key 55 / type 4176, `SocialReplicatedState`, 55 B, authored.**
+Class vtable `0x1482dbca0`, reader `0x1417b5080`; group mask `02`, entry mask
+`38` = group 1 members 3, 4, 5, in this order:
+
+| member | name (reflection string) | body and reader |
+| --- | --- | --- |
+| 3 | `lastDailyResetTime` (ctor `0x155`) | one u64 BE, reader `0x14279f420` -> `0x14087af30`; measured `18 ab b4 02 9a 5c fb 9c` |
+| 4 | `friends` (`0x15e`) | count `00`, delta `01 07`, second count `01`, one 36-byte prefixed string; reader `0x1417b4250`, zero branch `0x1417b54c0` -> `0x1415c6fa0` |
+| 5 | `friendInvites` (`0x1a5`) | count `00`, delta `01 07`, second count `00`; same reader and zero branch |
+
+The body is `2 + 8 + 41 + 4 = 55`, zero bytes left, and re-encodes byte-exactly.
+`friends` and `friendInvites` share member vtable `0x148040388`. The non-zero
+branch is the client's masked id-to-string map; no committed body takes it, so
+the cards pin the first count to 0.
+
+**key 44 / type 4236, `StatusEffectsComponentReplicatedState`, 26 B, authored.**
+Class vtable `0x1482f93d8`, reader `0x1417b5080`; group mask `02`, entry mask
+`02` = group 1 member 1:
+
+| member | name (reflection string) | body and reader |
+| --- | --- | --- |
+| 1 | `m_lightweightLocalEffectsMap` (ctor `0x1f7`) | count `00`, delta `01 08`, second count `02`, two (u16 BE, u64 BE) pairs; reader `0x144043b20`, zero branch `0x144045080` (`u16` via `0x14087a360`, `u64` via `0x14087af30`) |
+
+The two elements are `07 28 ... ff e5` and `01 0f ... ff e5`; the body is
+`1 + 2 + 1 + 20 = 24`, plus the two mask bytes = 26, zero bytes left, and it
+re-encodes byte-exactly.
+
+**Correction to the resolution table.** The table above (and the 2026-11-04
+note) attributed 4236 group 1 member 1 to reader `0x144044720`, zero branch
+`0x1440454e0`. That reader is group 2 member 1, `m_dynamicScalingData`; because
+the base ctor owns group 0, group 1 is the first group the ctor creates
+(`m_localEffectsMap`, `m_lightweightLocalEffectsMap`, `m_activeTrayIcons`), and
+the byte-exact parse selects `0x144043b20` / `0x144045080`. With `0x144044720`
+the body asks for two 0x30-byte nested elements (96 bytes) and breaks at the
+first element byte; with `0x144043b20` it closes exactly.
+
+**Cards added (six).** `codec.social-replicated-state`,
+`codec.social-string-set`, `codec.social-string`,
+`codec.status-effects-component-replicated-state`,
+`codec.status-effects-entries`, `codec.status-effects-entry`. Member names are
+`known` (the client's own reflection strings); the element fields
+(`u16_a00`/`u64_a08`, and the social string `value`) stay `layout-only` because
+no field name proves what they carry. Fixtures:
+`research/fixtures/wire/state-fragment-4176.hex` and
+`state-fragment-4236.hex`.
+
+**The KPI.** Fragment payload bytes: before this unit `6465 / 7126` (90.7 %).
+After it, `3892 (3133) + 834 (5691) + 1736 (3857) + 3 (3935) + 55 (4176) + 26
+(4236)` = `6546`, replayed `337 (5606) + 194 (5485) + 49 (11)` = `580`, total
+`7126`, fraction `6546 / 7126 = 0.9186 -> 91.9 %`. Three fragments remain
+replayed: key 73 / type 5606 (337 B), key 72 / type 5485 (194 B) and key 16 /
+type 11 (49 B). Type 11 is the ALC 54-field mask and gets its own unit.
+
 ## The lab cannot drive server-authoritative state (measured 2026-11-01)
 
 A live session was run to obtain a replicated objectives body with `trackedObjectives`

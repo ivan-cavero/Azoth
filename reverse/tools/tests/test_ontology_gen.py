@@ -47,6 +47,8 @@ CRATE_MOD = (
 PRESENCE_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-3857.hex"
 ENTITLEMENT_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-3133.hex"
 TRANSMOG_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-5691.hex"
+SOCIAL_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-4176.hex"
+STATUS_EFFECTS_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-4236.hex"
 
 # The generated module imports the measured prefix-varint primitive from the
 # world service by a path relative to itself, so a copy written into a temp
@@ -528,6 +530,61 @@ class OntologyGenTest(unittest.TestCase):
         self.assertTrue(decoded["groups"][0]["entries"]["inventoryServicesReady"])
         self.assertEqual(
             wire.encode_codec("codec.transmog-replicated-state", decoded), body
+        )
+
+    def test_measured_social_body_round_trips_through_the_generated_codec(self) -> None:
+        """The 55-byte body of state type 4176, through the GENERATED codec table."""
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        body = hex_body(SOCIAL_FIXTURE)
+        self.assertEqual(len(body), 55)
+        self.assertEqual(body[:2], bytes([0x02, 0x38]))
+        decoded = wire.decode_codec("codec.social-replicated-state", body)
+        self.assertEqual(decoded["group_mask"], 0x02)
+        self.assertEqual(decoded["groups"][0]["entry_mask"], 0x38)
+        entries = decoded["groups"][0]["entries"]
+        self.assertEqual(entries["lastDailyResetTime"], 0x18AB_B402_9A5C_FB9C)
+        friends = entries["friends"]
+        self.assertEqual(friends["deltaCount"], 0)
+        self.assertEqual(friends["delta"], 7)
+        self.assertEqual(len(friends["elements"]), 1)
+        self.assertEqual(friends["elements"][0], {"value": "\x00" * 36})
+        invites = entries["friendInvites"]
+        self.assertEqual(invites["delta"], 7)
+        self.assertEqual(invites["elements"], [])
+        self.assertEqual(
+            wire.encode_codec("codec.social-replicated-state", decoded), body
+        )
+
+    def test_measured_status_effects_body_round_trips_through_the_generated_codec(
+        self,
+    ) -> None:
+        """The 26-byte body of state type 4236, through the GENERATED codec table."""
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        body = hex_body(STATUS_EFFECTS_FIXTURE)
+        self.assertEqual(len(body), 26)
+        self.assertEqual(body[:2], bytes([0x02, 0x02]))
+        decoded = wire.decode_codec(
+            "codec.status-effects-component-replicated-state", body
+        )
+        self.assertEqual(decoded["group_mask"], 0x02)
+        self.assertEqual(decoded["groups"][0]["entry_mask"], 0x02)
+        effects = decoded["groups"][0]["entries"]["m_lightweightLocalEffectsMap"]
+        self.assertEqual(effects["deltaCount"], 0)
+        self.assertEqual(effects["delta"], 8)
+        self.assertEqual(
+            effects["elements"],
+            [
+                {"u16_a00": 0x0728, "u64_a08": 0xFFE5},
+                {"u16_a00": 0x010F, "u64_a08": 0xFFE5},
+            ],
+        )
+        self.assertEqual(
+            wire.encode_codec(
+                "codec.status-effects-component-replicated-state", decoded
+            ),
+            body,
         )
 
     def test_a_masked_element_bit_the_body_does_not_set_is_refused(self) -> None:

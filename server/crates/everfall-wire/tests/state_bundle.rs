@@ -18,7 +18,9 @@ use std::path::{Path, PathBuf};
 use everfall_wire::generated::{
     CodecEntitlementReplicatedStateEntry, CodecObjectivesActiveObjectives,
     CodecObjectivesReplicatedState, CodecObjectivesReplicatedStateEntry, CodecObjectivesTaskStates,
-    CodecPlayerComponentReplicatedStateEntry, CodecTransmogReplicatedStateEntry,
+    CodecPlayerComponentReplicatedStateEntry, CodecSocialReplicatedState,
+    CodecSocialReplicatedStateEntry, CodecStatusEffectsComponentReplicatedState,
+    CodecStatusEffectsComponentReplicatedStateEntry, CodecTransmogReplicatedStateEntry,
 };
 use everfall_wire::{
     Bundle, BundleError, Fragment, FragmentExtent, FragmentPayload, LocalPlayerState, PROLOGUE_TAIL,
@@ -180,7 +182,7 @@ fn the_measured_bundle_decodes_into_typed_fragments() {
 }
 
 #[test]
-fn four_fragments_are_typed_components_and_five_are_replayed_runs() {
+fn six_fragments_are_typed_components_and_three_are_replayed_runs() {
     let (_, bundle) = decode();
     let record = &bundle.records()[0];
 
@@ -192,12 +194,12 @@ fn four_fragments_are_typed_components_and_five_are_replayed_runs() {
         .collect();
     assert_eq!(
         typed,
-        [19, 9, 74, 22],
-        "keys 19 (type 3133), 9 (3935), 74 (5691) and 22 (3857) carry recovered layouts"
+        [55, 19, 9, 74, 22, 44],
+        "keys 55 (type 4176), 19 (3133), 9 (3935), 74 (5691), 22 (3857) and 44 (4236) carry recovered layouts"
     );
 
     // The rest stay measured runs: the Atlas has no payload card for types
-    // 4176, 5606, 5485, 11 and 4236.
+    // 5606, 5485 and 11.
     let widths: Vec<usize> = record
         .fragments()
         .iter()
@@ -206,10 +208,10 @@ fn four_fragments_are_typed_components_and_five_are_replayed_runs() {
             FragmentPayload::Component(_) => None,
         })
         .collect();
-    assert_eq!(widths, [55, 337, 194, 49, 26]);
+    assert_eq!(widths, [337, 194, 49]);
 
     let components: Vec<&LocalPlayerState> = bundle.components().collect();
-    assert_eq!(components.len(), 4, "one component per typed fragment");
+    assert_eq!(components.len(), 6, "one component per typed fragment");
 
     let player = components
         .iter()
@@ -279,6 +281,71 @@ fn four_fragments_are_typed_components_and_five_are_replayed_runs() {
         members[2],
         CodecTransmogReplicatedStateEntry::InventoryServicesReady(_)
     ));
+
+    let social = components
+        .iter()
+        .find_map(|state| state.social())
+        .expect("key 55 carries the social state");
+    assert_social(social);
+
+    let status = components
+        .iter()
+        .find_map(|state| state.status_effects())
+        .expect("key 44 carries the status-effects state");
+    assert_status_effects(status);
+}
+
+/// The measured Social body: group 1, members 3, 4 and 5.
+fn assert_social(social: &CodecSocialReplicatedState) {
+    assert_eq!(social.group_mask, 0x02, "group 1 is present");
+    assert_eq!(social.groups[0].entry_mask, 0x38, "members 3, 4 and 5");
+    let entries = &social.groups[0].entries;
+    assert_eq!(entries.len(), 3, "members 3, 4 and 5 are present");
+    let reset = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSocialReplicatedStateEntry::LastDailyResetTime(value) => Some(value),
+            _ => None,
+        })
+        .copied()
+        .expect("member 3 is lastDailyResetTime");
+    assert_eq!(reset, 0x18AB_B402_9A5C_FB9C);
+    let friends = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSocialReplicatedStateEntry::Friends(value) => Some(value),
+            _ => None,
+        })
+        .expect("member 4 is friends");
+    assert_eq!(friends.delta_count, 0);
+    assert_eq!(friends.delta, Some(7));
+    assert_eq!(friends.elements.len(), 1);
+    assert_eq!(friends.elements[0].value.len(), 36);
+    assert!(friends.elements[0].value.bytes().all(|byte| byte == 0));
+    let invites = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSocialReplicatedStateEntry::FriendInvites(value) => Some(value),
+            _ => None,
+        })
+        .expect("member 5 is friendInvites");
+    assert_eq!(invites.delta, Some(7));
+    assert!(invites.elements.is_empty());
+}
+
+/// The measured `StatusEffects` body: group 1, member 1 only.
+fn assert_status_effects(status: &CodecStatusEffectsComponentReplicatedState) {
+    assert_eq!(status.group_mask, 0x02, "group 1 is present");
+    assert_eq!(status.groups[0].entry_mask, 0x02, "member 1 is present");
+    let CodecStatusEffectsComponentReplicatedStateEntry::MLightweightLocalEffectsMap(effects) =
+        &status.groups[0].entries[0];
+    assert_eq!(effects.delta_count, 0);
+    assert_eq!(effects.delta, Some(8));
+    assert_eq!(effects.elements.len(), 2);
+    assert_eq!(effects.elements[0].u16_a00, 0x0728);
+    assert_eq!(effects.elements[0].u64_a08, 0xFFE5);
+    assert_eq!(effects.elements[1].u16_a00, 0x010F);
+    assert_eq!(effects.elements[1].u64_a08, 0xFFE5);
 }
 
 #[test]
@@ -301,21 +368,25 @@ fn the_authored_fraction_is_the_typed_payload_bytes() {
         }
     }
 
-    assert_eq!(authored, 3892 + 834 + 1736 + 3, "3133, 5691, 3857 and 3935");
-    assert_eq!(replayed, 55 + 337 + 194 + 49 + 26, "the five runs");
+    assert_eq!(
+        authored,
+        3892 + 834 + 1736 + 3 + 55 + 26,
+        "3133, 5691, 3857, 3935, 4176 and 4236"
+    );
+    assert_eq!(replayed, 337 + 194 + 49, "the three runs");
     assert_eq!(
         authored + replayed,
         7126,
         "every payload byte of the record"
     );
-    // 6465 / 7126 = 90.7 %, up from 1736 / 7126 = 24.4 % with one typed type.
-    assert!(authored * 100 > 90 * (authored + replayed));
+    // 6546 / 7126 = 91.9 %, up from 1736 / 7126 = 24.4 % with one typed type.
+    assert!(authored * 100 > 91 * (authored + replayed));
 }
 
 #[test]
 fn a_typed_fragment_whose_extent_disagrees_with_its_codec_is_refused() {
     let body = bundle_body("0x9e_T0x8_R.bin");
-    for (key, type_index) in [(19_u64, 3133_u64), (74, 5691)] {
+    for (key, type_index) in [(19_u64, 3133_u64), (74, 5691), (55, 4176), (44, 4236)] {
         let mut extents = measured_extents();
         let extent = extents
             .iter_mut()

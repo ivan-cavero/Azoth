@@ -820,6 +820,69 @@ CODECS = {
             ('value', 'bool_byte'),
         ),
     },
+    'codec.social-replicated-state': {
+        'name': 'SocialReplicatedState',
+        'fields': (
+            ('lastDailyResetTime', 'u64be'),
+            ('friends', 'nested(codec.social-string-set)'),
+            ('friendInvites', 'nested(codec.social-string-set)'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None),
+            'member': ('entry_mask', 7, 128),
+            'groups': (
+                (1, 2, (
+                    (3, 8, 'lastDailyResetTime', 'u64be'),
+                    (4, 16, 'friends', 'nested(codec.social-string-set)'),
+                    (5, 32, 'friendInvites', 'nested(codec.social-string-set)'),
+                )),
+            ),
+        },
+    },
+    'codec.social-string': {
+        'name': 'SocialString',
+        'fields': (
+            ('value', 'prefixed_string'),
+        ),
+    },
+    'codec.social-string-set': {
+        'name': 'SocialStringSet',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(nested(codec.social-string))'),
+        ),
+    },
+    'codec.status-effects-component-replicated-state': {
+        'name': 'StatusEffectsComponentReplicatedState',
+        'fields': (
+            ('m_lightweightLocalEffectsMap', 'nested(codec.status-effects-entries)'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None),
+            'member': ('entry_mask', 7, 128),
+            'groups': (
+                (1, 2, (
+                    (1, 2, 'm_lightweightLocalEffectsMap', 'nested(codec.status-effects-entries)'),
+                )),
+            ),
+        },
+    },
+    'codec.status-effects-entries': {
+        'name': 'StatusEffectsEntries',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(nested(codec.status-effects-entry))'),
+        ),
+    },
+    'codec.status-effects-entry': {
+        'name': 'StatusEffectsEntry',
+        'fields': (
+            ('u16_a00', 'u16be'),
+            ('u64_a08', 'u64be'),
+        ),
+    },
     'codec.transmog-appearance': {
         'name': 'TransmogAppearance',
         'fields': (

@@ -1,0 +1,55 @@
+{
+  "uid": "codec.status-effects-component-replicated-state",
+  "kind": "codec",
+  "name": "StatusEffectsComponentReplicatedState",
+  "aliases": [
+    "wire-type:4236",
+    "guid:e36b9cc4-082e-40f0-ba4f-5c5be9cd3c16",
+    "state-fragment:key44"
+  ],
+  "summary": "The payload carried by state fragment type index 4236 (key 44) in the local-player record: a two-level presence mask over the registered status-effects members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS BEYOND THE MEMBER NAMES. The identity is resolved: the dispatcher FUN_146af38c0 reads the type-index varint, maps it to the AZ id e36b9cc4-082e-40f0-ba4f-5c5be9cd3c16 through the registry, takes the descriptor's +0x48 facet and calls its +8 slot (0x143ff8020), which constructs the class at vtable 0x1482f93d8 (ctor 0x144014a60). That class's +0x88/+0x90 are the shared replicated-state mask pair 0x141728b30/0x1417b5080. The real 26-byte body parses field by field under those readers and re-encodes byte-exactly.",
+  "purpose": "Carry the player's status-effect state to the client. The ctor registers nine members across four groups (the base ctor already owns group 0); the measured body sets only group 1 member 1, m_lightweightLocalEffectsMap, which this card models. The other eight members and the other groups are NOT declared, because no body in hand sets them; the codec refuses an undeclared bit rather than skipping it.",
+  "authority": "server",
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `2c` (44), type varint `8c 42` = 4236 under the 6-bit-continuation prefix-varint scheme, then 26 payload bytes. Below that, the payload is the two-level presence mask declared by this card's `presence` block: [group mask u8][for each present group: member mask u8][for each present member: that member's body, ascending by member index].",
+  "presence": {
+    "group": { "name": "group_mask", "bits": 8 },
+    "member": { "name": "entry_mask", "bits": 7, "continuation": 128 }
+  },
+  "fields": [
+    {
+      "name": "m_lightweightLocalEffectsMap",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.status-effects-entries)",
+      "evidence": "measured",
+      "presence": { "group": 1, "member": 1 },
+      "note": "Group 1 member 1, named by the ctor's reflection string at 0x1482f9908 (`m_lightweightLocalEffectsMap`). The member object at ctor qword offset 0x1f7 carries vtable 0x1482f90b8; its reader is vtable +0x30 = 0x144043b20 and its zero-count branch is +0x78 = 0x144045080. The measured body is 02 02: group 1, member 1, then the member body. The base ctor 0x14162fff0 already creates group 0, so the ctor's three FUN_1416789e0 calls return groups 1, 2 and 3; group 1 is the first created group, whose members are m_localEffectsMap (0), m_lightweightLocalEffectsMap (1) and m_activeTrayIcons (2). This corrects the meanings.md note that attributed group 1 member 1 to 0x144044720, which is the group-2 member-1 reader: the byte-exact parse selects 0x144043b20/0x144045080."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "consumes", "to": "codec.status-effects-entries" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-4236.hex holds the 26 payload bytes of fragment index 8 of record 1 of the committed bundle 0x9e_T0x8_R.bin (research/fixtures/wire/wire-fixtures.json), behind the header 2c 8c 42 (key 44, type 4236). The body parses field by field and re-encodes byte-exactly: 1 group mask + 1 entry mask + deltaCount 0 + delta 8 + 2 elements of (u16be, u64be) = 26, zero bytes left."
+    },
+    {
+      "type": "decompile",
+      "ref": "IDENTITY (build 30fe6461): record function 0x144026db0 parses the GUID text at 0x1482f5698 (e36b9cc4-082e-40f0-ba4f-5c5be9cd3c16) and installs the facet whose vtable is 0x1482f5588 (+8 = 0x143ff8020). That slot allocates 0x1e80 bytes and calls ctor 0x144014a60, which sets class vtable 0x1482f93d8. Vtable +0x88 = 0x141728b30 (writer) and +0x90 = 0x1417b5080 (reader), the same generic two-level mask pair types 3857, 3133, 5691 and 3935 use."
+    },
+    {
+      "type": "decompile",
+      "ref": "MEMBERS AND READERS: the ctor registers m_localEffectsMap (0x1482f98c8, qword 0xf8, group 1 member 0), m_effectsMap (0x1482f98e0, 0x14d, group 3 member 0), m_remoteEffectsMap (0x1482f98f0, 0x1a2, group 3 member 1), m_lightweightLocalEffectsMap (0x1482f9908, 0x1f7, group 1 member 1), m_territoryStatusEffects (0x1480fc7c0, 0x293, group 2 member 0), m_dynamicScalingData (0x1482f9928, 0x24c, group 2 member 1), m_activeTrayIcons (0x1482f9940, 0x2da, group 1 member 2), m_localReplicatedUpdateCounts (0x1482f9958, 0x321, group 2 member 2) and m_remoteReplicatedUpdateCounts (0x1482f9978, 0x376, group 2 member 3). Member 1's reader 0x144043b20 reads a prefix-varint count, a raw mask byte per chunk of eight, and per element an id (0x14087b910), a u16 BE (0x14087a360), a strict presence byte with its optional delta (0x1461adf60) and a masked u64 BE (0x14087af30); on count 0 it takes 0x144045080, an optional delta then a prefix-varint count and that many (u16 BE, u64 BE) pairs."
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The six replayed fragments are resolved; type 3935 is authored (2026-11-04)' and 'Two more replayed fragments are authored (2026-11-04)'; research/atlas/client-functions.json status_effects_component_replicated_state_codec_20261104"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

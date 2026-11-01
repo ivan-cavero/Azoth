@@ -1,0 +1,58 @@
+{
+  "uid": "codec.status-effects-entries",
+  "kind": "codec",
+  "name": "StatusEffectsEntries",
+  "aliases": [
+    "m_lightweightLocalEffectsMap member body",
+    "vtable 0x1482f90b8 zero branch 0x144045080"
+  ],
+  "summary": "The `m_lightweightLocalEffectsMap` member body of the StatusEffects replicated state in the client reader's element-count-zero branch: a prefix-varint delta count (pinned to 0), the strict zero-or-one delta, then a prefix-varint element count and that many (u16be, u64be) elements. The non-zero branch is the client's masked map; no recorded body takes it, so the card pins the count to 0 and refuses anything else.",
+  "purpose": "Name the member layout the StatusEffects presence mask selects (group 1 member 1 of codec.status-effects-component-replicated-state), so the mask card references a record instead of carrying the container's layout itself.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "deltaCount",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "max": 0,
+      "note": "The prefix-varint count 0x144043b20 reads before it branches. It is 0 in the measured m_lightweightLocalEffectsMap body, which selects the reader's +0x78 branch 0x144045080; the non-zero masked-map branch has no instance in the recorded bundle, so the card bounds this field to 0 and refuses anything else instead of inventing the layout."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "The zero-count branch 0x144045080: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 08 (delta 8). The writer delta-codes it against the previous element; what the delta indexes is not established."
+    },
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "counted(nested(codec.status-effects-entry))",
+      "evidence": "measured",
+      "note": "A second prefix-varint count and that many ten-byte elements, each a u16 BE followed by a u64 BE. Two elements in the measured body."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.status-effects-component-replicated-state" },
+    { "op": "consumes", "to": "codec.status-effects-entry" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-4236.hex: 00 01 08 02 then two (u16be, u64be) pairs, 07 28 00 00 00 00 00 00 ff e5 and 01 0f 00 00 00 00 00 00 ff e5; the whole body re-encodes byte-exactly through the generated codec."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x144043b20 and its zero branch 0x144045080 (build 30fe6461); the u16 comes through 0x14087a360 and the u64 through 0x14087af30."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}
