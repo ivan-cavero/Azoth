@@ -3162,6 +3162,53 @@ a single `LocalPlayerState` family answers `StateComponent::type_indices()` with
 fragments instead of one, and `Emission` reports `authored_payload_bytes()` from the
 bytes it actually composed rather than from a comment.
 
+## The six replayed fragments are resolved; type 3935 is authored (2026-11-04)
+
+The same index-to-type-object walk was run on all six fragments of `0x9e_T0x8_R.bin`
+that were still replayed. Every one resolved: the type-index varint maps to its AZ id,
+the id's record function installs a facet, the facet's `+8` factory calls the class
+ctor, and the class's `+0x88`/`+0x90` are the shared replicated-state mask pair
+`0x141728b30`/`0x1417b5080` (type 11 resolves to its own pair, `0x142a3f120`/
+`0x142a44650`, because ALC uses a 54-bit single-byte-level mask).
+
+| key | type | class | record fn | facet vtable | facet `+8` | class vtable | ctor | bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 73 | 5606 | `SeasonsRewardsTrackedStatReplicatedState` | `0x143ddb0f0` | `0x1482be6e0` | `0x143dc86f0` | `0x1482beb90` | `0x143dd25c0` | 337 |
+| 72 | 5485 | `SeasonsRewardsReplicatedState` | `0x143db73c0` | `0x1482baa90` | `0x143d92660` | `0x1482bc3c8` | `0x143daa030` | 194 |
+| 55 | 4176 | `SocialReplicatedState` | `0x143eeff80` | `0x1482db2b8` | `0x143eba9d0` | `0x1482dbca0` | `0x143ed8270` | 55 |
+| 16 | 11 | `ALCReplicatedState` | `0x142a3d290` | `0x1480ffd00` | `0x142a33830` | `0x1480ffe28` | `0x142a36d50` | 49 |
+| 44 | 4236 | `StatusEffectsComponentReplicatedState` | `0x144026db0` | `0x1482f5588` | `0x143ff8020` | `0x1482f93d8` | `0x144014a60` | 26 |
+| 9 | 3935 | `PlayerComponentReplicatedState` | `0x1468174b0` | `0x14851e0d8` | `0x14657acd0` | `0x148558f30` | `0x146713160` | 3 |
+
+**The presence masks parse from the real bytes.** Type 3935 is `02 08 00`: group 1,
+member 3 (`lookingThroughLoadout`), body `00`. The ctor registers the group-1 members
+`characterName`, `homeWorldId`, `playerConnected`, `lookingThroughLoadout`, `playerType`,
+`isInStore`, `platformAccountId`, `platformType`; only member 3 is set in this body,
+and its reader is vtable `0x148040208` `+0x30` = `0x1417b4c20`, a strict zero-or-one
+byte. That member is carded (`codec.player-looking-through-loadout` and
+`codec.player-component-replicated-state`) and binds into `LocalPlayerState`, so key 9
+is now authored, not replayed.
+
+**The other five parse structurally but are not carded.** Their member masks close
+against the bytes (`5485` group 0 members 0,2,3,4,5,6; `5606` group 0 members 0-4;
+`4176` group 1 members 3,4,5; `4236` group 1 member 1; type 11 is the ALC 54-field
+mask), and every present member's reader is resolved. The members are counted maps of
+the shape already in the vocabulary: prefix-varint count, a zero branch (strict
+presence byte plus a second count), and per chunk of eight a raw mask byte with
+elements `[id varint][optional delta][masked value]`, where the value is `u8`
+(`5485` members 3-6 via the transmog appearance reader `0x14365f1e0`), `u16`
+(`5606` members 2-3 via `0x142f9b430`, zero branch `0x142f9d1d0`), `u32` (`5606`
+members 1 and 4 via `0x14377a160`/`0x142d98f60`), a byte blob (`5485` member 2 via
+`0x14279ec10`), or a nested struct (`4236` member 1 via `0x144044720`, zero branch
+`0x1440454e0` calling `0x1440063c0`; `5606` member 1 zero branch calls `0x14293da60`).
+Carding them is bookkeeping over these resolved readers, not further discovery.
+
+**The KPI.** Fragment payload bytes: before this unit `6462 / 7126` (90.7 %). With
+key 9 authored, `6465 / 7126`: `3892 (3133) + 834 (5691) + 1736 (3857) + 3 (3935)`
+= `6465`, `55 + 337 + 194 + 49 + 26` = `661` replayed, total `7126`, fraction
+`6465 / 7126 = 0.9072 -> 90.7 %`. Five fragments remain replayed, all because their
+cards are not written yet, not because the layout is unknown.
+
 ## The lab cannot drive server-authoritative state (measured 2026-11-01)
 
 A live session was run to obtain a replicated objectives body with `trackedObjectives`

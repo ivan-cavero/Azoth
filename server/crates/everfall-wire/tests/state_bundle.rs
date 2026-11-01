@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use everfall_wire::generated::{
     CodecEntitlementReplicatedStateEntry, CodecObjectivesActiveObjectives,
     CodecObjectivesReplicatedState, CodecObjectivesReplicatedStateEntry, CodecObjectivesTaskStates,
-    CodecTransmogReplicatedStateEntry,
+    CodecPlayerComponentReplicatedStateEntry, CodecTransmogReplicatedStateEntry,
 };
 use everfall_wire::{
     Bundle, BundleError, Fragment, FragmentExtent, FragmentPayload, LocalPlayerState, PROLOGUE_TAIL,
@@ -180,7 +180,7 @@ fn the_measured_bundle_decodes_into_typed_fragments() {
 }
 
 #[test]
-fn three_fragments_are_typed_components_and_six_are_replayed_runs() {
+fn four_fragments_are_typed_components_and_five_are_replayed_runs() {
     let (_, bundle) = decode();
     let record = &bundle.records()[0];
 
@@ -192,12 +192,12 @@ fn three_fragments_are_typed_components_and_six_are_replayed_runs() {
         .collect();
     assert_eq!(
         typed,
-        [19, 74, 22],
-        "keys 19 (type 3133), 74 (5691) and 22 (3857) carry recovered layouts"
+        [19, 9, 74, 22],
+        "keys 19 (type 3133), 9 (3935), 74 (5691) and 22 (3857) carry recovered layouts"
     );
 
     // The rest stay measured runs: the Atlas has no payload card for types
-    // 4176, 5606, 3935, 5485, 11 and 4236.
+    // 4176, 5606, 5485, 11 and 4236.
     let widths: Vec<usize> = record
         .fragments()
         .iter()
@@ -206,10 +206,21 @@ fn three_fragments_are_typed_components_and_six_are_replayed_runs() {
             FragmentPayload::Component(_) => None,
         })
         .collect();
-    assert_eq!(widths, [55, 337, 3, 194, 49, 26]);
+    assert_eq!(widths, [55, 337, 194, 49, 26]);
 
     let components: Vec<&LocalPlayerState> = bundle.components().collect();
-    assert_eq!(components.len(), 3, "one component per typed fragment");
+    assert_eq!(components.len(), 4, "one component per typed fragment");
+
+    let player = components
+        .iter()
+        .find_map(|state| state.player())
+        .expect("key 9 carries the player component");
+    assert_eq!(player.group_mask, 0x02, "group 1 is present");
+    assert_eq!(player.groups[0].entry_mask, 0x08, "member 3 is present");
+    assert!(matches!(
+        player.groups[0].entries[0],
+        CodecPlayerComponentReplicatedStateEntry::LookingThroughLoadout(_)
+    ));
 
     let objectives = components
         .iter()
@@ -290,14 +301,14 @@ fn the_authored_fraction_is_the_typed_payload_bytes() {
         }
     }
 
-    assert_eq!(authored, 3892 + 834 + 1736, "3133, 5691 and 3857");
-    assert_eq!(replayed, 55 + 337 + 3 + 194 + 49 + 26, "the six runs");
+    assert_eq!(authored, 3892 + 834 + 1736 + 3, "3133, 5691, 3857 and 3935");
+    assert_eq!(replayed, 55 + 337 + 194 + 49 + 26, "the five runs");
     assert_eq!(
         authored + replayed,
         7126,
         "every payload byte of the record"
     );
-    // 6462 / 7126 = 90.7 %, up from 1736 / 7126 = 24.4 % with one typed type.
+    // 6465 / 7126 = 90.7 %, up from 1736 / 7126 = 24.4 % with one typed type.
     assert!(authored * 100 > 90 * (authored + replayed));
 }
 

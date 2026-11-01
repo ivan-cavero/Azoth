@@ -212,6 +212,26 @@
 | --- | --- | --- | --- | --- | --- |
 | elements | masked_counted(nested(codec.objectives-tracked-objective)) | — | partial | layout-only | The prefix-varint count read by FUN_14087b760, then one raw mask byte per chunk of eight via 0x14087a330, then the elements. The reader is 0x143a69460, the +0x30 slot of member vtable 0x148259910; the writer is +0x28 = 0x142f882a0. The client takes its +0x78 zero branch (0x143a69f40) when the count is zero, so the generated codec models only a non-empty set and an empty set must clear the member's presence bit instead of sending an empty container. |
 
+## codec.player-component-replicated-state — PlayerComponentReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 1 member 3: `lookingThroughLoadout` (`nested(codec.player-looking-through-loadout)`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| lookingThroughLoadout | nested(codec.player-looking-through-loadout) | — | measured | layout-only | Group 1 member 3, named by the ctor's reflection string at 0x14855a500 (ctor member offset 0x159). The member object's vtable is 0x148040208 and its reader is vtable +0x30 = 0x1417b4c20. The measured body is 02 08 00: group 1, member 3, then the one bool byte 00. The other members are not declared because no measured body sets them. |
+
+## codec.player-looking-through-loadout — PlayerLookingThroughLoadout
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| value | bool_byte | — | measured | layout-only | One raw byte read by 0x1417b4c20 through FUN_1408787b0; the reader stores it only when it is below 2. The measured 0x9e body carries 00. The reflection string at 0x14855a500 says lookingThroughLoadout; what the flag enables is not proven, so the field stays layout-only. |
+
 ## codec.transmog-appearance-list — TransmogAppearanceList
 
 - kind: codec; status: verified; confidence: layout

@@ -6,9 +6,9 @@
 //! component. One bundle is decoded, the decision is applied to that component in
 //! typed form, and the bundle is assembled again by the generic framing.
 //!
-//! Three of the record's nine fragments are typed today (keys 19, 22 and 74), so
+//! Four of the record's nine fragments are typed today (keys 19, 22, 74 and 9), so
 //! the bundle re-emits them from typed values rather than replaying their bytes.
-//! The other six are still `Opaque` runs copied from the recorded body, and
+//! The other five are still `Opaque` runs copied from the recorded body, and
 //! [`Emission::authored_payload_bytes`] counts the difference: it is the KPI this
 //! milestone is measured by, not a cosmetic number. Replaying a fragment is an
 //! emulator standing in for a server, so every run that remains is named in

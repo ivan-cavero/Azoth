@@ -13,13 +13,14 @@
 //! those two slots are the two-level presence-mask pair, so every binding here
 //! resolves to a card whose body is `[group mask][member mask][members]`.
 //!
-//! Three fragments of the local-player record are typed today:
+//! Four fragments of the local-player record are typed today:
 //!
 //! | key | type | card | writer / reader |
 //! | --- | --- | --- | --- |
 //! | 22 | 3857 | `codec.objectives-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //! | 19 | 3133 | `codec.entitlement-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //! | 74 | 5691 | `codec.transmog-replicated-state` | `0x141728b30` / `0x1417b5080` |
+//! | 9 | 3935 | `codec.player-component-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //!
 //! The three classes share the generic mask pair because the pair belongs to the
 //! replicated-state container base, not to a specific component. What differs per
@@ -27,7 +28,8 @@
 
 use crate::framing::{Reader, WireError, Writer};
 use crate::generated::{
-    CodecEntitlementReplicatedState, CodecObjectivesReplicatedState, CodecTransmogReplicatedState,
+    CodecEntitlementReplicatedState, CodecObjectivesReplicatedState,
+    CodecPlayerComponentReplicatedState, CodecTransmogReplicatedState,
 };
 use crate::state_bundle::StateComponent;
 
@@ -112,10 +114,38 @@ impl CodecTransmogReplicatedState {
     pub const TRANSMOG_TYPE_INDEX: u64 = 5691;
 }
 
-/// The three type indices the local-player record carries a layout for, ascending.
-const LOCAL_PLAYER_TYPE_INDICES: [u64; 3] = [
+impl StateComponent for CodecPlayerComponentReplicatedState {
+    const UID: &'static str = "codec.player-component-replicated-state";
+
+    /// `wire-type:3935`, the alias the card itself states.
+    fn type_indices() -> &'static [u64] {
+        &[Self::PLAYER_TYPE_INDEX]
+    }
+
+    fn type_index(&self) -> u64 {
+        Self::PLAYER_TYPE_INDEX
+    }
+
+    fn read_body(type_index: u64, reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        check(type_index, Self::PLAYER_TYPE_INDEX)?;
+        Self::read_from(reader)
+    }
+
+    fn write_body(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        self.write_to(writer)
+    }
+}
+
+impl CodecPlayerComponentReplicatedState {
+    /// `wire-type:3935`: the player replicated state, fragment key 9.
+    pub const PLAYER_TYPE_INDEX: u64 = 3935;
+}
+
+/// The four type indices the local-player record carries a layout for, ascending.
+const LOCAL_PLAYER_TYPE_INDICES: [u64; 4] = [
     CodecEntitlementReplicatedState::ENTITLEMENT_TYPE_INDEX,
     CodecObjectivesReplicatedState::OBJECTIVES_TYPE_INDEX,
+    CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX,
     CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX,
 ];
 
@@ -131,6 +161,8 @@ pub enum LocalPlayerState {
     Entitlement(CodecEntitlementReplicatedState),
     /// Fragment key 22, type index 3857.
     Objectives(CodecObjectivesReplicatedState),
+    /// Fragment key 9, type index 3935.
+    Player(CodecPlayerComponentReplicatedState),
     /// Fragment key 74, type index 5691.
     Transmog(CodecTransmogReplicatedState),
 }
@@ -140,7 +172,7 @@ impl LocalPlayerState {
     pub const fn objectives(&self) -> Option<&CodecObjectivesReplicatedState> {
         match self {
             Self::Objectives(value) => Some(value),
-            Self::Entitlement(_) | Self::Transmog(_) => None,
+            Self::Entitlement(_) | Self::Player(_) | Self::Transmog(_) => None,
         }
     }
 
@@ -148,7 +180,7 @@ impl LocalPlayerState {
     pub fn objectives_mut(&mut self) -> Option<&mut CodecObjectivesReplicatedState> {
         match self {
             Self::Objectives(value) => Some(value),
-            Self::Entitlement(_) | Self::Transmog(_) => None,
+            Self::Entitlement(_) | Self::Player(_) | Self::Transmog(_) => None,
         }
     }
 
@@ -156,7 +188,15 @@ impl LocalPlayerState {
     pub const fn entitlement(&self) -> Option<&CodecEntitlementReplicatedState> {
         match self {
             Self::Entitlement(value) => Some(value),
-            Self::Objectives(_) | Self::Transmog(_) => None,
+            Self::Objectives(_) | Self::Player(_) | Self::Transmog(_) => None,
+        }
+    }
+
+    /// The player component, if this fragment carries it.
+    pub const fn player(&self) -> Option<&CodecPlayerComponentReplicatedState> {
+        match self {
+            Self::Player(value) => Some(value),
+            Self::Entitlement(_) | Self::Objectives(_) | Self::Transmog(_) => None,
         }
     }
 
@@ -164,7 +204,7 @@ impl LocalPlayerState {
     pub const fn transmog(&self) -> Option<&CodecTransmogReplicatedState> {
         match self {
             Self::Transmog(value) => Some(value),
-            Self::Entitlement(_) | Self::Objectives(_) => None,
+            Self::Entitlement(_) | Self::Objectives(_) | Self::Player(_) => None,
         }
     }
 }
@@ -182,6 +222,7 @@ impl StateComponent for LocalPlayerState {
         match self {
             Self::Entitlement(_) => CodecEntitlementReplicatedState::ENTITLEMENT_TYPE_INDEX,
             Self::Objectives(_) => CodecObjectivesReplicatedState::OBJECTIVES_TYPE_INDEX,
+            Self::Player(_) => CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX,
             Self::Transmog(_) => CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX,
         }
     }
@@ -194,6 +235,9 @@ impl StateComponent for LocalPlayerState {
             CodecObjectivesReplicatedState::OBJECTIVES_TYPE_INDEX => Ok(Self::Objectives(
                 CodecObjectivesReplicatedState::read_from(reader)?,
             )),
+            CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX => Ok(Self::Player(
+                CodecPlayerComponentReplicatedState::read_from(reader)?,
+            )),
             CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX => Ok(Self::Transmog(
                 CodecTransmogReplicatedState::read_from(reader)?,
             )),
@@ -205,6 +249,7 @@ impl StateComponent for LocalPlayerState {
         match self {
             Self::Entitlement(value) => value.write_to(writer),
             Self::Objectives(value) => value.write_to(writer),
+            Self::Player(value) => value.write_to(writer),
             Self::Transmog(value) => value.write_to(writer),
         }
     }

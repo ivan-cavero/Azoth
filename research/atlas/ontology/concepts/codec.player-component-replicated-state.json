@@ -1,0 +1,50 @@
+{
+  "uid": "codec.player-component-replicated-state",
+  "kind": "codec",
+  "name": "PlayerComponentReplicatedState",
+  "aliases": [
+    "wire-type:3935",
+    "guid:bddda784-a6e7-416b-a041-449920d90fb6",
+    "state-fragment:key9"
+  ],
+  "summary": "The payload carried by state fragment type index 3935 (key 9) in the local-player record: a two-level presence mask over the registered player-state members, then the members it selects. MEASURED SUBSET ONLY. The type is resolved by the type-index varint (0xf5f) to the AZ id bddda784-a6e7-416b-a041-449920d90fb6, whose record function 0x1468174b0 installs facet vtable 0x14851e0d8; facet slot +8 = 0x14657acd0 constructs the class at vtable 0x148558f30 (ctor 0x146713160). The dispatcher therefore calls that class's +0x88 writer and +0x90 reader, the shared replicated-state two-level mask pair. The ctor registers two groups; the 3-byte body sets group 1 member 3 only, which this card models. The other eight group-1 members and the group-0 members are NOT declared, because no body in hand sets them; the codec refuses an undeclared bit rather than skipping it.",
+  "purpose": "Name the one Player-component member the measured 0x9e record carries, so the fragment is authored from typed values instead of replayed. The class is much larger than this card: the ctor registers characterName, homeWorldId, playerConnected, lookingThroughLoadout, playerType, isInStore, platformAccountId and platformType in group 1 plus a group 0, and only lookingThroughLoadout has a measured body.",
+  "authority": "server",
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `9`, type varint `f5 1e` = 3935, then 3 payload bytes `02 08 00`. Below that, the payload is the two-level presence mask declared by this card's `presence` block: [group mask u8][for each present group: member mask u8][for each present member: that member's body, ascending by member index].",
+  "presence": {
+    "group": { "name": "group_mask", "bits": 8 },
+    "member": { "name": "entry_mask", "bits": 7, "continuation": 128 }
+  },
+  "fields": [
+    {
+      "name": "lookingThroughLoadout",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "nested(codec.player-looking-through-loadout)",
+      "evidence": "measured",
+      "presence": { "group": 1, "member": 3 },
+      "note": "Group 1 member 3, named by the ctor's reflection string at 0x14855a500 (ctor member offset 0x159). The member object's vtable is 0x148040208 and its reader is vtable +0x30 = 0x1417b4c20. The measured body is 02 08 00: group 1, member 3, then the one bool byte 00. The other members are not declared because no measured body sets them."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "consumes", "to": "codec.player-looking-through-loadout" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3935.hex holds the 3 payload bytes from 0x9e_T0x8_R.bin, key 9, type 3935; the body parses field by field and re-encodes byte-exactly. Also research/derived/state-bundle-fragments.json fragment index 3 of record 1."
+    },
+    {
+      "type": "decompile",
+      "ref": "IDENTITY (build 30fe6461): index 0xf5f -> AZ id bddda784-a6e7-416b-a041-449920d90fb6 -> record fn 0x1468174b0 -> facet vtable 0x14851e0d8 -> facet +8 0x14657acd0 -> class vtable 0x148558f30, ctor 0x146713160. The ctor registers eight group-1 members (0x14855a4d0..0x14855a538, 0x1483bc8d0) and a group 0; the reader is the shared 0x1417b5080 / 0x1417b5330 pair."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

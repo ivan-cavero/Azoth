@@ -799,6 +799,27 @@ CODECS = {
             ('elements', 'masked_counted(nested(codec.objectives-tracked-objective))'),
         ),
     },
+    'codec.player-component-replicated-state': {
+        'name': 'PlayerComponentReplicatedState',
+        'fields': (
+            ('lookingThroughLoadout', 'nested(codec.player-looking-through-loadout)'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None),
+            'member': ('entry_mask', 7, 128),
+            'groups': (
+                (1, 2, (
+                    (3, 8, 'lookingThroughLoadout', 'nested(codec.player-looking-through-loadout)'),
+                )),
+            ),
+        },
+    },
+    'codec.player-looking-through-loadout': {
+        'name': 'PlayerLookingThroughLoadout',
+        'fields': (
+            ('value', 'bool_byte'),
+        ),
+    },
     'codec.transmog-appearance': {
         'name': 'TransmogAppearance',
         'fields': (

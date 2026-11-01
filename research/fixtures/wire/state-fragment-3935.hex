@@ -1,0 +1,14 @@
+# State fragment body for wire type index 3935 (key 9, Javelin
+# PlayerComponentReplicatedState), build sha256 30fe6461.
+#
+# 3 bytes, the payload of fragment index 3 of record 1. Extracted from the
+# committed bundle corpus research/fixtures/wire/wire-fixtures.json by
+# research/derived/state-bundle-fragments.json (offset_in_record 4295,
+# size 6 = 3 header bytes 09 f5 1e + this payload). The header bytes are not
+# part of this file: the fragment is [prefix-varint key][prefix-varint type]
+# [payload] with no length field.
+#
+# Layout and provenance: research/atlas/ontology/concepts/
+# codec.player-component-replicated-state.json. Only group 1 member 3
+# (lookingThroughLoadout) is modelled; the body is 02 08 00.
+020800

@@ -1,0 +1,48 @@
+{
+  "uid": "codec.player-looking-through-loadout",
+  "kind": "codec",
+  "name": "PlayerLookingThroughLoadout",
+  "aliases": [
+    "lookingThroughLoadout member body",
+    "PlayerComponentReplicatedState vtable 0x148040208 reader +0x30"
+  ],
+  "summary": "The `lookingThroughLoadout` member body of the Player replicated state: one strict zero-or-one byte. The member's reader 0x1417b4c20 accepts only a byte below 2, so the card declares bool_byte and the codec refuses any other value.",
+  "purpose": "Name the member layout the Player presence mask selects (group 1 member 3 of codec.player-component-replicated-state).",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "value",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "One raw byte read by 0x1417b4c20 through FUN_1408787b0; the reader stores it only when it is below 2. The measured 0x9e body carries 00. The reflection string at 0x14855a500 says lookingThroughLoadout; what the flag enables is not proven, so the field stays layout-only."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.player-component-replicated-state"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3935.hex: the 3-byte payload 02 08 00 parses as group 1, member 3, then this one byte, and re-encodes byte-exactly."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member object vtable 0x148040208 slot +0x30 = 0x1417b4c20 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}
