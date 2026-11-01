@@ -12,6 +12,33 @@ use crate::opaque::Opaque;
 /// The two-byte marker that precedes the message type in a record.
 pub const RECORD_TYPE_MARKER: [u8; 2] = [0x00, 0x01];
 
+/// Largest value a VLQ32 can carry (five bytes, 35 data bits).
+pub(crate) const VLQ32_MAX: u64 = (1 << 35) - 1;
+
+/// One typed record payload: a VLQ32 length, the type marker, the prefix-varint
+/// message type, then the card's body.
+///
+/// The length counts the whole typed envelope (`marker + type + body`), which is
+/// what the reference writes (`bytes([len(body)]) + body` in
+/// `flow.world-entry.rung.registration`). It is the framed form a data-channel
+/// record carries, not the body the generated codec produces.
+///
+/// # Errors
+/// Returns [`WireError::OutOfRange`] when the envelope cannot fit a VLQ32, and
+/// [`WireError::OutOfRange`] from [`Writer::prefix_varint`] for a type id that
+/// needs more than the measured width.
+pub fn typed_record(wire_id: u32, body: &[u8]) -> Result<Vec<u8>, WireError> {
+    let mut envelope = Vec::with_capacity(2 + body.len() + 1);
+    envelope.extend_from_slice(&RECORD_TYPE_MARKER);
+    Writer::new(&mut envelope).prefix_varint(u64::from(wire_id))?;
+    envelope.extend_from_slice(body);
+
+    let mut out = Vec::with_capacity(envelope.len() + 1);
+    Writer::new(&mut out).vlq32(envelope.len() as u64)?;
+    out.extend_from_slice(&envelope);
+    Ok(out)
+}
+
 /// Largest value the measured prefix varint can carry (four continuation bytes).
 pub(crate) const PREFIX_VARINT_MAX: u64 = (1 << 35) - 1;
 
@@ -539,6 +566,45 @@ impl<'a> Writer<'a> {
             }
             self.out.push(byte | 0x80);
         }
+    }
+
+    /// Write the AzCore/GridMate VLQ32 ("1s-prefix") variable-length unsigned.
+    ///
+    /// The leading one-bits of the first byte give the number of following
+    /// bytes; the first byte supplies `8 - prefix_bits` low bits and every
+    /// following byte contributes all eight of its bits, little-endian. Ported
+    /// from the reference's `javelin/wire.py::encode_vlq32`.
+    ///
+    /// # Errors
+    /// Returns [`WireError::OutOfRange`] for a value that needs more than five
+    /// bytes.
+    pub fn vlq32(&mut self, value: u64) -> Result<(), WireError> {
+        if value > VLQ32_MAX {
+            return Err(WireError::OutOfRange {
+                field: "vlq32",
+                max: VLQ32_MAX,
+                value,
+            });
+        }
+        let (bytes, prefix, first_bits) = if value < (1 << 7) {
+            (1usize, 0x00u8, 7u32)
+        } else if value < (1 << 14) {
+            (2, 0x80, 6)
+        } else if value < (1 << 21) {
+            (3, 0xC0, 5)
+        } else if value < (1 << 28) {
+            (4, 0xE0, 4)
+        } else {
+            (5, 0xF0, 3)
+        };
+        self.out
+            .push(prefix | (value & ((1u64 << first_bits) - 1)) as u8);
+        let mut shift = first_bits;
+        for _ in 1..bytes {
+            self.out.push(((value >> shift) & 0xFF) as u8);
+            shift += 8;
+        }
+        Ok(())
     }
 
     /// Write a prefix-varint-counted string.

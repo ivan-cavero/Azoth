@@ -38,7 +38,13 @@ impl Opaque {
     }
 
     /// Build a run from an id and its bytes.
-    pub(crate) fn new(id: &'static str, bytes: Vec<u8>) -> Self {
+    ///
+    /// Public so a server can AUTHOR a card whose field the Atlas has not named
+    /// (for example the registration response's 32-byte token block): the value
+    /// is supplied by the server, and the run it produces is still unreadable --
+    /// there is still no slice accessor, `Deref`, or `AsRef`.
+    #[must_use]
+    pub fn new(id: &'static str, bytes: Vec<u8>) -> Self {
         Self { id, bytes }
     }
 

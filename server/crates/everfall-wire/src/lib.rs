@@ -15,7 +15,11 @@
 //! [`carrier`] is the layer between a message and a datagram: the 4-byte
 //! Carrier envelope and the run of message records it wraps, with their flags,
 //! per-channel sequences and chunk counts. It is hand-written framing, like
-//! [`framing`], and it never decompresses a compressed body.
+//! [`framing`], and it never decompresses a compressed body; [`lz4`] is the
+//! separate layer that turns a `0x81` block back into a record stream.
+//!
+//! [`system`] frames the Carrier's system-channel transport messages (the
+//! connection-acceptance flight and its ACK), which the Atlas gives no card.
 //!
 //! The crate owns no game rules and no I/O: it never reads a file, opens a
 //! socket, or plays back a recording. The record envelope (`00 01` then the
@@ -24,9 +28,11 @@
 
 mod carrier;
 mod framing;
+mod lz4;
 mod opaque;
 mod state_bundle;
 mod state_component;
+mod system;
 
 pub mod generated;
 
@@ -35,7 +41,8 @@ pub use crate::carrier::{
     MF_NO_LENGTH, MF_RELIABLE, MF_SEQUENTIAL_ID, MF_SEQUENTIAL_REL_ID, MessageRecord,
     decode_records, encode_records,
 };
-pub use crate::framing::{RECORD_TYPE_MARKER, Reader, WireError, Writer};
+pub use crate::framing::{RECORD_TYPE_MARKER, Reader, WireError, Writer, typed_record};
+pub use crate::lz4::{Lz4Error, decompress_block};
 pub use crate::opaque::Opaque;
 pub use crate::state_bundle::{
     Bundle, BundleError, CARRIER_HEADROOM, CHUNK_LIMIT, DATAGRAM_CEILING, Fragment, FragmentExtent,
@@ -43,3 +50,7 @@ pub use crate::state_bundle::{
     UNRECOVERED_FRAGMENT_PAYLOAD, chunk_ranges,
 };
 pub use crate::state_component::LocalPlayerState;
+pub use crate::system::{
+    DEFAULT_WELCOME, SM_CLOCK_SYNC, SM_CONNECT_ACK, SM_CONNECT_REQUEST, SM_CT_ACKS, SM_DISCONNECT,
+    SYSTEM_CHANNEL, acceptance_flight, connect_request_welcome, ct_acks, is_connect_request,
+};

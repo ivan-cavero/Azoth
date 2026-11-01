@@ -26,3 +26,9 @@ openssl = "0.10"
 
 # Wall-clock timestamps for the milestone log and the certificate serial.
 time = { version = "0.3", features = ["formatting"] }
+
+# The REP carrier layer. `everfall-net` still owns sockets and DTLS; the binary
+# hands each decrypted datagram to `everfall-world`, which owns the protocol
+# decision and returns the datagrams to send. This does not invert a boundary:
+# `everfall-world` depends on neither this crate nor a socket.
+everfall-world = { path = "../everfall-world" }
