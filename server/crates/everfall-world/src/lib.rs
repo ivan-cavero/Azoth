@@ -13,14 +13,21 @@
 //! datagrams to answer with, which is what carries the client past registration.
 //! It opens no socket either -- the DTLS loop owns the transport and hands it
 //! bytes.
+//!
+//! [`ladder`] is what the server SENDS once the registration is accepted: the
+//! self-identification record, level info and the emitted state bundle, ordered
+//! and paced as the reference sends them. It, too, opens no socket.
 
 mod dispatcher;
 pub mod emitter;
+pub mod ladder;
 pub mod rep;
 
 pub use crate::dispatcher::{DecisionRecord, DispatchError, OBJECTIVES_REPLY_WIRE_ID, World};
 pub use crate::emitter::{Emission, EmitError, emit};
+pub use crate::ladder::{LadderError, PlannedRecord, PostV3Ladder, Rung};
 pub use crate::rep::{
     REGISTRATION_REQUEST_WIRE_ID, RepError, RepRequest, RepSession, SERVER_VERSION, SESSION_TOKEN,
     ack_window_first, handle_app_data,
 };
+pub use everfall_sim::Decision;

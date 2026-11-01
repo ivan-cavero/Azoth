@@ -8,9 +8,11 @@ flight (`SM_CLOCK_SYNC` + `SM_CONNECT_ACK` + `SM_CT_ACKS`) and answers the
 client's V3 registration (`wire 0x13`) with the `0x3` response from the Atlas
 card `flow.world-entry.rung.registration`. The claim this run checks is that the
 client moves `WaitingForREPConnection` (14) → `WaitingForActorGameConnection`
-(15) and logs `received registration response from REP`. It will NOT reach
-character select: the post-registration ladder (SelfIdent / LevelInfoChanged /
-spawn) and replicated state are out of scope.
+(15) and logs `received registration response from REP`. The server also now
+arms the **post-registration ladder** once the registration is answered: the
+self-identification record (`0x65c`), level info (`0x663`) and the emitted
+state bundle (`0x08`), sent on the server's own clock. See "Post-registration
+ladder" below for what that can and cannot reach.
 
 The spike is **OpenSSL** presenting an **RSA 2048 self-signed certificate**
 (`CN=New World`), matching the Python lab. That was decided by measurement:
@@ -72,6 +74,8 @@ OpenSSL from source, and the package is a prerequisite like the Windows SDK.
 | `application data: N bytes` | a decrypted Carrier datagram reached the world |
 | `rep reply sent: N bytes` | the world answered with the acceptance flight or the registration response |
 | `registration answered: …` | the `0x3` response went out; the client should leave `WaitingForREPConnection` |
+| `post-registration ladder armed: N record(s) …` | the three post-V3 rungs loaded and framed from the committed corpus |
+| `ladder sent: N bytes` | a post-V3 rung went out on the server's clock (300 ms after the registration) |
 | `no carrier reply` | the datagram carried no message this layer answers (e.g. a piggyback ACK) |
 | `fatal Error: …` | OpenSSL gave up; the connection must be dropped |
 
@@ -97,8 +101,58 @@ machine should move `WaitingForREPConnection -> WaitingForActorGameConnection`.
 | `registration answered`, but `Game.log` never logs `received registration response from REP` and the state stays `WaitingForREPConnection` | The `0x3` body was sent but rejected. The card layout, the VLQ32 length, or the session token is wrong; the response did NOT do its job. |
 | `registration answered` and `Game.log` logs `received registration response from REP`, state `WaitingForActorGameConnection` | The client passed REP registration. Proceed to the post-registration ladder. |
 
+## Post-registration ladder
+
+The rungs above registration, in the order and at the pacing the reference uses
+(`services/world/src/azoth_world/rep.py::maybe_send_post_v3` and
+`::maybe_pump_replay`):
+
+| Order | Rung | Wire | Kind | Pacing |
+| --- | --- | --- | --- | --- |
+| 15 → 16 | self-identification, `PlayerManagerSelfIdentificationMsg` | `0x65c` | SEND (relayed on the server's clock) | 300 ms after the `0x3`, chunked at 1,100 B with a 4 ms gap |
+| 16 → 17 | level info, `LevelInfoChangedMsg` | `0x663` | SEND | one message interval (30 ms) after the self-ident |
+| 17 → 18 | spawn state, `ReplicatedStateBundle` | `0x08` | SEND (the emitter's `Emission`) | right up to the state bundle, chunked |
+
+The `WaitingForREPConnection` → `WaitingForActorGameConnection` transition is
+**not** one of these: the atlas measures it as the Carrier actor game connection
+reaching state 2 (`[carrier+0xA0] == 2`, getter `0x145A934A0`), a
+**transport job**, not a message. The local rig satisfies it with the
+client-side patch set `private-run` applies.
+
+**Provenance.** The rungs are re-encoded through their Atlas cards from the
+committed corpus (`research/fixtures/wire/wire-bodies.json`,
+`research/fixtures/wire/wire-fixtures.json`, `research/derived/state-bundle-fragments.json`),
+so the BYTES are the server's framing. The VALUES are still the capture's until
+the simulation owns them — `PostV3Ladder::from_captured` says so by name.
+
 Report the server's lines and the two `Game.log` lines verbatim: they are the
 evidence.
+
+### What to watch on the client side
+
+After `received registration response from REP`, `Game.log` should show, in
+order:
+
+* `GameConnectionWrapper: start actor game connection` then `Update state
+  WaitingForREPConnection to new state WaitingForActorGameConnection`;
+* `GameConnectionWrapper: actor game connection succeeds` → `WaitingForSpawnPoint`;
+* `[GameMessagePort] LevelInfoChanged`, then `GameConnectionWrapper: spawn point
+  found` → `WaitingForPlayerSpawn`;
+* `GameConnectionWrapper: player spawn succeeds, in game` → `InGame`.
+
+The measured 1.460 boundary is `WaitingForPlayerSpawn`: the client passes
+`actor game connection succeeds` and `spawn point found`, then times out at
+`State(WaitingForPlayerSpawn) is timeout`. A stall there is the interior of the
+spawn bundle, not the transport above it.
+
+### What falsifies the ladder
+
+| Observation | Reading |
+| --- | --- |
+| `post-registration ladder armed` never appears in the server log | the corpus or its extents were not found; the server still answers registration |
+| `ladder sent` lines appear but `Game.log` shows no `LevelInfoChanged` | the rung reached the Carrier but the client did not dispatch it: check the `0x65c`/`0x663` card framing (marker/varint) |
+| The client stalls at a NAMED state (`WaitingForActorGameConnection`, `WaitingForSpawnPoint`, `WaitingForPlayerSpawn`) and then logs `State(<name>) is timeout` | the rung above that state did not land; name the state in the report — it is the falsifier, not the fix |
+| `@mm_csdkerr_disconnect (4)` / `transportError` right after `ladder sent` | the chunk framing is wrong (flags `0x25`, `num_chunks`, one chunk per datagram) |
 
 ## Local proof (no client required)
 
@@ -108,7 +162,12 @@ captured datagrams** through the carrier layer and assert the reply bytes:
 - `everfall-world/tests/rep_carrier.rs` replays the captured `SM_CONNECT_REQUEST`
   and the captured (LZ4-compressed) V3 registration from `.azoth/logs/` and
   asserts the acceptance flight, the `0x3` response and the `SM_CT_ACKS` byte for
-  byte; and
+  byte;
+- `everfall-world/tests/post_registration.rs` builds the three post-V3 rungs from
+  the committed corpus through the Atlas cards and asserts the session releases
+  them only after the 300 ms delay, that the self-ident and level-info bodies
+  re-encode byte for byte, and that the state rung is the emitter's payload,
+  chunked; and
 - `everfall-wire/tests/carrier_parity.rs` pins the envelope/record framing against
   the same captures.
 

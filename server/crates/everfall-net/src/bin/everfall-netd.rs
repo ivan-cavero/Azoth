@@ -12,17 +12,26 @@
 //! are written back through the same DTLS session, which is what carries the
 //! client past `WaitingForREPConnection`.
 //!
+//! Once the registration is answered, the session's post-registration ladder is
+//! released on the server's own clock: the self-identification record, level
+//! info, and the state bundle the emitter authors. The rungs are loaded from the
+//! committed corpus and re-encoded through their Atlas cards, so the BYTES are
+//! the server's framing while the VALUES are still the capture's until the
+//! simulation owns them.
+//!
 //! The port comes from the first CLI argument, else `EVERFALL_NET_PORT`, else
 //! `9000`.
 
 use std::env;
 use std::fmt::Arguments;
+use std::fs;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Duration;
 
 use everfall_net::{Milestone, RsaIdentity, Server};
-use everfall_world::RepSession;
+use everfall_world::{Decision, PostV3Ladder, RepSession};
 
 /// Default port: the client's measured REP address.
 const DEFAULT_PORT: u16 = 9000;
@@ -78,9 +87,23 @@ fn main() -> ExitCode {
     ));
 
     let mut session = RepSession::new();
+    match post_v3_ladder() {
+        Ok(ladder) => {
+            let rungs = ladder.records().len();
+            session.set_ladder(ladder);
+            log(format_args!(
+                "post-registration ladder armed: {rungs} record(s) (self-ident 0x65c, level info 0x663, emitted state 0x08)"
+            ));
+        }
+        Err(error) => log(format_args!(
+            "post-registration ladder unavailable, answering registration only: {error}"
+        )),
+    }
 
     loop {
-        match server.step(Duration::from_secs(1)) {
+        // A short step so the session's ladder is released on ~50 Hz ticks,
+        // the cadence the reference sends the post-V3 flight on.
+        match server.step(Duration::from_millis(20)) {
             Ok(events) => {
                 for event in events {
                     match event {
@@ -104,6 +127,24 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
+        if server.is_connected() {
+            pump_ladder(&mut session, &mut server);
+        }
+    }
+}
+
+/// Send every post-registration datagram the session's clock says is due.
+fn pump_ladder(session: &mut RepSession, server: &mut Server) {
+    match session.tick(clock_ms()) {
+        Ok(replies) => {
+            for reply in replies {
+                match server.send_application_data(&reply) {
+                    Ok(sent) => log(format_args!("ladder sent: {sent} bytes")),
+                    Err(error) => log(format_args!("ladder send failed: {error}")),
+                }
+            }
+        }
+        Err(error) => log(format_args!("ladder error: {error}")),
     }
 }
 
@@ -144,4 +185,112 @@ fn port_from_args_or_env() -> Result<u16, String> {
             .map_err(|_| format!("invalid EVERFALL_NET_PORT: {value:?}")),
         Err(_) => Ok(DEFAULT_PORT),
     }
+}
+
+/// The repository root, from this crate's compile-time manifest directory.
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
+}
+
+fn read_text(relative: &str) -> Result<String, String> {
+    fs::read_to_string(repo_root().join(relative)).map_err(|error| format!("{relative}: {error}"))
+}
+
+/// Decode a `"<hex>"` string into bytes.
+fn hex_bytes(hex: &str) -> Result<Vec<u8>, String> {
+    if !hex.len().is_multiple_of(2) {
+        return Err(format!("odd hex length: {}", hex.len()));
+    }
+    (0..hex.len() / 2)
+        .map(|index| {
+            u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16)
+                .map_err(|error| format!("hex digit pair: {error}"))
+        })
+        .collect()
+}
+
+/// One committed body for a wire id from `wire-bodies.json`.
+fn wire_body(text: &str, wire_id: u32) -> Option<Vec<u8>> {
+    let needle = format!("\"wire_id\": {wire_id},");
+    let at = text.find(&needle)?;
+    let body_key = "\"body\": \"";
+    let body_at = text[at..].find(body_key)? + body_key.len() + at;
+    let rest = &text[body_at..];
+    let end = rest.find('"')?;
+    hex_bytes(&rest[..end]).ok()
+}
+
+/// The captured `0x9e` state bundle body, marker included.
+fn state_bundle_body(text: &str, source: &str) -> Option<Vec<u8>> {
+    let needle = format!("\"source\": \"{source}\"");
+    let at = text.find(&needle)?;
+    let body_key = "\"body\": \"";
+    let body_at = text[..at].rfind(body_key)? + body_key.len();
+    let rest = &text[body_at..];
+    let end = rest.find('"')?;
+    hex_bytes(&rest[..end]).ok()
+}
+
+/// The measured `(key, type_index, payload_len)` extents of the bundle.
+fn fragment_extents(text: &str) -> Vec<(u64, u64, usize)> {
+    let mut out = Vec::new();
+    let mut current: Option<(u64, u64, usize)> = None;
+    for line in text.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("\"key\": ") {
+            if let Some(done) = current.take() {
+                out.push(done);
+            }
+            current = Some((number(rest), 0, 0));
+        } else if let (Some(rest), Some(slot)) =
+            (line.strip_prefix("\"type_index\": "), current.as_mut())
+        {
+            slot.1 = number(rest);
+        } else if let (Some(rest), Some(slot)) =
+            (line.strip_prefix("\"payload_length\": "), current.as_mut())
+        {
+            slot.2 = number(rest) as usize;
+        }
+    }
+    if let Some(done) = current {
+        out.push(done);
+    }
+    out
+}
+
+fn number(field: &str) -> u64 {
+    field.trim_end_matches(',').parse().unwrap_or(0)
+}
+
+/// Load and re-encode the post-registration rungs from the committed corpus.
+///
+/// The message bodies are decoded into their Atlas cards by
+/// [`PostV3Ladder::from_captured`], and the state rung is re-emitted from typed
+/// components, so the bytes are the server's even though the values are still
+/// the capture's.
+fn post_v3_ladder() -> Result<PostV3Ladder, String> {
+    let bodies = read_text("research/fixtures/wire/wire-bodies.json")?;
+    let self_identification = wire_body(&bodies, 0x65c).ok_or("0x65c body absent")?;
+    let level_info = wire_body(&bodies, 0x663).ok_or("0x663 body absent")?;
+
+    let bundles = read_text("research/fixtures/wire/wire-fixtures.json")?;
+    let state = state_bundle_body(&bundles, "0x9e_T0x8_R.bin").ok_or("0x9e bundle absent")?;
+
+    let fragments = read_text("research/derived/state-bundle-fragments.json")?;
+    let extents = fragment_extents(&fragments);
+    if extents.len() != 9 {
+        return Err(format!(
+            "expected 9 bundle extents, found {}",
+            extents.len()
+        ));
+    }
+
+    PostV3Ladder::from_captured(
+        &self_identification,
+        &level_info,
+        &state,
+        &extents,
+        &Decision::Accepted,
+    )
+    .map_err(|error| error.to_string())
 }

@@ -29,6 +29,8 @@ use everfall_wire::{
     is_connect_request, typed_record,
 };
 
+use crate::ladder::{LadderError, PostV3Ladder};
+
 /// The wire id of the client's `RegistrationRequestV3Msg`, which opens the ladder.
 ///
 /// The Atlas card `flow.world-entry.rung.registration` lists it as the alias
@@ -99,6 +101,8 @@ pub enum RepError {
     Carrier(CarrierError),
     /// A reply body's card codec refused a value.
     Codec(WireError),
+    /// A planned post-registration datagram could not be assembled.
+    Ladder(LadderError),
 }
 
 impl From<CarrierError> for RepError {
@@ -113,11 +117,18 @@ impl From<WireError> for RepError {
     }
 }
 
+impl From<LadderError> for RepError {
+    fn from(source: LadderError) -> Self {
+        Self::Ladder(source)
+    }
+}
+
 impl fmt::Display for RepError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Carrier(source) => write!(f, "reply framing: {source}"),
             Self::Codec(source) => write!(f, "reply codec: {source}"),
+            Self::Ladder(source) => write!(f, "post-registration ladder: {source}"),
         }
     }
 }
@@ -127,6 +138,7 @@ impl std::error::Error for RepError {
         match self {
             Self::Carrier(source) => Some(source),
             Self::Codec(source) => Some(source),
+            Self::Ladder(source) => Some(source),
         }
     }
 }
@@ -303,7 +315,9 @@ fn registration_response(envelope_seq: u16) -> Result<Vec<u8>, RepError> {
 /// Per-connection REP state, so a caller can drive datagrams one at a time.
 ///
 /// It holds the two facts the answers gate on (whether the flight and the
-/// registration response have gone out) and the sliding ACK window.
+/// registration response have gone out), the sliding ACK window, and -- when a
+/// caller arms one -- the post-registration [`PostV3Ladder`], which [`Self::tick`]
+/// releases on the connection's own clock.
 #[derive(Debug)]
 pub struct RepSession {
     handshake_done: bool,
@@ -312,6 +326,12 @@ pub struct RepSession {
     ack_window: u16,
     ack_coalesce_ms: u32,
     next_ack_ms: u32,
+    ladder: Option<PostV3Ladder>,
+    armed_at_ms: Option<u32>,
+    next_post_v3: usize,
+    post_v3_envelope_seq: u16,
+    post_v3_message_seq: u16,
+    post_v3_reliable_seq: u16,
 }
 
 impl RepSession {
@@ -331,7 +351,63 @@ impl RepSession {
             ack_window: Self::DEFAULT_ACK_WINDOW,
             ack_coalesce_ms: Self::DEFAULT_ACK_COALESCE_MS,
             next_ack_ms: 0,
+            ladder: None,
+            armed_at_ms: None,
+            next_post_v3: 0,
+            post_v3_envelope_seq: 0,
+            post_v3_message_seq: 1,
+            post_v3_reliable_seq: 1,
         }
+    }
+
+    /// Give the session the post-registration rungs to send after the V3 answer.
+    pub fn set_ladder(&mut self, ladder: PostV3Ladder) {
+        self.ladder = Some(ladder);
+    }
+
+    /// Whether the post-registration ladder has been armed by a V3 answer.
+    #[must_use]
+    pub const fn post_v3_armed(&self) -> bool {
+        self.armed_at_ms.is_some()
+    }
+
+    /// Emit every post-registration datagram that is now due.
+    ///
+    /// The reference sends the post-V3 flight from its own tick, not from
+    /// inbound traffic, so this is the caller's clock advancing the ladder. A
+    /// session with no armed ladder, or one armed less than
+    /// [`POST_V3_DELAY_MS`](crate::ladder::POST_V3_DELAY_MS) ago, returns no
+    /// datagrams.
+    ///
+    /// # Errors
+    /// Returns a [`RepError`] only when one of the server's own planned
+    /// datagrams cannot be framed.
+    pub fn tick(&mut self, clock_ms: u32) -> Result<Vec<Vec<u8>>, RepError> {
+        let Some(start) = self.armed_at_ms else {
+            return Ok(Vec::new());
+        };
+        let Some(ladder) = self.ladder.as_ref() else {
+            return Ok(Vec::new());
+        };
+        let elapsed = clock_ms.wrapping_sub(start);
+        let mut out = Vec::new();
+        while let Some(record) = ladder.records().get(self.next_post_v3) {
+            if record.offset_ms() > elapsed {
+                break;
+            }
+            let datagram = ladder.datagram(
+                self.next_post_v3,
+                self.post_v3_envelope_seq,
+                self.post_v3_message_seq,
+                self.post_v3_reliable_seq,
+            )?;
+            self.post_v3_envelope_seq = self.post_v3_envelope_seq.wrapping_add(1);
+            self.post_v3_message_seq = self.post_v3_message_seq.wrapping_add(1);
+            self.post_v3_reliable_seq = self.post_v3_reliable_seq.wrapping_add(1);
+            self.next_post_v3 += 1;
+            out.push(datagram);
+        }
+        Ok(out)
     }
 
     /// Whether the acceptance flight has gone out.
@@ -384,6 +460,17 @@ impl RepSession {
         }
         if outcome.answered_v3 {
             self.v3_responded = true;
+            // The post-V3 flight goes out on the SERVER's clock, 300 ms after
+            // the registration answer (the reference's `maybe_send_post_v3`).
+            // Arm it once, from the V3 datagram's own envelope sequence: its
+            // reply used `sequence + 1`, so the ladder continues at `+ 2`.
+            if self.ladder.is_some() && self.armed_at_ms.is_none() {
+                self.armed_at_ms = Some(clock_ms);
+                self.next_post_v3 = 0;
+                self.post_v3_envelope_seq = sequence.wrapping_add(2);
+                self.post_v3_message_seq = 1;
+                self.post_v3_reliable_seq = 1;
+            }
         }
         Ok(outcome.replies)
     }
