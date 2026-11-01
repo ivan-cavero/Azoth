@@ -12,11 +12,17 @@
 //! [`StateComponent`], so the assembly names no message, and a fragment whose
 //! type payload is not recovered stays an [`Opaque`] run.
 //!
+//! [`carrier`] is the layer between a message and a datagram: the 4-byte
+//! Carrier envelope and the run of message records it wraps, with their flags,
+//! per-channel sequences and chunk counts. It is hand-written framing, like
+//! [`framing`], and it never decompresses a compressed body.
+//!
 //! The crate owns no game rules and no I/O: it never reads a file, opens a
 //! socket, or plays back a recording. The record envelope (`00 01` then the
 //! prefix-varint message type) is framing owned by [`framing`] and is never a
 //! field.
 
+mod carrier;
 mod framing;
 mod opaque;
 mod state_bundle;
@@ -24,6 +30,11 @@ mod state_component;
 
 pub mod generated;
 
+pub use crate::carrier::{
+    CarrierError, Compression, Datagram, Envelope, MF_CHUNKS, MF_CONNECTING, MF_DATA_CHANNEL,
+    MF_NO_LENGTH, MF_RELIABLE, MF_SEQUENTIAL_ID, MF_SEQUENTIAL_REL_ID, MessageRecord,
+    decode_records, encode_records,
+};
 pub use crate::framing::{RECORD_TYPE_MARKER, Reader, WireError, Writer};
 pub use crate::opaque::Opaque;
 pub use crate::state_bundle::{
