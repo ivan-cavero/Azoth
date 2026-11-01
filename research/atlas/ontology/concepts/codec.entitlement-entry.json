@@ -1,0 +1,48 @@
+{
+  "uid": "codec.entitlement-entry",
+  "kind": "codec",
+  "name": "EntitlementEntry",
+  "aliases": [
+    "entitlements element",
+    "one-byte element of the entitlements run"
+  ],
+  "summary": "One element of the `entitlements` byte run: a single raw byte. The client reads and writes it through its raw one-byte stream slot, so the element is one u8 with no structure of its own.",
+  "purpose": "Give the `entitlements` run a named element card so the container is counted(nested(...)) and the generated struct never declares a bare Vec<u8>.",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "entitlement",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Read and written with the client's raw one-byte stream slot (writer vtable +0x40, reader 0x14087a330), inside the 0x14279ec10 element loop. The value's meaning is unnamed: the run is 423 bytes whose content no field boundary explains."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.entitlement-entitlements"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3133.hex: 423 one-byte elements, byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "0x14279ec10 reads each element with the raw one-byte reader (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

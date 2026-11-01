@@ -1,20 +1,42 @@
 {
-  "generated": "hand-seed-2026-10-24",
+  "generated": "hand-seed-2026-10-24; codec family 3133/5691 added 2026-11-03",
   "kinds": {
+    "codec": [
+      "codec.contracts.blob-256",
+      "codec.contracts.blob-64",
+      "codec.contracts.u32-vector-5",
+      "codec.entitlement-balance",
+      "codec.entitlement-balances",
+      "codec.entitlement-entitlements",
+      "codec.entitlement-entry",
+      "codec.entitlement-received",
+      "codec.entitlement-replicated-state",
+      "codec.objectives-active-objective",
+      "codec.objectives-active-objectives",
+      "codec.objectives-replicated-state",
+      "codec.objectives-task-state",
+      "codec.objectives-task-states",
+      "codec.transmog-appearance",
+      "codec.transmog-appearance-list",
+      "codec.transmog-appearance-map",
+      "codec.transmog-inventory-ready",
+      "codec.transmog-replicated-state"
+    ],
     "command": [
       "cmd.ban",
       "cmd.grant",
       "cmd.kick"
     ],
-    "codec": [
-      "codec.contracts.blob-256",
-      "codec.contracts.blob-64",
-      "codec.contracts.u32-vector-5",
-      "codec.objectives-active-objective",
-      "codec.objectives-active-objectives",
-      "codec.objectives-replicated-state",
-      "codec.objectives-task-state",
-      "codec.objectives-task-states"
+    "endpoint": [
+      "endpoint.channel-config",
+      "endpoint.cms-motd",
+      "endpoint.entitlements",
+      "endpoint.get-login-info",
+      "endpoint.list-worlds",
+      "endpoint.omni-credentials",
+      "endpoint.omni-tokens",
+      "endpoint.queue-login",
+      "endpoint.remote-config"
     ],
     "flow": [
       "flow.presence",
@@ -37,9 +59,9 @@
       "msg.objectives-update-tracked-objectives",
       "msg.receive-player-spawn-point",
       "msg.receive-settings-from-client",
-      "msg.request-spend-attribute-points",
       "msg.replicate",
       "msg.replicate-client",
+      "msg.request-spend-attribute-points",
       "msg.server-equip-item",
       "msg.set-replicate-storage",
       "msg.spawn-actors",
@@ -48,17 +70,6 @@
     ],
     "system": [
       "sys.movement-authority"
-    ],
-    "endpoint": [
-      "endpoint.channel-config",
-      "endpoint.cms-motd",
-      "endpoint.entitlements",
-      "endpoint.get-login-info",
-      "endpoint.list-worlds",
-      "endpoint.omni-credentials",
-      "endpoint.omni-tokens",
-      "endpoint.queue-login",
-      "endpoint.remote-config"
     ]
   }
 }

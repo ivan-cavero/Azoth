@@ -31,3 +31,4 @@ pub use crate::state_bundle::{
     FragmentPayload, PROLOGUE_HEAD, PROLOGUE_TAIL, Record, STATE_BUNDLE_TYPE, StateComponent,
     UNRECOVERED_FRAGMENT_PAYLOAD, chunk_ranges,
 };
+pub use crate::state_component::LocalPlayerState;

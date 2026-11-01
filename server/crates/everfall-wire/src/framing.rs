@@ -72,6 +72,11 @@ pub enum WireError {
         /// The index whose bit was set.
         index: u64,
     },
+    /// A component family was asked for a state type index it does not carry.
+    UnsupportedType {
+        /// The type index the caller asked for.
+        type_index: u64,
+    },
 }
 
 impl fmt::Display for WireError {
@@ -96,6 +101,12 @@ impl fmt::Display for WireError {
             }
             Self::UnknownPresence { what, index } => {
                 write!(f, "{what} mask bit {index} names no declared {what}")
+            }
+            Self::UnsupportedType { type_index } => {
+                write!(
+                    f,
+                    "state type {type_index} is not one this component carries"
+                )
             }
         }
     }

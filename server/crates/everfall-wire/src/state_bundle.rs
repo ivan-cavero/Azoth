@@ -12,8 +12,8 @@
 //! checked here against what the bytes and the codec actually consume, so a wrong
 //! extent fails loudly instead of re-emitting its own guess.
 //!
-//! This module names no card. It asks [`StateComponent`] for the type index and
-//! the body, so the assembly below is generic over every replicated component,
+//! This module names no card. It asks [`StateComponent`] for the type indices and
+//! the bodies, so the assembly below is generic over every replicated component,
 //! and a fragment whose type has no recovered payload layout stays an [`Opaque`]
 //! run that keeps the field id it was read from.
 
@@ -71,26 +71,33 @@ pub fn chunk_ranges(total: usize) -> Vec<Range<usize>> {
     out
 }
 
-/// One replicated-state component whose payload layout the Atlas names.
+/// One replicated-state component family whose payload layouts the Atlas names.
 ///
-/// The generated codec for a card supplies one impl. The framing never names a
-/// card: it asks the trait for the type index and the body.
+/// The generated codec for a card supplies one impl, and a family of several
+/// typed fragments (one variant per recovered type index) supplies another. The
+/// framing never names a card: it asks the trait which type indices the family
+/// carries, which one a value is bound to, and for its body.
 pub trait StateComponent: Sized + fmt::Debug + PartialEq {
-    /// The Atlas card id of the component.
+    /// The Atlas card id of the component, or the envelope id for a family.
     const UID: &'static str;
 
-    /// The state type index the client binds the card to.
+    /// The state type indices this family carries, ascending.
     ///
-    /// A fragment's second varint is this index, and the client maps it through
-    /// its type registry to the card's own reader and writer.
-    const TYPE_INDEX: u64;
+    /// A fragment's second varint is one of these, and the client maps it through
+    /// its type registry to the card's own reader and writer. An index outside
+    /// the list is not this family's, so its bytes stay a run.
+    fn type_indices() -> &'static [u64];
+
+    /// The state type index this value is bound to.
+    fn type_index(&self) -> u64;
 
     /// Read one body. The fragment carries no length, so the card's layout
     /// decides where the body ends.
     ///
     /// # Errors
-    /// Returns [`WireError`] when the body does not match the card.
-    fn read_body(reader: &mut Reader<'_>) -> Result<Self, WireError>;
+    /// Returns [`WireError`] when the body does not match the card, or when
+    /// `type_index` is not one this family carries.
+    fn read_body(type_index: u64, reader: &mut Reader<'_>) -> Result<Self, WireError>;
 
     /// Append one body.
     ///
@@ -141,7 +148,7 @@ impl<T: StateComponent> FragmentPayload<T> {
     /// The state type index this payload is bound to.
     pub fn type_index(&self) -> u64 {
         match self {
-            Self::Component(_) => T::TYPE_INDEX,
+            Self::Component(component) => component.type_index(),
             Self::Unrecovered { type_index, .. } => *type_index,
         }
     }
@@ -395,9 +402,9 @@ fn read_fragment<T: StateComponent>(
         });
     }
 
-    let payload = if type_index == T::TYPE_INDEX {
+    let payload = if T::type_indices().contains(&type_index) {
         let before = reader.position();
-        let component = T::read_body(reader)?;
+        let component = T::read_body(type_index, reader)?;
         let consumed = reader.position() - before;
         if consumed != extent.payload_len {
             return Err(BundleError::ComponentWidth {

@@ -4,8 +4,7 @@
 //! other direction: one real bundle (`0x9e_T0x8_R.bin`, 7,167 bytes, record 1,
 //! nine fragments) is decoded, the simulation decides a request that drops an
 //! objective it has no definition for, and the world assembles the bytes it would
-//! emit. The three claims checked here are the ones that make the emission
-//! meaningful:
+//! emit. The claims checked here are the ones that make the emission meaningful:
 //!
 //! 1. the emitted bundle is well formed under the documented framing -- it parses
 //!    back into the same typed records with only the decided change, and
@@ -13,7 +12,10 @@
 //! 2. its bytes are identical to the recorded bundle everywhere the decision did
 //!    not change data, and the changed span is exactly one count prefix byte plus
 //!    one deleted 56-byte element;
-//! 3. the chunking respects the measured 1,100-byte working cut, which exists
+//! 3. three of the nine fragments (keys 19, 22 and 74) are AUTHORED from typed
+//!    values rather than replayed, so 6,462 of the record's 7,126 payload bytes
+//!    come from the server's own model; the six that remain are named;
+//! 4. the chunking respects the measured 1,100-byte working cut, which exists
 //!    because 1,200 bytes is the datagram ceiling.
 //!
 //! Nothing here opens a socket. There is no carrier layer yet, so this file
@@ -28,7 +30,9 @@ use everfall_wire::generated::{
     CodecObjectivesActiveObjectives, CodecObjectivesReplicatedState,
     CodecObjectivesReplicatedStateEntry, CodecObjectivesTaskStates,
 };
-use everfall_wire::{Bundle, CARRIER_HEADROOM, CHUNK_LIMIT, DATAGRAM_CEILING, FragmentExtent};
+use everfall_wire::{
+    Bundle, CARRIER_HEADROOM, CHUNK_LIMIT, DATAGRAM_CEILING, FragmentExtent, LocalPlayerState,
+};
 use everfall_world::emit;
 
 fn repo_root() -> PathBuf {
@@ -159,7 +163,7 @@ fn the_emitted_bundle_is_well_formed_and_carries_the_decision() {
 
     let produced = emission.encode().expect("the emission encodes");
     let extents = emission.extents().expect("the emission states its extents");
-    let redecoded = Bundle::<CodecObjectivesReplicatedState>::decode(&produced, &extents)
+    let redecoded = Bundle::<LocalPlayerState>::decode(&produced, &extents)
         .expect("the emitted bytes parse under the documented framing");
 
     assert_eq!(redecoded.replication_seq(), 0x24);
@@ -167,7 +171,10 @@ fn the_emitted_bundle_is_well_formed_and_carries_the_decision() {
     assert_eq!(redecoded.records()[0].record_id(), 1);
     assert_eq!(redecoded.records()[0].fragments().len(), 9);
 
-    let component = redecoded.components().next().expect("one component");
+    let component = redecoded
+        .components()
+        .find_map(LocalPlayerState::objectives)
+        .expect("the bundle carries the objectives component");
     let (active, tasks) = containers(component);
     assert_eq!(
         active.elements.len(),
@@ -250,6 +257,53 @@ fn a_rejection_emits_the_recorded_bundle_unchanged() {
 }
 
 #[test]
+fn the_emission_authors_the_typed_fragments_and_names_the_replayed_ones() {
+    // A rejection changes nothing, so the census is the record's own.
+    let mut sim = Sim::new((0..9).map(ObjectiveId::new));
+    let rejected = sim.decide(
+        ActorId::new(1),
+        ObjectiveRequest::SetTrackedObjectives((0..9).map(ObjectiveId::new).collect()),
+    );
+    assert!(matches!(rejected, Decision::Rejected(_)));
+
+    let emission = emit(recorded_bundle(), &rejected).expect("assembles");
+    assert_eq!(
+        emission.state().components().count(),
+        3,
+        "keys 19, 22 and 74 are typed components"
+    );
+
+    // The anti-emulator KPI, from the bytes rather than from a comment: 3892
+    // (type 3133) + 1736 (3857) + 834 (5691) of 7126 payload bytes.
+    assert_eq!(emission.authored_payload_bytes().expect("authors"), 6_462);
+    assert_eq!(emission.total_payload_bytes().expect("total"), 7_126);
+
+    // Every fragment the server cannot author, named with its type index and its
+    // recorded width, in wire order.
+    assert_eq!(
+        emission.replayed_fragments(),
+        [
+            (55, 4_176, 55),
+            (73, 5_606, 337),
+            (9, 3_935, 3),
+            (72, 5_485, 194),
+            (16, 11, 49),
+            (44, 4_236, 26),
+        ]
+    );
+
+    // The decided path authors the objectives fragment at its new width: the
+    // decision deleted one 56-byte element, so 1736 - 56 = 1680.
+    let decided = emit(recorded_bundle(), &correction()).expect("assembles");
+    assert_eq!(
+        decided.authored_payload_bytes().expect("authors"),
+        6_406,
+        "3892 + 1680 + 834"
+    );
+    assert_eq!(decided.total_payload_bytes().expect("total"), 7_070);
+}
+
+#[test]
 fn the_emitted_bundle_chunks_under_the_measured_cut() {
     let emission = emit(recorded_bundle(), &correction()).expect("assembles");
     let produced = emission.encode().expect("encodes");
@@ -284,7 +338,7 @@ fn the_emitted_bundle_chunks_under_the_measured_cut() {
     assert_eq!(covered, produced.len(), "the chunks cover the whole bundle");
 }
 
-fn recorded_bundle() -> Bundle<CodecObjectivesReplicatedState> {
+fn recorded_bundle() -> Bundle<LocalPlayerState> {
     let body = bundle_body("0x9e_T0x8_R.bin");
     Bundle::decode(&body, &measured_extents()).expect("the measured bundle decodes")
 }

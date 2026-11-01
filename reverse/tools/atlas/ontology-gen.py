@@ -126,8 +126,12 @@ def _nested_refs(type_name: object) -> list[str]:
 
 
 def _container_element(type_name: str) -> str | None:
-    """The element codec of a counted(...)/optional(...) container, or None."""
-    for pattern in (r"^counted\((.+)\)$", r"^optional\((.+)\)$"):
+    """The element codec of a counted/optional/masked_counted container."""
+    for pattern in (
+        r"^counted\((.+)\)$",
+        r"^optional\((.+)\)$",
+        r"^masked_counted\((.+)\)$",
+    ):
         match = re.match(pattern, type_name)
         if match:
             return match.group(1)
@@ -309,6 +313,7 @@ _MATRIX = re.compile(r"^matrix<(.+)>$")
 _NESTED = re.compile(r"^nested\((.+)\)$")
 _COUNTED = re.compile(r"^counted\((.+)\)$")
 _OPTIONAL = re.compile(r"^optional\((.+)\)$")
+_MASKED_COUNTED = re.compile(r"^masked_counted\((.+)\)$")
 
 
 def _read_exact(data, offset, count):
@@ -511,6 +516,27 @@ def decode_field(type_name, data, offset=0):
     match = _COUNTED.match(type_name)
     if match:
         return _decode_sequence(match.group(1), data, offset)
+    match = _MASKED_COUNTED.match(type_name)
+    if match:
+        element = match.group(1)
+        count, offset = _prefix_varint.decode(data, offset)
+        items = []
+        remaining = count
+        while remaining:
+            chunk = min(remaining, 8)
+            raw, offset = _read_exact(data, offset, 1)
+            wanted = (1 << chunk) - 1
+            if raw[0] != wanted:
+                raise WireCodecError(
+                    f"masked_counted {type_name!r} mask byte {raw[0]:#04x} at "
+                    f"{offset - 1} does not declare every element of its chunk "
+                    f"({wanted:#04x})"
+                )
+            for _ in range(chunk):
+                item, offset = decode_field(element, data, offset)
+                items.append(item)
+            remaining -= chunk
+        return items, offset
     match = _OPTIONAL.match(type_name)
     if match:
         flag, offset = _read_exact(data, offset, 1)
@@ -598,6 +624,19 @@ def encode_field(type_name, value):
         out = bytearray(_prefix_varint.encode(len(items)))
         for item in items:
             out += encode_field(match.group(1), item)
+        return bytes(out)
+    match = _MASKED_COUNTED.match(type_name)
+    if match:
+        element = match.group(1)
+        items = list(value)
+        out = bytearray(_prefix_varint.encode(len(items)))
+        cursor = 0
+        while cursor < len(items):
+            chunk = min(len(items) - cursor, 8)
+            out.append((1 << chunk) - 1)
+            for item in items[cursor : cursor + chunk]:
+                out += encode_field(element, item)
+            cursor += chunk
         return bytes(out)
     match = _OPTIONAL.match(type_name)
     if match:
@@ -850,6 +889,7 @@ _RUST_MATRIX = re.compile(r"^matrix<(.+)>$")
 _RUST_NESTED = re.compile(r"^nested\((.+)\)$")
 _RUST_COUNTED = re.compile(r"^counted\((.+)\)$")
 _RUST_OPTIONAL = re.compile(r"^optional\((.+)\)$")
+_RUST_MASKED = re.compile(r"^masked_counted\((.+)\)$")
 
 
 def rust_type_name(uid: str) -> str:
@@ -1183,6 +1223,65 @@ def _rust_field(field: dict) -> dict:
             f"writer.prefix_varint(self.{ident}.len() as u64)?;",
             f"for value in &self.{ident} {{",
             "    " + write.format(argument),
+            "}",
+        ]
+        return result
+    match = _RUST_MASKED.match(codec)
+    if match:
+        # The client's chunked element mask: one raw mask byte per chunk of
+        # eight elements, then that many elements. Every declared element is on
+        # the wire in the measured bodies, so a different mask is a presence the
+        # card does not lay out, not a value to guess.
+        element = match.group(1)
+        rust_type, read, write, deref = _rust_element(element, name, atlas_id)
+        result["rust_type"] = f"Vec<{rust_type}>"
+        decode = [f'let count = reader.prefix_varint("{name}")?;']
+        if maximum is not None:
+            decode.extend(
+                [
+                    f"if count > {maximum} {{",
+                    "    return Err(WireError::OutOfRange {",
+                    f'        field: "{name}",',
+                    f"        max: {maximum},",
+                    "        value: count,",
+                    "    });",
+                    "}",
+                ]
+            )
+        decode.extend(
+            [
+                "let mut value = Vec::new();",
+                "let mut index = 0_u64;",
+                "while index < count {",
+                "    let chunk = (count - index).min(8);",
+                f'    let mask = reader.u8("{name}")?;',
+                "    let wanted = u8::MAX >> (8 - chunk);",
+                "    if mask != wanted {",
+                "        return Err(WireError::UnknownPresence {",
+                f'            what: "{name}",',
+                "            index: index + u64::from((mask ^ wanted).trailing_zeros()),",
+                "        });",
+                "    }",
+                "    for _ in 0..chunk {",
+                f"        value.push({read});",
+                "    }",
+                "    index += chunk;",
+                "}",
+                "value",
+            ]
+        )
+        result["decode"] = decode
+        argument = "*item" if deref else "item"
+        result["encode"] = [
+            f"writer.prefix_varint(self.{ident}.len() as u64)?;",
+            "let mut index = 0;",
+            f"while index < self.{ident}.len() {{",
+            f"    let chunk = (self.{ident}.len() - index).min(8);",
+            "    writer.u8(u8::MAX >> (8 - chunk));",
+            f"    for item in &self.{ident}[index..index + chunk] {{",
+            "        " + write.format(argument),
+            "    }",
+            "    index += chunk;",
             "}",
         ]
         return result
@@ -1561,9 +1660,26 @@ def _render_presence_card(spec: dict, *, wire: bool) -> list[str]:
     lines.append(f"            writer.u8(group.{member_mask_ident});")
     lines.append("            for entry in &group.entries {")
     lines.append("                match entry {")
+    # Members whose bodies share one codec produce the same encode lines, and a
+    # duplicate arm is dead code clippy's `match_same_arms` correctly refuses. One
+    # arm therefore takes every variant that writes the same bytes, in the members'
+    # declared order so the output stays a pure function of the cards.
+    grouped: list[tuple[tuple[str, tuple[str, ...]], list[str]]] = []
     for field in members:
-        lines.append(f"                    {entry_type}::{field['variant']}(value) => {{")
-        lines.extend("                        " + line for line in field["encode"])
+        # The arm binds one `value`, so the group key carries the payload type too:
+        # two members that write the same bytes through different types cannot
+        # share a binding.
+        key = (field["rust_type"], tuple(field["encode"]))
+        for existing, variants in grouped:
+            if existing == key:
+                variants.append(field["variant"])
+                break
+        else:
+            grouped.append((key, [field["variant"]]))
+    for key, variants in grouped:
+        pattern = " | ".join(f"{entry_type}::{variant}(value)" for variant in variants)
+        lines.append(f"                    {pattern} => {{")
+        lines.extend("                        " + line for line in key[1])
         lines.append("                    }")
     lines.append("                }")
     lines.append("            }")

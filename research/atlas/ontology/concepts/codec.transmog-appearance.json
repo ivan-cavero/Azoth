@@ -1,0 +1,64 @@
+{
+  "uid": "codec.transmog-appearance",
+  "kind": "codec",
+  "name": "TransmogAppearance",
+  "aliases": [
+    "armor/weapon appearance map element",
+    "masked-map element of the appearance sets"
+  ],
+  "summary": "One element of an appearance-set map: a prefix-varint id, a strict zero-or-one presence byte with its optional prefix varint, and one big-endian u64 that the mask bit declares present. The u64 reads as a 64-bit appearance bitmap; that reading is an interpretation, not a measurement.",
+  "purpose": "Give the appearance-set map a named element card so the container is masked_counted(nested(...)).",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "id",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "note": "Read by 0x14087b910 in the 0x14365f1e0 element loop. Measured ids run 0..32 then 44, 45, 46, 48, 52, 54, so it is the map key; what the key indexes is not established."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "A strict zero-or-one presence byte through FUN_1461adf60 followed by one prefix varint when it is 1; the writer 0x143658440 delta-codes it against the previous element and writes the client's 'unchanged' sentinel instead. The first measured element carries 01 11 (17), the rest 00."
+    },
+    {
+      "name": "value",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "The masked u64, read by 0x14087af30 (eight raw bytes through the byte-swap FUN_146168b00). Measured first element 0x0194f018811f0000. The values carry single bits and short bit runs, consistent with a 64-bit appearance bitmap, but no field is named."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.transmog-appearance-map"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5691.hex: 39 elements, byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "0x14365f1e0 reads id through 0x14087b910, presence through 0x1461adf60 and the value through 0x14087af30 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

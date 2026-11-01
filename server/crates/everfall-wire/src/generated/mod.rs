@@ -1300,6 +1300,518 @@ impl CodecContractsU32Vector5 {
     }
 }
 
+/// `codec.entitlement-balance` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecEntitlementBalance {
+    /// Body field `left` (`u32be`); meaning unnamed.
+    pub left: u32,
+    /// Body field `right` (`u32be`); meaning unnamed.
+    pub right: u32,
+}
+
+impl CodecEntitlementBalance {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.entitlement-balance";
+
+    /// Decode one `codec.entitlement-balance` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            left: reader.u32be("left")?,
+            right: reader.u32be("right")?,
+        })
+    }
+
+    /// Encode one `codec.entitlement-balance` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u32be(self.left);
+        writer.u32be(self.right);
+        Ok(())
+    }
+}
+
+/// `codec.entitlement-balances` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecEntitlementBalances {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(nested(codec.entitlement-balance))`); meaning unnamed.
+    pub elements: Vec<CodecEntitlementBalance>,
+}
+
+impl CodecEntitlementBalances {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.entitlement-balances";
+
+    /// Decode one `codec.entitlement-balances` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(CodecEntitlementBalance::read_from(reader)?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.entitlement-balances` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            value.write_to(writer)?;
+        }
+        Ok(())
+    }
+}
+
+/// `codec.entitlement-entitlements` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecEntitlementEntitlements {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(nested(codec.entitlement-entry))`); meaning unnamed.
+    pub elements: Vec<CodecEntitlementEntry>,
+}
+
+impl CodecEntitlementEntitlements {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.entitlement-entitlements";
+
+    /// Decode one `codec.entitlement-entitlements` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(CodecEntitlementEntry::read_from(reader)?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.entitlement-entitlements` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            value.write_to(writer)?;
+        }
+        Ok(())
+    }
+}
+
+/// `codec.entitlement-entry` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecEntitlementEntry {
+    /// Body field `entitlement` (`u8`); meaning unnamed.
+    pub entitlement: u8,
+}
+
+impl CodecEntitlementEntry {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.entitlement-entry";
+
+    /// Decode one `codec.entitlement-entry` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            entitlement: reader.u8("entitlement")?,
+        })
+    }
+
+    /// Encode one `codec.entitlement-entry` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.entitlement);
+        Ok(())
+    }
+}
+
+/// `codec.entitlement-received` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecEntitlementReceived {
+    /// Body field `received` (`bool_byte`); meaning unnamed.
+    pub received: bool,
+}
+
+impl CodecEntitlementReceived {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.entitlement-received";
+
+    /// Decode one `codec.entitlement-received` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            received: reader.bool_byte("received")?,
+        })
+    }
+
+    /// Encode one `codec.entitlement-received` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(u8::from(self.received));
+        Ok(())
+    }
+}
+
+/// `codec.entitlement-replicated-state` — one Atlas card.
+///
+/// Presence-masked sub-codec card (no wire id).
+/// Its body is a two-level presence mask: one group mask byte, then for
+/// each present group one member mask byte, then the present members'
+/// bodies in ascending member order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecEntitlementReplicatedState {
+    /// The `group_mask` byte: bit i set means group i is
+    /// on the wire.
+    pub group_mask: u8,
+    /// The present groups, ascending by group index.
+    pub groups: Vec<CodecEntitlementReplicatedStateGroup>,
+}
+
+/// One present group of [`CodecEntitlementReplicatedState`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecEntitlementReplicatedStateGroup {
+    /// The `entry_mask` byte: bit i set means member i is
+    /// on the wire.
+    pub entry_mask: u8,
+    /// The present members, ascending by member index.
+    pub entries: Vec<CodecEntitlementReplicatedStateEntry>,
+}
+
+/// One present member of a [`CodecEntitlementReplicatedStateGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodecEntitlementReplicatedStateEntry {
+    /// Group 0 member 0, `entitlements`.
+    Entitlements(CodecEntitlementEntitlements),
+    /// Group 0 member 1, `balances`.
+    Balances(CodecEntitlementBalances),
+    /// Group 0 member 2, `entitlementsReceived`.
+    EntitlementsReceived(CodecEntitlementReceived),
+}
+
+impl CodecEntitlementReplicatedState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.entitlement-replicated-state";
+
+    /// Decode one `codec.entitlement-replicated-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, outside a bound
+    /// the card states, or its mask selects a group or member the card does
+    /// not declare.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, or a mask selects a group
+    /// or member the card does not declare.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        let group_mask = reader.u8("group_mask")?;
+        let unknown = group_mask & !0b0000_0001;
+        if unknown != 0 {
+            return Err(WireError::UnknownPresence {
+                what: "group",
+                index: u64::from(unknown.trailing_zeros()),
+            });
+        }
+        let mut groups = Vec::new();
+        if group_mask & 0b0000_0001 != 0 {
+            let entry_mask = reader.u8("entry_mask")?;
+            let unknown = entry_mask & !0b0000_0111;
+            if unknown != 0 {
+                return Err(WireError::UnknownPresence {
+                    what: "member",
+                    index: u64::from(unknown.trailing_zeros()),
+                });
+            }
+            let mut entries = Vec::new();
+            if entry_mask & 0b0000_0001 != 0 {
+                let value = CodecEntitlementEntitlements::read_from(reader)?;
+                entries.push(CodecEntitlementReplicatedStateEntry::Entitlements(value));
+            }
+            if entry_mask & 0b0000_0010 != 0 {
+                let value = CodecEntitlementBalances::read_from(reader)?;
+                entries.push(CodecEntitlementReplicatedStateEntry::Balances(value));
+            }
+            if entry_mask & 0b0000_0100 != 0 {
+                let value = CodecEntitlementReceived::read_from(reader)?;
+                entries.push(CodecEntitlementReplicatedStateEntry::EntitlementsReceived(
+                    value,
+                ));
+            }
+            groups.push(CodecEntitlementReplicatedStateGroup {
+                entry_mask,
+                entries,
+            });
+        }
+        Ok(Self { group_mask, groups })
+    }
+
+    /// Encode one `codec.entitlement-replicated-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.group_mask);
+        for group in &self.groups {
+            writer.u8(group.entry_mask);
+            for entry in &group.entries {
+                match entry {
+                    CodecEntitlementReplicatedStateEntry::Entitlements(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecEntitlementReplicatedStateEntry::Balances(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecEntitlementReplicatedStateEntry::EntitlementsReceived(value) => {
+                        value.write_to(writer)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 /// `codec.objectives-active-objective` — one Atlas card.
 ///
 /// Nested sub-codec card (no wire id).
@@ -1822,6 +2334,486 @@ impl CodecObjectivesTaskStates {
         writer.prefix_varint(self.elements.len() as u64)?;
         for value in &self.elements {
             value.write_to(writer)?;
+        }
+        Ok(())
+    }
+}
+
+/// `codec.transmog-appearance` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecTransmogAppearance {
+    /// Body field `id` (`prefix_varint`); meaning unnamed.
+    pub id: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `value` (`u64be`); meaning unnamed.
+    pub value: u64,
+}
+
+impl CodecTransmogAppearance {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.transmog-appearance";
+
+    /// Decode one `codec.transmog-appearance` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            id: reader.prefix_varint("id")?,
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            value: reader.u64be("value")?,
+        })
+    }
+
+    /// Encode one `codec.transmog-appearance` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.id)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.u64be(self.value);
+        Ok(())
+    }
+}
+
+/// `codec.transmog-appearance-list` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecTransmogAppearanceList {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(u64be)`); meaning unnamed.
+    pub elements: Vec<u64>,
+}
+
+impl CodecTransmogAppearanceList {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.transmog-appearance-list";
+
+    /// Decode one `codec.transmog-appearance-list` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u64be("elements")?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.transmog-appearance-list` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            writer.u64be(*value);
+        }
+        Ok(())
+    }
+}
+
+/// `codec.transmog-appearance-map` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecTransmogAppearanceMap {
+    /// Body field `elements` (`masked_counted(nested(codec.transmog-appearance))`); meaning unnamed.
+    pub elements: Vec<CodecTransmogAppearance>,
+}
+
+impl CodecTransmogAppearanceMap {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.transmog-appearance-map";
+
+    /// Decode one `codec.transmog-appearance-map` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                let mut index = 0_u64;
+                while index < count {
+                    let chunk = (count - index).min(8);
+                    let mask = reader.u8("elements")?;
+                    let wanted = u8::MAX >> (8 - chunk);
+                    if mask != wanted {
+                        return Err(WireError::UnknownPresence {
+                            what: "elements",
+                            index: index + u64::from((mask ^ wanted).trailing_zeros()),
+                        });
+                    }
+                    for _ in 0..chunk {
+                        value.push(CodecTransmogAppearance::read_from(reader)?);
+                    }
+                    index += chunk;
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.transmog-appearance-map` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.elements.len() as u64)?;
+        let mut index = 0;
+        while index < self.elements.len() {
+            let chunk = (self.elements.len() - index).min(8);
+            writer.u8(u8::MAX >> (8 - chunk));
+            for item in &self.elements[index..index + chunk] {
+                item.write_to(writer)?;
+            }
+            index += chunk;
+        }
+        Ok(())
+    }
+}
+
+/// `codec.transmog-inventory-ready` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecTransmogInventoryReady {
+    /// Body field `ready` (`bool_byte`); meaning unnamed.
+    pub ready: bool,
+}
+
+impl CodecTransmogInventoryReady {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.transmog-inventory-ready";
+
+    /// Decode one `codec.transmog-inventory-ready` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            ready: reader.bool_byte("ready")?,
+        })
+    }
+
+    /// Encode one `codec.transmog-inventory-ready` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(u8::from(self.ready));
+        Ok(())
+    }
+}
+
+/// `codec.transmog-replicated-state` — one Atlas card.
+///
+/// Presence-masked sub-codec card (no wire id).
+/// Its body is a two-level presence mask: one group mask byte, then for
+/// each present group one member mask byte, then the present members'
+/// bodies in ascending member order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecTransmogReplicatedState {
+    /// The `group_mask` byte: bit i set means group i is
+    /// on the wire.
+    pub group_mask: u8,
+    /// The present groups, ascending by group index.
+    pub groups: Vec<CodecTransmogReplicatedStateGroup>,
+}
+
+/// One present group of [`CodecTransmogReplicatedState`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecTransmogReplicatedStateGroup {
+    /// The `entry_mask` byte: bit i set means member i is
+    /// on the wire.
+    pub entry_mask: u8,
+    /// The present members, ascending by member index.
+    pub entries: Vec<CodecTransmogReplicatedStateEntry>,
+}
+
+/// One present member of a [`CodecTransmogReplicatedStateGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodecTransmogReplicatedStateEntry {
+    /// Group 0 member 0, `collectedArmorAppearances`.
+    CollectedArmorAppearances(CodecTransmogAppearanceMap),
+    /// Group 0 member 1, `collectedWeaponAppearances`.
+    CollectedWeaponAppearances(CodecTransmogAppearanceList),
+    /// Group 0 member 2, `ownedArmorAppearances`.
+    OwnedArmorAppearances(CodecTransmogAppearanceMap),
+    /// Group 0 member 3, `ownedWeaponAppearances`.
+    OwnedWeaponAppearances(CodecTransmogAppearanceMap),
+    /// Group 0 member 4, `inventoryServicesReady`.
+    InventoryServicesReady(CodecTransmogInventoryReady),
+}
+
+impl CodecTransmogReplicatedState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.transmog-replicated-state";
+
+    /// Decode one `codec.transmog-replicated-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, outside a bound
+    /// the card states, or its mask selects a group or member the card does
+    /// not declare.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, or a mask selects a group
+    /// or member the card does not declare.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        let group_mask = reader.u8("group_mask")?;
+        let unknown = group_mask & !0b0000_0001;
+        if unknown != 0 {
+            return Err(WireError::UnknownPresence {
+                what: "group",
+                index: u64::from(unknown.trailing_zeros()),
+            });
+        }
+        let mut groups = Vec::new();
+        if group_mask & 0b0000_0001 != 0 {
+            let entry_mask = reader.u8("entry_mask")?;
+            let unknown = entry_mask & !0b0001_1111;
+            if unknown != 0 {
+                return Err(WireError::UnknownPresence {
+                    what: "member",
+                    index: u64::from(unknown.trailing_zeros()),
+                });
+            }
+            let mut entries = Vec::new();
+            if entry_mask & 0b0000_0001 != 0 {
+                let value = CodecTransmogAppearanceMap::read_from(reader)?;
+                entries.push(CodecTransmogReplicatedStateEntry::CollectedArmorAppearances(value));
+            }
+            if entry_mask & 0b0000_0010 != 0 {
+                let value = CodecTransmogAppearanceList::read_from(reader)?;
+                entries.push(CodecTransmogReplicatedStateEntry::CollectedWeaponAppearances(value));
+            }
+            if entry_mask & 0b0000_0100 != 0 {
+                let value = CodecTransmogAppearanceMap::read_from(reader)?;
+                entries.push(CodecTransmogReplicatedStateEntry::OwnedArmorAppearances(
+                    value,
+                ));
+            }
+            if entry_mask & 0b0000_1000 != 0 {
+                let value = CodecTransmogAppearanceMap::read_from(reader)?;
+                entries.push(CodecTransmogReplicatedStateEntry::OwnedWeaponAppearances(
+                    value,
+                ));
+            }
+            if entry_mask & 0b0001_0000 != 0 {
+                let value = CodecTransmogInventoryReady::read_from(reader)?;
+                entries.push(CodecTransmogReplicatedStateEntry::InventoryServicesReady(
+                    value,
+                ));
+            }
+            groups.push(CodecTransmogReplicatedStateGroup {
+                entry_mask,
+                entries,
+            });
+        }
+        Ok(Self { group_mask, groups })
+    }
+
+    /// Encode one `codec.transmog-replicated-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.group_mask);
+        for group in &self.groups {
+            writer.u8(group.entry_mask);
+            for entry in &group.entries {
+                match entry {
+                    CodecTransmogReplicatedStateEntry::CollectedArmorAppearances(value)
+                    | CodecTransmogReplicatedStateEntry::OwnedArmorAppearances(value)
+                    | CodecTransmogReplicatedStateEntry::OwnedWeaponAppearances(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecTransmogReplicatedStateEntry::CollectedWeaponAppearances(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecTransmogReplicatedStateEntry::InventoryServicesReady(value) => {
+                        value.write_to(writer)?;
+                    }
+                }
+            }
         }
         Ok(())
     }

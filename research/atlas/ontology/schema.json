@@ -53,6 +53,10 @@
           "$comment": "OPTIONAL: optional(<codec>) is a STRICT zero-or-one flag byte followed by the value only when the flag is 1. A flag byte above 1 is refused, never read as true, because the client's own reader refuses it; this is the shape of a presence-flagged scalar and is not a count.",
           "pattern": "^optional\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$"
         },
+        {
+          "$comment": "MASKED COUNTED CONTAINER: masked_counted(<element>) is a prefix-varint element count, then one RAW mask byte per chunk of eight elements, then that many elements. Bit i of a mask byte says element i of its chunk is on the wire; the client's own container reader reads one mask byte per chunk of eight and, for a clear bit, creates the entry WITHOUT its trailing value, and its writer only ever sets the bit of an element it writes a value for. The measured bodies carry every declared element, so this codec requires each bit below the count to be set and each bit at or above it to be clear: a clear bit is refused as a presence the card does not lay out rather than guessed. It is counted(<element>) plus the client's chunked element mask, and the element is a vocabulary member or a nested(<uid>) record.",
+          "pattern": "^masked_counted\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$"
+        },
         { "pattern": "^opaque\\([a-z][a-z0-9_.-]*\\)$" }
       ]
     },

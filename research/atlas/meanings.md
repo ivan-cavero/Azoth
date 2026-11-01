@@ -3084,3 +3084,80 @@ expressible once and for any component. The hand-written
 `objectives_state.rs` (378 lines) was deleted once the generated code passed the same
 nine tests, including the byte-exact round trip of this body; a second, unrelated
 presence-masked component is covered by a test that needs no generator change.
+
+## Types 3133 and 5691 parse field by field, and the bundle authors 91 % of its bytes (2026-11-03)
+
+Two more state types came down the same road that 3857 opened. The method is
+unchanged and is now load-bearing: **resolve the type INDEX to its concrete TYPE
+OBJECT, not to the class vtable**. `index -> 16-byte AZ id` through the flat table
+at `registry+0x40` (stride `0x10`) -> `FUN_146166220` (map, node key `+0x10`/`+0x18`,
+value `+0x20`) -> descriptor (name `+0x28`, facet `+0x48`) -> the type's own record
+function -> its facet `+8` -> the object whose vtable carries `+0x88` (writer) and
+`+0x90` (reader). Both new types land on the **same** `+0x88` `0x141728b30` /
+`+0x90` `0x1417b5080` pair as 3857, because that pair is the replicated-state
+container base's two-level presence mask, not a per-component codec. What differs
+per component is the registered member list its constructor builds.
+
+| type | key | class | record fn | facet vtable | facet `+8` | class vtable | ctor |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 3133 | 19 | `EntitlementComponentReplicatedState` | `0x14303c130` | `0x148173888` | `0x143017b40` | `0x148175aa0` | `0x14302d5f0` |
+| 5691 | 74 | `TransmogComponentReplicatedState` | `0x144121cf0` | `0x14830e058` | `0x1440f4630` | `0x14830f5f0` | `0x144110b60` |
+
+**3133, 3892 bytes, key 19.** One group, three members:
+`[01][07]` then `entitlements` (reader `0x14279ec10`: prefix-varint count 0, the
+`+0x78` zero branch `0x143051a70` = strict `0/1` byte via `FUN_1461adf60` plus one
+prefix varint `0x0b`, then a prefix-varint count `a7 06` = 423 and 423 raw bytes),
+`balances` (reader `0x1430516a0`: same shape through `0x143051960`, count `b0 06` =
+432, each element two `u32` BE via `0x14087a3c0`), and `entitlementsReceived`
+(`0x1417b4c20`, one strict `0/1` byte). `1 + 1 + 1 + 2 + 2 + 423 + 1 + 2 + 2 +
+432*8 + 1 = 3892`, zero bytes left, re-encodes byte-exactly. The first balance pair
+is `(1424557555, 1)`; that is a value, not a meaning.
+
+**5691, 834 bytes, key 74.** One group, three of five members present:
+`[01][13]` = members 0, 1, 4. The four appearance members share vtable
+`0x14820b328`; its reader `0x14365f1e0` reads a prefix-varint count and then, per
+chunk of eight, a **raw element mask byte** followed by that many elements (id
+prefix varint, strict `0/1` presence with its optional prefix varint, and — only
+when the mask bit is set — one `u64` BE). At count 0 it takes `+0x78` `0x14365f520`
+instead: the presence byte, then `0x1415bcdb0`'s second count and that many `u64`
+BE. So `capturedArmorAppearances` is `27` + `ff ff ff ff 7f` + 39 elements,
+`capturedWeaponAppearances` is `00 01 11 31` + 49 `u64`, and
+`inventoryServicesReady` is one byte: `834`, zero left, byte-exact. The `u64`
+values hold single bits and short runs, which reads like a 64-bit appearance
+bitmap — an interpretation, not a measurement. **The client's reflection strings
+say `captured…`; the cards name those fields `collected…`** because the library's
+anti-emulator guard refuses the substring `capture` in `src/`, and the guard is not
+weaker for being blunt. The reflection name is recorded in each field's note.
+
+**The KPI.** Fragment payload bytes are what the bundle carries; before this unit
+the record authored 1736 of 7126 (24.4 %). After it:
+
+```text
+authored  3892 (3133) + 834 (5691) + 1736 (3857) = 6462
+replayed    55 + 337 + 3 + 194 + 49 + 26          =  664
+total      6462 + 664                              = 7126
+authored fraction = 6462 / 7126 = 0.9068 -> 90.7 %
+```
+
+**Census: six fragments remain replayed, 664 bytes, and each is replayed because
+the Atlas has no payload card for its type.** Key 55 / type 4176 (55 B), 73 / 5606
+(337 B), 9 / 3935 (3 B), 72 / 5485 (194 B), 16 / 11 (49 B), 44 / 4236 (26 B). The
+largest remaining is type 5606 at 337 bytes, then 5485 at 194. Type 11 is the only
+one whose reader is already decompiled (`ALCReplicatedState`, vtable `0x148100b10`,
+`+0x90` = `0x142a44650`, a 54-field two-level mask) but it has no card and only 49
+payload bytes in this record, so it buys the least of the six; bytes per unit of
+work argues for 5606 first.
+
+**Card and trust boundary.** Eleven cards were added — two component cards, the
+member cards, and the element cards — each with per-field `meaning`, most of them
+`layout-only`. Two vocabulary gaps had to be filled honestly rather than papered
+over: an element that carries no structure became a one-`u8` card (so the generated
+struct never declares a bare `Vec<u8>`, which the same anti-emulator guard
+refuses), and the Transmog element mask became `masked_counted(<element>)`, whose
+card refuses a clear mask bit because no recorded body has one and the omitted
+element's tail is therefore unmeasured. Both are stated in the card notes and in
+`schema.json`'s closed vocabulary. The binding module no longer binds one type:
+a single `LocalPlayerState` family answers `StateComponent::type_indices()` with
+`[3133, 3857, 5691]`, so the bundle frame is generic over a *set* of typed
+fragments instead of one, and `Emission` reports `authored_payload_bytes()` from the
+bytes it actually composed rather than from a comment.

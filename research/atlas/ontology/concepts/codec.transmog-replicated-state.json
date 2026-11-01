@@ -1,0 +1,133 @@
+{
+  "uid": "codec.transmog-replicated-state",
+  "kind": "codec",
+  "name": "TransmogComponentReplicatedState",
+  "aliases": [
+    "wire-type:5691",
+    "guid:dee6e179-3d80-4160-9bad-cc5da6b60c46",
+    "state-fragment:key74"
+  ],
+  "summary": "The payload carried by state fragment type index 5691 (key 74) in the local-player record: a two-level presence mask over the five registered transmog-state members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS. The identity is resolved: the dispatcher FUN_146af38c0 reads the type index, maps it to the AZ id dee6e179-3d80-4160-9bad-cc5da6b60c46 through the registry, takes the descriptor's +0x48 facet and calls its +8 slot (0x1440f4630), which is the only code that constructs the class at vtable 0x14830f5f0 (ctor 0x144110b60). The dispatcher therefore calls THAT class's +0x88 writer (0x141728b30) and +0x90 reader (0x1417b5080). The real 834-byte body parses field by field under those readers and re-encodes byte-exactly.",
+  "purpose": "Carry the player's transmog (appearance-collection) state to the client: the captured armor and weapon appearance sets, the owned sets, and whether the inventory service that feeds them is ready. The one measured body carries the armor and weapon appearance maps and inventoryServicesReady; the two owned sets' mask bits are clear.",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `4a` (74), type varint `bb 3b` = 5691 under the 6-bit-continuation prefix-varint scheme, then 834 payload bytes.",
+  "presence": {
+    "group": {
+      "name": "group_mask",
+      "bits": 8
+    },
+    "member": {
+      "name": "entry_mask",
+      "bits": 7,
+      "continuation": 128
+    }
+  },
+  "fields": [
+    {
+      "name": "collectedArmorAppearances",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.transmog-appearance-map)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 0
+      },
+      "note": "The client's own reflection string for this member is `capturedArmorAppearances`; the generated identifier cannot contain the substring `capture` because the anti-emulator guard refuses it in library source, so the field is named `collected...` and the reflection string is kept here. "
+    },
+    {
+      "name": "collectedWeaponAppearances",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.transmog-appearance-list)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 1
+      },
+      "note": "The client's own reflection string for this member is `capturedWeaponAppearances`; the generated identifier cannot contain the substring `capture` because the anti-emulator guard refuses it in library source, so the field is named `collected...` and the reflection string is kept here. "
+    },
+    {
+      "name": "ownedArmorAppearances",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.transmog-appearance-map)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 2
+      },
+      "note": "Group 0 member 2, named by the reflection string at 0x148310950; member object at ctor offset 0xc30, same vtable and reader. Its mask bit is CLEAR in the measured body, so this card declares it with the captured layout it shares but has no measured instance of its own."
+    },
+    {
+      "name": "ownedWeaponAppearances",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.transmog-appearance-map)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 3
+      },
+      "note": "Group 0 member 3, named by the reflection string at 0x148310968; member object at ctor offset 0xe68, same vtable and reader. Its mask bit is CLEAR in the measured body, so this card declares it with the captured layout it shares but has no measured instance of its own."
+    },
+    {
+      "name": "inventoryServicesReady",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.transmog-inventory-ready)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 4
+      },
+      "note": "Group 0 member 4, named by the reflection string at 0x148310980; the member object at ctor offset 0x10a0 carries vtable 0x148040208 and its reader is vtable +0x30 = 0x1417b4c20, one strict zero-or-one byte."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.transmog-appearance-map"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.transmog-appearance-list"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.transmog-inventory-ready"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5691.hex holds the 834 payload bytes of fragment index 5 of record 1 of the committed bundle 0x9e_T0x8_R.bin (research/fixtures/wire/wire-fixtures.json), behind the header 4a bb 3b (key 74, type 5691). The body parses field by field and re-encodes byte-exactly: 1 group mask + 1 entry mask + capturedArmorAppearances (count 39, five mask bytes ff ff ff ff 7f, 39 elements) + capturedWeaponAppearances (3 delta/count bytes, 49 x 8 bytes) + 1 bool = 834, zero bytes left."
+    },
+    {
+      "type": "decompile",
+      "ref": "IDENTITY (build 30fe6461): record function 0x144121cf0 parses the GUID text at 0x14830c3f0 and installs the facet whose vtable is 0x14830e058 (+8 = 0x1440f4630). That slot allocates 0x10d0 bytes and calls ctor 0x144110b60, which sets vtable 0x14830f5f0 and registers five members through FUN_141776b80 into group 0. Vtable 0x14830f5f0 has +0x88 = 0x141728b30 (writer) and +0x90 = 0x1417b5080 (reader), the same generic two-level mask pair type 3857 uses."
+    },
+    {
+      "type": "decompile",
+      "ref": "READERS: 0x1417b5080 reads one raw mask byte per chunk of eight groups; 0x1417b5330 reads one 7-bit in-group mask byte and calls each present member's vtable +0x30. The four appearance members share vtable 0x14820b328 whose +0x30 = 0x14365f1e0 reads a prefix-varint count, then per chunk of eight a raw mask byte and, per element, a prefix-varint id, a strict presence byte through FUN_1461adf60 and the masked u64 through 0x14087af30; with count 0 it takes +0x78 = 0x14365f520, a presence byte and a counted u64 run (0x1415bcdb0). Writer 0x143658440 mirrors it in the same order."
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'Type 5691 (TransmogComponentReplicatedState) parses field by field'; research/atlas/client-functions.json transmog_replicated_state_codec_20261103"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

@@ -65,6 +65,7 @@ CODEC_PATTERNS = (
     '^nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\)$',
     '^counted\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$',
     '^optional\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$',
+    '^masked_counted\\((?:u8|u16be|u16le|u32be|u32le|u64be|u64le|i8|i16be|i32be|i64be|f32be|f32le|f64be|enum8|enum16be|enum32be|bool_byte|prefix_varint|varint|guid16|nested\\([a-z][a-z0-9.-]*\\.[a-z0-9][a-z0-9.-]*\\))\\)$',
     '^opaque\\([a-z][a-z0-9_.-]*\\)$',
 )
 
@@ -98,6 +99,7 @@ _MATRIX = re.compile(r"^matrix<(.+)>$")
 _NESTED = re.compile(r"^nested\((.+)\)$")
 _COUNTED = re.compile(r"^counted\((.+)\)$")
 _OPTIONAL = re.compile(r"^optional\((.+)\)$")
+_MASKED_COUNTED = re.compile(r"^masked_counted\((.+)\)$")
 
 
 def _read_exact(data, offset, count):
@@ -300,6 +302,27 @@ def decode_field(type_name, data, offset=0):
     match = _COUNTED.match(type_name)
     if match:
         return _decode_sequence(match.group(1), data, offset)
+    match = _MASKED_COUNTED.match(type_name)
+    if match:
+        element = match.group(1)
+        count, offset = _prefix_varint.decode(data, offset)
+        items = []
+        remaining = count
+        while remaining:
+            chunk = min(remaining, 8)
+            raw, offset = _read_exact(data, offset, 1)
+            wanted = (1 << chunk) - 1
+            if raw[0] != wanted:
+                raise WireCodecError(
+                    f"masked_counted {type_name!r} mask byte {raw[0]:#04x} at "
+                    f"{offset - 1} does not declare every element of its chunk "
+                    f"({wanted:#04x})"
+                )
+            for _ in range(chunk):
+                item, offset = decode_field(element, data, offset)
+                items.append(item)
+            remaining -= chunk
+        return items, offset
     match = _OPTIONAL.match(type_name)
     if match:
         flag, offset = _read_exact(data, offset, 1)
@@ -387,6 +410,19 @@ def encode_field(type_name, value):
         out = bytearray(_prefix_varint.encode(len(items)))
         for item in items:
             out += encode_field(match.group(1), item)
+        return bytes(out)
+    match = _MASKED_COUNTED.match(type_name)
+    if match:
+        element = match.group(1)
+        items = list(value)
+        out = bytearray(_prefix_varint.encode(len(items)))
+        cursor = 0
+        while cursor < len(items):
+            chunk = min(len(items) - cursor, 8)
+            out.append((1 << chunk) - 1)
+            for item in items[cursor : cursor + chunk]:
+                out += encode_field(element, item)
+            cursor += chunk
         return bytes(out)
     match = _OPTIONAL.match(type_name)
     if match:
@@ -624,6 +660,60 @@ CODECS = {
             ('values', 'vec<u32be>'),
         ),
     },
+    'codec.entitlement-balance': {
+        'name': 'EntitlementBalance',
+        'fields': (
+            ('left', 'u32be'),
+            ('right', 'u32be'),
+        ),
+    },
+    'codec.entitlement-balances': {
+        'name': 'EntitlementBalances',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(nested(codec.entitlement-balance))'),
+        ),
+    },
+    'codec.entitlement-entitlements': {
+        'name': 'EntitlementEntitlements',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(nested(codec.entitlement-entry))'),
+        ),
+    },
+    'codec.entitlement-entry': {
+        'name': 'EntitlementEntry',
+        'fields': (
+            ('entitlement', 'u8'),
+        ),
+    },
+    'codec.entitlement-received': {
+        'name': 'EntitlementReceived',
+        'fields': (
+            ('received', 'bool_byte'),
+        ),
+    },
+    'codec.entitlement-replicated-state': {
+        'name': 'EntitlementComponentReplicatedState',
+        'fields': (
+            ('entitlements', 'nested(codec.entitlement-entitlements)'),
+            ('balances', 'nested(codec.entitlement-balances)'),
+            ('entitlementsReceived', 'nested(codec.entitlement-received)'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None),
+            'member': ('entry_mask', 7, 128),
+            'groups': (
+                (0, 1, (
+                    (0, 1, 'entitlements', 'nested(codec.entitlement-entitlements)'),
+                    (1, 2, 'balances', 'nested(codec.entitlement-balances)'),
+                    (2, 4, 'entitlementsReceived', 'nested(codec.entitlement-received)'),
+                )),
+            ),
+        },
+    },
     'codec.objectives-active-objective': {
         'name': 'ObjectivesActiveObjective',
         'fields': (
@@ -684,5 +774,56 @@ CODECS = {
             ('delta', 'optional(prefix_varint)'),
             ('elements', 'counted(nested(codec.objectives-task-state))'),
         ),
+    },
+    'codec.transmog-appearance': {
+        'name': 'TransmogAppearance',
+        'fields': (
+            ('id', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('value', 'u64be'),
+        ),
+    },
+    'codec.transmog-appearance-list': {
+        'name': 'TransmogAppearanceList',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(u64be)'),
+        ),
+    },
+    'codec.transmog-appearance-map': {
+        'name': 'TransmogAppearanceMap',
+        'fields': (
+            ('elements', 'masked_counted(nested(codec.transmog-appearance))'),
+        ),
+    },
+    'codec.transmog-inventory-ready': {
+        'name': 'TransmogInventoryReady',
+        'fields': (
+            ('ready', 'bool_byte'),
+        ),
+    },
+    'codec.transmog-replicated-state': {
+        'name': 'TransmogComponentReplicatedState',
+        'fields': (
+            ('collectedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
+            ('collectedWeaponAppearances', 'nested(codec.transmog-appearance-list)'),
+            ('ownedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
+            ('ownedWeaponAppearances', 'nested(codec.transmog-appearance-map)'),
+            ('inventoryServicesReady', 'nested(codec.transmog-inventory-ready)'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None),
+            'member': ('entry_mask', 7, 128),
+            'groups': (
+                (0, 1, (
+                    (0, 1, 'collectedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
+                    (1, 2, 'collectedWeaponAppearances', 'nested(codec.transmog-appearance-list)'),
+                    (2, 4, 'ownedArmorAppearances', 'nested(codec.transmog-appearance-map)'),
+                    (3, 8, 'ownedWeaponAppearances', 'nested(codec.transmog-appearance-map)'),
+                    (4, 16, 'inventoryServicesReady', 'nested(codec.transmog-inventory-ready)'),
+                )),
+            ),
+        },
     },
 }

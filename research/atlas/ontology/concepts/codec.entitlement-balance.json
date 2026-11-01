@@ -1,0 +1,56 @@
+{
+  "uid": "codec.entitlement-balance",
+  "kind": "codec",
+  "name": "EntitlementBalance",
+  "aliases": [
+    "balances element",
+    "(u32,u32) pair of the balances run"
+  ],
+  "summary": "One element of the `balances` run: two big-endian u32 read back to back by the client's u32 reader. Neither field's meaning is established, so both keep positional names.",
+  "purpose": "Give the `balances` run a named element card so the container is counted(nested(...)).",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "left",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "First of the two u32 the element reader 0x1430516a0 reads with FUN_14087a3c0 (big-endian). Measured first element 1424557555."
+    },
+    {
+      "name": "right",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Second of the two u32. Measured first element 1. The pair reads as an id and a counter, but the identity is not established, so the field keeps its positional name."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.entitlement-balances"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3133.hex: 432 eight-byte elements, byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "0x1430516a0 reads two u32 through FUN_14087a3c0 per element, in that order (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

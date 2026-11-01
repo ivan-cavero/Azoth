@@ -1,0 +1,109 @@
+{
+  "uid": "codec.entitlement-replicated-state",
+  "kind": "codec",
+  "name": "EntitlementComponentReplicatedState",
+  "aliases": [
+    "wire-type:3133",
+    "guid:feafabe8-6219-4c4a-9269-261d1e76878e",
+    "state-fragment:key19"
+  ],
+  "summary": "The payload carried by state fragment type index 3133 (key 19) in the local-player record: a two-level presence mask over the three registered entitlement-state members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS. The identity is resolved: the dispatcher FUN_146af38c0 reads the type index, maps it to the AZ id feafabe8-6219-4c4a-9269-261d1e76878e through the registry, takes the descriptor's +0x48 facet and calls its +8 slot (0x143017b40), which is the only code that constructs the class at vtable 0x148175aa0 (ctor 0x14302d5f0). The dispatcher therefore calls THAT class's +0x88 writer (0x141728b30) and +0x90 reader (0x1417b5080). The real 3892-byte body parses field by field under those readers and re-encodes byte-exactly.",
+  "purpose": "Carry the player's entitlement state to the client: the entitlement byte run the account holds, the per-entitlement balance counters, and whether the entitlement set has been received. The one measured body carries all three members.",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `13` (19), type varint `bd 30` = 3133 under the 6-bit-continuation prefix-varint scheme, then 3892 payload bytes.",
+  "presence": {
+    "group": {
+      "name": "group_mask",
+      "bits": 8
+    },
+    "member": {
+      "name": "entry_mask",
+      "bits": 7,
+      "continuation": 128
+    }
+  },
+  "fields": [
+    {
+      "name": "entitlements",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.entitlement-entitlements)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 0
+      },
+      "note": "Group 0 member 0, named by the ctor's reflection string at 0x1480332a0; the member object at ctor offset 0x7c0 carries vtable 0x148175960 and its reader is vtable +0x30 = 0x14279ec10."
+    },
+    {
+      "name": "balances",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.entitlement-balances)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 1
+      },
+      "note": "Group 0 member 1, named by the reflection string at 0x148177170; the member object at ctor offset 0xc20 carries vtable 0x148175a00 and its reader is vtable +0x30 = 0x1430516a0."
+    },
+    {
+      "name": "entitlementsReceived",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.entitlement-received)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 2
+      },
+      "note": "Group 0 member 2, named by the reflection string at 0x148177180; the member object at ctor offset 0x80e8 carries vtable 0x148040208 and its reader is vtable +0x30 = 0x1417b4c20, one strict zero-or-one byte."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.entitlement-entitlements"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.entitlement-balances"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.entitlement-received"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3133.hex holds the 3892 payload bytes of fragment index 1 of record 1 of the committed bundle 0x9e_T0x8_R.bin (research/fixtures/wire/wire-fixtures.json), behind the header 13 bd 30 (key 19, type 3133). The body parses field by field and re-encodes byte-exactly: 1 group mask + 1 entry mask + entitlements (1 delta-count byte, 2 delta bytes, 2 count bytes, 423 element bytes) + balances (1 + 2 + 2 + 432 x 8) + 1 bool = 3892, zero bytes left."
+    },
+    {
+      "type": "decompile",
+      "ref": "IDENTITY (build 30fe6461): the dispatcher FUN_146af38c0 reads the type-index varint and resolves it to a 16-byte AZ id through FUN_1461ae3f0/FUN_1461ae2a0 (flat table at registry+0x40, stride 0x10), then FUN_146166220 (hash map, node key +0x10/+0x18, value +0x20) to the type's descriptor (name at +0x28, facet at +0x48). The facet is created by the type's own record function, so the +0x88/+0x90 the dispatcher calls are that class's writer and reader."
+    },
+    {
+      "type": "decompile",
+      "ref": "READERS: 0x1417b5080 reads one raw mask byte per chunk of eight groups over the (obj+0x18 - obj+0x10)/800 group descriptors and calls 0x1417b5330 per set bit; 0x1417b5330 reads one 7-bit in-group mask byte (0x80 = continuation) and calls each present member's vtable +0x30. Ctor 0x14302d5f0 registers exactly three members through FUN_141776b80 into group 0, and 0x143017b40 is the facet's +8 slot that allocates 0x8118 bytes and calls that ctor. Writer 0x141728b30 mirrors the reader and back-patches each mask byte, so an unset bit means the member is ABSENT, not stale."
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'Type 3133 (EntitlementComponentReplicatedState) parses field by field'; research/atlas/client-functions.json entitlement_replicated_state_codec_20261103"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

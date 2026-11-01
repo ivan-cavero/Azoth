@@ -6,6 +6,14 @@
 //! component. One bundle is decoded, the decision is applied to that component in
 //! typed form, and the bundle is assembled again by the generic framing.
 //!
+//! Three of the record's nine fragments are typed today (keys 19, 22 and 74), so
+//! the bundle re-emits them from typed values rather than replaying their bytes.
+//! The other six are still `Opaque` runs copied from the recorded body, and
+//! [`Emission::authored_payload_bytes`] counts the difference: it is the KPI this
+//! milestone is measured by, not a cosmetic number. Replaying a fragment is an
+//! emulator standing in for a server, so every run that remains is named in
+//! [`Emission::replayed_fragments`].
+//!
 //! Why the correction lands on `activeObjectives`: the one recovered body of
 //! `codec.objectives-replicated-state` carries `activeObjectives` and
 //! `taskStates`, and its tracked and completed members have their mask bits
@@ -32,8 +40,8 @@ use everfall_wire::generated::{
     CodecObjectivesReplicatedStateEntry,
 };
 use everfall_wire::{
-    Bundle, BundleError, FragmentExtent, FragmentPayload, StateComponent, WireError, Writer,
-    chunk_ranges,
+    Bundle, BundleError, FragmentExtent, FragmentPayload, LocalPlayerState, StateComponent,
+    WireError, Writer, chunk_ranges,
 };
 
 /// Why a decided bundle could not be assembled.
@@ -96,7 +104,7 @@ impl std::error::Error for EmitError {
 /// A bundle the world has decided on and is ready to emit.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Emission {
-    state: Bundle<CodecObjectivesReplicatedState>,
+    state: Bundle<LocalPlayerState>,
     removed: usize,
 }
 
@@ -105,20 +113,21 @@ pub struct Emission {
 /// The bundle is the recorded state the world holds; `decision` is the
 /// simulation's answer to the request that changed it. The returned emission
 /// carries the same prologue, the same record id, the same fragment keys and the
-/// same untouched fragments, with the decided change applied to the one recovered
-/// component.
+/// same untouched fragments, with the decided change applied to the objectives
+/// component. Every fragment the Atlas has a layout for is re-emitted from its
+/// typed value; the rest are the recorded runs.
 ///
 /// # Errors
-/// Returns [`EmitError`] when the bundle carries no `activeObjectives` member,
-/// when the decision drops more objectives than the state holds, or when the
-/// framing refuses to encode the result.
+/// Returns [`EmitError`] when the bundle carries no objectives component, when the
+/// decision drops more objectives than the state holds, or when the framing
+/// refuses to encode the result.
 pub fn emit(
-    mut state: Bundle<CodecObjectivesReplicatedState>,
+    mut state: Bundle<LocalPlayerState>,
     decision: &Decision,
 ) -> Result<Emission, EmitError> {
     let component = state
         .components_mut()
-        .next()
+        .find_map(LocalPlayerState::objectives_mut)
         .ok_or(EmitError::NoActiveObjectives)?;
     let removed = drop_objectives(component, decision)?;
     Ok(Emission { state, removed })
@@ -167,8 +176,57 @@ impl Emission {
     }
 
     /// The decided bundle, for a caller that reads it instead of encoding it.
-    pub const fn state(&self) -> &Bundle<CodecObjectivesReplicatedState> {
+    pub const fn state(&self) -> &Bundle<LocalPlayerState> {
         &self.state
+    }
+
+    /// Payload bytes the emission AUTHORS from typed values.
+    ///
+    /// The anti-emulator KPI: bytes this server composed from state, not bytes it
+    /// copied out of a recording. A typed fragment counts in full.
+    ///
+    /// # Errors
+    /// Returns [`EmitError`] when a component's card refuses to encode.
+    pub fn authored_payload_bytes(&self) -> Result<usize, EmitError> {
+        let mut authored = 0;
+        for record in self.state.records() {
+            for fragment in record.fragments() {
+                if let FragmentPayload::Component(component) = fragment.payload() {
+                    let mut body = Vec::new();
+                    component.write_body(&mut Writer::new(&mut body))?;
+                    authored += body.len();
+                }
+            }
+        }
+        Ok(authored)
+    }
+
+    /// Total fragment payload bytes the emission carries.
+    ///
+    /// # Errors
+    /// Returns [`EmitError`] when a component's card refuses to encode.
+    pub fn total_payload_bytes(&self) -> Result<usize, EmitError> {
+        Ok(self
+            .extents()?
+            .iter()
+            .map(|extent| extent.payload_len)
+            .sum())
+    }
+
+    /// The fragments still replayed from the recording, as `(key, type, bytes)`.
+    ///
+    /// Each entry is a component this server cannot author yet; the Atlas has no
+    /// recovered payload layout for its type, so its bytes are copied.
+    pub fn replayed_fragments(&self) -> Vec<(u64, u64, usize)> {
+        let mut out = Vec::new();
+        for record in self.state.records() {
+            for fragment in record.fragments() {
+                if let FragmentPayload::Unrecovered { type_index, run } = fragment.payload() {
+                    out.push((fragment.key(), *type_index, run.len()));
+                }
+            }
+        }
+        out
     }
 
     /// The bytes, marker and prologue included.
@@ -182,12 +240,11 @@ impl Emission {
     /// The fragment extents this emission's own bytes declare.
     ///
     /// A fragment has no length field, so decoding the emitted bytes needs the
-    /// widths: the recovered component states its own (the codec's own body
-    /// length), and an unrecovered fragment keeps the measured width of the run
-    /// it carries.
+    /// widths: each typed component states its own (its codec's body length), and
+    /// an unrecovered fragment keeps the measured width of the run it carries.
     ///
     /// # Errors
-    /// Returns [`EmitError`] when the component's card refuses to encode.
+    /// Returns [`EmitError`] when a component's card refuses to encode.
     pub fn extents(&self) -> Result<Vec<FragmentExtent>, EmitError> {
         let mut out = Vec::new();
         for record in self.state.records() {
@@ -196,10 +253,7 @@ impl Emission {
                     FragmentPayload::Component(component) => {
                         let mut body = Vec::new();
                         component.write_body(&mut Writer::new(&mut body))?;
-                        (
-                            <CodecObjectivesReplicatedState as StateComponent>::TYPE_INDEX,
-                            body.len(),
-                        )
+                        (component.type_index(), body.len())
                     }
                     FragmentPayload::Unrecovered { type_index, run } => (*type_index, run.len()),
                 };

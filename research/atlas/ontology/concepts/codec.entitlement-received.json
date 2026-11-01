@@ -1,0 +1,48 @@
+{
+  "uid": "codec.entitlement-received",
+  "kind": "codec",
+  "name": "EntitlementReceived",
+  "aliases": [
+    "entitlementsReceived member body",
+    "vtable 0x148040208 reader +0x30"
+  ],
+  "summary": "The `entitlementsReceived` member body of the Entitlement replicated state: one strict zero-or-one byte. The client's reader refuses any other value, so the card declares bool_byte and the codec refuses a byte above 1 instead of reading it as true.",
+  "purpose": "Name the member layout that the two-level presence mask selects (group 0 member 2 of codec.entitlement-replicated-state).",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "received",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "One raw byte read by 0x1417b4c20 through FUN_1408787b0; the reader stores it only when it is below 2 and otherwise fails. Measured 1. The field's meaning is inferred from the member name and is NOT proven, so its meaning stays layout-only."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.entitlement-replicated-state"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3133.hex: the final byte is 01; byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x1417b4c20 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

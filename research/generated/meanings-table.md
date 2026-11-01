@@ -45,6 +45,71 @@
 | --- | --- | --- | --- | --- | --- |
 | values | vec<u32be> | — | partial | layout-only | varint(n) + n x u32 BE, cap 5; over-cap behaviour is a silent length-0 write and a status-4 reader reject. meanings.md 'Contracts closed, 2026-10-29 - the two wires that were blocked on nested sub-codecs'. |
 
+## codec.entitlement-balance — EntitlementBalance
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| left | u32be | — | measured | layout-only | First of the two u32 the element reader 0x1430516a0 reads with FUN_14087a3c0 (big-endian). Measured first element 1424557555. |
+| right | u32be | — | measured | layout-only | Second of the two u32. Measured first element 1. The pair reads as an id and a counter, but the identity is not established, so the field keeps its positional name. |
+
+## codec.entitlement-balances — EntitlementBalances
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint delta count read by 0x1430516a0 before it branches. 0 in the measured body; the non-zero chunked-map branch is recovered but has no instance, so the card bounds this field to 0. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The delta-count-zero branch of 0x143051960: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 0b. |
+| elements | counted(nested(codec.entitlement-balance)) | — | measured | layout-only | The prefix-varint element count and that many eight-byte elements. 432 in the measured body. |
+
+## codec.entitlement-entitlements — EntitlementEntitlements
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint delta count read by 0x14279ec10 before it branches. It is 0 in the measured body; the client's non-zero branch (a chunked id-keyed map read by the same function) is recovered but has no instance, so the card bounds this field to 0 and the codec refuses anything else. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The delta-count-zero branch of 0x143051a70: a strict zero-or-one presence byte through FUN_1461adf60 (which refuses any byte above 1) followed, when it is 1, by one prefix varint. Measured 01 0b. |
+| elements | counted(nested(codec.entitlement-entry)) | — | measured | layout-only | The prefix-varint element count and that many one-byte elements. 423 in the measured body. The client reads each element with the raw one-byte reader, so the element is a card of one u8 rather than a bare byte run; that keeps the generated struct free of an unnamed Vec<u8>. |
+
+## codec.entitlement-entry — EntitlementEntry
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| entitlement | u8 | — | measured | layout-only | Read and written with the client's raw one-byte stream slot (writer vtable +0x40, reader 0x14087a330), inside the 0x14279ec10 element loop. The value's meaning is unnamed: the run is 423 bytes whose content no field boundary explains. |
+
+## codec.entitlement-received — EntitlementReceived
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| received | bool_byte | — | measured | layout-only | One raw byte read by 0x1417b4c20 through FUN_1408787b0; the reader stores it only when it is below 2 and otherwise fails. Measured 1. The field's meaning is inferred from the member name and is NOT proven, so its meaning stays layout-only. |
+
+## codec.entitlement-replicated-state — EntitlementComponentReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 0 member 0: `entitlements` (`nested(codec.entitlement-entitlements)`)
+  - group 0 member 1: `balances` (`nested(codec.entitlement-balances)`)
+  - group 0 member 2: `entitlementsReceived` (`nested(codec.entitlement-received)`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| entitlements | nested(codec.entitlement-entitlements) | — | measured | known | Group 0 member 0, named by the ctor's reflection string at 0x1480332a0; the member object at ctor offset 0x7c0 carries vtable 0x148175960 and its reader is vtable +0x30 = 0x14279ec10. |
+| balances | nested(codec.entitlement-balances) | — | measured | known | Group 0 member 1, named by the reflection string at 0x148177170; the member object at ctor offset 0xc20 carries vtable 0x148175a00 and its reader is vtable +0x30 = 0x1430516a0. |
+| entitlementsReceived | nested(codec.entitlement-received) | — | measured | known | Group 0 member 2, named by the reflection string at 0x148177180; the member object at ctor offset 0x80e8 carries vtable 0x148040208 and its reader is vtable +0x30 = 0x1417b4c20, one strict zero-or-one byte. |
+
 ## codec.objectives-active-objective — ObjectivesActiveObjective
 
 - kind: codec; status: verified; confidence: layout
@@ -113,6 +178,65 @@
 | deltaCount | prefix_varint | — | measured | known | The prefix-varint delta count read by 0x143a69710. It is 0 in the measured body; the client's non-zero branch has no instance in the recorded bundles, so the card bounds it to 0 and the codec refuses anything else instead of inventing the layout. |
 | delta | optional(prefix_varint) | — | measured | known | The delta-count-zero branch of FUN_143a69fe0: a strict zero-or-one presence byte read by 0x1461adf60 (which rejects any byte above 1) followed, when it is 1, by one prefix varint. Measured 01 07. |
 | elements | counted(nested(codec.objectives-task-state)) | — | measured | known | The prefix-varint snapshot count and that many 18-byte elements. Forty-three in the measured body. |
+
+## codec.transmog-appearance-list — TransmogAppearanceList
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint element count 0x14365f1e0 reads before it branches. It is 0 in the measured capturedWeaponAppearances body, which selects the reader's +0x78 branch; the non-zero masked-map branch is the sibling card. The card bounds this field to 0 and refuses anything else. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The zero-count branch 0x14365f520: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 11 (17). |
+| elements | counted(u64be) | — | measured | layout-only | A second prefix-varint element count and that many big-endian u64, read by 0x1415bcdb0 through 0x14087af30. 49 elements in the measured body. |
+
+## codec.transmog-appearance-map — TransmogAppearanceMap
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| elements | masked_counted(nested(codec.transmog-appearance)) | — | measured | layout-only | The prefix-varint element count, one raw mask byte per chunk of eight elements, then that many elements. 39 elements in the measured capturedArmorAppearances body, with mask bytes ff ff ff ff 7f. The client's reader builds an element with NO value for a clear bit and its writer only sets the bit of an element it writes a value for; no recorded body clears a bit, so a clear bit is refused rather than modelled. |
+
+## codec.transmog-appearance — TransmogAppearance
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| id | prefix_varint | — | measured | layout-only | Read by 0x14087b910 in the 0x14365f1e0 element loop. Measured ids run 0..32 then 44, 45, 46, 48, 52, 54, so it is the map key; what the key indexes is not established. |
+| delta | optional(prefix_varint) | — | measured | layout-only | A strict zero-or-one presence byte through FUN_1461adf60 followed by one prefix varint when it is 1; the writer 0x143658440 delta-codes it against the previous element and writes the client's 'unchanged' sentinel instead. The first measured element carries 01 11 (17), the rest 00. |
+| value | u64be | — | measured | layout-only | The masked u64, read by 0x14087af30 (eight raw bytes through the byte-swap FUN_146168b00). Measured first element 0x0194f018811f0000. The values carry single bits and short bit runs, consistent with a 64-bit appearance bitmap, but no field is named. |
+
+## codec.transmog-inventory-ready — TransmogInventoryReady
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| ready | bool_byte | — | measured | layout-only | One raw byte read by 0x1417b4c20 through FUN_1408787b0; the reader stores it only when it is below 2. Measured 1. The meaning is inferred from the member name and is NOT proven, so it stays layout-only. |
+
+## codec.transmog-replicated-state — TransmogComponentReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 0 member 0: `collectedArmorAppearances` (`nested(codec.transmog-appearance-map)`)
+  - group 0 member 1: `collectedWeaponAppearances` (`nested(codec.transmog-appearance-list)`)
+  - group 0 member 2: `ownedArmorAppearances` (`nested(codec.transmog-appearance-map)`)
+  - group 0 member 3: `ownedWeaponAppearances` (`nested(codec.transmog-appearance-map)`)
+  - group 0 member 4: `inventoryServicesReady` (`nested(codec.transmog-inventory-ready)`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| collectedArmorAppearances | nested(codec.transmog-appearance-map) | — | measured | known | The client's own reflection string for this member is `capturedArmorAppearances`; the generated identifier cannot contain the substring `capture` because the anti-emulator guard refuses it in library source, so the field is named `collected...` and the reflection string is kept here.  |
+| collectedWeaponAppearances | nested(codec.transmog-appearance-list) | — | measured | known | The client's own reflection string for this member is `capturedWeaponAppearances`; the generated identifier cannot contain the substring `capture` because the anti-emulator guard refuses it in library source, so the field is named `collected...` and the reflection string is kept here.  |
+| ownedArmorAppearances | nested(codec.transmog-appearance-map) | — | measured | known | Group 0 member 2, named by the reflection string at 0x148310950; member object at ctor offset 0xc30, same vtable and reader. Its mask bit is CLEAR in the measured body, so this card declares it with the captured layout it shares but has no measured instance of its own. |
+| ownedWeaponAppearances | nested(codec.transmog-appearance-map) | — | measured | known | Group 0 member 3, named by the reflection string at 0x148310968; member object at ctor offset 0xe68, same vtable and reader. Its mask bit is CLEAR in the measured body, so this card declares it with the captured layout it shares but has no measured instance of its own. |
+| inventoryServicesReady | nested(codec.transmog-inventory-ready) | — | measured | known | Group 0 member 4, named by the reflection string at 0x148310980; the member object at ctor offset 0x10a0 carries vtable 0x148040208 and its reader is vtable +0x30 = 0x1417b4c20, one strict zero-or-one byte. |
 
 ## endpoint.channel-config — ChannelConfig
 

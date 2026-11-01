@@ -45,6 +45,8 @@ CRATE_MOD = (
     REPO / "server" / "crates" / "everfall-wire" / "src" / "generated" / "mod.rs"
 )
 PRESENCE_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-3857.hex"
+ENTITLEMENT_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-3133.hex"
+TRANSMOG_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-5691.hex"
 
 # The generated module imports the measured prefix-varint primitive from the
 # world service by a path relative to itself, so a copy written into a temp
@@ -71,6 +73,15 @@ def load_generated_wire():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def hex_body(path: Path) -> bytes:
+    """The bytes of one `#`-commented whitespace-wrapped hex fixture."""
+    hexes: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0]
+        hexes.append("".join(line.split()))
+    return bytes.fromhex("".join(hexes))
 
 
 def concept(**overrides):
@@ -468,6 +479,70 @@ class OntologyGenTest(unittest.TestCase):
         self.assertEqual(tasks["delta"], 7)
         self.assertEqual(len(tasks["elements"]), 43)
         self.assertEqual(wire.encode_codec("codec.objectives-replicated-state", decoded), body)
+
+    def test_measured_entitlement_body_round_trips_through_the_generated_codec(self) -> None:
+        """The 3892-byte body of state type 3133, through the GENERATED codec table."""
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        body = hex_body(ENTITLEMENT_FIXTURE)
+        self.assertEqual(len(body), 3892)
+        self.assertEqual(body[:2], bytes([0x01, 0x07]))
+        decoded = wire.decode_codec("codec.entitlement-replicated-state", body)
+        self.assertEqual(decoded["group_mask"], 0x01)
+        self.assertEqual(decoded["groups"][0]["entry_mask"], 0x07)
+        entitlements = decoded["groups"][0]["entries"]["entitlements"]
+        balances = decoded["groups"][0]["entries"]["balances"]
+        self.assertEqual(entitlements["delta"], 11)
+        self.assertEqual(len(entitlements["elements"]), 423)
+        self.assertEqual(balances["delta"], 11)
+        self.assertEqual(len(balances["elements"]), 432)
+        self.assertEqual(
+            balances["elements"][0], {"left": 1424557555, "right": 1}
+        )
+        self.assertTrue(decoded["groups"][0]["entries"]["entitlementsReceived"])
+        self.assertEqual(
+            wire.encode_codec("codec.entitlement-replicated-state", decoded), body
+        )
+
+    def test_measured_transmog_body_round_trips_through_the_generated_codec(self) -> None:
+        """The 834-byte body of state type 5691, through the GENERATED codec table."""
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        body = hex_body(TRANSMOG_FIXTURE)
+        self.assertEqual(len(body), 834)
+        self.assertEqual(body[:2], bytes([0x01, 0x13]))
+        decoded = wire.decode_codec("codec.transmog-replicated-state", body)
+        self.assertEqual(decoded["group_mask"], 0x01)
+        self.assertEqual(decoded["groups"][0]["entry_mask"], 0x13)
+        armor = decoded["groups"][0]["entries"]["collectedArmorAppearances"]
+        weapon = decoded["groups"][0]["entries"]["collectedWeaponAppearances"]
+        self.assertEqual(len(armor["elements"]), 39)
+        self.assertEqual(armor["elements"][0]["id"], 0)
+        self.assertEqual(armor["elements"][0]["delta"], 17)
+        self.assertEqual(armor["elements"][0]["value"], 113979878627278848)
+        self.assertEqual(armor["elements"][1]["id"], 1)
+        self.assertEqual(armor["elements"][1]["delta"], 0)
+        self.assertEqual(weapon["delta"], 17)
+        self.assertEqual(len(weapon["elements"]), 49)
+        self.assertEqual(weapon["elements"][0], 0x0040_0000_0000_0000)
+        self.assertTrue(decoded["groups"][0]["entries"]["inventoryServicesReady"])
+        self.assertEqual(
+            wire.encode_codec("codec.transmog-replicated-state", decoded), body
+        )
+
+    def test_a_masked_element_bit_the_body_does_not_set_is_refused(self) -> None:
+        """A clear mask bit declares an element the card cannot lay out."""
+        wire = load_generated_wire()
+        self.assertIsNotNone(wire, f"{WIRE_PY} is missing; run the generator")
+        body = bytearray(hex_body(TRANSMOG_FIXTURE))
+        # The untouched body must decode, so the refusal below is about the mask
+        # and not about a codec that is missing altogether.
+        wire.decode_codec("codec.transmog-replicated-state", bytes(body))
+        # byte 3 is the first element mask byte of the armor appearance map.
+        self.assertEqual(body[3], 0xFF)
+        body[3] = 0xFE
+        with self.assertRaises(wire.WireCodecError):
+            wire.decode_codec("codec.transmog-replicated-state", bytes(body))
 
     # --- the gate: a fabricated not-ready card is refused, not emitted --------
 

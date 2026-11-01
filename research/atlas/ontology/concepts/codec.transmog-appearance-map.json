@@ -1,0 +1,52 @@
+{
+  "uid": "codec.transmog-appearance-map",
+  "kind": "codec",
+  "name": "TransmogAppearanceMap",
+  "aliases": [
+    "capturedArmorAppearances member body",
+    "vtable 0x14820b328 masked-map branch"
+  ],
+  "summary": "One appearance-set member of the Transmog replicated state: a prefix-varint element count, then per chunk of eight elements one raw mask byte, then the elements themselves (a prefix-varint id, a strict presence byte with its optional prefix varint, and a big-endian u64). The measured body sets every mask bit, so the card requires every declared element to be present and refuses a clear bit instead of guessing the element's omitted tail.",
+  "purpose": "Name the masked-map member layout of the Transmog state (group 0 members 0, 2 and 3 of codec.transmog-replicated-state), so the mask card references a record instead of carrying the container's layout itself.",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "masked_counted(nested(codec.transmog-appearance))",
+      "evidence": "measured",
+      "note": "The prefix-varint element count, one raw mask byte per chunk of eight elements, then that many elements. 39 elements in the measured capturedArmorAppearances body, with mask bytes ff ff ff ff 7f. The client's reader builds an element with NO value for a clear bit and its writer only sets the bit of an element it writes a value for; no recorded body clears a bit, so a clear bit is refused rather than modelled."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.transmog-replicated-state"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.transmog-appearance"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5691.hex: 27 ff then eight elements, repeated to 39 with a final 7f; byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x14365f1e0 and the chunked mask writer 0x143658440 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

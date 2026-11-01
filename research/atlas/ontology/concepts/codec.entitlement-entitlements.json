@@ -1,0 +1,69 @@
+{
+  "uid": "codec.entitlement-entitlements",
+  "kind": "codec",
+  "name": "EntitlementEntitlements",
+  "aliases": [
+    "entitlements member body",
+    "vtable 0x148175960 reader +0x30"
+  ],
+  "summary": "The `entitlements` member body of the Entitlement replicated state: a prefix-varint delta count, the client's delta-count-zero branch (a strict zero-or-one presence flag and, when it is one, a prefix varint), then a prefix-varint element count and that many one-byte elements. Only the delta-count 0 branch has an instance in the recorded bundles, so the card pins the count to 0 and a non-zero count is refused rather than guessed.",
+  "purpose": "Name the member layout that the two-level presence mask selects (group 0 member 0 of codec.entitlement-replicated-state), so the mask card references a record instead of carrying the container's layout itself.",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "deltaCount",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "max": 0,
+      "note": "The prefix-varint delta count read by 0x14279ec10 before it branches. It is 0 in the measured body; the client's non-zero branch (a chunked id-keyed map read by the same function) is recovered but has no instance, so the card bounds this field to 0 and the codec refuses anything else."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "The delta-count-zero branch of 0x143051a70: a strict zero-or-one presence byte through FUN_1461adf60 (which refuses any byte above 1) followed, when it is 1, by one prefix varint. Measured 01 0b."
+    },
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "counted(nested(codec.entitlement-entry))",
+      "evidence": "measured",
+      "note": "The prefix-varint element count and that many one-byte elements. 423 in the measured body. The client reads each element with the raw one-byte reader, so the element is a card of one u8 rather than a bare byte run; that keeps the generated struct free of an unnamed Vec<u8>."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.entitlement-replicated-state"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.entitlement-entry"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3133.hex: 00 01 0b then a7 06 then 423 bytes; the body re-encodes byte-exactly."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x14279ec10 and its delta-count-zero branch 0x143051a70 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

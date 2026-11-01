@@ -1,0 +1,69 @@
+{
+  "uid": "codec.entitlement-balances",
+  "kind": "codec",
+  "name": "EntitlementBalances",
+  "aliases": [
+    "balances member body",
+    "vtable 0x148175a00 reader +0x30"
+  ],
+  "summary": "The `balances` member body of the Entitlement replicated state: a prefix-varint delta count, the client's delta-count-zero branch (a strict zero-or-one presence flag and, when it is one, a prefix varint), then a prefix-varint element count and that many (u32be, u32be) pairs. Only the delta-count 0 branch has an instance, so the count is pinned to 0.",
+  "purpose": "Name the member layout that the two-level presence mask selects (group 0 member 1 of codec.entitlement-replicated-state).",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "deltaCount",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "max": 0,
+      "note": "The prefix-varint delta count read by 0x1430516a0 before it branches. 0 in the measured body; the non-zero chunked-map branch is recovered but has no instance, so the card bounds this field to 0."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "The delta-count-zero branch of 0x143051960: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Measured 01 0b."
+    },
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "counted(nested(codec.entitlement-balance))",
+      "evidence": "measured",
+      "note": "The prefix-varint element count and that many eight-byte elements. 432 in the measured body."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.entitlement-replicated-state"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.entitlement-balance"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-3133.hex: 00 01 0b then b0 06 then 432 x 8 bytes; byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x1430516a0 and its delta-count-zero branch 0x143051960 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

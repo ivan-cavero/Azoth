@@ -16,11 +16,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use everfall_wire::generated::{
-    CodecObjectivesActiveObjectives, CodecObjectivesReplicatedState,
-    CodecObjectivesReplicatedStateEntry, CodecObjectivesTaskStates,
+    CodecEntitlementReplicatedStateEntry, CodecObjectivesActiveObjectives,
+    CodecObjectivesReplicatedState, CodecObjectivesReplicatedStateEntry, CodecObjectivesTaskStates,
+    CodecTransmogReplicatedStateEntry,
 };
 use everfall_wire::{
-    Bundle, BundleError, Fragment, FragmentExtent, FragmentPayload, PROLOGUE_TAIL,
+    Bundle, BundleError, Fragment, FragmentExtent, FragmentPayload, LocalPlayerState, PROLOGUE_TAIL,
 };
 
 fn repo_root() -> PathBuf {
@@ -128,13 +129,13 @@ fn assert_same_bytes(produced: &[u8], expected: &[u8]) {
     );
 }
 
-fn decode() -> (Vec<u8>, Bundle<CodecObjectivesReplicatedState>) {
+fn decode() -> (Vec<u8>, Bundle<LocalPlayerState>) {
     let body = bundle_body("0x9e_T0x8_R.bin");
     let bundle = Bundle::decode(&body, &measured_extents()).expect("the measured bundle decodes");
     (body, bundle)
 }
 
-/// The two containers group 1 carries, in registration order.
+/// The two containers the objectives group 1 carries, in registration order.
 fn containers(
     state: &CodecObjectivesReplicatedState,
 ) -> (&CodecObjectivesActiveObjectives, &CodecObjectivesTaskStates) {
@@ -179,21 +180,24 @@ fn the_measured_bundle_decodes_into_typed_fragments() {
 }
 
 #[test]
-fn exactly_one_fragment_is_a_typed_component() {
+fn three_fragments_are_typed_components_and_six_are_replayed_runs() {
     let (_, bundle) = decode();
     let record = &bundle.records()[0];
 
-    let typed: Vec<usize> = record
+    let typed: Vec<u64> = record
         .fragments()
         .iter()
-        .enumerate()
-        .filter(|(_, fragment)| matches!(fragment.payload(), FragmentPayload::Component(_)))
-        .map(|(index, _)| index)
+        .filter(|fragment| matches!(fragment.payload(), FragmentPayload::Component(_)))
+        .map(Fragment::key)
         .collect();
-    assert_eq!(typed, [7], "only key 22 carries a recovered type payload");
+    assert_eq!(
+        typed,
+        [19, 74, 22],
+        "keys 19 (type 3133), 74 (5691) and 22 (3857) carry recovered layouts"
+    );
 
-    // The other eight stay measured runs: the Atlas has no payload card for
-    // types 4176, 3133, 5606, 3935, 5485, 5691, 11 and 4236.
+    // The rest stay measured runs: the Atlas has no payload card for types
+    // 4176, 5606, 3935, 5485, 11 and 4236.
     let widths: Vec<usize> = record
         .fragments()
         .iter()
@@ -202,15 +206,118 @@ fn exactly_one_fragment_is_a_typed_component() {
             FragmentPayload::Component(_) => None,
         })
         .collect();
-    assert_eq!(widths, [55, 3892, 337, 3, 194, 834, 49, 26]);
+    assert_eq!(widths, [55, 337, 3, 194, 49, 26]);
 
-    let components: Vec<&CodecObjectivesReplicatedState> = bundle.components().collect();
-    assert_eq!(components.len(), 1);
-    let (active, tasks) = containers(components[0]);
+    let components: Vec<&LocalPlayerState> = bundle.components().collect();
+    assert_eq!(components.len(), 3, "one component per typed fragment");
+
+    let objectives = components
+        .iter()
+        .find_map(|state| state.objectives())
+        .expect("key 22 carries the objectives state");
+    let (active, tasks) = containers(objectives);
     assert_eq!(active.delta, Some(7));
     assert_eq!(active.elements.len(), 17);
     assert_eq!(tasks.delta, Some(7));
     assert_eq!(tasks.elements.len(), 43);
+
+    let entitlement = components
+        .iter()
+        .find_map(|state| state.entitlement())
+        .expect("key 19 carries the entitlement state");
+    assert_eq!(entitlement.group_mask, 0x01);
+    assert_eq!(entitlement.groups[0].entry_mask, 0x07);
+    let members: Vec<&CodecEntitlementReplicatedStateEntry> =
+        entitlement.groups[0].entries.iter().collect();
+    assert_eq!(
+        members.len(),
+        3,
+        "all three entitlement members are present"
+    );
+    assert!(matches!(
+        members[0],
+        CodecEntitlementReplicatedStateEntry::Entitlements(_)
+    ));
+    assert!(matches!(
+        members[1],
+        CodecEntitlementReplicatedStateEntry::Balances(_)
+    ));
+    assert!(matches!(
+        members[2],
+        CodecEntitlementReplicatedStateEntry::EntitlementsReceived(_)
+    ));
+
+    let transmog = components
+        .iter()
+        .find_map(|state| state.transmog())
+        .expect("key 74 carries the transmog state");
+    assert_eq!(transmog.group_mask, 0x01);
+    assert_eq!(transmog.groups[0].entry_mask, 0x13);
+    let members: Vec<&CodecTransmogReplicatedStateEntry> =
+        transmog.groups[0].entries.iter().collect();
+    assert_eq!(members.len(), 3, "members 0, 1 and 4 are present");
+    assert!(matches!(
+        members[0],
+        CodecTransmogReplicatedStateEntry::CollectedArmorAppearances(_)
+    ));
+    assert!(matches!(
+        members[1],
+        CodecTransmogReplicatedStateEntry::CollectedWeaponAppearances(_)
+    ));
+    assert!(matches!(
+        members[2],
+        CodecTransmogReplicatedStateEntry::InventoryServicesReady(_)
+    ));
+}
+
+#[test]
+fn the_authored_fraction_is_the_typed_payload_bytes() {
+    let (_, bundle) = decode();
+    let extents = measured_extents();
+
+    let mut authored = 0;
+    let mut replayed = 0;
+    for record in bundle.records() {
+        for fragment in record.fragments() {
+            let extent = extents
+                .iter()
+                .find(|extent| extent.key == fragment.key())
+                .expect("every fragment key is measured");
+            match fragment.payload() {
+                FragmentPayload::Component(_) => authored += extent.payload_len,
+                FragmentPayload::Unrecovered { .. } => replayed += extent.payload_len,
+            }
+        }
+    }
+
+    assert_eq!(authored, 3892 + 834 + 1736, "3133, 5691 and 3857");
+    assert_eq!(replayed, 55 + 337 + 3 + 194 + 49 + 26, "the six runs");
+    assert_eq!(
+        authored + replayed,
+        7126,
+        "every payload byte of the record"
+    );
+    // 6462 / 7126 = 90.7 %, up from 1736 / 7126 = 24.4 % with one typed type.
+    assert!(authored * 100 > 90 * (authored + replayed));
+}
+
+#[test]
+fn a_typed_fragment_whose_extent_disagrees_with_its_codec_is_refused() {
+    let body = bundle_body("0x9e_T0x8_R.bin");
+    for (key, type_index) in [(19_u64, 3133_u64), (74, 5691)] {
+        let mut extents = measured_extents();
+        let extent = extents
+            .iter_mut()
+            .find(|extent| extent.key == key)
+            .expect("the key is measured");
+        assert_eq!(extent.type_index, type_index);
+        extent.payload_len -= 1;
+        let refused = Bundle::<LocalPlayerState>::decode(&body, &extents);
+        assert!(
+            matches!(refused, Err(BundleError::ComponentWidth { key: found, .. }) if found == key),
+            "key {key} with a short extent must be refused, got {refused:?}"
+        );
+    }
 }
 
 #[test]
