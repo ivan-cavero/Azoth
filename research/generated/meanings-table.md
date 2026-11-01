@@ -142,16 +142,29 @@
 | delta | optional(prefix_varint) | — | measured | known | The delta-count-zero branch of FUN_143a6a050: a strict zero-or-one presence byte read by 0x1461adf60 (which rejects any byte above 1) followed, when it is 1, by one prefix varint. Measured 01 07. |
 | elements | counted(nested(codec.objectives-active-objective)) | — | measured | known | The prefix-varint snapshot count and that many 56-byte elements. Seventeen in the measured body. |
 
+## codec.objectives-completed-objectives — ObjectivesCompletedObjectives
+
+- kind: codec; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| elements | masked_counted(nested(codec.objectives-tracked-objective)) | — | partial | layout-only | The prefix-varint count read by FUN_14087b760, then one raw mask byte per chunk of eight via 0x14087a330, then the elements. The reader is 0x143a69460, the +0x30 slot of member vtable 0x1482599b0 (the same function as trackedObjectives); the writer is +0x28 = 0x142f882a0. The client takes its +0x78 zero branch (0x143a69fb0) when the count is zero, so the generated codec models only a non-empty set and an empty set must clear the member's presence bit instead of sending an empty container. |
+
 ## codec.objectives-replicated-state — ObjectivesComponentReplicatedState
 
 - kind: codec; status: verified; confidence: layout
 - presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 1 member 1: `trackedObjectives` (`nested(codec.objectives-tracked-objectives)`)
+  - group 1 member 2: `completedObjectives` (`nested(codec.objectives-completed-objectives)`)
   - group 1 member 3: `activeObjectives` (`nested(codec.objectives-active-objectives)`)
   - group 1 member 4: `taskStates` (`nested(codec.objectives-task-states)`)
 - codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
+| trackedObjectives | nested(codec.objectives-tracked-objectives) | — | partial | known | Group 1 member 1, named by the ctor's reflection string at 0x14825ac68; the member object at ctor offset 0x14d carries vtable 0x148259910 and its reader is vtable +0x30 = 0x143a69460. No live body sets this mask bit: the filed negative in meanings.md says the lab cannot drive server-authoritative state, so the layout is read from the reader and writer, not measured against bytes. The card models the non-zero masked map; a zero count takes the +0x78 branch 0x143a69f40, a sibling layout. |
+| completedObjectives | nested(codec.objectives-completed-objectives) | — | partial | known | Group 1 member 2, named by the ctor's reflection string at 0x14825ac80; the member object at ctor offset 0x1a1 carries vtable 0x1482599b0 and its reader is vtable +0x30 = 0x143a69460, the SAME function as trackedObjectives. The elements are therefore identical; only the zero-count branch differs (+0x78 = 0x143a69fb0). No live body sets this mask bit, so the evidence is partial. |
 | activeObjectives | nested(codec.objectives-active-objectives) | — | measured | known | Group 1 member 3, named by the ctor's reflection string at 0x14825ac98; the member object at ctor offset 0x1e8 carries vtable 0x148259a50 and its reader is vtable +0x30 = 0x143a69a10. Body: prefix-varint delta count (0 in the measured body), the delta-count-zero branch (presence byte 0x01 with prefix-varint 7), then a prefix-varint snapshot count (17) and 17 elements of 56 bytes. The body is codec.objectives-active-objectives and the element is codec.objectives-active-objective, so no layout is copied into this card. |
 | taskStates | nested(codec.objectives-task-states) | — | measured | known | Group 1 member 4, named by the reflection string at 0x14825acb0; the member object at ctor offset 0x22f carries vtable 0x148259af0 and its reader is vtable +0x30 = 0x143a69710. Body: prefix-varint delta count (0), the same delta-count-zero branch through FUN_143a69fe0 (presence byte 0x01 with prefix-varint 7), then a prefix-varint snapshot count (43) and 43 elements of 18 bytes. |
 
@@ -178,6 +191,26 @@
 | deltaCount | prefix_varint | — | measured | known | The prefix-varint delta count read by 0x143a69710. It is 0 in the measured body; the client's non-zero branch has no instance in the recorded bundles, so the card bounds it to 0 and the codec refuses anything else instead of inventing the layout. |
 | delta | optional(prefix_varint) | — | measured | known | The delta-count-zero branch of FUN_143a69fe0: a strict zero-or-one presence byte read by 0x1461adf60 (which rejects any byte above 1) followed, when it is 1, by one prefix varint. Measured 01 07. |
 | elements | counted(nested(codec.objectives-task-state)) | — | measured | known | The prefix-varint snapshot count and that many 18-byte elements. Forty-three in the measured body. |
+
+## codec.objectives-tracked-objective — ObjectivesTrackedObjective
+
+- kind: codec; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| id | prefix_varint | — | partial | layout-only | Read by FUN_14087b910 in the 0x143a69460 element loop and stored at element +0x18. The writer 0x142f882a0 writes it with FUN_140877c30. The code names neither the map key nor what it indexes, so the meaning is not established. |
+| delta | optional(prefix_varint) | — | partial | layout-only | A strict zero-or-one presence byte through FUN_1461adf60 (which rejects any byte above 1) followed by one prefix varint when it is 1. The writer 0x142f882a0 delta-codes it against the previous element and writes the client's -1 sentinel instead; the reader maps the sentinel back to the previous id. No live body shows which value it carries. |
+| value | u64be | — | partial | layout-only | Read by FUN_14087af30 (eight raw bytes through the byte-swap FUN_146168b00) only when the chunk mask bit is set; a clear bit creates the entry without it. The writer 0x142f882a0 writes it with FUN_140877280 when the entry's type is below 2. No field is named. |
+
+## codec.objectives-tracked-objectives — ObjectivesTrackedObjectives
+
+- kind: codec; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| elements | masked_counted(nested(codec.objectives-tracked-objective)) | — | partial | layout-only | The prefix-varint count read by FUN_14087b760, then one raw mask byte per chunk of eight via 0x14087a330, then the elements. The reader is 0x143a69460, the +0x30 slot of member vtable 0x148259910; the writer is +0x28 = 0x142f882a0. The client takes its +0x78 zero branch (0x143a69f40) when the count is zero, so the generated codec models only a non-empty set and an empty set must clear the member's presence bit instead of sending an empty container. |
 
 ## codec.transmog-appearance-list — TransmogAppearanceList
 

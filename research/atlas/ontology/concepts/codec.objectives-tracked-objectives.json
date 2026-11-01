@@ -1,0 +1,41 @@
+{
+  "uid": "codec.objectives-tracked-objectives",
+  "kind": "codec",
+  "name": "ObjectivesTrackedObjectives",
+  "aliases": [
+    "trackedObjectives member body",
+    "vtable 0x148259910 reader +0x30"
+  ],
+  "summary": "The `trackedObjectives` member body of the Objectives replicated state in the client reader's NON-ZERO count branch: a prefix-varint element count, one raw mask byte per chunk of eight elements, then that many `codec.objectives-tracked-objective` elements. A zero count selects a DIFFERENT layout (the +0x78 branch 0x143a69f40: an optional delta, then a counted u64 run bounded to 8), which this card does not model, so an empty set must clear the member's presence bit. PROVEN LAYOUT, NOT PROVEN MEANINGS; no live record exists, so the evidence is partial, never measured.",
+  "purpose": "Name the `trackedObjectives` member layout (group 1 member 1 of codec.objectives-replicated-state) so the state card references a record instead of carrying the container's layout itself.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "masked_counted(nested(codec.objectives-tracked-objective))",
+      "evidence": "partial",
+      "note": "The prefix-varint count read by FUN_14087b760, then one raw mask byte per chunk of eight via 0x14087a330, then the elements. The reader is 0x143a69460, the +0x30 slot of member vtable 0x148259910; the writer is +0x28 = 0x142f882a0. The client takes its +0x78 zero branch (0x143a69f40) when the count is zero, so the generated codec models only a non-empty set and an empty set must clear the member's presence bit instead of sending an empty container."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.objectives-replicated-state" },
+    { "op": "consumes", "to": "codec.objectives-tracked-objective" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x143a69460 (vtable 0x148259910 +0x30, build 30fe6461): count FUN_14087b760, chunk mask 0x14087a330, then the element loop. No capture sets the member's mask bit; the 'lab cannot drive server-authoritative state' negative in research/atlas/meanings.md explains why."
+    },
+    {
+      "type": "decompile",
+      "ref": "Zero-count branch 0x143a69f40 (vtable +0x78): optional delta via FUN_1461adf60, then FUN_143a07c30 reads a prefix-varint count (refused above 8) and that many u64be via FUN_14087af30. It is a sibling layout, not this card."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

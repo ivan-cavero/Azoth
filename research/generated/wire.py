@@ -740,9 +740,17 @@ CODECS = {
             ('elements', 'counted(nested(codec.objectives-active-objective))'),
         ),
     },
+    'codec.objectives-completed-objectives': {
+        'name': 'ObjectivesCompletedObjectives',
+        'fields': (
+            ('elements', 'masked_counted(nested(codec.objectives-tracked-objective))'),
+        ),
+    },
     'codec.objectives-replicated-state': {
         'name': 'ObjectivesComponentReplicatedState',
         'fields': (
+            ('trackedObjectives', 'nested(codec.objectives-tracked-objectives)'),
+            ('completedObjectives', 'nested(codec.objectives-completed-objectives)'),
             ('activeObjectives', 'nested(codec.objectives-active-objectives)'),
             ('taskStates', 'nested(codec.objectives-task-states)'),
         ),
@@ -751,6 +759,8 @@ CODECS = {
             'member': ('entry_mask', 7, 128),
             'groups': (
                 (1, 2, (
+                    (1, 2, 'trackedObjectives', 'nested(codec.objectives-tracked-objectives)'),
+                    (2, 4, 'completedObjectives', 'nested(codec.objectives-completed-objectives)'),
                     (3, 8, 'activeObjectives', 'nested(codec.objectives-active-objectives)'),
                     (4, 16, 'taskStates', 'nested(codec.objectives-task-states)'),
                 )),
@@ -773,6 +783,20 @@ CODECS = {
             ('deltaCount', 'prefix_varint'),
             ('delta', 'optional(prefix_varint)'),
             ('elements', 'counted(nested(codec.objectives-task-state))'),
+        ),
+    },
+    'codec.objectives-tracked-objective': {
+        'name': 'ObjectivesTrackedObjective',
+        'fields': (
+            ('id', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('value', 'u64be'),
+        ),
+    },
+    'codec.objectives-tracked-objectives': {
+        'name': 'ObjectivesTrackedObjectives',
+        'fields': (
+            ('elements', 'masked_counted(nested(codec.objectives-tracked-objective))'),
         ),
     },
     'codec.transmog-appearance': {

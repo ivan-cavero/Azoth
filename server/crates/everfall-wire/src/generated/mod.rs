@@ -2040,6 +2040,90 @@ impl CodecObjectivesActiveObjectives {
     }
 }
 
+/// `codec.objectives-completed-objectives` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesCompletedObjectives {
+    /// Body field `elements` (`masked_counted(nested(codec.objectives-tracked-objective))`); meaning unnamed.
+    pub elements: Vec<CodecObjectivesTrackedObjective>,
+}
+
+impl CodecObjectivesCompletedObjectives {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.objectives-completed-objectives";
+
+    /// Decode one `codec.objectives-completed-objectives` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                let mut index = 0_u64;
+                while index < count {
+                    let chunk = (count - index).min(8);
+                    let mask = reader.u8("elements")?;
+                    let wanted = u8::MAX >> (8 - chunk);
+                    if mask != wanted {
+                        return Err(WireError::UnknownPresence {
+                            what: "elements",
+                            index: index + u64::from((mask ^ wanted).trailing_zeros()),
+                        });
+                    }
+                    for _ in 0..chunk {
+                        value.push(CodecObjectivesTrackedObjective::read_from(reader)?);
+                    }
+                    index += chunk;
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.objectives-completed-objectives` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.elements.len() as u64)?;
+        let mut index = 0;
+        while index < self.elements.len() {
+            let chunk = (self.elements.len() - index).min(8);
+            writer.u8(u8::MAX >> (8 - chunk));
+            for item in &self.elements[index..index + chunk] {
+                item.write_to(writer)?;
+            }
+            index += chunk;
+        }
+        Ok(())
+    }
+}
+
 /// `codec.objectives-replicated-state` — one Atlas card.
 ///
 /// Presence-masked sub-codec card (no wire id).
@@ -2068,6 +2152,10 @@ pub struct CodecObjectivesReplicatedStateGroup {
 /// One present member of a [`CodecObjectivesReplicatedStateGroup`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CodecObjectivesReplicatedStateEntry {
+    /// Group 1 member 1, `trackedObjectives`.
+    TrackedObjectives(CodecObjectivesTrackedObjectives),
+    /// Group 1 member 2, `completedObjectives`.
+    CompletedObjectives(CodecObjectivesCompletedObjectives),
     /// Group 1 member 3, `activeObjectives`.
     ActiveObjectives(CodecObjectivesActiveObjectives),
     /// Group 1 member 4, `taskStates`.
@@ -2108,7 +2196,7 @@ impl CodecObjectivesReplicatedState {
         let mut groups = Vec::new();
         if group_mask & 0b0000_0010 != 0 {
             let entry_mask = reader.u8("entry_mask")?;
-            let unknown = entry_mask & !0b0001_1000;
+            let unknown = entry_mask & !0b0001_1110;
             if unknown != 0 {
                 return Err(WireError::UnknownPresence {
                     what: "member",
@@ -2116,6 +2204,18 @@ impl CodecObjectivesReplicatedState {
                 });
             }
             let mut entries = Vec::new();
+            if entry_mask & 0b0000_0010 != 0 {
+                let value = CodecObjectivesTrackedObjectives::read_from(reader)?;
+                entries.push(CodecObjectivesReplicatedStateEntry::TrackedObjectives(
+                    value,
+                ));
+            }
+            if entry_mask & 0b0000_0100 != 0 {
+                let value = CodecObjectivesCompletedObjectives::read_from(reader)?;
+                entries.push(CodecObjectivesReplicatedStateEntry::CompletedObjectives(
+                    value,
+                ));
+            }
             if entry_mask & 0b0000_1000 != 0 {
                 let value = CodecObjectivesActiveObjectives::read_from(reader)?;
                 entries.push(CodecObjectivesReplicatedStateEntry::ActiveObjectives(value));
@@ -2151,6 +2251,12 @@ impl CodecObjectivesReplicatedState {
             writer.u8(group.entry_mask);
             for entry in &group.entries {
                 match entry {
+                    CodecObjectivesReplicatedStateEntry::TrackedObjectives(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecObjectivesReplicatedStateEntry::CompletedObjectives(value) => {
+                        value.write_to(writer)?;
+                    }
                     CodecObjectivesReplicatedStateEntry::ActiveObjectives(value) => {
                         value.write_to(writer)?;
                     }
@@ -2334,6 +2440,174 @@ impl CodecObjectivesTaskStates {
         writer.prefix_varint(self.elements.len() as u64)?;
         for value in &self.elements {
             value.write_to(writer)?;
+        }
+        Ok(())
+    }
+}
+
+/// `codec.objectives-tracked-objective` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesTrackedObjective {
+    /// Body field `id` (`prefix_varint`); meaning unnamed.
+    pub id: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `value` (`u64be`); meaning unnamed.
+    pub value: u64,
+}
+
+impl CodecObjectivesTrackedObjective {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.objectives-tracked-objective";
+
+    /// Decode one `codec.objectives-tracked-objective` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            id: reader.prefix_varint("id")?,
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            value: reader.u64be("value")?,
+        })
+    }
+
+    /// Encode one `codec.objectives-tracked-objective` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.id)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.u64be(self.value);
+        Ok(())
+    }
+}
+
+/// `codec.objectives-tracked-objectives` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecObjectivesTrackedObjectives {
+    /// Body field `elements` (`masked_counted(nested(codec.objectives-tracked-objective))`); meaning unnamed.
+    pub elements: Vec<CodecObjectivesTrackedObjective>,
+}
+
+impl CodecObjectivesTrackedObjectives {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.objectives-tracked-objectives";
+
+    /// Decode one `codec.objectives-tracked-objectives` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                let mut index = 0_u64;
+                while index < count {
+                    let chunk = (count - index).min(8);
+                    let mask = reader.u8("elements")?;
+                    let wanted = u8::MAX >> (8 - chunk);
+                    if mask != wanted {
+                        return Err(WireError::UnknownPresence {
+                            what: "elements",
+                            index: index + u64::from((mask ^ wanted).trailing_zeros()),
+                        });
+                    }
+                    for _ in 0..chunk {
+                        value.push(CodecObjectivesTrackedObjective::read_from(reader)?);
+                    }
+                    index += chunk;
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.objectives-tracked-objectives` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.elements.len() as u64)?;
+        let mut index = 0;
+        while index < self.elements.len() {
+            let chunk = (self.elements.len() - index).min(8);
+            writer.u8(u8::MAX >> (8 - chunk));
+            for item in &self.elements[index..index + chunk] {
+                item.write_to(writer)?;
+            }
+            index += chunk;
         }
         Ok(())
     }

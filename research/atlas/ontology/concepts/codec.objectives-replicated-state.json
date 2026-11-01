@@ -7,8 +7,8 @@
     "guid:036365f4-a485-439d-8a3f-c51dff6123b4",
     "state-fragment:key22"
   ],
-  "summary": "The payload carried by state fragment type index 3857 (key 22) in the local-player record: a two-level presence mask over the registered objectives-state members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS. The identity is resolved: the dispatcher `FUN_146af38c0` reads the type index, maps it to the AZ id `036365f4-a485-439d-8a3f-c51dff6123b4` through the registry (`FUN_1461ae2a0`, `FUN_1461ae3f0`), takes the descriptor's `+0x48` facet and calls its `+8` slot, which is `0x1439eb9a0` -- the only code that constructs the class at vtable `0x148259b90` (ctor `0x143a1f0b0`). The dispatcher therefore calls THAT class's `+0x88` writer (0x141728b30) and `+0x90` reader (0x1417b5080). The real 1736-byte body parses field by field under those readers and re-encodes byte-exactly. The body is NOT a flat field list: the first mask byte selects GROUPS, and within a present group a second mask selects its members, so the card declares the two-level mask and only the members it models. The generated codec in `server/crates/everfall-wire/src/generated/mod.rs` replaces the hand-written module this card used to need.",
-  "purpose": "Carry the player's objective state to the client: the tracked, completed and active sets, per-task state, the POI entity ids and dynamic POI indices the journal and compass read, and the grace-period end time. It is the replicated-state delta through which the server, not a reply message, expresses authority over the Objectives family. The one measured body carries `activeObjectives` (17 elements) and `taskStates` (43 elements) and says nothing about the tracked or completed sets, whose mask bits are clear.",
+  "summary": "The payload carried by state fragment type index 3857 (key 22) in the local-player record: a two-level presence mask over the registered objectives-state members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS. The identity is resolved: the dispatcher `FUN_146af38c0` reads the type index, maps it to the AZ id `036365f4-a485-439d-8a3f-c51dff6123b4` through the registry (`FUN_1461ae2a0`, `FUN_1461ae3f0`), takes the descriptor's `+0x48` facet and calls its `+8` slot, which is `0x1439eb9a0` -- the only code that constructs the class at vtable `0x148259b90` (ctor `0x143a1f0b0`). The dispatcher therefore calls THAT class's `+0x88` writer (0x141728b30) and `+0x90` reader (0x1417b5080). The real 1736-byte body parses field by field under those readers and re-encodes byte-exactly. The body is NOT a flat field list: the first mask byte selects GROUPS, and within a present group a second mask selects its members, so the card declares the two-level mask and only the members it models. The generated codec in `server/crates/everfall-wire/src/generated/mod.rs` replaces the hand-written module this card used to need. Two members now have a layout read from the client's own code but no live record: `trackedObjectives` and `completedObjectives` are `partial`, never `measured`, because the lab cannot drive server-authoritative state.",
+  "purpose": "Carry the player's objective state to the client: the tracked, completed and active sets, per-task state, the POI entity ids and dynamic POI indices the journal and compass read, and the grace-period end time. It is the replicated-state delta through which the server, not a reply message, expresses authority over the Objectives family. The one measured body carries `activeObjectives` (17 elements) and `taskStates` (43 elements); its tracked and completed mask bits are clear, so those two layouts come from the member readers 0x143a69460 and their zero-count branches, not from a capture.",
   "authority": "server",
   "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `16` (22), type varint `91 3c` = 3857 under the 6-bit-continuation prefix-varint scheme, then 1736 payload bytes. Below that, the payload is the two-level presence mask declared by this card's `presence` block: [group mask u8][for each present group: member mask u8][for each present member: that member's body, ascending by member index].",
   "presence": {
@@ -16,6 +16,24 @@
     "member": { "name": "entry_mask", "bits": 7, "continuation": 128 }
   },
   "fields": [
+    {
+      "name": "trackedObjectives",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.objectives-tracked-objectives)",
+      "evidence": "partial",
+      "presence": { "group": 1, "member": 1 },
+      "note": "Group 1 member 1, named by the ctor's reflection string at 0x14825ac68; the member object at ctor offset 0x14d carries vtable 0x148259910 and its reader is vtable +0x30 = 0x143a69460. No live body sets this mask bit: the filed negative in meanings.md says the lab cannot drive server-authoritative state, so the layout is read from the reader and writer, not measured against bytes. The card models the non-zero masked map; a zero count takes the +0x78 branch 0x143a69f40, a sibling layout."
+    },
+    {
+      "name": "completedObjectives",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.objectives-completed-objectives)",
+      "evidence": "partial",
+      "presence": { "group": 1, "member": 2 },
+      "note": "Group 1 member 2, named by the ctor's reflection string at 0x14825ac80; the member object at ctor offset 0x1a1 carries vtable 0x1482599b0 and its reader is vtable +0x30 = 0x143a69460, the SAME function as trackedObjectives. The elements are therefore identical; only the zero-count branch differs (+0x78 = 0x143a69fb0). No live body sets this mask bit, so the evidence is partial."
+    },
     {
       "name": "activeObjectives",
       "meaning": "known",
@@ -37,6 +55,8 @@
   ],
   "relations": [
     { "op": "part_of", "to": "flow.presence" },
+    { "op": "consumes", "to": "codec.objectives-tracked-objectives" },
+    { "op": "consumes", "to": "codec.objectives-completed-objectives" },
     { "op": "consumes", "to": "codec.objectives-active-objectives" },
     { "op": "consumes", "to": "codec.objectives-task-states" }
   ],
@@ -60,8 +80,12 @@
       "ref": "REFUTED NEGATIVE: the earlier reading took the first mask byte as a selector over the eight members, so 0x02 chose trackedObjectives and its reader then met 0x18 as a count of 24 and 0x4c as a presence byte, which 0x1461adf60 rejects. With the two-level mask the body closes: [0x02 groups][0x18 entries][active: 00 01 07 11 + 17x56][taskStates: 00 01 07 2b + 43x18] = 1+1+1+3+1+952+1+3+1+774 = 1736, zero bytes left."
     },
     {
+      "type": "decompile",
+      "ref": "TRACKED AND COMPLETED (build 30fe6461): both members' +0x30 is 0x143a69460, which reads a prefix-varint count (FUN_14087b760), one raw mask byte per chunk of eight (0x14087a330), and per element an id (FUN_14087b910), an optional delta (FUN_1461adf60) and a masked u64 BE (FUN_14087af30). Their +0x28 writer is 0x142f882a0. Their zero-count +0x78 branches differ: 0x143a69f40 for trackedObjectives (optional delta, then FUN_143a07c30's u64 run bounded to 8) and 0x143a69fb0 for completedObjectives (FUN_143a078d0, bounded to 0x2000000). No capture sets either mask bit, so the evidence is partial."
+    },
+    {
       "type": "atlas",
-      "ref": "research/atlas/meanings.md 'Type 3857 resolves to the candidate class, and the body parses (2026-11-02)'; research/atlas/client-functions.json objectives_replicated_state_codec_20261102"
+      "ref": "research/atlas/meanings.md 'Type 3857 resolves to the candidate class, and the body parses (2026-11-02)' and 'The tracked and completed objective layouts, read from code (2026-11-03)'; research/atlas/client-functions.json objectives_replicated_state_codec_20261102"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

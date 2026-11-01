@@ -17,10 +17,11 @@
 //! Why the correction lands on `activeObjectives`: the one recovered body of
 //! `codec.objectives-replicated-state` carries `activeObjectives` and
 //! `taskStates`, and its tracked and completed members have their mask bits
-//! clear. The Atlas declares no member layout for the cleared members, so
-//! `activeObjectives` is the only set of objectives this server can put on the
-//! wire today, and a decision that drops objectives the world cannot resolve
-//! drops them there.
+//! clear. The Atlas now cards those two members from the client's own reader
+//! and writer, but with `partial` evidence and no live record, so the emitted
+//! body still has no proven instance to correct. `activeObjectives` remains the
+//! only populated set this server can put on the wire today, and a decision that
+//! drops objectives the world cannot resolve drops them there.
 //!
 //! Which element a correction removes is an ASSUMPTION, not a measurement: no
 //! field of `codec.objectives-active-objective` has a proven identity meaning, so
@@ -165,7 +166,7 @@ fn active_objectives_mut(
         .flat_map(|group| group.entries.iter_mut())
         .find_map(|entry| match entry {
             CodecObjectivesReplicatedStateEntry::ActiveObjectives(active) => Some(active),
-            CodecObjectivesReplicatedStateEntry::TaskStates(_) => None,
+            _ => None,
         })
 }
 

@@ -3182,3 +3182,44 @@ still be read from the client's own code — the path that recovered members 3 a
 the evidence word for them is `partial` (writer and reader agree, no live record), never
 `measured`. An emulator rig can teach what the client SENDS; it cannot teach what an
 authoritative server SENDS when state changes.
+
+## The tracked and completed objective layouts, read from code (2026-11-03)
+
+Because no capture can set either mask bit, members 1 `trackedObjectives` (member vtable
+`0x148259910`, ctor offset `0x14d`) and 2 `completedObjectives` (`0x1482599b0`,
+`+0x1a1`) were read from their codecs. They share BOTH the reader at vtable `+0x30`
+`0x143a69460` AND the writer at `+0x28` `0x142f882a0`, so their non-zero element layout is
+identical; the parent's "one decompilation answers both" holds for that branch.
+
+**Non-zero branch (`0x143a69460`).** Prefix-varint count via `FUN_14087b760`; then per
+chunk of eight elements one raw mask byte via `0x14087a330`; then per element a
+prefix-varint id via `FUN_14087b910` (stored `+0x18`), a strict zero-or-one presence byte
+with its optional prefix varint via `FUN_1461adf60` (stored `+0x38`; the `-1` sentinel
+maps back to the previous id), and, only when the chunk mask bit is set, a `u64` BE via
+`FUN_14087af30` (eight raw bytes through `FUN_146168b00`, stored `+0x28`). A clear bit
+creates the entry with no value (type 2). The writer mirrors the order: id
+`FUN_140877c30`, delta `FUN_146168410`, value `FUN_140877280`, with the chunk mask byte
+reserved and back-patched.
+
+**Zero-count branch, and the one difference.** A zero count goes to the member's own
+`+0x78` slot. For `trackedObjectives` that is `0x143a69f40`: an optional delta, then
+`FUN_143a07c30` reads a prefix-varint count (refused above 8) and that many `u64` BE. For
+`completedObjectives` it is `0x143a69fb0`: the same optional delta, then `FUN_143a078d0`
+reads the count (refused at or above `0x2000001`) and that many `u64` BE. So the element
+layout is identical and only the zero-branch bound differs.
+
+**Cards and evidence.** `codec.objectives-tracked-objective` (id, optional delta, masked
+`u64`), `codec.objectives-tracked-objectives` and `codec.objectives-completed-objectives`
+(`masked_counted` of that element, non-zero branch only) are `candidate` with every field
+`evidence: partial`; `codec.objectives-replicated-state` wires them at group 1 members 1
+and 2. Nothing is `measured`: writer and reader agree, but no bytes were observed. A
+zero count would select the sibling branch, so an empty set must clear the member's
+presence bit instead of sending an empty container.
+
+**What this does and does not unblock.** The server can now construct and encode a
+non-empty tracked/completed objective map (id, optional delta, `u64` value) and set the
+right presence bits, and the generated codec round-trips it structurally. It cannot
+yet be trusted as the client's encoding: promotion to `measured` needs a body from a
+session where the player had tracked objectives, which the filed negative above says is
+unreachable in this rig because the world replays a fixed capture. The layouts are read,
+not observed.

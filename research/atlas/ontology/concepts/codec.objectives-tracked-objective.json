@@ -1,0 +1,57 @@
+{
+  "uid": "codec.objectives-tracked-objective",
+  "kind": "codec",
+  "name": "ObjectivesTrackedObjective",
+  "aliases": [
+    "trackedObjectives/completedObjectives masked element",
+    "0x143a69460 element loop"
+  ],
+  "summary": "One element of the tracked and completed objectives maps: a prefix-varint id, a strict zero-or-one presence byte with its optional prefix varint, and one big-endian u64 that the chunk mask declares present. PROVEN LAYOUT, NOT PROVEN MEANINGS: no field's meaning is named by the code, and no live record exists for either member.",
+  "purpose": "Give the tracked and completed objective maps a named element card so each member body is masked_counted(nested(...)) instead of copying the element layout.",
+  "authority": "server",
+  "wire": { "transport": "rep" },
+  "fields": [
+    {
+      "name": "id",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "partial",
+      "note": "Read by FUN_14087b910 in the 0x143a69460 element loop and stored at element +0x18. The writer 0x142f882a0 writes it with FUN_140877c30. The code names neither the map key nor what it indexes, so the meaning is not established."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "partial",
+      "note": "A strict zero-or-one presence byte through FUN_1461adf60 (which rejects any byte above 1) followed by one prefix varint when it is 1. The writer 0x142f882a0 delta-codes it against the previous element and writes the client's -1 sentinel instead; the reader maps the sentinel back to the previous id. No live body shows which value it carries."
+    },
+    {
+      "name": "value",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "u64be",
+      "evidence": "partial",
+      "note": "Read by FUN_14087af30 (eight raw bytes through the byte-swap FUN_146168b00) only when the chunk mask bit is set; a clear bit creates the entry without it. The writer 0x142f882a0 writes it with FUN_140877280 when the entry's type is below 2. No field is named."
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "codec.objectives-tracked-objectives" },
+    { "op": "part_of", "to": "codec.objectives-completed-objectives" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "Element loop of member reader 0x143a69460 (build 30fe6461): id FUN_14087b910, strict presence FUN_1461adf60, masked u64 FUN_14087af30, chunk mask byte 0x14087a330."
+    },
+    {
+      "type": "decompile",
+      "ref": "Writer 0x142f882a0 is the +0x28 slot of both member vtables 0x148259910 and 0x1482599b0; it writes the same order (id FUN_140877c30, delta FUN_146168410, mask bit and value FUN_140877280) and reserves the chunk mask byte before the elements. Writer and reader agree; no live body exists, so evidence is partial."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": "everfall-wire", "module": null }
+}

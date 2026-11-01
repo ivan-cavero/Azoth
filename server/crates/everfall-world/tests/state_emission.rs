@@ -134,14 +134,14 @@ fn containers(
         .iter()
         .find_map(|entry| match entry {
             CodecObjectivesReplicatedStateEntry::ActiveObjectives(active) => Some(active),
-            CodecObjectivesReplicatedStateEntry::TaskStates(_) => None,
+            _ => None,
         })
         .expect("group 1 carries activeObjectives");
     let tasks = entries
         .iter()
         .find_map(|entry| match entry {
             CodecObjectivesReplicatedStateEntry::TaskStates(tasks) => Some(tasks),
-            CodecObjectivesReplicatedStateEntry::ActiveObjectives(_) => None,
+            _ => None,
         })
         .expect("group 1 carries taskStates");
     (active, tasks)

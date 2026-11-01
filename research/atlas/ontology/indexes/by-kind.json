@@ -1,5 +1,5 @@
 {
-  "generated": "hand-seed-2026-10-24; codec family 3133/5691 added 2026-11-03",
+  "generated": "hand-seed-2026-10-24; codec family 3133/5691 added 2026-11-03; tracked/completed objective maps added 2026-11-03",
   "kinds": {
     "codec": [
       "codec.contracts.blob-256",
@@ -13,9 +13,12 @@
       "codec.entitlement-replicated-state",
       "codec.objectives-active-objective",
       "codec.objectives-active-objectives",
+      "codec.objectives-completed-objectives",
       "codec.objectives-replicated-state",
       "codec.objectives-task-state",
       "codec.objectives-task-states",
+      "codec.objectives-tracked-objective",
+      "codec.objectives-tracked-objectives",
       "codec.transmog-appearance",
       "codec.transmog-appearance-list",
       "codec.transmog-appearance-map",

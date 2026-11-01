@@ -18,8 +18,10 @@
 use everfall_wire::WireError;
 use everfall_wire::generated::{
     CodecObjectivesActiveObjective, CodecObjectivesActiveObjectives,
-    CodecObjectivesReplicatedState, CodecObjectivesReplicatedStateEntry, CodecObjectivesTaskState,
-    CodecObjectivesTaskStates,
+    CodecObjectivesCompletedObjectives, CodecObjectivesReplicatedState,
+    CodecObjectivesReplicatedStateEntry, CodecObjectivesReplicatedStateGroup,
+    CodecObjectivesTaskState, CodecObjectivesTaskStates, CodecObjectivesTrackedObjective,
+    CodecObjectivesTrackedObjectives,
 };
 
 const FIXTURE: &str = include_str!("../../../../research/fixtures/wire/state-fragment-3857.hex");
@@ -59,7 +61,7 @@ fn containers(
         .iter()
         .filter_map(|entry| match entry {
             CodecObjectivesReplicatedStateEntry::ActiveObjectives(active) => Some(active),
-            CodecObjectivesReplicatedStateEntry::TaskStates(_) => None,
+            _ => None,
         })
         .collect();
     let tasks: Vec<&CodecObjectivesTaskStates> = model.groups[0]
@@ -67,7 +69,7 @@ fn containers(
         .iter()
         .filter_map(|entry| match entry {
             CodecObjectivesReplicatedStateEntry::TaskStates(tasks) => Some(tasks),
-            CodecObjectivesReplicatedStateEntry::ActiveObjectives(_) => None,
+            _ => None,
         })
         .collect();
     assert_eq!(active.len(), 1, "group 1 carries one activeObjectives");
@@ -98,6 +100,9 @@ fn the_group_mask_selects_one_group_and_its_entry_mask_two_members() {
             .map(|entry| match entry {
                 CodecObjectivesReplicatedStateEntry::ActiveObjectives(_) => "activeObjectives",
                 CodecObjectivesReplicatedStateEntry::TaskStates(_) => "taskStates",
+                CodecObjectivesReplicatedStateEntry::TrackedObjectives(_) => "trackedObjectives",
+                CodecObjectivesReplicatedStateEntry::CompletedObjectives(_) =>
+                    "completedObjectives",
             })
             .collect::<Vec<_>>(),
         ["activeObjectives", "taskStates"],
@@ -199,5 +204,173 @@ fn a_group_whose_reader_is_not_recovered_is_refused_by_name() {
             what: "group",
             index: 0,
         })
+    ));
+}
+
+// --- trackedObjectives and completedObjectives: NO LIVE RECORD EXISTS --------
+//
+// `research/atlas/meanings.md`, "The lab cannot drive server-authoritative
+// state", records that the world replays a fixed capture, so no session can
+// produce a body with either member's mask bit set. These tests therefore do
+// NOT compare against capture bytes. They assert the STRUCTURE of our own
+// encoding: the two-level presence mask carries the right bits, a member's
+// element count agrees with the elements it carries, and decode(encode(model))
+// is the model. The element layout itself is read from the client's reader
+// `0x143a69460` and writer `0x142f882a0`, so its evidence is `partial`, never
+// `measured`.
+
+/// A state carrying only trackedObjectives and completedObjectives, no capture.
+fn tracked_and_completed_model() -> CodecObjectivesReplicatedState {
+    CodecObjectivesReplicatedState {
+        group_mask: 0b0000_0010,
+        groups: vec![CodecObjectivesReplicatedStateGroup {
+            entry_mask: 0b0000_0110,
+            entries: vec![
+                CodecObjectivesReplicatedStateEntry::TrackedObjectives(
+                    CodecObjectivesTrackedObjectives {
+                        elements: vec![
+                            CodecObjectivesTrackedObjective {
+                                id: 3,
+                                delta: None,
+                                value: 0x11,
+                            },
+                            CodecObjectivesTrackedObjective {
+                                id: 7,
+                                delta: Some(9),
+                                value: 0x22,
+                            },
+                        ],
+                    },
+                ),
+                CodecObjectivesReplicatedStateEntry::CompletedObjectives(
+                    CodecObjectivesCompletedObjectives {
+                        elements: vec![CodecObjectivesTrackedObjective {
+                            id: 1,
+                            delta: Some(2),
+                            value: 0x33,
+                        }],
+                    },
+                ),
+            ],
+        }],
+    }
+}
+
+fn encode_model(model: &CodecObjectivesReplicatedState) -> Vec<u8> {
+    let mut out = Vec::new();
+    model.encode(&mut out).expect("our own encoding succeeds");
+    out
+}
+
+fn tracked(model: &CodecObjectivesReplicatedState) -> &CodecObjectivesTrackedObjectives {
+    model.groups[0]
+        .entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecObjectivesReplicatedStateEntry::TrackedObjectives(value) => Some(value),
+            _ => None,
+        })
+        .expect("the model carries trackedObjectives")
+}
+
+fn completed(model: &CodecObjectivesReplicatedState) -> &CodecObjectivesCompletedObjectives {
+    model.groups[0]
+        .entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecObjectivesReplicatedStateEntry::CompletedObjectives(value) => Some(value),
+            _ => None,
+        })
+        .expect("the model carries completedObjectives")
+}
+
+#[test]
+fn no_live_record_so_tracked_and_completed_round_trip_our_own_encoding() {
+    let model = tracked_and_completed_model();
+    let raw = encode_model(&model);
+    let decoded = CodecObjectivesReplicatedState::decode(&raw).expect("our own body decodes");
+    assert_eq!(decoded, model);
+}
+
+#[test]
+fn the_presence_mask_carries_the_tracked_and_completed_bits() {
+    let raw = encode_model(&tracked_and_completed_model());
+    assert_eq!(raw[0], 0b0000_0010, "group 1 is present");
+    assert_eq!(raw[1], 0b0000_0110, "in-group members 1 and 2 are present");
+    let decoded = CodecObjectivesReplicatedState::decode(&raw).expect("our own body decodes");
+    assert_eq!(decoded.groups[0].entry_mask, 0b0000_0110);
+}
+
+#[test]
+fn a_tracked_element_count_agrees_with_the_elements_it_carries() {
+    let raw = encode_model(&tracked_and_completed_model());
+    // [group_mask][entry_mask], then trackedObjectives is member 1, first.
+    assert_eq!(raw[2], 2, "the tracked element count");
+    assert_eq!(
+        raw[3], 0b0000_0011,
+        "both tracked elements declare their u64"
+    );
+    let decoded = CodecObjectivesReplicatedState::decode(&raw).expect("our own body decodes");
+    assert_eq!(tracked(&decoded).elements.len(), 2);
+    assert_eq!(
+        u8::try_from(tracked(&decoded).elements.len()).unwrap(),
+        raw[2]
+    );
+    assert_eq!(completed(&decoded).elements.len(), 1);
+}
+
+#[test]
+fn nine_elements_carry_one_mask_byte_per_chunk_of_eight() {
+    let elements = (0..9)
+        .map(|id| CodecObjectivesTrackedObjective {
+            id,
+            delta: None,
+            value: id,
+        })
+        .collect();
+    let model = CodecObjectivesReplicatedState {
+        group_mask: 0b0000_0010,
+        groups: vec![CodecObjectivesReplicatedStateGroup {
+            entry_mask: 0b0000_0010,
+            entries: vec![CodecObjectivesReplicatedStateEntry::TrackedObjectives(
+                CodecObjectivesTrackedObjectives { elements },
+            )],
+        }],
+    };
+    let raw = encode_model(&model);
+    // Each element is id (1 byte) + delta flag (1) + u64 (8) = 10 bytes.
+    // [group][entry][count 9][mask 0xff][8 x 10][mask 0x01][1 x 10]
+    assert_eq!(raw.len(), 3 + 1 + 80 + 1 + 10);
+    assert_eq!(raw[2], 9, "the element count");
+    assert_eq!(raw[3], 0xFF, "all eight elements of the first chunk");
+    assert_eq!(raw[84], 0x01, "the one element of the second chunk");
+    let decoded = CodecObjectivesReplicatedState::decode(&raw).expect("our own body decodes");
+    assert_eq!(tracked(&decoded).elements.len(), 9);
+}
+
+#[test]
+fn a_clear_element_mask_bit_is_refused_not_guessed() {
+    let mut raw = encode_model(&tracked_and_completed_model());
+    assert_eq!(raw[3], 0b0000_0011);
+    raw[3] = 0b0000_0001;
+    assert!(matches!(
+        CodecObjectivesReplicatedState::decode(&raw),
+        Err(WireError::UnknownPresence {
+            what: "elements",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn a_delta_presence_byte_above_one_is_refused_as_the_client_refuses_it() {
+    let mut raw = encode_model(&tracked_and_completed_model());
+    // Element 0 has no delta: raw[4] is its id, raw[5] is its presence flag.
+    assert_eq!(raw[4], 3);
+    assert_eq!(raw[5], 0);
+    raw[5] = 2;
+    assert!(matches!(
+        CodecObjectivesReplicatedState::decode(&raw),
+        Err(WireError::NotBoolean { value: 2, .. })
     ));
 }
