@@ -1,0 +1,65 @@
+{
+  "uid": "codec.seasons-rewards-u16-list",
+  "kind": "codec",
+  "name": "SeasonsRewardsU16List",
+  "aliases": [
+    "groupCountList / groupStatIndex member body",
+    "0x142f9d1d0 zero branch"
+  ],
+  "summary": "One u16 member body of the SeasonsRewardsTrackedStat replicated state: a prefix-varint delta count (pinned to 0), the strict zero-or-one delta, then a prefix-varint element count and that many big-endian u16. The client's own container reader 0x142f9b430 is the sibling non-zero branch; every recorded body takes the zero-count branch.",
+  "purpose": "Name the u16 member layout that the two-level presence mask selects (group 0 members 2 and 3 of codec.seasons-rewards-tracked-stat-replicated-state), so the mask card references a record instead of copying the container's layout.",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "deltaCount",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "prefix_varint",
+      "evidence": "measured",
+      "max": 0,
+      "note": "The prefix-varint delta count 0x142f9b430 reads before it branches. It is 0 in both measured bodies, which select the +0x78 branch 0x142f9d1d0; the non-zero masked-map branch has no instance, so the card bounds this field to 0 and refuses anything else."
+    },
+    {
+      "name": "delta",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "optional(prefix_varint)",
+      "evidence": "measured",
+      "note": "The zero-count branch 0x142f9d1d0: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Both measured bodies carry 01 08 (8)."
+    },
+    {
+      "name": "elements",
+      "meaning": "layout-only",
+      "where": "wire",
+      "type": "counted(u16be)",
+      "evidence": "measured",
+      "note": "A second prefix-varint element count and that many big-endian u16, read by FUN_14087a360. groupCountList carries 2 elements (30, 21), groupStatIndex 51. Meaning not established."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "codec.seasons-rewards-tracked-stat-replicated-state"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5606.hex: two instances, byte-exact round trip."
+    },
+    {
+      "type": "decompile",
+      "ref": "Member reader 0x142f9b430 and its zero branch 0x142f9d1d0 (build 30fe6461)."
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

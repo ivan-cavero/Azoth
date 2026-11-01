@@ -820,6 +820,45 @@ CODECS = {
             ('value', 'bool_byte'),
         ),
     },
+    'codec.seasons-rewards-tracked-stat-replicated-state': {
+        'name': 'SeasonsRewardsTrackedStatReplicatedState',
+        'fields': (
+            ('initialized', 'bool_byte'),
+            ('groupList', 'nested(codec.seasons-rewards-u32-list)'),
+            ('groupCountList', 'nested(codec.seasons-rewards-u16-list)'),
+            ('groupStatIndex', 'nested(codec.seasons-rewards-u16-list)'),
+            ('groupStatValue', 'nested(codec.seasons-rewards-u32-list)'),
+        ),
+        'presence': {
+            'group': ('group_mask', 8, None),
+            'member': ('entry_mask', 7, 128),
+            'groups': (
+                (0, 1, (
+                    (0, 1, 'initialized', 'bool_byte'),
+                    (1, 2, 'groupList', 'nested(codec.seasons-rewards-u32-list)'),
+                    (2, 4, 'groupCountList', 'nested(codec.seasons-rewards-u16-list)'),
+                    (3, 8, 'groupStatIndex', 'nested(codec.seasons-rewards-u16-list)'),
+                    (4, 16, 'groupStatValue', 'nested(codec.seasons-rewards-u32-list)'),
+                )),
+            ),
+        },
+    },
+    'codec.seasons-rewards-u16-list': {
+        'name': 'SeasonsRewardsU16List',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(u16be)'),
+        ),
+    },
+    'codec.seasons-rewards-u32-list': {
+        'name': 'SeasonsRewardsU32List',
+        'fields': (
+            ('deltaCount', 'prefix_varint'),
+            ('delta', 'optional(prefix_varint)'),
+            ('elements', 'counted(u32be)'),
+        ),
+    },
     'codec.social-replicated-state': {
         'name': 'SocialReplicatedState',
         'fields': (

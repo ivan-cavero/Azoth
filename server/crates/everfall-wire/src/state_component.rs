@@ -23,16 +23,18 @@
 //! | 9 | 3935 | `codec.player-component-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //! | 55 | 4176 | `codec.social-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //! | 44 | 4236 | `codec.status-effects-component-replicated-state` | `0x141728b30` / `0x1417b5080` |
+//! | 73 | 5606 | `codec.seasons-rewards-tracked-stat-replicated-state` | `0x141728b30` / `0x1417b5080` |
 //!
-//! The six classes share the generic mask pair because the pair belongs to the
+//! The seven classes share the generic mask pair because the pair belongs to the
 //! replicated-state container base, not to a specific component. What differs per
 //! component is the registered member list its constructor builds.
 
 use crate::framing::{Reader, WireError, Writer};
 use crate::generated::{
     CodecEntitlementReplicatedState, CodecObjectivesReplicatedState,
-    CodecPlayerComponentReplicatedState, CodecSocialReplicatedState,
-    CodecStatusEffectsComponentReplicatedState, CodecTransmogReplicatedState,
+    CodecPlayerComponentReplicatedState, CodecSeasonsRewardsTrackedStatReplicatedState,
+    CodecSocialReplicatedState, CodecStatusEffectsComponentReplicatedState,
+    CodecTransmogReplicatedState,
 };
 use crate::state_bundle::StateComponent;
 
@@ -198,13 +200,41 @@ impl CodecStatusEffectsComponentReplicatedState {
     pub const STATUS_EFFECTS_TYPE_INDEX: u64 = 4236;
 }
 
-/// The six type indices the local-player record carries a layout for, ascending.
-const LOCAL_PLAYER_TYPE_INDICES: [u64; 6] = [
+impl StateComponent for CodecSeasonsRewardsTrackedStatReplicatedState {
+    const UID: &'static str = "codec.seasons-rewards-tracked-stat-replicated-state";
+
+    /// `wire-type:5606`, the alias the card itself states.
+    fn type_indices() -> &'static [u64] {
+        &[Self::SEASONS_REWARDS_TRACKED_STAT_TYPE_INDEX]
+    }
+
+    fn type_index(&self) -> u64 {
+        Self::SEASONS_REWARDS_TRACKED_STAT_TYPE_INDEX
+    }
+
+    fn read_body(type_index: u64, reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        check(type_index, Self::SEASONS_REWARDS_TRACKED_STAT_TYPE_INDEX)?;
+        Self::read_from(reader)
+    }
+
+    fn write_body(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        self.write_to(writer)
+    }
+}
+
+impl CodecSeasonsRewardsTrackedStatReplicatedState {
+    /// `wire-type:5606`: the tracked-stat replicated state, fragment key 73.
+    pub const SEASONS_REWARDS_TRACKED_STAT_TYPE_INDEX: u64 = 5606;
+}
+
+/// The seven type indices the local-player record carries a layout for, ascending.
+const LOCAL_PLAYER_TYPE_INDICES: [u64; 7] = [
     CodecEntitlementReplicatedState::ENTITLEMENT_TYPE_INDEX,
     CodecObjectivesReplicatedState::OBJECTIVES_TYPE_INDEX,
     CodecPlayerComponentReplicatedState::PLAYER_TYPE_INDEX,
     CodecSocialReplicatedState::SOCIAL_TYPE_INDEX,
     CodecStatusEffectsComponentReplicatedState::STATUS_EFFECTS_TYPE_INDEX,
+    CodecSeasonsRewardsTrackedStatReplicatedState::SEASONS_REWARDS_TRACKED_STAT_TYPE_INDEX,
     CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX,
 ];
 
@@ -226,6 +256,8 @@ pub enum LocalPlayerState {
     Social(CodecSocialReplicatedState),
     /// Fragment key 44, type index 4236.
     StatusEffects(CodecStatusEffectsComponentReplicatedState),
+    /// Fragment key 73, type index 5606.
+    SeasonsRewardsTrackedStat(CodecSeasonsRewardsTrackedStatReplicatedState),
     /// Fragment key 74, type index 5691.
     Transmog(CodecTransmogReplicatedState),
 }
@@ -239,6 +271,7 @@ impl LocalPlayerState {
             | Self::Player(_)
             | Self::Social(_)
             | Self::StatusEffects(_)
+            | Self::SeasonsRewardsTrackedStat(_)
             | Self::Transmog(_) => None,
         }
     }
@@ -251,6 +284,7 @@ impl LocalPlayerState {
             | Self::Player(_)
             | Self::Social(_)
             | Self::StatusEffects(_)
+            | Self::SeasonsRewardsTrackedStat(_)
             | Self::Transmog(_) => None,
         }
     }
@@ -263,6 +297,7 @@ impl LocalPlayerState {
             | Self::Player(_)
             | Self::Social(_)
             | Self::StatusEffects(_)
+            | Self::SeasonsRewardsTrackedStat(_)
             | Self::Transmog(_) => None,
         }
     }
@@ -275,6 +310,7 @@ impl LocalPlayerState {
             | Self::Objectives(_)
             | Self::Social(_)
             | Self::StatusEffects(_)
+            | Self::SeasonsRewardsTrackedStat(_)
             | Self::Transmog(_) => None,
         }
     }
@@ -287,6 +323,7 @@ impl LocalPlayerState {
             | Self::Objectives(_)
             | Self::Player(_)
             | Self::StatusEffects(_)
+            | Self::SeasonsRewardsTrackedStat(_)
             | Self::Transmog(_) => None,
         }
     }
@@ -299,6 +336,7 @@ impl LocalPlayerState {
             | Self::Objectives(_)
             | Self::Player(_)
             | Self::Social(_)
+            | Self::SeasonsRewardsTrackedStat(_)
             | Self::Transmog(_) => None,
         }
     }
@@ -311,7 +349,8 @@ impl LocalPlayerState {
             | Self::Objectives(_)
             | Self::Player(_)
             | Self::Social(_)
-            | Self::StatusEffects(_) => None,
+            | Self::StatusEffects(_)
+            | Self::SeasonsRewardsTrackedStat(_) => None,
         }
     }
 }
@@ -333,6 +372,9 @@ impl StateComponent for LocalPlayerState {
             Self::Social(_) => CodecSocialReplicatedState::SOCIAL_TYPE_INDEX,
             Self::StatusEffects(_) => {
                 CodecStatusEffectsComponentReplicatedState::STATUS_EFFECTS_TYPE_INDEX
+            }
+            Self::SeasonsRewardsTrackedStat(_) => {
+                CodecSeasonsRewardsTrackedStatReplicatedState::SEASONS_REWARDS_TRACKED_STAT_TYPE_INDEX
             }
             Self::Transmog(_) => CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX,
         }
@@ -357,6 +399,11 @@ impl StateComponent for LocalPlayerState {
                     CodecStatusEffectsComponentReplicatedState::read_from(reader)?,
                 ))
             }
+            CodecSeasonsRewardsTrackedStatReplicatedState::SEASONS_REWARDS_TRACKED_STAT_TYPE_INDEX => {
+                Ok(Self::SeasonsRewardsTrackedStat(
+                    CodecSeasonsRewardsTrackedStatReplicatedState::read_from(reader)?,
+                ))
+            }
             CodecTransmogReplicatedState::TRANSMOG_TYPE_INDEX => Ok(Self::Transmog(
                 CodecTransmogReplicatedState::read_from(reader)?,
             )),
@@ -371,6 +418,7 @@ impl StateComponent for LocalPlayerState {
             Self::Player(value) => value.write_to(writer),
             Self::Social(value) => value.write_to(writer),
             Self::StatusEffects(value) => value.write_to(writer),
+            Self::SeasonsRewardsTrackedStat(value) => value.write_to(writer),
             Self::Transmog(value) => value.write_to(writer),
         }
     }

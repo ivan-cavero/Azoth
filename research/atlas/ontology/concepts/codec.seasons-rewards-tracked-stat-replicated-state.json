@@ -1,0 +1,128 @@
+{
+  "uid": "codec.seasons-rewards-tracked-stat-replicated-state",
+  "kind": "codec",
+  "name": "SeasonsRewardsTrackedStatReplicatedState",
+  "aliases": [
+    "wire-type:5606",
+    "state-fragment:key73"
+  ],
+  "summary": "The payload carried by state fragment type index 5606 (key 73) in the local-player record: a two-level presence mask over the five registered tracked-stat members, then the members it selects. PROVEN LAYOUT, NOT PROVEN MEANINGS. The identity is resolved: the record function 0x143ddb0f0 installs the facet whose vtable is 0x1482be6e0, its +8 slot (0x143dc86f0) constructs the class at vtable 0x1482beb90 (ctor 0x143dd25c0), and that class's +0x88/+0x90 are the shared replicated-state mask pair 0x141728b30/0x1417b5080. The class name comes from the client's own reflection string, `.?AV<lambda_1>@?1???$InstallRegistrationHook@VSeasonsRewardsTrackedStatReplicatedState@Javelin@@@Hub@Amazon@@YA_NXZ@`. The real 337-byte body parses field by field under those readers and re-encodes byte-exactly.",
+  "purpose": "Carry the local player's SeasonsRewards tracked-stat groups to the client. Every measured member is an empty-delta counted list chosen by the zero branch.",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "envelope": "Fragment framing only, owned by the bundle/record layer, never a field: the fragment is [varint key][varint type_index][payload] with NO length field, so the payload length is implied by this type. Measured instance: key `49` (73), type varint `ee 55` = 5606 under the 6-bit-continuation prefix-varint scheme, then 337 payload bytes.",
+  "presence": {
+    "group": {
+      "name": "group_mask",
+      "bits": 8
+    },
+    "member": {
+      "name": "entry_mask",
+      "bits": 7,
+      "continuation": 128
+    }
+  },
+  "fields": [
+    {
+      "name": "initialized",
+      "meaning": "known",
+      "where": "wire",
+      "type": "bool_byte",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 0
+      },
+      "note": "The client's own reflection string for this member is `initialized`; member object at ctor offset 0x7c0, vtable 0x148040208, reader vtable +0x30 = 0x1417b4c20, one strict zero-or-one byte. Measured 1."
+    },
+    {
+      "name": "groupList",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.seasons-rewards-u32-list)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 1
+      },
+      "note": "The client's own reflection string for this member is `groupList`; member object at ctor offset 0xfc, vtable 0x14821b3b8, reader 0x14377a160. The measured body is the zero branch: delta count 0, delta 8, two u32."
+    },
+    {
+      "name": "groupCountList",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.seasons-rewards-u16-list)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 2
+      },
+      "note": "The client's own reflection string for this member is `groupCountList`; member object at ctor offset 0x143, vtable 0x1481693f0 (ctor 0x143da4020), reader 0x142f9b430. The measured body is the zero branch: delta count 0, delta 8, two u16."
+    },
+    {
+      "name": "groupStatIndex",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.seasons-rewards-u16-list)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 3
+      },
+      "note": "The client's own reflection string for this member is `groupStatIndex`; member object at ctor offset 0x18a, same vtable and reader as groupCountList. The measured body is the zero branch: delta count 0, delta 8, 51 u16."
+    },
+    {
+      "name": "groupStatValue",
+      "meaning": "known",
+      "where": "wire",
+      "type": "nested(codec.seasons-rewards-u32-list)",
+      "evidence": "measured",
+      "presence": {
+        "group": 0,
+        "member": 4
+      },
+      "note": "The client's own reflection string for this member is `groupStatValue`; member object at ctor offset 0x1d1, vtable 0x148145be8, reader 0x142d98f60. The measured body is the zero branch: delta count 0, delta 8, 51 u32 (all zero)."
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.seasons-rewards-u16-list"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.seasons-rewards-u32-list"
+    }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "research/fixtures/wire/state-fragment-5606.hex holds the 337 payload bytes of fragment index 2 of record 1 of the committed bundle 0x9e_T0x8_R.bin, behind the header 49 ee 55 (key 73, type 5606). The body parses field by field and re-encodes byte-exactly: group mask 01, entry mask 1f, initialized (1) + groupList (7 bytes) + groupCountList (7) + groupStatIndex (105) + groupStatValue (215) = 337, zero bytes left."
+    },
+    {
+      "type": "decompile",
+      "ref": "IDENTITY (build 30fe6461): record function 0x143ddb0f0 installs facet vtable 0x1482be6e0 (+8 = 0x143dc86f0), which calls ctor 0x143dd25c0. The ctor sets vtable 0x1482beb90 and registers five members through FUN_141776b80 into group 0. Vtable 0x1482beb90 has +0x88 = 0x141728b30 (writer) and +0x90 = 0x1417b5080 (reader), the shared two-level mask pair."
+    },
+    {
+      "type": "decompile",
+      "ref": "READERS: 0x1417b5080 reads the group mask and calls 0x1417b5330, which reads one 7-bit member mask and calls each present member's vtable +0x30. Member readers: 0x1417b4c20 (bool), 0x14377a160 / 0x142d98f60 (u32 masked map), 0x142f9b430 (u16 masked map). Every measured member takes its zero branch (0x14293da60, 0x142d99270, 0x142f9d1d0)."
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The six replayed fragments are resolved'; research/atlas/client-functions.json"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": "everfall-wire",
+    "module": null
+  }
+}

@@ -2784,6 +2784,368 @@ impl CodecPlayerLookingThroughLoadout {
     }
 }
 
+/// `codec.seasons-rewards-tracked-stat-replicated-state` — one Atlas card.
+///
+/// Presence-masked sub-codec card (no wire id).
+/// Its body is a two-level presence mask: one group mask byte, then for
+/// each present group one member mask byte, then the present members'
+/// bodies in ascending member order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsTrackedStatReplicatedState {
+    /// The `group_mask` byte: bit i set means group i is
+    /// on the wire.
+    pub group_mask: u8,
+    /// The present groups, ascending by group index.
+    pub groups: Vec<CodecSeasonsRewardsTrackedStatReplicatedStateGroup>,
+}
+
+/// One present group of [`CodecSeasonsRewardsTrackedStatReplicatedState`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsTrackedStatReplicatedStateGroup {
+    /// The `entry_mask` byte: bit i set means member i is
+    /// on the wire.
+    pub entry_mask: u8,
+    /// The present members, ascending by member index.
+    pub entries: Vec<CodecSeasonsRewardsTrackedStatReplicatedStateEntry>,
+}
+
+/// One present member of a [`CodecSeasonsRewardsTrackedStatReplicatedStateGroup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodecSeasonsRewardsTrackedStatReplicatedStateEntry {
+    /// Group 0 member 0, `initialized`.
+    Initialized(bool),
+    /// Group 0 member 1, `groupList`.
+    GroupList(CodecSeasonsRewardsU32List),
+    /// Group 0 member 2, `groupCountList`.
+    GroupCountList(CodecSeasonsRewardsU16List),
+    /// Group 0 member 3, `groupStatIndex`.
+    GroupStatIndex(CodecSeasonsRewardsU16List),
+    /// Group 0 member 4, `groupStatValue`.
+    GroupStatValue(CodecSeasonsRewardsU32List),
+}
+
+impl CodecSeasonsRewardsTrackedStatReplicatedState {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.seasons-rewards-tracked-stat-replicated-state";
+
+    /// Decode one `codec.seasons-rewards-tracked-stat-replicated-state` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, outside a bound
+    /// the card states, or its mask selects a group or member the card does
+    /// not declare.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, or a mask selects a group
+    /// or member the card does not declare.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        let group_mask = reader.u8("group_mask")?;
+        let unknown = group_mask & !0b0000_0001;
+        if unknown != 0 {
+            return Err(WireError::UnknownPresence {
+                what: "group",
+                index: u64::from(unknown.trailing_zeros()),
+            });
+        }
+        let mut groups = Vec::new();
+        if group_mask & 0b0000_0001 != 0 {
+            let entry_mask = reader.u8("entry_mask")?;
+            let unknown = entry_mask & !0b0001_1111;
+            if unknown != 0 {
+                return Err(WireError::UnknownPresence {
+                    what: "member",
+                    index: u64::from(unknown.trailing_zeros()),
+                });
+            }
+            let mut entries = Vec::new();
+            if entry_mask & 0b0000_0001 != 0 {
+                let value = reader.bool_byte("initialized")?;
+                entries
+                    .push(CodecSeasonsRewardsTrackedStatReplicatedStateEntry::Initialized(value));
+            }
+            if entry_mask & 0b0000_0010 != 0 {
+                let value = CodecSeasonsRewardsU32List::read_from(reader)?;
+                entries.push(CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupList(value));
+            }
+            if entry_mask & 0b0000_0100 != 0 {
+                let value = CodecSeasonsRewardsU16List::read_from(reader)?;
+                entries.push(
+                    CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupCountList(value),
+                );
+            }
+            if entry_mask & 0b0000_1000 != 0 {
+                let value = CodecSeasonsRewardsU16List::read_from(reader)?;
+                entries.push(
+                    CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupStatIndex(value),
+                );
+            }
+            if entry_mask & 0b0001_0000 != 0 {
+                let value = CodecSeasonsRewardsU32List::read_from(reader)?;
+                entries.push(
+                    CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupStatValue(value),
+                );
+            }
+            groups.push(CodecSeasonsRewardsTrackedStatReplicatedStateGroup {
+                entry_mask,
+                entries,
+            });
+        }
+        Ok(Self { group_mask, groups })
+    }
+
+    /// Encode one `codec.seasons-rewards-tracked-stat-replicated-state` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u8(self.group_mask);
+        for group in &self.groups {
+            writer.u8(group.entry_mask);
+            for entry in &group.entries {
+                match entry {
+                    CodecSeasonsRewardsTrackedStatReplicatedStateEntry::Initialized(value) => {
+                        writer.u8(u8::from(*value));
+                    }
+                    CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupList(value)
+                    | CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupStatValue(value) => {
+                        value.write_to(writer)?;
+                    }
+                    CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupCountList(value)
+                    | CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupStatIndex(value) => {
+                        value.write_to(writer)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// `codec.seasons-rewards-u16-list` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsU16List {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(u16be)`); meaning unnamed.
+    pub elements: Vec<u16>,
+}
+
+impl CodecSeasonsRewardsU16List {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.seasons-rewards-u16-list";
+
+    /// Decode one `codec.seasons-rewards-u16-list` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u16be("elements")?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.seasons-rewards-u16-list` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            writer.u16be(*value);
+        }
+        Ok(())
+    }
+}
+
+/// `codec.seasons-rewards-u32-list` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecSeasonsRewardsU32List {
+    /// Body field `deltaCount` (`prefix_varint`); meaning unnamed.
+    pub delta_count: u64,
+    /// Body field `delta` (`optional(prefix_varint)`); meaning unnamed.
+    pub delta: Option<u64>,
+    /// Body field `elements` (`counted(u32be)`); meaning unnamed.
+    pub elements: Vec<u32>,
+}
+
+impl CodecSeasonsRewardsU32List {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.seasons-rewards-u32-list";
+
+    /// Decode one `codec.seasons-rewards-u32-list` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            delta_count: {
+                let value = reader.prefix_varint("deltaCount")?;
+                if value > 0 {
+                    return Err(WireError::OutOfRange {
+                        field: "deltaCount",
+                        max: 0,
+                        value,
+                    });
+                }
+                value
+            },
+            delta: {
+                let flag = reader.u8("delta")?;
+                if flag > 1 {
+                    return Err(WireError::NotBoolean {
+                        field: "delta",
+                        value: flag,
+                    });
+                }
+                if flag == 1 {
+                    Some(reader.prefix_varint("delta")?)
+                } else {
+                    None
+                }
+            },
+            elements: {
+                let count = reader.prefix_varint("elements")?;
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(reader.u32be("elements")?);
+                }
+                value
+            },
+        })
+    }
+
+    /// Encode one `codec.seasons-rewards-u32-list` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.prefix_varint(self.delta_count)?;
+        match &self.delta {
+            Some(value) => {
+                writer.u8(1);
+                writer.prefix_varint(*value)?;
+            }
+            None => {
+                writer.u8(0);
+            }
+        }
+        writer.prefix_varint(self.elements.len() as u64)?;
+        for value in &self.elements {
+            writer.u32be(*value);
+        }
+        Ok(())
+    }
+}
+
 /// `codec.social-replicated-state` — one Atlas card.
 ///
 /// Presence-masked sub-codec card (no wire id).

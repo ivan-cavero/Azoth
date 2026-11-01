@@ -232,6 +232,47 @@
 | --- | --- | --- | --- | --- | --- |
 | value | bool_byte | — | measured | layout-only | One raw byte read by 0x1417b4c20 through FUN_1408787b0; the reader stores it only when it is below 2. The measured 0x9e body carries 00. The reflection string at 0x14855a500 says lookingThroughLoadout; what the flag enables is not proven, so the field stays layout-only. |
 
+## codec.seasons-rewards-tracked-stat-replicated-state — SeasonsRewardsTrackedStatReplicatedState
+
+- kind: codec; status: verified; confidence: layout
+- presence: two-level mask — group `group_mask` (8 bits), member `entry_mask` (7 bits, continuation 128)
+  - group 0 member 0: `initialized` (`bool_byte`)
+  - group 0 member 1: `groupList` (`nested(codec.seasons-rewards-u32-list)`)
+  - group 0 member 2: `groupCountList` (`nested(codec.seasons-rewards-u16-list)`)
+  - group 0 member 3: `groupStatIndex` (`nested(codec.seasons-rewards-u16-list)`)
+  - group 0 member 4: `groupStatValue` (`nested(codec.seasons-rewards-u32-list)`)
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| initialized | bool_byte | — | measured | known | The client's own reflection string for this member is `initialized`; member object at ctor offset 0x7c0, vtable 0x148040208, reader vtable +0x30 = 0x1417b4c20, one strict zero-or-one byte. Measured 1. |
+| groupList | nested(codec.seasons-rewards-u32-list) | — | measured | known | The client's own reflection string for this member is `groupList`; member object at ctor offset 0xfc, vtable 0x14821b3b8, reader 0x14377a160. The measured body is the zero branch: delta count 0, delta 8, two u32. |
+| groupCountList | nested(codec.seasons-rewards-u16-list) | — | measured | known | The client's own reflection string for this member is `groupCountList`; member object at ctor offset 0x143, vtable 0x1481693f0 (ctor 0x143da4020), reader 0x142f9b430. The measured body is the zero branch: delta count 0, delta 8, two u16. |
+| groupStatIndex | nested(codec.seasons-rewards-u16-list) | — | measured | known | The client's own reflection string for this member is `groupStatIndex`; member object at ctor offset 0x18a, same vtable and reader as groupCountList. The measured body is the zero branch: delta count 0, delta 8, 51 u16. |
+| groupStatValue | nested(codec.seasons-rewards-u32-list) | — | measured | known | The client's own reflection string for this member is `groupStatValue`; member object at ctor offset 0x1d1, vtable 0x148145be8, reader 0x142d98f60. The measured body is the zero branch: delta count 0, delta 8, 51 u32 (all zero). |
+
+## codec.seasons-rewards-u16-list — SeasonsRewardsU16List
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint delta count 0x142f9b430 reads before it branches. It is 0 in both measured bodies, which select the +0x78 branch 0x142f9d1d0; the non-zero masked-map branch has no instance, so the card bounds this field to 0 and refuses anything else. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The zero-count branch 0x142f9d1d0: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Both measured bodies carry 01 08 (8). |
+| elements | counted(u16be) | — | measured | layout-only | A second prefix-varint element count and that many big-endian u16, read by FUN_14087a360. groupCountList carries 2 elements (30, 21), groupStatIndex 51. Meaning not established. |
+
+## codec.seasons-rewards-u32-list — SeasonsRewardsU32List
+
+- kind: codec; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| deltaCount | prefix_varint | — | measured | layout-only | The prefix-varint delta count 0x14377a160 reads before it branches. It is 0 in both measured bodies, which select the zero branch (0x14293da60 for groupList, 0x142d99270 for groupStatValue); the non-zero masked-map branch has no instance, so the card bounds this field to 0 and refuses anything else. |
+| delta | optional(prefix_varint) | — | measured | layout-only | The zero branch: a strict zero-or-one presence byte through FUN_1461adf60, then one prefix varint when it is 1. Both measured bodies carry 01 08 (8). |
+| elements | counted(u32be) | — | measured | layout-only | A second prefix-varint element count and that many big-endian u32, read by FUN_14087a3c0. groupList carries 2 elements (572611289, 2365596905), groupStatValue 51 (all zero). Meaning not established. |
+
 ## codec.social-replicated-state — SocialReplicatedState
 
 - kind: codec; status: verified; confidence: layout

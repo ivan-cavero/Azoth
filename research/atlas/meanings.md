@@ -3336,3 +3336,58 @@ yet be trusted as the client's encoding: promotion to `measured` needs a body fr
 session where the player had tracked objectives, which the filed negative above says is
 unreachable in this rig because the world replays a fixed capture. The layouts are read,
 not observed.
+
+## The largest replayed fragment is authored; the second is corrected (2026-11-04)
+
+The two largest remaining fragments were carded from the resolved readers, generated and
+bound. The byte-exact parse again corrected the model.
+
+**key 73 / type 5606, `SeasonsRewardsTrackedStatReplicatedState`, 337 B, authored.**
+The class name comes from the client's own reflection string
+`.?AV<lambda_1>@?1???$InstallRegistrationHook@VSeasonsRewardsTrackedStatReplicatedState@Javelin@@@Hub@Amazon@@YA_NXZ@`.
+Class vtable `0x1482beb90`, reader `0x1417b5080`; group mask `01`, entry mask `1f` =
+group 0 members 0-4, in this order:
+
+| member | name (reflection string) | codec and reader |
+| --- | --- | --- |
+| 0 | `initialized` (ctor `+0x7c0`) | one strict 0/1 byte, reader `0x1417b4c20`; measured `01` |
+| 1 | `groupList` (`+0xfc`) | u32 delta list, reader `0x14377a160`, zero branch `0x14293da60`; delta `01 08`, 2 values (572611289, 2365596905) |
+| 2 | `groupCountList` (`+0x143`) | u16 delta list, vtable `0x1481693f0`, reader `0x142f9b430`, zero branch `0x142f9d1d0`; delta `01 08`, 2 values (30, 21) |
+| 3 | `groupStatIndex` (`+0x18a`) | same reader; delta `01 08`, 51 values |
+| 4 | `groupStatValue` (`+0x1d1`) | u32 delta list, vtable `0x148145be8`, reader `0x142d98f60`, zero branch `0x142d99270`; delta `01 08`, 51 values |
+
+The body is `1 + 1 + (1+2+1+8) + (1+2+1+4) + (1+2+1+102) + (1+2+1+204) = 337`, zero
+bytes left, and re-encodes byte-exactly. Both delta-list cards pin the leading delta
+count to 0 (the zero branch is the only instance). Cards: `codec.seasons-rewards-u16-list`,
+`codec.seasons-rewards-u32-list`, `codec.seasons-rewards-tracked-stat-replicated-state`;
+fixture `research/fixtures/wire/state-fragment-5606.hex`.
+
+**key 72 / type 5485, `SeasonsRewardsReplicatedState`, 194 B, still replayed.** The class
+name is `SeasonsRewardsReplicatedState` (record fn `0x143db73c0`, facet `0x1482baa90` +8
+`0x143d92660`, class vtable `0x1482bc3c8`, ctor `0x143daa030`). Its constructor registers
+**twenty** group-0 members: a twelve-member `FUN_143d8b1b0` activities block
+(`cardTemplate`, `claimedTasks`, `stampedSquares`, `wildStampedSquares`, `rewardClaimed`,
+`rerollCount`, `activitiesTasks`, `cardCount`, `wildStampCount`, `wildStampAwardBound`,
+`wildStampAwardsThisSession`, `wildStampAwardRemaining`) followed by `IsInitialized`,
+`SeasonIds`, `SeasonBitmaskCount`, `SeasonXpBySeason`, `RedeemBitmask`, `EscrowBitmask`,
+`ForeignEscrowBitmask`, `firstCharacterConnectTime`.
+
+**The recorded body does not close under the recorded reader attribution.** Its payload
+is `01 fd 06 ...`: the group mask `01`, then a member mask byte `fd` whose bit 7 is SET.
+The client's reader `0x1417b5330` treats bit 7 as a continuation and reads a second mask
+byte `06`, so it selects members `{0,2,3,4,5,6,8,9}`; the closed vocabulary's `presence`
+block refuses a continuation bit, so a card can only declare `member.bits = 8`, which
+reads the single mask byte `fd` and selects `{0,2,3,4,5,6,7}` with `06` as the first body
+byte. Under the decompiled readers (`cardTemplate` u8, `stampedSquares`/`wildStampedSquares`
+u16 maps, `rewardClaimed` bool, `rerollCount` u8, `activitiesTasks` counted u32, `cardCount`
+u16) that model consumes 104 bytes, not 194. A byte-exact closure needs `activitiesTasks`
+to be a counted **u64** (count 21 at `+17`) and `cardCount` a **u64** at `+186` — the first
+byte that breaks the decompiled attribution is `+19` (`0xd3` where a u8 map count is
+expected). Correcting the model rather than the bytes means either the member list or the
+reader attribution is still wrong; the fragment stays REPLAYED rather than guessing.
+
+**The KPI.** Fragment payload bytes: before this unit `6546 / 7126` (91.9 %). After it,
+`3892 (3133) + 834 (5691) + 1736 (3857) + 3 (3935) + 55 (4176) + 26 (4236) + 337 (5606)`
+= `6883`, replayed `194 (5485) + 49 (11)` = `243`, total `7126`, fraction
+`6883 / 7126 = 0.9659 -> 96.6 %`. Two fragments remain replayed: key 72 / type 5485 and
+key 16 / type 11 (the ALC 54-field mask, its own unit).

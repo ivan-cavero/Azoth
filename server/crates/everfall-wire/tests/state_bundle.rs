@@ -18,7 +18,8 @@ use std::path::{Path, PathBuf};
 use everfall_wire::generated::{
     CodecEntitlementReplicatedStateEntry, CodecObjectivesActiveObjectives,
     CodecObjectivesReplicatedState, CodecObjectivesReplicatedStateEntry, CodecObjectivesTaskStates,
-    CodecPlayerComponentReplicatedStateEntry, CodecSocialReplicatedState,
+    CodecPlayerComponentReplicatedStateEntry, CodecSeasonsRewardsTrackedStatReplicatedState,
+    CodecSeasonsRewardsTrackedStatReplicatedStateEntry, CodecSocialReplicatedState,
     CodecSocialReplicatedStateEntry, CodecStatusEffectsComponentReplicatedState,
     CodecStatusEffectsComponentReplicatedStateEntry, CodecTransmogReplicatedStateEntry,
 };
@@ -182,7 +183,7 @@ fn the_measured_bundle_decodes_into_typed_fragments() {
 }
 
 #[test]
-fn six_fragments_are_typed_components_and_three_are_replayed_runs() {
+fn seven_fragments_are_typed_components_and_two_are_replayed_runs() {
     let (_, bundle) = decode();
     let record = &bundle.records()[0];
 
@@ -194,12 +195,12 @@ fn six_fragments_are_typed_components_and_three_are_replayed_runs() {
         .collect();
     assert_eq!(
         typed,
-        [55, 19, 9, 74, 22, 44],
-        "keys 55 (type 4176), 19 (3133), 9 (3935), 74 (5691), 22 (3857) and 44 (4236) carry recovered layouts"
+        [55, 19, 73, 9, 74, 22, 44],
+        "keys 55, 19, 73, 9, 74, 22 and 44 carry recovered layouts"
     );
 
     // The rest stay measured runs: the Atlas has no payload card for types
-    // 5606, 5485 and 11.
+    // 5485 and 11.
     let widths: Vec<usize> = record
         .fragments()
         .iter()
@@ -208,10 +209,10 @@ fn six_fragments_are_typed_components_and_three_are_replayed_runs() {
             FragmentPayload::Component(_) => None,
         })
         .collect();
-    assert_eq!(widths, [337, 194, 49]);
+    assert_eq!(widths, [194, 49]);
 
     let components: Vec<&LocalPlayerState> = bundle.components().collect();
-    assert_eq!(components.len(), 6, "one component per typed fragment");
+    assert_eq!(components.len(), 7, "one component per typed fragment");
 
     let player = components
         .iter()
@@ -295,6 +296,78 @@ fn six_fragments_are_typed_components_and_three_are_replayed_runs() {
     assert_status_effects(status);
 }
 
+#[test]
+fn the_tracked_stat_fragment_is_a_typed_component() {
+    let (_, bundle) = decode();
+    let tracked = bundle
+        .components()
+        .find_map(|state| match state {
+            LocalPlayerState::SeasonsRewardsTrackedStat(value) => Some(value),
+            _ => None,
+        })
+        .expect("key 73 carries the tracked-stat state");
+    assert_tracked_stat(tracked);
+}
+
+/// The measured `SeasonsRewardsTrackedStat` body: group 0, members 0 to 4.
+fn assert_tracked_stat(tracked: &CodecSeasonsRewardsTrackedStatReplicatedState) {
+    assert_eq!(tracked.group_mask, 0x01, "group 0 is present");
+    assert_eq!(tracked.groups[0].entry_mask, 0x1F, "members 0 to 4");
+    let entries = &tracked.groups[0].entries;
+    assert_eq!(entries.len(), 5, "all five members are present");
+    let initialized = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSeasonsRewardsTrackedStatReplicatedStateEntry::Initialized(value) => Some(value),
+            _ => None,
+        })
+        .expect("member 0 is initialized");
+    assert!(*initialized);
+    let group_list = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupList(value) => Some(value),
+            _ => None,
+        })
+        .expect("member 1 is groupList");
+    assert_eq!(group_list.delta_count, 0);
+    assert_eq!(group_list.delta, Some(8));
+    assert_eq!(group_list.elements, [572_611_289, 2_365_596_905]);
+    let group_count = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupCountList(value) => {
+                Some(value)
+            }
+            _ => None,
+        })
+        .expect("member 2 is groupCountList");
+    assert_eq!(group_count.delta, Some(8));
+    assert_eq!(group_count.elements, [30, 21]);
+    let stat_index = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupStatIndex(value) => {
+                Some(value)
+            }
+            _ => None,
+        })
+        .expect("member 3 is groupStatIndex");
+    assert_eq!(stat_index.elements.len(), 51);
+    let stat_value = entries
+        .iter()
+        .find_map(|entry| match entry {
+            CodecSeasonsRewardsTrackedStatReplicatedStateEntry::GroupStatValue(value) => {
+                Some(value)
+            }
+            _ => None,
+        })
+        .expect("member 4 is groupStatValue");
+    assert_eq!(stat_value.elements.len(), 51);
+    assert_eq!(stat_value.elements[19], 4);
+    assert_eq!(stat_value.elements[30], 49);
+}
+
 /// The measured Social body: group 1, members 3, 4 and 5.
 fn assert_social(social: &CodecSocialReplicatedState) {
     assert_eq!(social.group_mask, 0x02, "group 1 is present");
@@ -370,17 +443,17 @@ fn the_authored_fraction_is_the_typed_payload_bytes() {
 
     assert_eq!(
         authored,
-        3892 + 834 + 1736 + 3 + 55 + 26,
-        "3133, 5691, 3857, 3935, 4176 and 4236"
+        3892 + 834 + 1736 + 3 + 55 + 26 + 337,
+        "3133, 5691, 3857, 3935, 4176, 4236 and 5606"
     );
-    assert_eq!(replayed, 337 + 194 + 49, "the three runs");
+    assert_eq!(replayed, 194 + 49, "the two runs");
     assert_eq!(
         authored + replayed,
         7126,
         "every payload byte of the record"
     );
-    // 6546 / 7126 = 91.9 %, up from 1736 / 7126 = 24.4 % with one typed type.
-    assert!(authored * 100 > 91 * (authored + replayed));
+    // 6883 / 7126 = 96.6 %, up from 1736 / 7126 = 24.4 % with one typed type.
+    assert!(authored * 100 > 96 * (authored + replayed));
 }
 
 #[test]

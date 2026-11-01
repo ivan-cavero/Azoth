@@ -49,6 +49,9 @@ ENTITLEMENT_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-
 TRANSMOG_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-5691.hex"
 SOCIAL_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-4176.hex"
 STATUS_EFFECTS_FIXTURE = REPO / "research" / "fixtures" / "wire" / "state-fragment-4236.hex"
+SEASONS_TRACKED_STAT_FIXTURE = (
+    REPO / "research" / "fixtures" / "wire" / "state-fragment-5606.hex"
+)
 
 # The generated module imports the measured prefix-varint primitive from the
 # world service by a path relative to itself, so a copy written into a temp
@@ -583,6 +586,34 @@ class OntologyGenTest(unittest.TestCase):
         self.assertEqual(
             wire.encode_codec(
                 "codec.status-effects-component-replicated-state", decoded
+            ),
+            body,
+        )
+
+    def test_measured_tracked_stat_body_round_trips_through_the_generated_codec(
+        self,
+    ) -> None:
+        """The 337-byte body of state type 5606, through the GENERATED codec table."""
+        wire = load_generated_wire()
+        self.assertIsNotNone(WIRE_PY, f"{WIRE_PY} is missing; run the generator")
+        body = hex_body(SEASONS_TRACKED_STAT_FIXTURE)
+        self.assertEqual(len(body), 337)
+        self.assertEqual(body[:2], bytes([0x01, 0x1F]))
+        decoded = wire.decode_codec(
+            "codec.seasons-rewards-tracked-stat-replicated-state", body
+        )
+        self.assertEqual(decoded["group_mask"], 0x01)
+        self.assertEqual(decoded["groups"][0]["entry_mask"], 0x1F)
+        entries = decoded["groups"][0]["entries"]
+        self.assertTrue(entries["initialized"])
+        self.assertEqual(entries["groupList"]["delta"], 8)
+        self.assertEqual(entries["groupList"]["elements"], [572611289, 2365596905])
+        self.assertEqual(entries["groupCountList"]["elements"], [30, 21])
+        self.assertEqual(len(entries["groupStatIndex"]["elements"]), 51)
+        self.assertEqual(len(entries["groupStatValue"]["elements"]), 51)
+        self.assertEqual(
+            wire.encode_codec(
+                "codec.seasons-rewards-tracked-stat-replicated-state", decoded
             ),
             body,
         )
