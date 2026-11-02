@@ -88,6 +88,7 @@ def reverse_tool(args: list[str]) -> int:
         "uiassets": "classify UI assets from the PAK index into a derived inventory",
         "lyshine": "name a LyShine canvas, render an HTML preview, edit a named field, or build a patch pak",
         "dds": "decode a New World .dds texture to PNG",
+        "luac": "disassemble a LyShine UI .luac (compiled Lua 5.1) script",
         "ingest-log": "turn an existing Game.log into a structured session",
     }
     if not args or args[0] in {"list", "--help", "-h"}:

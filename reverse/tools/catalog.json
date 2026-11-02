@@ -67,6 +67,10 @@
       "path": "pak/dds.py",
       "kind": "pak"
     },
+    "luac": {
+      "path": "pak/luac.py",
+      "kind": "pak"
+    },
     "message-names": {
       "path": "type/message-names.py",
       "kind": "type"
@@ -139,6 +143,10 @@
     },
     "dds": {
       "path": "pak/dds.py",
+      "kind": "pak"
+    },
+    "luac": {
+      "path": "pak/luac.py",
       "kind": "pak"
     },
     "analyze": {
