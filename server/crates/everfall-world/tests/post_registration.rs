@@ -24,10 +24,13 @@ use everfall_wire::Datagram;
 use everfall_wire::generated::{FlowWorldEntryRungLevelInfo, FlowWorldEntryRungSelfIdentification};
 use everfall_world::Decision;
 use everfall_world::ladder::{
-    CHUNK_GAP_MS, MESSAGE_INTERVAL_MS, POST_V3_DELAY_MS, PostV3Ladder, Rung,
+    CHUNK_GAP_MS, CapturedRungs, HEARTBEAT_OFFSET_MS, MESSAGE_INTERVAL_MS, PostV3Ladder, Rung,
 };
 use everfall_world::rep::RepSession;
 
+const PING_WIRE_ID: u32 = 0x15d;
+const CALENDAR_WIRE_ID: u32 = 0x40a;
+const COATLICUE_WIRE_ID: u32 = 0x1be;
 const SELF_IDENT_WIRE_ID: u32 = 0x65c;
 const LEVEL_INFO_WIRE_ID: u32 = 0x663;
 
@@ -117,9 +120,14 @@ fn number(field: &str) -> u64 {
 
 fn ladder() -> PostV3Ladder {
     PostV3Ladder::from_captured(
-        &wire_body(SELF_IDENT_WIRE_ID),
-        &wire_body(LEVEL_INFO_WIRE_ID),
-        &state_bundle_body(),
+        &CapturedRungs {
+            ping: &wire_body(PING_WIRE_ID),
+            calendar_connected: &wire_body(CALENDAR_WIRE_ID),
+            coatlicue_timing: &wire_body(COATLICUE_WIRE_ID),
+            self_identification: &wire_body(SELF_IDENT_WIRE_ID),
+            level_info: &wire_body(LEVEL_INFO_WIRE_ID),
+            state_bundle: &state_bundle_body(),
+        },
         &state_extents(),
         &Decision::Accepted,
     )
@@ -166,18 +174,31 @@ fn rung_records(plan: &PostV3Ladder, rung: Rung) -> Vec<u8> {
 }
 
 #[test]
-fn the_ladder_plans_the_three_rungs_in_order_at_the_reference_pacing() {
+fn the_ladder_plans_the_rungs_in_the_captures_order_at_the_reference_pacing() {
     let plan = ladder();
     let records = plan.records();
     assert!(!records.is_empty(), "the ladder plans datagrams");
+    // The heartbeat is not a plan record: it is due first and then repeats. It
+    // still has to be due BEFORE the plan starts, which is what this pins.
+    assert_eq!(plan.heartbeat().first_offset_ms(), HEARTBEAT_OFFSET_MS);
+    assert!(plan.heartbeat().first_offset_ms() < records[0].offset_ms());
     assert_eq!(
         records[0].rung(),
-        Rung::SelfIdentification,
-        "self-identification goes first"
+        Rung::CalendarConnected,
+        "0x40a is the first planned rung, right after the ping"
     );
-    assert_eq!(records[0].offset_ms(), POST_V3_DELAY_MS);
+    assert_eq!(
+        records[0].offset_ms(),
+        HEARTBEAT_OFFSET_MS + MESSAGE_INTERVAL_MS
+    );
+    assert_eq!(records[1].rung(), Rung::CoatlicueTiming, "then 0x1be");
+    assert_eq!(
+        records[2].rung(),
+        Rung::SelfIdentification,
+        "and only then the self-identification record"
+    );
     assert!(
-        records[0].chunk().is_some(),
+        records[2].chunk().is_some(),
         "the 12.7 KB self-identification record is chunked"
     );
     assert_eq!(
@@ -293,15 +314,23 @@ fn a_session_sends_the_ladder_only_after_the_post_v3_delay() {
     assert!(is_keepalive(&keepalive[0]), "and it is a system record");
     assert!(
         session
-            .tick(clock + POST_V3_DELAY_MS - 1)
+            .tick(clock + HEARTBEAT_OFFSET_MS - 1)
             .expect("tick")
             .is_empty(),
-        "the ladder is not due before the 300 ms post-V3 delay"
+        "nothing is due before the 300 ms post-V3 delay"
     );
-    let first = session.tick(clock + POST_V3_DELAY_MS).expect("tick");
-    assert_eq!(first.len(), 1, "the first self-identification chunk is due");
+    // The capture's first post-registration record is the 0x15d ping, and it is
+    // due one message interval before the plan's first rung.
+    let first = session.tick(clock + HEARTBEAT_OFFSET_MS).expect("tick");
+    assert_eq!(first.len(), 1, "the heartbeat is due first");
     let (wire_id, _) = record_payload(&first[0]);
-    assert_eq!(wire_id, SELF_IDENT_WIRE_ID);
+    assert_eq!(wire_id, PING_WIRE_ID);
+    let second = session
+        .tick(clock + HEARTBEAT_OFFSET_MS + MESSAGE_INTERVAL_MS)
+        .expect("tick");
+    assert_eq!(second.len(), 1, "then the first planned rung is due");
+    let (wire_id, _) = record_payload(&second[0]);
+    assert_eq!(wire_id, CALENDAR_WIRE_ID);
 }
 
 /// True when the datagram is the reference's `SM_CLOCK_SYNC` keepalive.
@@ -310,6 +339,26 @@ fn is_keepalive(datagram: &[u8]) -> bool {
     decoded.records().len() == 1
         && decoded.records()[0].channel() == 3
         && decoded.records()[0].system_message_id() == Some(everfall_wire::SM_CLOCK_SYNC)
+}
+
+/// True when the datagram is one of the repeating `0x15d` heartbeats.
+///
+/// A continuation chunk of a chunked rung rides channel 0 as well and starts in
+/// the middle of a typed envelope, so the marker and the body length are checked
+/// before the payload is read as one.
+fn is_heartbeat(datagram: &[u8]) -> bool {
+    let decoded = Datagram::decode(datagram).expect("plaintext datagram");
+    let record = &decoded.records()[0];
+    if decoded.records().len() != 1 || record.channel() != 0 {
+        return false;
+    }
+    let payload = record.payload();
+    let vlq_len = 1 + payload[0].leading_ones() as usize;
+    if payload.len() <= vlq_len + 2 || payload[vlq_len..vlq_len + 2] != [0x00, 0x01] {
+        return false;
+    }
+    let (wire_id, body) = split_payload(payload);
+    wire_id == PING_WIRE_ID && body.len() == 8
 }
 
 /// A session with the captured corpus armed at `clock`.
@@ -343,14 +392,29 @@ fn a_late_tick_releases_one_record_and_re_arms_the_next_gap() {
         is_keepalive(&first[0]),
         "and the first one due is the reference's keepalive"
     );
+    let heartbeat = session.tick(clock + 10_000).expect("tick");
+    assert_eq!(heartbeat.len(), 1, "the heartbeat takes the next tick");
     let record = session.tick(clock + 10_000).expect("tick");
-    assert_eq!(record.len(), 1, "the ladder takes the next tick");
+    assert_eq!(
+        record.len(),
+        1,
+        "and the first planned rung the one after that"
+    );
     assert!(
         session.tick(clock + 10_000).expect("tick").is_empty(),
-        "the same instant cannot release a second record"
+        "the same instant cannot release a fourth datagram"
     );
-    let next = session.tick(clock + 10_000 + CHUNK_GAP_MS).expect("tick");
-    assert_eq!(next.len(), 1, "the next chunk is due one gap later");
+    assert!(
+        session
+            .tick(clock + 10_000 + CHUNK_GAP_MS)
+            .expect("tick")
+            .is_empty(),
+        "the next rung is a whole message interval away, not a chunk gap"
+    );
+    let next = session
+        .tick(clock + 10_000 + MESSAGE_INTERVAL_MS)
+        .expect("tick");
+    assert_eq!(next.len(), 1, "the next rung is due one interval later");
 }
 
 #[test]
@@ -378,13 +442,16 @@ fn the_ladder_comes_out_at_the_reference_pacing() {
         }
     }
 
-    // The keepalive is the reference's, on its own 1 s clock; the ladder is the
-    // rest and keeps the plan's offsets.
+    // The keepalive is the reference's, on its own 1 s clock, and the heartbeat
+    // is its own 1 s clock; the ladder is the rest and keeps the plan's offsets.
     let mut keepalive_times: Vec<u32> = Vec::new();
+    let mut heartbeat_times: Vec<u32> = Vec::new();
     let mut ladder: Vec<&(u32, Vec<u8>)> = Vec::new();
     for release in &releases {
         if is_keepalive(&release.1) {
             keepalive_times.push(release.0);
+        } else if is_heartbeat(&release.1) {
+            heartbeat_times.push(release.0);
         } else {
             ladder.push(release);
         }
@@ -393,6 +460,11 @@ fn the_ladder_comes_out_at_the_reference_pacing() {
         keepalive_times,
         vec![0],
         "one keepalive opens the stream, the window is shorter than its period"
+    );
+    assert_eq!(
+        heartbeat_times,
+        vec![HEARTBEAT_OFFSET_MS],
+        "the heartbeat is due once here, before the plan's first rung"
     );
 
     assert_eq!(ladder.len(), expected.len(), "the whole ladder drains");

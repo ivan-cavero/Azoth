@@ -13,11 +13,12 @@
 //! client past `WaitingForREPConnection`.
 //!
 //! Once the registration is answered, the session's post-registration ladder is
-//! released on the server's own clock: the self-identification record, level
-//! info, and the state bundle the emitter authors. The rungs are loaded from the
-//! committed corpus and re-encoded through their Atlas cards, so the BYTES are
-//! the server's framing while the VALUES are still the capture's until the
-//! simulation owns them.
+//! released on the server's own clock in the capture's order: the `0x15d`
+//! heartbeat (and then once a second), `0x40a`, `0x1be`, the self-identification
+//! record, level info, and the state bundle the emitter authors. The rungs are
+//! loaded from the committed corpus and re-encoded through their Atlas cards, so
+//! the BYTES are the server's framing while the VALUES are still the capture's
+//! until the simulation owns them.
 //!
 //! The port comes from the first CLI argument, else `EVERFALL_NET_PORT`, else
 //! `9000`.
@@ -31,6 +32,7 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use everfall_net::{Milestone, RsaIdentity, Server};
+use everfall_world::ladder::CapturedRungs;
 use everfall_world::{Decision, PostV3Ladder, RepSession};
 
 /// Default port: the client's measured REP address.
@@ -95,7 +97,7 @@ fn main() -> ExitCode {
             let rungs = ladder.records().len();
             session.set_ladder(ladder);
             log(format_args!(
-                "post-registration ladder armed: {rungs} record(s) (self-ident 0x65c, level info 0x663, emitted state 0x08)"
+                "post-registration ladder armed: {rungs} record(s) after the 0x15d heartbeat (0x40a calendar, 0x1be coatlicue timing, self-ident 0x65c, level info 0x663, emitted state 0x08)"
             ));
         }
         Err(error) => log(format_args!(
@@ -292,12 +294,15 @@ fn number(field: &str) -> u64 {
 
 /// Load and re-encode the post-registration rungs from the committed corpus.
 ///
-/// The message bodies are decoded into their Atlas cards by
+/// The six message bodies are decoded into their Atlas cards by
 /// [`PostV3Ladder::from_captured`], and the state rung is re-emitted from typed
 /// components, so the bytes are the server's even though the values are still
 /// the capture's.
 fn post_v3_ladder() -> Result<PostV3Ladder, String> {
     let bodies = read_text("research/fixtures/wire/wire-bodies.json")?;
+    let ping = wire_body(&bodies, 0x15d).ok_or("0x15d body absent")?;
+    let calendar_connected = wire_body(&bodies, 0x40a).ok_or("0x40a body absent")?;
+    let coatlicue_timing = wire_body(&bodies, 0x1be).ok_or("0x1be body absent")?;
     let self_identification = wire_body(&bodies, 0x65c).ok_or("0x65c body absent")?;
     let level_info = wire_body(&bodies, 0x663).ok_or("0x663 body absent")?;
 
@@ -314,9 +319,14 @@ fn post_v3_ladder() -> Result<PostV3Ladder, String> {
     }
 
     PostV3Ladder::from_captured(
-        &self_identification,
-        &level_info,
-        &state,
+        &CapturedRungs {
+            ping: &ping,
+            calendar_connected: &calendar_connected,
+            coatlicue_timing: &coatlicue_timing,
+            self_identification: &self_identification,
+            level_info: &level_info,
+            state_bundle: &state,
+        },
         &extents,
         &Decision::Accepted,
     )

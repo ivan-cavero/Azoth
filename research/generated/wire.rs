@@ -175,6 +175,75 @@ impl MsgUpdate {
     }
 }
 
+/// `flow.world-entry.rung.ping` — one Atlas card.
+///
+/// Message card, wire id `349`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlowWorldEntryRungPing {
+    /// Body field `unresolved_prefix` (`bytes(2)`); meaning unnamed.
+    pub unresolved_prefix: Opaque,
+    /// Body field `tick_high` (`u16be`).
+    pub tick_high: u16,
+    /// Body field `tick_low` (`u32be`).
+    pub tick_low: u32,
+}
+
+impl FlowWorldEntryRungPing {
+    /// The Atlas card id.
+    pub const UID: &'static str = "flow.world-entry.rung.ping";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 349;
+
+    /// Decode one `flow.world-entry.rung.ping` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            unresolved_prefix: reader.opaque(
+                "unresolved_prefix",
+                "flow.world-entry.rung.ping.unresolved_prefix",
+                2,
+            )?,
+            tick_high: reader.u16be("tick_high")?,
+            tick_low: reader.u32be("tick_low")?,
+        })
+    }
+
+    /// Encode one `flow.world-entry.rung.ping` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.opaque(&self.unresolved_prefix);
+        writer.u16be(self.tick_high);
+        writer.u32be(self.tick_low);
+        Ok(())
+    }
+}
+
 /// `msg.set-replicate-storage` — one Atlas card.
 ///
 /// Message card, wire id `387`.
@@ -236,6 +305,152 @@ impl MsgSetReplicateStorage {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
         writer.opaque(&self.field_c);
+        Ok(())
+    }
+}
+
+/// `flow.world-entry.rung.coatlicue-timing` — one Atlas card.
+///
+/// Message card, wire id `446`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlowWorldEntryRungCoatlicueTiming {
+    /// Body field `vtable_tag` (`u32be`).
+    pub vtable_tag: u32,
+    /// Body field `unresolved_block` (`bytes(32)`); meaning unnamed.
+    pub unresolved_block: Opaque,
+    /// Body field `shared_block` (`bytes(36)`); meaning unnamed.
+    pub shared_block: Opaque,
+}
+
+impl FlowWorldEntryRungCoatlicueTiming {
+    /// The Atlas card id.
+    pub const UID: &'static str = "flow.world-entry.rung.coatlicue-timing";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 446;
+
+    /// Decode one `flow.world-entry.rung.coatlicue-timing` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            vtable_tag: reader.u32be("vtable_tag")?,
+            unresolved_block: reader.opaque(
+                "unresolved_block",
+                "flow.world-entry.rung.coatlicue-timing.unresolved_block",
+                32,
+            )?,
+            shared_block: reader.opaque(
+                "shared_block",
+                "flow.world-entry.rung.coatlicue-timing.shared_block",
+                36,
+            )?,
+        })
+    }
+
+    /// Encode one `flow.world-entry.rung.coatlicue-timing` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u32be(self.vtable_tag);
+        writer.opaque(&self.unresolved_block);
+        writer.opaque(&self.shared_block);
+        Ok(())
+    }
+}
+
+/// `flow.world-entry.rung.calendar-connected` — one Atlas card.
+///
+/// Message card, wire id `1034`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlowWorldEntryRungCalendarConnected {
+    /// Body field `vtable_tag` (`u32be`).
+    pub vtable_tag: u32,
+    /// Body field `unresolved_block` (`bytes(32)`); meaning unnamed.
+    pub unresolved_block: Opaque,
+    /// Body field `shared_block` (`bytes(36)`); meaning unnamed.
+    pub shared_block: Opaque,
+}
+
+impl FlowWorldEntryRungCalendarConnected {
+    /// The Atlas card id.
+    pub const UID: &'static str = "flow.world-entry.rung.calendar-connected";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 1034;
+
+    /// Decode one `flow.world-entry.rung.calendar-connected` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            vtable_tag: reader.u32be("vtable_tag")?,
+            unresolved_block: reader.opaque(
+                "unresolved_block",
+                "flow.world-entry.rung.calendar-connected.unresolved_block",
+                32,
+            )?,
+            shared_block: reader.opaque(
+                "shared_block",
+                "flow.world-entry.rung.calendar-connected.shared_block",
+                36,
+            )?,
+        })
+    }
+
+    /// Encode one `flow.world-entry.rung.calendar-connected` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u32be(self.vtable_tag);
+        writer.opaque(&self.unresolved_block);
+        writer.opaque(&self.shared_block);
         Ok(())
     }
 }

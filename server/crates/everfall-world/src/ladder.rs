@@ -1,19 +1,46 @@
 //! The post-registration ladder: the rungs the server SENDS after `0x3`.
 //!
-//! Once the client accepts the registration response it needs, in order, the
-//! self-identification record (`0x65c`), level info (`0x663`) and the
-//! replicated-state bundle (`0x08`). This module turns those three rungs into
-//! the ordered Carrier datagrams a transport sends, at the pacing the reference
-//! uses (`services/world/src/azoth_world/rep.py::maybe_send_post_v3` and
-//! `::maybe_pump_replay`).
+//! Once the client accepts the registration response it needs, in the order the
+//! capture itself uses:
+//!
+//! 1. the heartbeat ping (`0x15d`), which the capture sends first (seq `0x02`) and
+//!    then repeats about once a second for the rest of the session;
+//! 2. `CalendarConnectedMsg` (`0x40a`, seq `0x04`) once;
+//! 3. `CoatlicueTimingConfigurationConnectedMsg` (`0x1be`, seq `0x05`) once;
+//! 4. the self-identification record (`0x65c`, seq `0x06`);
+//! 5. level info (`0x663`); and
+//! 6. the replicated-state bundle (`0x08`).
+//!
+//! This module turns those rungs into the ordered Carrier datagrams a transport
+//! sends, at the pacing the reference uses
+//! (`services/world/src/azoth_world/rep.py::maybe_send_post_v3`,
+//! `::maybe_pump_replay` and `::maybe_heartbeat`).
 //!
 //! Every rung is assembled from an Atlas card, never a bare byte vector:
 //!
+//! * the ping, calendar-connected and coatlicue-timing bodies come from
+//!   [`FlowWorldEntryRungPing`], [`FlowWorldEntryRungCalendarConnected`] and
+//!   [`FlowWorldEntryRungCoatlicueTiming`];
 //! * the self-identification and level-info bodies come from
 //!   [`FlowWorldEntryRungSelfIdentification`] and [`FlowWorldEntryRungLevelInfo`],
 //!   re-encoded by their generated codecs; and
 //! * the state rung is the [`Emission`] the emitter authors from typed
 //!   components.
+//!
+//! ## Why the ping repeats outside the plan
+//!
+//! The heartbeat is not one rung like the others: it is due before the first of
+//! them and then again every [`HEARTBEAT_PERIOD_MS`], for as long as the
+//! session lasts, which a finite plan cannot express. So the plan holds the
+//! once-each rungs and [`PostV3Ladder::heartbeat`] holds the ping, which is due
+//! [`HEARTBEAT_OFFSET_MS`] after the registration answer -- one
+//! [`MESSAGE_INTERVAL_MS`] before the plan's first record, so the capture's
+//! order (ping, calendar, coatlicue, self-ident) and its spacing both hold.
+//!
+//! The tick the ping carries is AUTHORED, not replayed: the card names the
+//! measured 48-bit counter as `tick_high`/`tick_low`, so
+//! [`Heartbeat::payload`] can continue the captured series one second
+//! ([`HEARTBEAT_TICK_STEP`] nanoseconds) at a time. The client only echoes it.
 //!
 //! ## Provenance of the values
 //!
@@ -27,7 +54,10 @@
 use core::fmt;
 
 use everfall_sim::Decision;
-use everfall_wire::generated::{FlowWorldEntryRungLevelInfo, FlowWorldEntryRungSelfIdentification};
+use everfall_wire::generated::{
+    FlowWorldEntryRungCalendarConnected, FlowWorldEntryRungCoatlicueTiming,
+    FlowWorldEntryRungLevelInfo, FlowWorldEntryRungPing, FlowWorldEntryRungSelfIdentification,
+};
 use everfall_wire::{
     Bundle, BundleError, CarrierError, Compression, Datagram, Envelope, FragmentExtent,
     LocalPlayerState, MF_CHUNKS, MF_DATA_CHANNEL, MF_RELIABLE, MessageRecord, WireError, Writer,
@@ -40,6 +70,20 @@ use crate::emitter::{Emission, EmitError, emit};
 /// (`POST_V3_ENABLED` path: `time.monotonic() - v3_first_time > 0.3`). Sending
 /// the flight in the same burst as the registration crashes the client.
 pub const POST_V3_DELAY_MS: u32 = 300;
+
+/// When the heartbeat is due: the same quiet period, but before the plan, because
+/// the capture's first post-registration record IS the `0x15d` ping (seq `0x02`).
+pub const HEARTBEAT_OFFSET_MS: u32 = POST_V3_DELAY_MS;
+
+/// The reference's heartbeat period (`HEARTBEAT_PERIOD_S` = 1.0 s).
+pub const HEARTBEAT_PERIOD_MS: u32 = 1000;
+
+/// How far the heartbeat's tick advances per period: one second in nanoseconds
+/// (`HEARTBEAT_TICK_STEP`), which is what the captured bodies measure.
+pub const HEARTBEAT_TICK_STEP: u64 = 1_000_000_000;
+
+/// The tick is 6 bytes wide on the wire, so only its low 48 bits are carried.
+const HEARTBEAT_TICK_MASK: u64 = 0xFFFF_FFFF_FFFF;
 
 /// The reference's spacing between two rungs (`REPLAY_INTERVAL_S` = 0.03 s).
 pub const MESSAGE_INTERVAL_MS: u32 = 30;
@@ -62,12 +106,87 @@ const RELIABLE_CHUNKS_DATA_CHANNEL: u8 = MF_RELIABLE | MF_CHUNKS | MF_DATA_CHANN
 /// Which rung of the post-registration ladder a planned record belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Rung {
+    /// `CalendarConnectedMsg`, wire `0x40a`.
+    CalendarConnected,
+    /// `CoatlicueTimingConfigurationConnectedMsg`, wire `0x1be`.
+    CoatlicueTiming,
     /// `PlayerManagerSelfIdentificationMsg`, wire `0x65c`.
     SelfIdentification,
     /// `LevelInfoChangedMsg`, wire `0x663`.
     LevelInfo,
     /// The type-`0x08` replicated-state bundle the emitter authors.
     State,
+}
+
+/// The captured bodies one ladder is assembled from.
+///
+/// Grouped in a struct because the ladder is now six bodies and a positional
+/// signature of that width says nothing about which is which. Every body is the
+/// committed corpus record; [`PostV3Ladder::from_captured`] decodes it into its
+/// card and re-encodes it, so the bytes on the wire are the server's.
+#[derive(Debug, Clone, Copy)]
+pub struct CapturedRungs<'a> {
+    /// The `0x15d` ping (`0x2_T0x15d_R.bin`).
+    pub ping: &'a [u8],
+    /// The `0x40a` calendar-connected record (`0x4_T0x40a_R.bin`).
+    pub calendar_connected: &'a [u8],
+    /// The `0x1be` coatlicue-timing record (`0x5_T0x1be_R.bin`).
+    pub coatlicue_timing: &'a [u8],
+    /// The `0x65c` self-identification body (`0x6_T0x65c_R.bin`).
+    pub self_identification: &'a [u8],
+    /// The `0x663` level-info body (`0x10_T0x663_R.bin`).
+    pub level_info: &'a [u8],
+    /// The `0x08` state bundle body (`0x9e_T0x8_R.bin`).
+    pub state_bundle: &'a [u8],
+}
+
+/// The repeating `0x15d` ping: the rung that is due before the plan and then
+/// once a second, which is why it is not one of the plan's records.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Heartbeat {
+    card: FlowWorldEntryRungPing,
+    offset_ms: u32,
+    period_ms: u32,
+}
+
+impl Heartbeat {
+    /// Milliseconds after the registration answer the first ping is due.
+    #[must_use]
+    pub const fn first_offset_ms(&self) -> u32 {
+        self.offset_ms
+    }
+
+    /// Milliseconds between two pings.
+    #[must_use]
+    pub const fn period_ms(&self) -> u32 {
+        self.period_ms
+    }
+
+    /// The captured tick: the 48-bit big-endian nanosecond counter the ping held,
+    /// rejoined from the card's `tick_high` and `tick_low`.
+    #[must_use]
+    pub const fn tick(&self) -> u64 {
+        (self.card.tick_high as u64) << 32 | self.card.tick_low as u64
+    }
+
+    /// The 8-byte body for `tick`, re-encoded through the card.
+    ///
+    /// The tick is masked to the 6 bytes the wire carries, so continuing the
+    /// series cannot silently widen the field.
+    ///
+    /// # Errors
+    /// Returns [`LadderError`] when the card refuses to encode.
+    pub fn payload(&self, tick: u64) -> Result<Vec<u8>, LadderError> {
+        let tick = tick & HEARTBEAT_TICK_MASK;
+        let card = FlowWorldEntryRungPing {
+            unresolved_prefix: self.card.unresolved_prefix.clone(),
+            tick_high: (tick >> 32) as u16,
+            tick_low: (tick & 0xFFFF_FFFF) as u32,
+        };
+        let mut body = Vec::new();
+        card.encode(&mut body)?;
+        Ok(body)
+    }
 }
 
 /// One chunk of a chunked rung: its index and the record's declared count.
@@ -130,6 +249,7 @@ impl PlannedRecord {
 /// The ordered post-registration rungs, paced from the V3 answer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PostV3Ladder {
+    heartbeat: Heartbeat,
     plan: Vec<PlannedRecord>,
 }
 
@@ -146,15 +266,17 @@ impl PostV3Ladder {
     /// the bundle's extents do not agree with it, or when the emitter refuses the
     /// decision.
     pub fn from_captured(
-        self_identification_body: &[u8],
-        level_info_body: &[u8],
-        state_bundle_body: &[u8],
+        rungs: &CapturedRungs<'_>,
         state_extents: &[(u64, u64, usize)],
         decision: &Decision,
     ) -> Result<Self, LadderError> {
+        let heartbeat = FlowWorldEntryRungPing::decode(rungs.ping)?;
+        let calendar_connected =
+            FlowWorldEntryRungCalendarConnected::decode(rungs.calendar_connected)?;
+        let coatlicue_timing = FlowWorldEntryRungCoatlicueTiming::decode(rungs.coatlicue_timing)?;
         let self_identification =
-            FlowWorldEntryRungSelfIdentification::decode(self_identification_body)?;
-        let level_info = FlowWorldEntryRungLevelInfo::decode(level_info_body)?;
+            FlowWorldEntryRungSelfIdentification::decode(rungs.self_identification)?;
+        let level_info = FlowWorldEntryRungLevelInfo::decode(rungs.level_info)?;
         let extents: Vec<FragmentExtent> = state_extents
             .iter()
             .map(|&(key, type_index, payload_len)| FragmentExtent {
@@ -163,9 +285,16 @@ impl PostV3Ladder {
                 payload_len,
             })
             .collect();
-        let bundle = Bundle::<LocalPlayerState>::decode(state_bundle_body, &extents)?;
+        let bundle = Bundle::<LocalPlayerState>::decode(rungs.state_bundle, &extents)?;
         let emission = emit(bundle, decision)?;
-        Self::from_emission(&self_identification, &level_info, &emission)
+        Self::from_emission(
+            &heartbeat,
+            &calendar_connected,
+            &coatlicue_timing,
+            &self_identification,
+            &level_info,
+            &emission,
+        )
     }
 
     /// Build the ladder from already-decoded card values and an emission.
@@ -173,17 +302,28 @@ impl PostV3Ladder {
     /// # Errors
     /// Returns [`LadderError`] when a card refuses to encode.
     pub fn from_emission(
+        heartbeat: &FlowWorldEntryRungPing,
+        calendar_connected: &FlowWorldEntryRungCalendarConnected,
+        coatlicue_timing: &FlowWorldEntryRungCoatlicueTiming,
         self_identification: &FlowWorldEntryRungSelfIdentification,
         level_info: &FlowWorldEntryRungLevelInfo,
         state: &Emission,
     ) -> Result<Self, LadderError> {
         let mut body = Vec::new();
+        calendar_connected.encode(&mut body)?;
+        let calendar = framed(FlowWorldEntryRungCalendarConnected::WIRE_ID, &body)?;
+
+        let mut body = Vec::new();
+        coatlicue_timing.encode(&mut body)?;
+        let coatlicue = framed(FlowWorldEntryRungCoatlicueTiming::WIRE_ID, &body)?;
+
+        let mut body = Vec::new();
         self_identification.encode(&mut body)?;
-        let self_ident = typed_record(FlowWorldEntryRungSelfIdentification::WIRE_ID, &body)?;
+        let self_ident = framed(FlowWorldEntryRungSelfIdentification::WIRE_ID, &body)?;
 
         let mut body = Vec::new();
         level_info.encode(&mut body)?;
-        let level_info_payload = typed_record(FlowWorldEntryRungLevelInfo::WIRE_ID, &body)?;
+        let level_info_payload = framed(FlowWorldEntryRungLevelInfo::WIRE_ID, &body)?;
 
         let inner = state.encode()?;
         let mut state_payload = Vec::new();
@@ -191,12 +331,44 @@ impl PostV3Ladder {
         state_payload.extend_from_slice(&inner);
 
         Ok(Self {
+            heartbeat: Heartbeat {
+                card: heartbeat.clone(),
+                offset_ms: HEARTBEAT_OFFSET_MS,
+                period_ms: HEARTBEAT_PERIOD_MS,
+            },
             plan: plan_rungs([
+                (Rung::CalendarConnected, calendar),
+                (Rung::CoatlicueTiming, coatlicue),
                 (Rung::SelfIdentification, self_ident),
                 (Rung::LevelInfo, level_info_payload),
                 (Rung::State, state_payload),
             ]),
         })
+    }
+
+    /// The repeating `0x15d` ping this ladder opens with.
+    #[must_use]
+    pub const fn heartbeat(&self) -> &Heartbeat {
+        &self.heartbeat
+    }
+
+    /// One heartbeat datagram for `tick`, framed like every other rung.
+    ///
+    /// # Errors
+    /// Returns [`LadderError`] when the ping card or the Carrier framing refuses a
+    /// value.
+    pub fn heartbeat_datagram(
+        &self,
+        tick: u64,
+        envelope_seq: u16,
+        message_seq: u16,
+        reliable_seq: u16,
+    ) -> Result<Vec<u8>, LadderError> {
+        let payload = framed(
+            FlowWorldEntryRungPing::WIRE_ID,
+            &self.heartbeat.payload(tick)?,
+        )?;
+        build_datagram(&payload, None, envelope_seq, message_seq, reliable_seq)
     }
 
     /// The planned records, in send order.
@@ -231,26 +403,39 @@ impl PostV3Ladder {
             .plan
             .get(index)
             .ok_or(LadderError::NoSuchRecord { index })?;
-        build_datagram(record, envelope_seq, message_seq, reliable_seq)
+        build_datagram(
+            record.payload(),
+            record.chunk,
+            envelope_seq,
+            message_seq,
+            reliable_seq,
+        )
     }
 }
 
-/// Frame one planned record as a plaintext Carrier datagram.
+/// Frame one record payload into the typed envelope: a VLQ32 length, the type
+/// marker, the prefix-varint wire type, then the body.
+fn framed(wire_id: u32, body: &[u8]) -> Result<Vec<u8>, LadderError> {
+    Ok(typed_record(wire_id, body)?)
+}
+
+/// Frame one record payload as a plaintext Carrier datagram.
 ///
 /// # Errors
 /// Returns [`LadderError`] when the chunk count does not fit a `u16` or the
 /// Carrier framing refuses a value.
 pub fn build_datagram(
-    record: &PlannedRecord,
+    payload: &[u8],
+    chunk: Option<Chunk>,
     envelope_seq: u16,
     message_seq: u16,
     reliable_seq: u16,
 ) -> Result<Vec<u8>, LadderError> {
-    let mut carrier = MessageRecord::new(0, record.payload.clone())
+    let mut carrier = MessageRecord::new(0, payload.to_vec())
         .with_reliable()
         .with_sequence(message_seq)
         .with_reliable_sequence(reliable_seq);
-    let flags = match record.chunk {
+    let flags = match chunk {
         None => RELIABLE_DATA_CHANNEL,
         Some(chunk) => {
             let count = u16::try_from(chunk.count)
@@ -268,9 +453,13 @@ pub fn build_datagram(
 }
 
 /// Cut each rung into its planned records, paced from the V3 answer.
-fn plan_rungs(rungs: [(Rung, Vec<u8>); 3]) -> Vec<PlannedRecord> {
+///
+/// The plan starts one [`MESSAGE_INTERVAL_MS`] after the heartbeat, because the
+/// heartbeat owns [`HEARTBEAT_OFFSET_MS`]: the capture's spacing has to hold
+/// from the first record, and the first record is the ping.
+fn plan_rungs(rungs: [(Rung, Vec<u8>); 5]) -> Vec<PlannedRecord> {
     let mut plan = Vec::new();
-    let mut at = POST_V3_DELAY_MS;
+    let mut at = HEARTBEAT_OFFSET_MS.saturating_add(MESSAGE_INTERVAL_MS);
     for (rung, payload) in rungs {
         if payload.len() <= SINGLE_RECORD_LIMIT {
             plan.push(PlannedRecord {

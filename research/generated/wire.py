@@ -596,6 +596,16 @@ MESSAGES = {
             ('blob', 'prefixed_bytes'),
         ),
     },
+    349: {
+        'uid': 'flow.world-entry.rung.ping',
+        'name': 'Ladder: Ping heartbeat',
+        'direction': 'S2C',
+        'fields': (
+            ('unresolved_prefix', 'bytes(2)'),
+            ('tick_high', 'u16be'),
+            ('tick_low', 'u32be'),
+        ),
+    },
     387: {
         'uid': 'msg.set-replicate-storage',
         'name': 'GlobalStorageComponentServerFacet_SetReplicateStorage',
@@ -604,6 +614,26 @@ MESSAGES = {
             ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
             ('field_c', 'bytes(16)'),
+        ),
+    },
+    446: {
+        'uid': 'flow.world-entry.rung.coatlicue-timing',
+        'name': 'Ladder: CoatlicueTimingConfigurationConnected',
+        'direction': 'S2C',
+        'fields': (
+            ('vtable_tag', 'u32be'),
+            ('unresolved_block', 'bytes(32)'),
+            ('shared_block', 'bytes(36)'),
+        ),
+    },
+    1034: {
+        'uid': 'flow.world-entry.rung.calendar-connected',
+        'name': 'Ladder: CalendarConnected',
+        'direction': 'S2C',
+        'fields': (
+            ('vtable_tag', 'u32be'),
+            ('unresolved_block', 'bytes(32)'),
+            ('shared_block', 'bytes(36)'),
         ),
     },
     1458: {

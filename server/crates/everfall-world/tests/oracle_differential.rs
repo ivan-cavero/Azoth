@@ -9,13 +9,21 @@
 //! `tests/fixtures/oracle_ladder.py`, which reads the reference and prints the
 //! table below; the table is its output, unchanged.
 //!
-//! The ladder's twenty records matched the oracle on the first comparison, down
-//! to every payload byte, so the divergence is not in them: it is the one
-//! datagram the reference sends BEFORE them. `maybe_keepalive` fires on the first
+//! The ladder's records matched the oracle on the first comparison, down to
+//! every payload byte, so the divergence is not in them: it is the one datagram
+//! the reference sends BEFORE them, the keepalive. Since 2026-11-07 the ladder
+//! also carries the capture's three pre-self-ident records -- the `0x15d` ping
+//! (which then repeats every second), `0x40a` and `0x1be` -- so the table below
+//! opens with a ping row and the plan's rows start one message later. `maybe_keepalive` fires on the first
 //! tick after the V3 answer and then at most once a second, forever, and it is
 //! what holds the client's transport open -- the reference's own words are
 //! "`CLOCK_SYNC` ~1/s after V3 so `ClientSDK` does not disconnect (4) at 10s of
 //! server silence". This session sent the ladder and then nothing.
+//!
+//! The heartbeat row is separate from `ORACLE_LADDER` because it REPEATS: the
+//! reference re-sends it every second, so it is not one of the plan's records.
+//! Its bytes come from the reference's own `rep.py::heartbeat_body(tick)`, which
+//! reproduces the captured 12-byte `0x15d` record from the tick alone.
 //!
 //! The keepalive also fixes the ladder's envelope arithmetic: the reference's
 //! `next_out_seq` is `inbound + 1` when the V3 answer goes out and the V3 answer
@@ -30,6 +38,8 @@
 
 use std::fs;
 
+use everfall_wire::Datagram;
+use everfall_world::ladder::CapturedRungs;
 use everfall_world::{Decision, PostV3Ladder, RepSession};
 
 const CONNECT_REQUEST: &str =
@@ -52,28 +62,38 @@ const POLL_MS: u32 = 20;
 /// How long the stream is observed: the ladder plus two keepalive periods.
 const WINDOW_MS: u32 = 2200;
 
-/// The oracle's twenty ladder records.
-const ORACLE_LADDER: [(u16, u8, u16, u16, u16, u16, u64); 20] = [
-    (0x0007, 0x25, 1100, 12, 1, 1, 0xc003_ead1_9efb_455f),
-    (0x0008, 0x25, 1100, 12, 2, 2, 0x99f8_c23f_d6c7_650f),
-    (0x0009, 0x25, 1100, 12, 3, 3, 0x7dd3_9db5_da92_3600),
-    (0x000a, 0x25, 1100, 12, 4, 4, 0x5e1b_d427_f25c_af99),
-    (0x000b, 0x25, 1100, 12, 5, 5, 0x83de_e93e_4c9f_c481),
-    (0x000c, 0x25, 1100, 12, 6, 6, 0x6604_bd78_018a_075a),
-    (0x000d, 0x25, 1100, 12, 7, 7, 0xab9f_238f_3599_4685),
-    (0x000e, 0x25, 1100, 12, 8, 8, 0x0462_e778_fb1f_e719),
-    (0x000f, 0x25, 1100, 12, 9, 9, 0x5bb6_482f_63e9_3891),
-    (0x0010, 0x25, 1100, 12, 10, 10, 0x9ff4_2e65_8060_0707),
-    (0x0011, 0x25, 1100, 12, 11, 11, 0xe096_a5db_b7c5_f1f8),
-    (0x0012, 0x25, 608, 12, 12, 12, 0x92af_bb69_2534_9e33),
-    (0x0013, 0x21, 111, 1, 13, 13, 0x1ea9_7a51_2359_62d0),
-    (0x0014, 0x25, 1100, 7, 14, 14, 0xf512_8529_6ad3_1c7c),
-    (0x0015, 0x25, 1100, 7, 15, 15, 0x1e7a_88a0_4dce_096a),
-    (0x0016, 0x25, 1100, 7, 16, 16, 0x817a_ad46_a3de_77fa),
-    (0x0017, 0x25, 1100, 7, 17, 17, 0xbeeb_5c99_82d1_2502),
-    (0x0018, 0x25, 1100, 7, 18, 18, 0x5189_8e66_9d7c_e6e9),
-    (0x0019, 0x25, 1100, 7, 19, 19, 0xbf7a_4e1b_333f_a579),
-    (0x001a, 0x25, 569, 7, 20, 20, 0x7465_48a8_8aa5_4213),
+/// The wire id of the repeating heartbeat, `PingMsg`.
+const HEARTBEAT_WIRE_ID: u32 = 0x15d;
+
+/// The oracle's first heartbeat, the record that opens the plan.
+const ORACLE_HEARTBEAT: (u16, u8, u16, u16, u16, u16, u64) =
+    (0x0007, 0x21, 13, 1, 1, 1, 0x7bed_54d1_1179_21cc);
+
+/// The oracle's twenty-two planned records: `0x40a`, `0x1be`, the chunked
+/// `0x65c`, level info and the emitted state bundle.
+const ORACLE_LADDER: [(u16, u8, u16, u16, u16, u16, u64); 22] = [
+    (0x0008, 0x21, 77, 1, 2, 2, 0xb154_f80f_527f_e273),
+    (0x0009, 0x21, 77, 1, 3, 3, 0x758f_4ff3_006b_c4ed),
+    (0x000a, 0x25, 1100, 12, 4, 4, 0x0803_58a3_73b4_32f0),
+    (0x000b, 0x25, 1100, 12, 5, 5, 0x7ff3_aadf_78a2_eeea),
+    (0x000c, 0x25, 1100, 12, 6, 6, 0x3ccb_e092_7a2c_f493),
+    (0x000d, 0x25, 1100, 12, 7, 7, 0xc58e_df73_eaf5_5334),
+    (0x000e, 0x25, 1100, 12, 8, 8, 0x9439_19eb_0eee_73ce),
+    (0x000f, 0x25, 1100, 12, 9, 9, 0xa485_762c_9f5c_28bf),
+    (0x0010, 0x25, 1100, 12, 10, 10, 0x650b_e5ba_624e_0f26),
+    (0x0011, 0x25, 1100, 12, 11, 11, 0x74bb_0558_1c9e_ce54),
+    (0x0012, 0x25, 1100, 12, 12, 12, 0xad7d_472b_8cb3_6abe),
+    (0x0013, 0x25, 1100, 12, 13, 13, 0x30f0_60ca_9cf4_c2c2),
+    (0x0014, 0x25, 1100, 12, 14, 14, 0x9087_d012_f7d0_42ab),
+    (0x0015, 0x25, 608, 12, 15, 15, 0xdc09_c573_9424_2b56),
+    (0x0016, 0x21, 111, 1, 16, 16, 0x9eaa_be6d_9016_5f41),
+    (0x0017, 0x25, 1100, 7, 17, 17, 0xe47d_6e44_2c01_e78d),
+    (0x0018, 0x25, 1100, 7, 18, 18, 0x1f7b_112c_3729_ed19),
+    (0x0019, 0x25, 1100, 7, 19, 19, 0x73b5_4db6_0dbe_e687),
+    (0x001a, 0x25, 1100, 7, 20, 20, 0x67c1_4c4d_d37c_7cd5),
+    (0x001b, 0x25, 1100, 7, 21, 21, 0x1044_f973_af02_6578),
+    (0x001c, 0x25, 1100, 7, 22, 22, 0x6ee8_fedd_5490_ceda),
+    (0x001d, 0x25, 569, 7, 23, 23, 0xb1f1_cf09_368d_3928),
 ];
 
 /// FNV-1a 64 of the oracle's keepalive, the datagram that opens the stream.
@@ -87,6 +107,29 @@ fn fnv1a64(data: &[u8]) -> u64 {
         value = value.wrapping_mul(0x100_0000_01B3);
     }
     value
+}
+
+/// True when the datagram is one of the repeating `0x15d` heartbeats.
+///
+/// The heartbeat rides the data channel like the plan's records, so a channel
+/// test cannot separate them; its typed header can.
+fn is_heartbeat(datagram: &[u8]) -> bool {
+    let Ok(decoded) = Datagram::decode(datagram) else {
+        return false;
+    };
+    let Some(record) = decoded.records().first() else {
+        return false;
+    };
+    if record.channel() != 0 {
+        return false;
+    }
+    let payload = record.payload();
+    let vlq_len = 1 + payload[0].leading_ones() as usize;
+    if payload.len() <= vlq_len + 2 || payload[vlq_len..vlq_len + 2] != [0x00, 0x01] {
+        return false;
+    }
+    let mut reader = everfall_wire::Reader::new(&payload[vlq_len + 2..]);
+    matches!(reader.prefix_varint("type"), Ok(id) if id == u64::from(HEARTBEAT_WIRE_ID))
 }
 
 /// The decoded view of one datagram: envelope plus its single record's header.
@@ -207,9 +250,14 @@ fn state_extents() -> Vec<(u64, u64, usize)> {
 
 fn ladder() -> PostV3Ladder {
     PostV3Ladder::from_captured(
-        &wire_body(0x65c),
-        &wire_body(0x663),
-        &state_bundle_body(),
+        &CapturedRungs {
+            ping: &wire_body(0x15d),
+            calendar_connected: &wire_body(0x40a),
+            coatlicue_timing: &wire_body(0x1be),
+            self_identification: &wire_body(0x65c),
+            level_info: &wire_body(0x663),
+            state_bundle: &state_bundle_body(),
+        },
         &state_extents(),
         &Decision::Accepted,
     )
@@ -238,9 +286,12 @@ fn observed_stream() -> Vec<(u32, Vec<u8>)> {
 
 #[test]
 fn the_whole_post_v3_stream_is_the_reference_stream() {
+    // The heartbeat repeats, so it is not one of the plan's rows: its own test
+    // below pins it against its own oracle row.
     let stream = observed_stream();
     let digests: Vec<u64> = stream
         .iter()
+        .filter(|(_, datagram)| !is_heartbeat(datagram))
         .map(|(_, datagram)| fnv1a64(datagram))
         .collect();
     let mut expected = vec![ORACLE_KEEPALIVE];
@@ -248,7 +299,7 @@ fn the_whole_post_v3_stream_is_the_reference_stream() {
     assert_eq!(
         &digests[..expected.len()],
         &expected[..],
-        "the post-V3 stream is the reference's: the keepalive, then the twenty records"
+        "the post-V3 stream is the reference's: the keepalive, then the plan's records"
     );
 }
 
@@ -273,17 +324,21 @@ fn the_reference_keepalive_opens_the_post_v3_stream() {
 }
 
 #[test]
-fn the_twenty_ladder_records_are_the_reference_bytes() {
+fn the_ladder_records_are_the_reference_bytes() {
     let stream = observed_stream();
-    // The reference's tick order puts the keepalive first, then one replay
-    // message per tick; `everfall-netd` polls at 20 ms and the plan's offsets
-    // are 300 ms + 4 ms per chunk + 30 ms per rung, so the ladder is the twenty
-    // datagrams after the first keepalive.
+    // The reference's tick order puts the keepalive first, then the heartbeat,
+    // then one replay message per tick; `everfall-netd` polls at 20 ms and the
+    // plan's offsets are 330 ms + 4 ms per chunk + 30 ms per rung, so the plan is
+    // the datagrams between the heartbeat and the keepalives.
     let ladder: Vec<&(u32, Vec<u8>)> = stream
         .iter()
-        .filter(|(_, datagram)| decode(datagram).channel == 0)
+        .filter(|(_, datagram)| decode(datagram).channel == 0 && !is_heartbeat(datagram))
         .collect();
-    assert_eq!(ladder.len(), ORACLE_LADDER.len(), "twenty records");
+    assert_eq!(
+        ladder.len(),
+        ORACLE_LADDER.len(),
+        "the plan's records are all there"
+    );
     for (index, (expected, (at, datagram))) in ORACLE_LADDER.iter().zip(&ladder).enumerate() {
         let (envelope, flags, size, num_chunks, sequence, rel, digest) = *expected;
         let got = decode(datagram);
@@ -321,6 +376,60 @@ fn the_twenty_ladder_records_are_the_reference_bytes() {
 }
 
 #[test]
+fn the_heartbeat_is_the_references_ping_and_opens_the_plan() {
+    let stream = observed_stream();
+    let pings: Vec<&(u32, Vec<u8>)> = stream
+        .iter()
+        .filter(|(_, datagram)| is_heartbeat(datagram))
+        .collect();
+    assert_eq!(
+        pings.len(),
+        2,
+        "the heartbeat repeats: one per second inside the window"
+    );
+
+    let (at, first) = pings[0];
+    let (envelope, flags, size, num_chunks, sequence, rel, digest) = ORACLE_HEARTBEAT;
+    let got = decode(first);
+    assert_eq!(
+        *at, 300,
+        "the ping is the first post-V3 record after the keepalive"
+    );
+    assert_eq!(got.envelope, envelope, "the ping's envelope sequence");
+    assert_eq!(got.flags, flags, "the ping rides reliable channel 0");
+    assert_eq!(
+        got.size, size,
+        "the 12-byte ping: the typed header and 8 bytes"
+    );
+    assert_eq!(got.num_chunks, num_chunks, "the ping is one record");
+    assert_eq!(
+        got.sequence, sequence,
+        "the ping takes the first message seq"
+    );
+    assert_eq!(got.reliable_sequence, rel);
+    assert_eq!(
+        got.digest, digest,
+        "the ping's bytes are the reference's heartbeat_body output"
+    );
+
+    let (second_at, second) = pings[1];
+    assert_eq!(
+        *second_at,
+        KEEPALIVE_MS + 300,
+        "the second ping is one heartbeat period after the first"
+    );
+    let second = decode(second);
+    assert_eq!(
+        second.size, size,
+        "a later ping is the same size: only the 6-byte tick changes"
+    );
+    assert_ne!(
+        second.digest, digest,
+        "and its tick advanced, so its bytes are not the captured ones"
+    );
+}
+
+#[test]
 fn the_keepalive_continues_after_the_ladder_drains() {
     let stream = observed_stream();
     // Records are the channel-0 datagrams; everything else is a keepalive.
@@ -333,10 +442,10 @@ fn the_keepalive_continues_after_the_ladder_drains() {
         keepalives,
         vec![
             (0, 0x0006),
-            (KEEPALIVE_MS, 0x001b),
-            (KEEPALIVE_MS * 2, 0x001c),
+            (KEEPALIVE_MS, 0x001e),
+            (KEEPALIVE_MS * 2, 0x0020),
         ],
-        "one keepalive per period, on the envelope counter the ladder shares"
+        "one keepalive per period, on the envelope counter the ladder and the heartbeat share"
     );
 }
 

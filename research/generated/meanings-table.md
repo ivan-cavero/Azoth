@@ -584,6 +584,30 @@
 - kind: flow; status: implemented; confidence: semantics
 - codegen: field-less — neither emitted nor refused
 
+## flow.world-entry.rung.calendar-connected — Ladder: CalendarConnected
+
+- wire 0x40a, S2C
+- kind: flow; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| vtable_tag | u32be | 0x00 | measured | known | Measured 0x14786158 (bytes 58 61 78 14), a virtual address into the image's .rdata. The same 4 bytes sit at the head of 0x1be and at record offset 0x15 in 0x65c. |
+| unresolved_block | bytes(32) | 0x04 | measured | layout-only | Measured 32 bytes, c20daee38238a1d140d1878a7a25f147912907e277204e2d80818aa27c952bc9. They differ from 0x1be's 32 bytes and name nothing, so they are carried as one fixed run: splitting them into narrower fields would state a structure nobody measured. |
+| shared_block | bytes(36) | 0x24 | measured | layout-only | Measured cbd4a18a4042c7eea46298c7499ba826ef5339aa2970e283fcf34b6f8f0786d68bf3ae45, the last 36 bytes of the record. It is byte-identical in 0x1be and is the same 36 bytes 0x65c carries at record offset 0x39, so it names a shared object that nobody has identified; a server that composes messages has to keep it consistent. |
+
+## flow.world-entry.rung.coatlicue-timing — Ladder: CoatlicueTimingConfigurationConnected
+
+- wire 0x1be, S2C
+- kind: flow; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| vtable_tag | u32be | 0x00 | measured | known | Measured 0x14786158 (bytes 58 61 78 14), a virtual address into the image's .rdata. The same 4 bytes sit at the head of 0x40a and at record offset 0x15 in 0x65c. |
+| unresolved_block | bytes(32) | 0x04 | measured | layout-only | Measured 32 bytes, 1c56024e9b798cf2b7aadfc1a567c5a6826dfb5c061e438d89a297fe582d944c. They differ from 0x40a's 32 bytes and name nothing, so they are carried as one fixed run: splitting them into narrower fields would state a structure nobody measured. |
+| shared_block | bytes(36) | 0x24 | measured | layout-only | Measured cbd4a18a4042c7eea46298c7499ba826ef5339aa2970e283fcf34b6f8f0786d68bf3ae45, the last 36 bytes of the record and byte-identical to 0x40a's tail and to the run 0x65c carries at record offset 0x39. It names a shared object that nobody has identified; a server that composes messages has to keep it consistent. |
+
 ## flow.world-entry.rung.greetings — Ladder: Greetings
 
 - wire carrier-cmd-1, Bidi
@@ -606,6 +630,18 @@
 | session_nonce | u64be | 0x50 | partial | known | Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
 | unresolved_group | bytes(10) | 0x58 | measured | layout-only | Measured 65 03 00 00 00 00 01 01 01 00, 10 bytes. The atlas splits it: six unnamed bytes then the four u8 the struct calls +0xa0..+0xa3 (01 01 01 00). Not read by the handler. The size (10) is stated, so the shape is carried as bytes(10); the meaning stays unknown. meanings.md '`0x663` laid out to the byte'. |
 | level_context_key | u64be | 0x62 | partial | known | The last 8 bytes of the body, measured 00 00 00 c1 7f 9b e4 8f. The handler compares it against the component slot it cached last time and RETURNS EARLY when they match, then stores the new value. So it is the dedup key: a repeated LevelInfo with the same key is ignored by the client. This is a second, independent signal for the same fact the lab had already recorded from the capture (the repeated seq 0x663 at 0x4d carries the same key and is ignored). |
+
+## flow.world-entry.rung.ping — Ladder: Ping heartbeat
+
+- wire 0x15d, S2C
+- kind: flow; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| unresolved_prefix | bytes(2) | 0x00 | measured | layout-only | Measured 00 03 in the corpus record and in the eight 0x15d bodies a local session log carries, so it is constant. Its meaning is unnamed, so it is carried as a fixed 2-byte run rather than interpreted as an integer. |
+| tick_high | u16be | 0x02 | measured | known | The top 16 bits of the heartbeat tick. Read together with tick_low as ONE 48-bit big-endian nanosecond counter; the closed codec vocabulary has no 48-bit integer, so the measured 6 bytes are expressed as their high 16 and low 32 bits and the two fields are never meaningful apart. Measured 6ef6 in the corpus record. |
+| tick_low | u32be | 0x04 | measured | known | The low 32 bits of the same 48-bit counter. Measured af912d74 in the corpus record, and the nine distinct captured bodies differ only here plus tick_high: consecutive pings are 1000000000 apart, which is one second in nanoseconds. The client only echoes the value, so the server continues its own series rather than matching the client's clock. |
 
 ## flow.world-entry.rung.registration — Ladder: Registration response
 

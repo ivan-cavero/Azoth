@@ -1,5 +1,5 @@
 {
-  "generated": "hand-seed-2026-10-24; codec family 3133/5691 added 2026-11-03; tracked/completed objective maps added 2026-11-03; player family 3935 added 2026-11-04; social 4176 and status-effects 4236 families added 2026-11-04; seasons-rewards tracked-stat 5606 family added 2026-11-04; ALC 11 added 2026-11-05; inbound notifyOpenUiScreen 0xa39 and detector attemptTerritoryUnlock 0x8f9 added 2026-11-06",
+  "generated": "hand-seed-2026-10-24; codec family 3133/5691 added 2026-11-03; tracked/completed objective maps added 2026-11-03; player family 3935 added 2026-11-04; social 4176 and status-effects 4236 families added 2026-11-04; seasons-rewards tracked-stat 5606 family added 2026-11-04; ALC 11 added 2026-11-05; inbound notifyOpenUiScreen 0xa39 and detector attemptTerritoryUnlock 0x8f9 added 2026-11-06; pre-self-ident rungs 0x15d/0x40a/0x1be added 2026-11-07",
   "kinds": {
     "codec": [
       "codec.alc-replicated-state",
@@ -60,8 +60,11 @@
     "flow": [
       "flow.presence",
       "flow.world-entry",
+      "flow.world-entry.rung.calendar-connected",
+      "flow.world-entry.rung.coatlicue-timing",
       "flow.world-entry.rung.greetings",
       "flow.world-entry.rung.level-info",
+      "flow.world-entry.rung.ping",
       "flow.world-entry.rung.registration",
       "flow.world-entry.rung.self-identification",
       "flow.world-entry.rung.spawn",

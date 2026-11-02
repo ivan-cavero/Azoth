@@ -48,7 +48,7 @@ use everfall_wire::{
     decompress_block, is_connect_request, typed_record,
 };
 
-use crate::ladder::{LadderError, PostV3Ladder};
+use crate::ladder::{HEARTBEAT_PERIOD_MS, HEARTBEAT_TICK_STEP, LadderError, PostV3Ladder};
 
 /// The wire id of the client's `RegistrationRequestV3Msg`, which opens the ladder.
 ///
@@ -382,7 +382,7 @@ fn registration_response(envelope_seq: u16) -> Result<Vec<u8>, RepError> {
 /// It holds the two facts the answers gate on (whether the flight and the
 /// registration response have gone out), the sliding ACK window, and -- when a
 /// caller arms one -- the post-registration [`PostV3Ladder`], which [`Self::tick`]
-/// releases on the connection's own clock.
+/// releases on the connection's own clock together with its repeating heartbeat.
 #[derive(Debug)]
 pub struct RepSession {
     handshake_done: bool,
@@ -395,6 +395,8 @@ pub struct RepSession {
     armed_at_ms: Option<u32>,
     next_release_at_ms: Option<u32>,
     next_post_v3: usize,
+    heartbeat_tick: u64,
+    next_heartbeat_at_ms: Option<u32>,
     post_v3_envelope_seq: u16,
     post_v3_message_seq: u16,
     post_v3_reliable_seq: u16,
@@ -432,6 +434,8 @@ impl RepSession {
             armed_at_ms: None,
             next_release_at_ms: None,
             next_post_v3: 0,
+            heartbeat_tick: 0,
+            next_heartbeat_at_ms: None,
             post_v3_envelope_seq: 0,
             post_v3_message_seq: 1,
             post_v3_reliable_seq: 1,
@@ -455,20 +459,18 @@ impl RepSession {
 
     /// Emit the one datagram that is now due, if any.
     ///
-    /// The reference's `PeerSession.tick` runs `maybe_keepalive` before
-    /// `maybe_pump_replay`, so the keepalive owns the tick it falls due on and
-    /// the ladder waits for the next one. Neither emitter sweeps a deadline: the
-    /// reference sends one replay message per `REPLAY_INTERVAL_S` and sleeps the
-    /// chunk gap BETWEEN the chunks of one message (`maybe_pump_replay` /
-    /// `_send_replay_message`). This session keeps the same shape: it releases at
-    /// most one datagram per call and re-arms [`Self::next_release_at_ms`] from the
-    /// clock of the release plus the plan's gap to the next record. A late or
-    /// coarse tick therefore cannot dump the backlog, which is what a deadline
-    /// sweep does.
+    /// Three emitters can own a tick, in the reference's order
+    /// (`PeerSession.tick`: `maybe_keepalive`, then `maybe_heartbeat`, then
+    /// `maybe_pump_replay`): the transport keepalive, the repeating `0x15d`
+    /// heartbeat, and the ladder's own plan. The first one that is due fires and
+    /// the others wait for the next call, so a coarse poll can never dump a
+    /// backlog -- [`Self::ladder_wait_ms`] is what lets a driver sleep exactly
+    /// until the next one.
     ///
     /// The keepalive is armed by the registration answer alone, so a session with
-    /// no ladder still keeps the client's transport alive; a ladder that has
-    /// drained does not stop it either.
+    /// no ladder still keeps the client's transport alive; the heartbeat and the
+    /// plan are armed with the ladder, and a plan that has drained does not stop
+    /// the heartbeat either.
     ///
     /// # Errors
     /// Returns a [`RepError`] only when one of the server's own planned
@@ -480,6 +482,25 @@ impl RepSession {
             self.next_keepalive_at_ms = Some(clock_ms.wrapping_add(self.keepalive_ms));
             let datagram = clock_sync(self.post_v3_envelope_seq, clock_ms)?;
             self.post_v3_envelope_seq = self.post_v3_envelope_seq.wrapping_add(1);
+            return Ok(vec![datagram]);
+        }
+        if let Some(due) = self.next_heartbeat_at_ms
+            && clock_ms.wrapping_sub(due).cast_signed() >= 0
+        {
+            let Some(ladder) = self.ladder.as_ref() else {
+                return Ok(Vec::new());
+            };
+            let datagram = ladder.heartbeat_datagram(
+                self.heartbeat_tick,
+                self.post_v3_envelope_seq,
+                self.post_v3_message_seq,
+                self.post_v3_reliable_seq,
+            )?;
+            self.next_heartbeat_at_ms = Some(clock_ms.wrapping_add(HEARTBEAT_PERIOD_MS));
+            self.heartbeat_tick = self.heartbeat_tick.wrapping_add(HEARTBEAT_TICK_STEP);
+            self.post_v3_envelope_seq = self.post_v3_envelope_seq.wrapping_add(1);
+            self.post_v3_message_seq = self.post_v3_message_seq.wrapping_add(1);
+            self.post_v3_reliable_seq = self.post_v3_reliable_seq.wrapping_add(1);
             return Ok(vec![datagram]);
         }
         let Some(ladder) = self.ladder.as_ref() else {
@@ -517,18 +538,30 @@ impl RepSession {
         Ok(vec![datagram])
     }
 
-    /// Milliseconds until the next ladder record is due, once armed.
+    /// Milliseconds until the next datagram is due, once armed.
     ///
-    /// `None` when the ladder is not armed or has drained. `Some(0)` when a
-    /// record is already due. A caller that sleeps for this long (capped by its
-    /// own tick) honours the reference's 4 ms chunk gap without polling.
+    /// The heartbeat and the plan are both deadlines, so this is the smaller of
+    /// the two. `None` when neither is armed or the plan has drained and no
+    /// heartbeat is pending. `Some(0)` when a datagram is already due. A caller
+    /// that sleeps for this long (capped by its own tick) honours the reference's
+    /// 4 ms chunk gap without polling.
     #[must_use]
     pub fn ladder_wait_ms(&self, clock_ms: u32) -> Option<u32> {
-        let due = self.next_release_at_ms?;
-        self.ladder.as_ref()?.records().get(self.next_post_v3)?;
-        let ahead = due.wrapping_sub(clock_ms);
-        // Signed wrap-space: a "negative" remaining time is already due.
-        Some(if ahead.cast_signed() <= 0 { 0 } else { ahead })
+        let plan_due = self.next_release_at_ms.filter(|_| {
+            self.ladder
+                .as_ref()
+                .and_then(|ladder| ladder.records().get(self.next_post_v3))
+                .is_some()
+        });
+        [self.next_heartbeat_at_ms, plan_due]
+            .into_iter()
+            .flatten()
+            .map(|due| {
+                let ahead = due.wrapping_sub(clock_ms);
+                // Signed wrap-space: a "negative" remaining time is already due.
+                if ahead.cast_signed() <= 0 { 0 } else { ahead }
+            })
+            .min()
     }
 
     /// Whether the acceptance flight has gone out.
@@ -618,14 +651,21 @@ impl RepSession {
             self.post_v3_message_seq = 1;
             self.post_v3_reliable_seq = 1;
             self.next_keepalive_at_ms = Some(clock_ms);
-            if self.ladder.is_some() && self.armed_at_ms.is_none() {
+            if self.armed_at_ms.is_none()
+                && let Some(ladder) = self.ladder.as_ref()
+            {
                 self.armed_at_ms = Some(clock_ms);
                 self.next_post_v3 = 0;
-                self.next_release_at_ms = self
-                    .ladder
-                    .as_ref()
-                    .and_then(|ladder| ladder.records().first())
+                self.next_release_at_ms = ladder
+                    .records()
+                    .first()
                     .map(|first| clock_ms.wrapping_add(first.offset_ms()));
+                // The heartbeat owns the first post-V3 slot: it is due before the
+                // plan's first record, and its tick continues the captured series
+                // from the ping the corpus carries.
+                self.heartbeat_tick = ladder.heartbeat().tick();
+                self.next_heartbeat_at_ms =
+                    Some(clock_ms.wrapping_add(ladder.heartbeat().first_offset_ms()));
             }
         }
         Ok(outcome.replies)

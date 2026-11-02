@@ -11,7 +11,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use everfall_world::Decision;
-use everfall_world::ladder::{CHUNK_GAP_MS, PostV3Ladder};
+use everfall_world::ladder::{CHUNK_GAP_MS, CapturedRungs, PostV3Ladder};
 use everfall_world::rep::RepSession;
 
 const CONNECT_REQUEST: &str =
@@ -95,9 +95,14 @@ fn number(field: &str) -> u64 {
 
 fn ladder() -> PostV3Ladder {
     PostV3Ladder::from_captured(
-        &wire_body(0x65c),
-        &wire_body(0x663),
-        &state_bundle_body(),
+        &CapturedRungs {
+            ping: &wire_body(0x15d),
+            calendar_connected: &wire_body(0x40a),
+            coatlicue_timing: &wire_body(0x1be),
+            self_identification: &wire_body(0x65c),
+            level_info: &wire_body(0x663),
+            state_bundle: &state_bundle_body(),
+        },
         &state_extents(),
         &Decision::Accepted,
     )

@@ -15,8 +15,10 @@
 //! bytes.
 //!
 //! [`ladder`] is what the server SENDS once the registration is accepted: the
+//! `0x15d` heartbeat (then once a second), `0x40a`, `0x1be`, the
 //! self-identification record, level info and the emitted state bundle, ordered
-//! and paced as the reference sends them. It, too, opens no socket.
+//! and paced as the capture and the reference send them. It, too, opens no
+//! socket.
 
 mod dispatcher;
 pub mod emitter;
@@ -25,7 +27,10 @@ pub mod rep;
 
 pub use crate::dispatcher::{DecisionRecord, DispatchError, OBJECTIVES_REPLY_WIRE_ID, World};
 pub use crate::emitter::{Emission, EmitError, emit};
-pub use crate::ladder::{LadderError, PlannedRecord, PostV3Ladder, Rung};
+pub use crate::ladder::{
+    CapturedRungs, HEARTBEAT_OFFSET_MS, HEARTBEAT_PERIOD_MS, HEARTBEAT_TICK_STEP, Heartbeat,
+    LadderError, PlannedRecord, PostV3Ladder, Rung,
+};
 pub use crate::rep::{
     CONNECT_REPLY_COOLDOWN_MS, ConnectReply, REGISTRATION_REQUEST_WIRE_ID, RepError, RepRequest,
     RepSession, SERVER_VERSION, SESSION_TOKEN, ack_window_first, handle_app_data,

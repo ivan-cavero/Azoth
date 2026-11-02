@@ -2,9 +2,14 @@
 
 Drives the reference's own code (`javelin.frame.marshal_datagram` and its
 `MessageRecord`/`MarshalState` writer, `javelin.wire.chunk_replay_payload`,
-`encode_vlq32`, and the `clock_sync_datagram` keepalive's record shape) over the
-SAME three bodies the Rust ladder is built from, in the reference's own tick
-order (`PeerSession.tick`: `maybe_keepalive` before `maybe_pump_replay`).
+`encode_vlq32`, `rep.py::heartbeat_body`, and the `clock_sync_datagram`
+keepalive's record shape) over the SAME six bodies the Rust ladder is built from,
+in the capture's own order and the reference's tick order
+(`PeerSession.tick`: `maybe_keepalive` before `maybe_pump_replay`, then
+`maybe_heartbeat`'s record shape): keepalive, the `0x15d` ping, `0x40a`,
+`0x1be`, the `0x65c` self-identification record, `0x663` level info, and the
+`0x08` state bundle. The ping is printed on its own line because it REPEATS (the
+reference re-sends it every second), so it is not one of the plan's records.
 
 No Python file is modified. Read-only import of the oracle.
 
@@ -33,6 +38,7 @@ sys.path.insert(0, str(REPO / "services" / "world" / "src"))
 from azoth_world.javelin.frame import MessageRecord, marshal_datagram  # noqa: E402
 from azoth_world.javelin.varint import encode as varint_encode  # noqa: E402
 from azoth_world.javelin.wire import chunk_replay_payload, encode_vlq32  # noqa: E402
+from azoth_world.rep import heartbeat_body  # noqa: E402
 
 REPLAY_CHUNK_SIZE = 1100
 REPLAY_SINGLE_LIMIT = 256
@@ -202,25 +208,53 @@ def main() -> None:
     frames: list[dict] = []
     # `PeerSession.tick` order: maybe_keepalive() then maybe_pump_replay().
     keepalive(out, clock, frames)
+    # The capture's first post-registration record is the 0x15d ping, and the
+    # reference's own `heartbeat_body` reproduces the captured 12 bytes from its
+    # tick alone. The tick comes from the corpus body: the card reads it as a
+    # 48-bit big-endian counter, so the last 6 bytes are the integer.
+    ping_body = wire_body(0x15D)
+    tick = int.from_bytes(ping_body[2:], "big")
+    assert heartbeat_body(tick) == typed_body(0x15D, ping_body), (
+        "the reference's heartbeat_body must reproduce the captured 0x15d record"
+    )
+    heartbeat_frames: list[dict] = []
+    send_message(typed_body(0x15D, ping_body), out, heartbeat_frames)
+    # Then the once-each rungs, in the capture's order.
     for body in (
+        typed_body(0x40A, wire_body(0x40A)),
+        typed_body(0x1BE, wire_body(0x1BE)),
         typed_body(0x65C, wire_body(0x65C)),
         typed_body(0x663, wire_body(0x663)),
         state_bundle_body("0x9e_T0x8_R.bin"),
     ):
         send_message(body, out, frames)
 
-    painted = []
-    for entry in frames:
-        raw = bytes.fromhex(entry["datagram"])
-        painted.append({**entry, **frame(raw), "fnv1a64": fnv1a64(raw)})
-    print(f"# inbound_v3_seq={inbound_v3_seq} clock={clock:#010x} datagrams={len(painted)}")
-    for index, item in enumerate(painted):
-        print(
-            f"    ({item['envelope']:#06x}, {item['flags']:#04x}, {item['size']:5d}, "
-            f"{str(item['channel']):>4}, {str(item['num_chunks']):>4}, "
-            f"{item['sequence']:5d}, {item['reliable_sequence']:5d}, "
-            f"{item['length']:5d} B, {item['fnv1a64']:#018x}),  // {index}"
-        )
+    def painted(entries: list[dict]) -> list[dict]:
+        out_rows = []
+        for entry in entries:
+            raw = bytes.fromhex(entry["datagram"])
+            out_rows.append({**entry, **frame(raw), "fnv1a64": fnv1a64(raw)})
+        return out_rows
+
+    keepalive_rows = painted(frames[:1])
+    heartbeat_rows = painted(heartbeat_frames)
+    ladder_rows = painted(frames[1:])
+    print(
+        f"# inbound_v3_seq={inbound_v3_seq} clock={clock:#010x} "
+        f"datagrams={len(keepalive_rows) + len(heartbeat_rows) + len(ladder_rows)}"
+    )
+    for name, rows in (
+        ("ORACLE_HEARTBEAT", heartbeat_rows),
+        ("ORACLE_LADDER", ladder_rows),
+    ):
+        print(f"# {name} ({len(rows)} records)")
+        for index, item in enumerate(rows):
+            print(
+                f"    ({item['envelope']:#06x}, {item['flags']:#04x}, {item['size']:5d}, "
+                f"{item['num_chunks'] if item['num_chunks'] is not None else 1:5d}, "
+                f"{item['sequence']:5d}, {item['reliable_sequence']:5d}, "
+                f"{item['fnv1a64']:#018x}),  // {index}"
+            )
 
 
 if __name__ == "__main__":

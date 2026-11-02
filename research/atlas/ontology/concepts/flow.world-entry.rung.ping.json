@@ -1,0 +1,96 @@
+{
+  "uid": "flow.world-entry.rung.ping",
+  "kind": "flow",
+  "name": "Ladder: Ping heartbeat",
+  "aliases": [
+    "wire:0x15d",
+    "PingMsg"
+  ],
+  "summary": "PingMsg, wire 0x15d, type index 349. A 12-byte server-to-client record whose 8-byte body is a constant 2-byte prefix followed by a 48-bit big-endian nanosecond tick. The capture sends it first, before the self-identification record, and then about once a second for the rest of the session.",
+  "purpose": "Keep the client's connection alive between and after the other rungs. The client answers every server ping with a 36-byte echo of the same 12 bytes, so an unanswered second of silence is what its state watchdog counts as a missing expected message.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": [
+      "the registration response has been answered"
+    ],
+    "if_absent": "the client's state watchdog counts ticks that carried no expected message and tears the connection down at the current state's budget"
+  },
+  "wire": {
+    "id": "0x15d",
+    "direction": "S2C",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): the type marker followed by the prefix varint 9d 05 = 349 = 0x15d, so the 8-byte body below starts at record offset 0x04. The client's own 0x15d record is 36 bytes: an 8-byte head, a 16-byte zero run, then the same 8-byte body at offset 0x18.",
+  "fields": [
+    {
+      "name": "unresolved_prefix",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 2,
+      "type": "bytes(2)",
+      "evidence": "measured",
+      "note": "Measured 00 03 in the corpus record and in the eight 0x15d bodies a local session log carries, so it is constant. Its meaning is unnamed, so it is carried as a fixed 2-byte run rather than interpreted as an integer.",
+      "provenance": "legacy lab oracle: services/world/src/azoth_world/rep.py::heartbeat_body writes it as a literal"
+    },
+    {
+      "name": "tick_high",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x02",
+      "size": 2,
+      "endian": "be",
+      "type": "u16be",
+      "evidence": "measured",
+      "note": "The top 16 bits of the heartbeat tick. Read together with tick_low as ONE 48-bit big-endian nanosecond counter; the closed codec vocabulary has no 48-bit integer, so the measured 6 bytes are expressed as their high 16 and low 32 bits and the two fields are never meaningful apart. Measured 6ef6 in the corpus record.",
+      "provenance": "meanings.md '0x15d body: the tick is a big-endian nanosecond counter'"
+    },
+    {
+      "name": "tick_low",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x04",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "The low 32 bits of the same 48-bit counter. Measured af912d74 in the corpus record, and the nine distinct captured bodies differ only here plus tick_high: consecutive pings are 1000000000 apart, which is one second in nanoseconds. The client only echoes the value, so the server continues its own series rather than matching the client's clock.",
+      "provenance": "meanings.md '0x15d body: the tick is a big-endian nanosecond counter'"
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "services/world/replay/messages-redacted.txt record 0x2_T0x15d_R.bin: 12 bytes, 8-byte body 00 03 6e f6 af 91 2d 74 after the 4-byte typed header, extracted by scripts/export/export-wire-bodies.py into research/fixtures/wire/wire-bodies.json and round-tripped byte-for-byte by the generated codec"
+    },
+    {
+      "type": "capture",
+      "ref": "the same dump's client answer 0x3_T0x15d_W.bin: a 36-byte client->server record carrying the identical 8-byte body at offset 0x18, so the client echoes the server's tick verbatim"
+    },
+    {
+      "type": "log",
+      "ref": "eight further 0x15d bodies from a local session (research/fixtures/wire/wire-bodies.json, source log:rep_traffic.jsonl) have the same 8-byte shape and nine distinct tick values, all consistent with a 1000000000-per-second step"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The first typed exchange, measured': seq 0x02 is R 0x15d 12 bytes 'PingMsg', seq 0x03 is the client's W 0x15d 36 bytes, and both precede the 0x40a/0x1be/0x65c records"
+    },
+    {
+      "type": "doc",
+      "ref": "services/world/src/azoth_world/rep.py::heartbeat_body is the lab's oracle for the same 8 bytes (it writes the 00 03 literal and the 6-byte big-endian tick) and ::maybe_heartbeat sends it about once a second"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": null,
+    "module": null
+  }
+}

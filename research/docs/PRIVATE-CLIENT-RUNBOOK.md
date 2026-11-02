@@ -9,10 +9,12 @@ client's V3 registration (`wire 0x13`) with the `0x3` response from the Atlas
 card `flow.world-entry.rung.registration`. The claim this run checks is that the
 client moves `WaitingForREPConnection` (14) → `WaitingForActorGameConnection`
 (15) and logs `received registration response from REP`. The server also now
-arms the **post-registration ladder** once the registration is answered: the
-self-identification record (`0x65c`), level info (`0x663`) and the emitted
-state bundle (`0x08`), sent on the server's own clock, with the reference's
-`SM_CLOCK_SYNC` **keepalive** opening the stream and repeating once a second.
+arms the **post-registration ladder** once the registration is answered, in the
+capture's own order: the `0x15d` heartbeat (and then once a second), the
+`0x40a` and `0x1be` "connected" notices, the self-identification record
+(`0x65c`), level info (`0x663`) and the emitted state bundle (`0x08`), sent on
+the server's own clock, with the reference's `SM_CLOCK_SYNC` **keepalive**
+opening the stream and repeating once a second.
 See "Post-registration ladder" below for what that can and cannot reach.
 
 **What the differential test settled (2026-11-02).** The twenty ladder records
@@ -91,8 +93,8 @@ OpenSSL from source, and the package is a prerequisite like the Windows SDK.
 | `registration answered: …` | the `0x3` response went out; the client should leave `WaitingForREPConnection` |
 | `connect request answered (1): acceptance flight sent` | the client's `SM_CONNECT_REQUEST` opened the REP Carrier connection |
 | `connect request answered (N>1): acceptance flight sent again …` | the client asked for a Carrier connection **after** the REP one was already accepted. That is the only wire shape a late actor-game-connection handshake can take, and it is the measurement rung 15 depends on (see "Rung 15" below) |
-| `post-registration ladder armed: N record(s) …` | the three post-V3 rungs loaded and framed from the committed corpus |
-| `ladder sent: N bytes` | one post-V3 record went out on the server's clock: 300 ms after the registration, then one record per interval (4 ms between chunks of one message, 30 ms between messages). The 17-byte line that repeats once a second is the `SM_CLOCK_SYNC` keepalive, not a rung |
+| `post-registration ladder armed: N record(s) …` | the post-V3 rungs loaded and framed from the committed corpus, plus the repeating heartbeat |
+| `ladder sent: N bytes` | one post-V3 datagram went out on the server's clock: the `0x15d` heartbeat 300 ms after the registration, then the plan's first rung one message interval (30 ms) later, then one datagram per interval (4 ms between chunks of one message, 30 ms between messages). The 17-byte line that repeats once a second is the `SM_CLOCK_SYNC` keepalive; the 25-byte one that repeats once a second is the `0x15d` heartbeat |
 | `no carrier reply` | the datagram carried no message this layer answers (e.g. a piggyback ACK) |
 | `fatal Error: …` | OpenSSL gave up; the connection must be dropped |
 
@@ -122,16 +124,31 @@ machine should move `WaitingForREPConnection -> WaitingForActorGameConnection`.
 
 ## Post-registration ladder
 
-The rungs above registration, in the order and at the pacing the reference uses
-(`services/world/src/azoth_world/rep.py::maybe_send_post_v3` and
-`::maybe_pump_replay`):
+The rungs above registration, in the order and at the pacing the capture and the
+reference use (`services/world/src/azoth_world/rep.py::maybe_send_post_v3`,
+`::maybe_pump_replay` and `::maybe_heartbeat`):
 
 | Order | Rung | Wire | Kind | Pacing |
 | --- | --- | --- | --- | --- |
 | 14 → 15 | `SM_CLOCK_SYNC` keepalive (system channel 3) | — | SEND | the first tick after the `0x3` answer, then once a second for the rest of the session |
-| 15 → 16 | self-identification, `PlayerManagerSelfIdentificationMsg` | `0x65c` | SEND (relayed on the server's clock) | 300 ms after the `0x3`, chunked at 1,100 B with a 4 ms gap |
-| 16 → 17 | level info, `LevelInfoChangedMsg` | `0x663` | SEND | one message interval (30 ms) after the self-ident |
+| 15 (no transition measured) | heartbeat ping, `PingMsg` | `0x15d` | SEND | 300 ms after the `0x3`, then once a second for the rest of the session |
+| 15 (no transition measured) | `CalendarConnectedMsg` | `0x40a` | SEND (once) | one message interval (30 ms) after the heartbeat |
+| 15 (no transition measured) | `CoatlicueTimingConfigurationConnectedMsg` | `0x1be` | SEND (once) | one message interval after `0x40a` |
+| 15 → 16 | self-identification, `PlayerManagerSelfIdentificationMsg` | `0x65c` | SEND (relayed on the server's clock) | one message interval after `0x1be`, chunked at 1,100 B with a 4 ms gap |
+| 16 → 17 | level info, `LevelInfoChangedMsg` | `0x663` | SEND | one message interval after the self-ident |
 | 17 → 18 | spawn state, `ReplicatedStateBundle` | `0x08` | SEND (the emitter's `Emission`) | right up to the state bundle, chunked |
+
+The three rows between the keepalive and the self-identification record are the
+capture's own seq `0x02`, `0x04` and `0x05`. They are the ladder gap this run
+exists to test: both known servers send them before the self-ident and this one
+sent self-ident directly. Their cards are `flow.world-entry.rung.ping`,
+`flow.world-entry.rung.calendar-connected` and
+`flow.world-entry.rung.coatlicue-timing`, every body `measured` (it parses from
+the corpus and round-trips through its generated card), with the two unnamed runs
+of `0x40a`/`0x1be` carried as fixed byte runs because nobody has named them. The
+heartbeat's tick is authored, not replayed: the card names the measured 48-bit
+big-endian counter, so each ping continues the captured series by 1,000,000,000
+nanoseconds.
 
 The keepalive row is why the ladder's envelopes start at `inbound + 2`: the
 reference's outbound counter is `max(1, inbound + 1)`, its `0x3` answer is built
@@ -238,11 +255,16 @@ captured datagrams** through the carrier layer and assert the reply bytes:
   and the captured (LZ4-compressed) V3 registration from `.azoth/logs/` and
   asserts the acceptance flight, the `0x3` response and the `SM_CT_ACKS` byte for
   byte;
-- `everfall-world/tests/post_registration.rs` builds the three post-V3 rungs from
+- `everfall-world/tests/post_registration.rs` builds the post-V3 rungs from
   the committed corpus through the Atlas cards and asserts the session releases
   them only after the 300 ms delay, that the self-ident and level-info bodies
   re-encode byte for byte, and that the state rung is the emitter's payload,
-  chunked; and
+  chunked;
+- `everfall-world/tests/ladder_order.rs` pins the three pre-self-ident records:
+  the session's first six data-channel wire ids are `0x15d`, `0x40a`, `0x1be`,
+  `0x65c`, `0x663`, `0x08`; the heartbeat keeps leaving once a second after the
+  plan has drained; each of the three bodies equals its corpus record; and each
+  later ping's tick is exactly one second later than the last;
 - `everfall-world/tests/oracle_differential.rs` is the differential gate: it
   drives the session through the V3 answer and compares the whole post-V3
   stream, datagram for datagram, against the Python reference's own encoding

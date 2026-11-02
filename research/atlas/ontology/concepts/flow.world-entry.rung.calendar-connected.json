@@ -1,0 +1,91 @@
+{
+  "uid": "flow.world-entry.rung.calendar-connected",
+  "kind": "flow",
+  "name": "Ladder: CalendarConnected",
+  "aliases": [
+    "wire:0x40a",
+    "CalendarConnectedMsg"
+  ],
+  "summary": "CalendarConnectedMsg, wire 0x40a, type index 1034, a member of the client's CoatlicueClientMessages set. A 76-byte server-to-client record whose 72-byte body is a 4-byte tag, 32 unnamed bytes and a 36-byte run that is byte-identical in 0x1be and inside 0x65c. The capture sends it once, after the ping and before the self-identification record.",
+  "purpose": "Tell the client the calendar service is connected. The name comes from the type table, so what the record does to client state is not established; its place in the ladder is measured.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": [
+      "the client has accepted the registration response and is waiting for its identity"
+    ],
+    "if_absent": "unmeasured. The record is one of the three the capture sends before the self-identification record that this server did not send at all."
+  },
+  "wire": {
+    "id": "0x40a",
+    "direction": "S2C",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): the type marker followed by the prefix varint 8a 10 = 1034 = 0x40a, so the 72-byte body below starts at record offset 0x04.",
+  "fields": [
+    {
+      "name": "vtable_tag",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 0x14786158 (bytes 58 61 78 14), a virtual address into the image's .rdata. The same 4 bytes sit at the head of 0x1be and at record offset 0x15 in 0x65c.",
+      "provenance": "meanings.md 'The 36-byte identity block and the 58 61 78 14 tag'"
+    },
+    {
+      "name": "unresolved_block",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x04",
+      "size": 32,
+      "type": "bytes(32)",
+      "evidence": "measured",
+      "note": "Measured 32 bytes, c20daee38238a1d140d1878a7a25f147912907e277204e2d80818aa27c952bc9. They differ from 0x1be's 32 bytes and name nothing, so they are carried as one fixed run: splitting them into narrower fields would state a structure nobody measured.",
+      "provenance": "meanings.md 'The 36-byte identity block and the 58 61 78 14 tag'"
+    },
+    {
+      "name": "shared_block",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x24",
+      "size": 36,
+      "type": "bytes(36)",
+      "evidence": "measured",
+      "note": "Measured cbd4a18a4042c7eea46298c7499ba826ef5339aa2970e283fcf34b6f8f0786d68bf3ae45, the last 36 bytes of the record. It is byte-identical in 0x1be and is the same 36 bytes 0x65c carries at record offset 0x39, so it names a shared object that nobody has identified; a server that composes messages has to keep it consistent.",
+      "provenance": "meanings.md 'The 36-byte identity block and the 58 61 78 14 tag'"
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.world-entry"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "capture",
+      "ref": "services/world/replay/messages-redacted.txt record 0x4_T0x40a_R.bin: 76 bytes, 72-byte body after the 4-byte typed header, extracted by scripts/export/export-wire-bodies.py into research/fixtures/wire/wire-bodies.json and round-tripped byte-for-byte by the generated codec (reverse/tools/tests/test_ontology_gen.py)"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'CoatlicueClientMessages, fully resolved': CalendarConnectedMsg is wire 0x40a, index 1034. Two independent routes agree: the registration walk, and the seven member GUIDs sitting contiguously in .rdata in the same member order, spot-checked by hand through the wrapper 0x1469a5fa0 -> 0x146437730"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/meanings.md 'The 36-byte identity block and the 58 61 78 14 tag': 0x40a and 0x1be are both 76 bytes and differ only in their first 40; bytes 40..76 are byte-identical and the same 36 bytes appear inside 0x65c at offset 57. The layout is [4-byte tag][32 bytes][36-byte shared block] in all three"
+    },
+    {
+      "type": "capture",
+      "ref": "research/atlas/meanings.md 'The first typed exchange, measured': the record is seq 0x04, direction R, 76 bytes, between the 0x15d ping (seq 0x02) and the 0x65c self-identification record (seq 0x06)"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": null,
+    "module": null
+  }
+}

@@ -53,6 +53,12 @@ MAX_BODIES_PER_WIRE = 8
 # the seeding task; one without bytes is reported, not invented.
 TARGETS: dict[int, str] = {
     0x3: "RegistrationResponseMsg",
+    # The three records the capture sends BEFORE the self-identification record
+    # (corpus seq 0x2, 0x4, 0x5). All three are server->client, so their bodies are
+    # in the committed corpus and nowhere else.
+    0x15d: "PingMsg",
+    0x40a: "CalendarConnectedMsg",
+    0x1be: "CoatlicueTimingConfigurationConnectedMsg",
     0x663: "LevelInfoChangedMsg",
     0x65c: "PlayerManagerSelfIdentificationMsg",
     0x8: "ReplicatedStateBundle (spawn record)",

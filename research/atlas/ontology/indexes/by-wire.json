@@ -24,7 +24,10 @@
     "0x9d3": "msg.receive-settings-from-client",
     "0x183": "msg.set-replicate-storage",
     "0x1098": "msg.time-sync-to-client",
-    "0xa95": "msg.objectives-set-objective-auto-pinning"
+    "0xa95": "msg.objectives-set-objective-auto-pinning",
+    "0x15d": "flow.world-entry.rung.ping",
+    "0x40a": "flow.world-entry.rung.calendar-connected",
+    "0x1be": "flow.world-entry.rung.coatlicue-timing"
   },
-  "$comment": "Wire-type to concept. A wire type enters this index only when its identification is proven. 0x5d1 is absent because its identification is a candidate. 449 is absent because its AddActorMessage pairing was a name/GUID adjacency false positive: the name binds to 121, proven by FUN_146ac20a0 building both halves. 0x651 and 0x18a6 entered on 2026-10-26 through the registration hook, corroborated for 0x18a6 by the client's own log and by .rdata adjacency, and for 0x651 by the hook alone."
+  "$comment": "Wire-type to concept. A wire type enters this index only when its identification is proven. 0x5d1 is absent because its identification is a candidate. 449 is absent because its AddActorMessage pairing was a name/GUID adjacency false positive: the name binds to 121, proven by FUN_146ac20a0 building both halves. 0x651 and 0x18a6 entered on 2026-10-26 through the registration hook, corroborated for 0x18a6 by the client's own log and by .rdata adjacency, and for 0x651 by the hook alone. 0x15d, 0x40a and 0x1be entered on 2026-11-07 with the three pre-self-ident rungs: each name is resolved by the type table and the .rdata order agreeing, and each body is the committed corpus record."
 }

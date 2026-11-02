@@ -1649,6 +1649,52 @@ offset 57. The layout is the same in all three:
 private server that echoes a captured record keeps these consistent for free; one
 that composes messages has to know what they are, and nobody does yet.
 
+### `0x15d body: 2 constant bytes and a big-endian nanosecond tick`
+
+The 12-byte `0x15d` record is a 4-byte typed header (`00 01 9d 05`, prefix varint
+`9d 05` = 349) and an **8-byte body**. The body splits into `00 03`, constant in
+every ping the corpus and the local sessions carry, and a **6-byte big-endian
+nanosecond counter**:
+
+```
+00 03 | 6e f6 | af 91 2d 74
+const | high16 | low32        = 0x6ef6af912d74
+```
+
+The tick is a counter, not a clock we have to match: the client answers with a
+36-byte `0x15d` that echoes the same 8 bytes at offset `0x18` and never compares
+them to its own. Nine distinct captured bodies differ only in that counter, one
+second apart per `0x3b9aca00` (1000000000). The closed codec vocabulary has no
+48-bit integer, so the card names the measured 6 bytes as their high 16 and low
+32 bits (`tick_high` / `tick_low`) rather than inventing a merged 8-byte word
+that would hide the constant. Both fields are `known`; `00 03` is `layout-only`.
+
+### The three pre-self-ident rungs, carded and ordered
+
+The capture's first records after the registration answer are `0x15d` (seq
+`0x02`), `0x40a` (seq `0x04`), `0x1be` (seq `0x05`) and only then the `0x65c`
+self-identification record (seq `0x06`). This server sent none of the three, which
+is why they are the prime suspect for the client stalling at
+`WaitingForActorGameConnection` (state 15). All three bodies parse end to end from
+the committed corpus and round-trip through their generated codecs, so each card
+is `confidence: layout` with `measured` fields and `candidate` status:
+
+| Rung | Card | Body | Evidence per field |
+| --- | --- | --- | --- |
+| `0x15d` | `flow.world-entry.rung.ping` | 8 B: `00 03` + 48-bit tick | 3 of 3 measured; tick `known`, prefix `layout-only` |
+| `0x40a` | `flow.world-entry.rung.calendar-connected` | 72 B: tag + 32 B + 36 B | 3 of 3 measured; tag `known`, runs `layout-only` |
+| `0x1be` | `flow.world-entry.rung.coatlicue-timing` | 72 B: tag + 32 B + 36 B | 3 of 3 measured; tag `known`, runs `layout-only` |
+
+The names are not guesses: `CalendarConnectedMsg` and
+`CoatlicueTimingConfigurationConnectedMsg` are resolved twice (the registration
+walk and the contiguous `.rdata` GUID order that the wrappers `0x1469a5fa0` and
+`0x1469a6050` `lea`), and `PingMsg` comes from the same type table. What stays
+unnamed is what the records *do*: no handler for `0x40a`/`0x1be` has been read, so
+their 32-byte run and the shared 36-byte run are carried as fixed runs and the
+cards do not claim a meaning for them. The ladder sends the three in the capture's
+order, at the reference's pace: the heartbeat first and then about once a second,
+the two connected notices once each, 30 ms apart, as `from_captured` requires.
+
 ## Presence
 
 **The wire type was wrong, and that is now fixed at the source.** `AddActorMessage`
