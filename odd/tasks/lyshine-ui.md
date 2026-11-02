@@ -52,7 +52,7 @@ Client build: 1.460.6033.6024067, SHA-256
 | T4 | S2, S5 | Edit named tokens on the IR + export back to `.dynamicuicanvas` + `pakwrite` a patch pak. **DONE 2026-11-01**: `ef.py re lyshine set`/`patch`; fail-closed on missing/ambiguous/undecodable; verified byte-exactness still holds (newinventory 21 MB / 761k elements) and an alpha edit changes exactly 1 byte. | worker | not committed (repo rule) |
 | T5 | S4, S5 | `.dds` -> PNG decoder (stdlib: DDS header + BC1/BC2/BC3/BC4/BC5/BC7 + zlib PNG). **DONE**: `reverse/tools/pak/dds.py` (`ef.py re dds`), 11 unit tests + selftest; the code landed with the UI commit. | inline | `9859626` |
 | T6 | S2 | Renderer embeds sprite PNGs into the preview (private/ignored output only). **DONE 2026-11-02**: `sprite_ref_path` / `sprite_entry` / `sprite_data_uri` / `load_sprites`; `render_html(..., sprites=)` adds `background-image` + `data-sprite` only for a RESOLVED path, and `cmd_render` loads sprites from the read-only pak index with a new `--no-sprites` opt-out. 45 tests green (13 RED first); a real render of `arenaentermenu` embeds 106 sprites, `--no-sprites` embeds 0. | worker | not committed (repo rule) |
-| T7 | S2 | `.luac` (compiled Lua) decompile, to read the UI behaviours. | pending | not committed (repo rule) |
+| T7 | S2 | `.luac` (compiled Lua) reader + disassembler, to read UI behaviours. **DONE 2026-11-02**: `reverse/tools/pak/luac.py` (`ef.py re luac` read/dis/strings/selftest) parses the measured format (2-byte prefix `04 00` + Lua 5.1 LE) into a function tree and decodes all 38 opcodes; 20 unit tests. Whole-install sweep: 1,100 files / 23,603 functions / 1,093,181 instructions, 0 malformed. | worker | not committed (repo rule) |
 
 ## Log
 
@@ -150,3 +150,19 @@ Client build: 1.460.6033.6024067, SHA-256
   from the handoff: `pakread.read_entry` returns `(bytes, meta)`, so the CLI path passes a bytes
   adapter. **Risk: none** (no stored data is rewritten and no shared contract changes; the model
   only gains an additive `sprite` key and the sprite bytes are private output).
+- **L14** — T7 outcome and verification, 2026-11-02. The `.luac` payloads are Lua 5.1 LITTLE-ENDIAN
+  dumps behind a constant 2-byte prefix `04 00` (confirmed by parsing all 1,100 to exact EOF, 0
+  malformed). The deliverable is a DISASSEMBLER, not a decompiler to source: `reverse/tools/pak/luac.py`
+  (`ef.py re luac read|dis|strings|selftest`) parses a function tree (source, lines, params, nups,
+  maxstack, code, constants, protos, upvalues, debug), decodes every instruction against the public
+  Lua 5.1 `lopcodes.h` (iABC/iABx/iAsBx, ISK/INDEXK), and prints a listing that resolves
+  constant/global/upvalue/proto names (`GETGLOBAL R0 := Gbl[RequireScript]`, `LOADK R1 := K1("…")`,
+  `TAILCALL return R0(R1..R1)`). Registered in `reverse/tools/catalog.json` + `lab/tools.py`.
+  Writer self-verification (RDD off, no Task Size high-risk item escalated): `test_luac` 20/20 green
+  after a recorded RED, the four sibling suites + the catalog import gate green; real `read`/`dis` on
+  `basescreen.luac` and `socialmenu.luac`; a full-install sweep parsed 1,100 files / 23,603 functions /
+  1,093,181 instructions with 0 malformed; a missing entry fails closed (rc=1, no traceback).
+  **Risk: none** (a new tool only; no shared contract changes, no data rewritten, game bytes never
+  enter the repo). Note the native assess could not bind this candidate because the two new files are
+  untracked until committed (`untracked files require an explicit declaration`); its plan still adds
+  no separate verifier.
