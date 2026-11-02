@@ -15,11 +15,15 @@ canvas readable (`research/derived/lyshine-classes.json`):
     `zlib.crc32(name.lower())`, so a matching CRC names the field. A CRC with no
     seed entry is reported as `unknown <crc>` -- never guessed.
 
-This tool is task T3 (`odd/tasks/lyshine-ui.md`, specs S2 and S4): it names the
-model and renders it to ONE self-contained HTML file (inline CSS, absolutely
-positioned divs, no sprites and no game asset bytes). The HTML is a *view*; the
-IR stays the source of truth (decision L6). Unknown classes/fields degrade to an
-honest dashed placeholder, so a preview never invents a layout it cannot decode.
+This tool is tasks T3/T6 (`odd/tasks/lyshine-ui.md`, specs S2 and S4): it names
+the model and renders it to ONE self-contained HTML file (inline CSS, absolutely
+positioned divs). It can also embed each element's sprite as a PNG data URI,
+resolved through the pak index and decoded by `dds` (T5) -- those game texture
+bytes go ONLY into the private, ignored preview output under
+`.azoth/tmp/lyshine/`, never into the repo (docs/LEGAL.md S5). The HTML is a
+*view*; the IR stays the source of truth (decision L6). Unknown classes/fields
+degrade to an honest dashed placeholder, so a preview never invents a layout it
+cannot decode.
 
 THE MODEL
 =========
@@ -47,12 +51,14 @@ decodes to 1920x1080 (`44f0000044870000`). So every numeric leaf is read
 big-endian.
 
 Usage:
-    python ef.py re lyshine render <pak> <entry> [--out FILE]
+    python ef.py re lyshine render <pak> <entry> [--out FILE] [--no-sprites]
     python ef.py re lyshine set <pak> <entry> --field NAME --value VAL [--where NAME] [--out FILE]
     python ef.py re lyshine patch <pak> <entry> --field NAME --value VAL [--where NAME] --out patch.pak
     python ef.py re lyshine selftest
 
-`set` edits one named field and exports the modified `.dynamicuicanvas` (the
+`render` embeds each element's sprite by default (the pak index is opened
+read-only); `--no-sprites` skips that and writes the layout only. `set` edits one
+named field and exports the modified `.dynamicuicanvas` (the
 value-size encoding is recomputed, so a length-changing edit re-serializes
 correctly). `patch` writes the same edit as a one-entry method-8 patch pak and
 re-reads it to verify. Both REFUSE -- nonzero exit, no file -- when the field is
@@ -66,9 +72,11 @@ Without `--out` the preview goes under the gitignored `.azoth/tmp/lyshine/`.
 
 from __future__ import annotations
 
+import base64
 import html
 import json
 import re
+import sqlite3
 import struct
 import sys
 import zipfile
@@ -79,10 +87,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pakread  # noqa: E402  (same folder; reuses the PAK/Kraken decoder)
 import pakwrite  # noqa: E402  (the patch-pak writer, method 8)
 import uicanvas  # noqa: E402
+import dds  # noqa: E402  (DDS -> PNG, task T5)
 
 REPO = Path(__file__).resolve().parents[3]
 CLASS_MAP = REPO / "research" / "derived" / "lyshine-classes.json"
 DEFAULT_OUT_DIR = REPO / ".azoth" / "tmp" / "lyshine"
+PAK_INDEX = REPO / ".azoth" / "cache" / "pak-index" / "pakindex.db"
 
 ENTITY_CLASS = "AZ::Entity"
 TRANSFORM_CLASS = "LyShine::UiTransform2dComponent"
@@ -110,6 +120,16 @@ FIELD_LEFT = "left"
 FIELD_TOP = "top"
 FIELD_RIGHT = "right"
 FIELD_BOTTOM = "bottom"
+
+# A UiImageComponent carries its sprite as a named-blob leaf (name CRC
+# 0x8DF2FDBE); a UiImageSequenceComponent carries its frame folder as a plain
+# AZStd::string leaf (name CRC 0xCEE077ED). Measured 2026-11-02, client
+# 1.460.6033.6024067; neither CRC is in the field seed map.
+SPRITE_REF_CRC = 0x8DF2FDBE
+SEQUENCE_SPRITE_CRC = 0xCEE077ED
+# The blob header before the path: 16B asset GUID + 16B zeros + 16B sprite-type
+# GUID + a u64 BIG-ENDIAN path length. The path bytes follow.
+SPRITE_BLOB_HEADER = 56
 
 # The normalized float value order. See the module docstring for the measurement.
 FLOAT_ORDER = ">"
@@ -356,6 +376,93 @@ def _component_model(comp: dict, classes, fields) -> dict:
     }
 
 
+# --- sprites -----------------------------------------------------------------
+
+def sprite_ref_path(value: bytes | None) -> str | None:
+    """The texture path in a UiImageComponent sprite reference, or None.
+
+    The blob is 16B asset GUID, 16B zeros, 16B constant sprite-type GUID, then a
+    u64 BIG-ENDIAN path length and that many UTF-8 bytes (measured 2026-11-02). A
+    zero length, a header shorter than 56 bytes, or a path the blob truncates all
+    mean there is no path -- never guess one.
+    """
+    if value is None or len(value) < SPRITE_BLOB_HEADER:
+        return None
+    length = int.from_bytes(value[48:56], "big")
+    if length == 0 or len(value) - SPRITE_BLOB_HEADER < length:
+        return None
+    raw = value[SPRITE_BLOB_HEADER:SPRITE_BLOB_HEADER + length]
+    return raw.decode("utf-8", "replace")
+
+
+def _entity_sprite(entity: dict, classes, fields) -> str | None:
+    """The sprite path named by an entity's image or sequence component, if any."""
+    for comp in _components(entity, fields):
+        for n in _nodes(comp):
+            if n["value"] is None:
+                continue
+            if n["name_crc"] == SPRITE_REF_CRC:
+                path = sprite_ref_path(n["value"])
+                if path:
+                    return path
+            elif n["name_crc"] == SEQUENCE_SPRITE_CRC:
+                folder = n["value"].decode("utf-8", "replace").strip()
+                if folder:
+                    return folder
+    return None
+
+
+def sprite_entry(path: str, con) -> tuple[str, str] | None:
+    """Resolve a sprite path to (pak, entry): exact entry, else first folder frame.
+
+    An exact `path` wins; otherwise `path` is treated as a folder of frame `.dds`
+    files and the FIRST frame in path order is taken.
+    """
+    row = con.execute("SELECT pak, path FROM entry WHERE path = ?", (path,)).fetchone()
+    if row is not None:
+        return (row[0], row[1])
+    prefix = (path.rstrip("/").replace("\\", "\\\\")
+              .replace("%", "\\%").replace("_", "\\_"))
+    row = con.execute(
+        "SELECT pak, path FROM entry WHERE path LIKE ? ESCAPE '\\' "
+        "ORDER BY path LIMIT 1", (prefix + "/%",)).fetchone()
+    return (row[0], row[1]) if row is not None else None
+
+
+def sprite_data_uri(pak: str, entry: str, read) -> str | None:
+    """Read one entry as a PNG data URI (`.png` passes through; else `dds`).
+
+    Returns None when the bytes cannot be read or decoded, so a caller can skip
+    the sprite instead of inventing one.
+    """
+    try:
+        data = read(pak, entry)
+        if entry.lower().endswith(".png"):
+            png = data
+        else:
+            image = dds.decode(data)
+            png = dds.png_bytes(image.width, image.height, image.pixels())
+    except (ValueError, OSError):
+        return None
+    return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+
+
+def load_sprites(model: dict, con, read) -> dict[str, str]:
+    """Map each scene sprite path to its PNG data URI; skip unresolved/invalid."""
+    sprites: dict[str, str] = {}
+    for element in model["scene"]:
+        path = element.get("sprite")
+        if not path or path in sprites:
+            continue
+        resolved = sprite_entry(path, con)
+        if resolved is None:
+            continue
+        uri = sprite_data_uri(resolved[0], resolved[1], read)
+        if uri is not None:
+            sprites[path] = uri
+    return sprites
+
+
 def element_model(e: dict, classes, fields) -> dict:
     """Recursively name one element; unknown class -> None (an honest placeholder)."""
     cls = class_name(e["type_id"], classes)
@@ -416,6 +523,7 @@ def build_model(ir: dict, classes=None, fields=None) -> dict:
             "children_ids": _children_ids(e, classes, fields),
             "components": comps,
             "unknown_classes": sorted({c["type_id"] for c in comps if c["unknown_class"]}),
+            "sprite": _entity_sprite(e, classes, fields),
         }
         record.update(_entity_text(e, classes, fields))
         transform_comp = _component_of(e, TRANSFORM_CLASS, classes, fields)
@@ -463,6 +571,7 @@ def build_model(ir: dict, classes=None, fields=None) -> dict:
             "rotation": (record["transform"] or {}).get("rotation") or 0.0,
             "pivot": (record["transform"] or {}).get("pivot") or [0.5, 0.5],
             "unknown_classes": record["unknown_classes"],
+            "sprite": record["sprite"],
         }
         scene.append(entry)
         for child in record["children_ids"]:
@@ -645,10 +754,17 @@ def _num(value: float) -> str:
     return text.rstrip("0").rstrip(".") if "." in text else text
 
 
-def render_html(model: dict, title: str = "LyShine preview") -> str:
-    """Render the named model to one self-contained static HTML document."""
+def render_html(model: dict, title: str = "LyShine preview",
+                sprites: dict[str, str] | None = None) -> str:
+    """Render the named model to one self-contained static HTML document.
+
+    `sprites` maps a scene element's sprite path to a PNG data URI; a path with a
+    URI gets a `background-image` and a `data-sprite` attribute, and anything
+    else is left out. With no map the layout renders with no images at all.
+    """
     canvas = model["canvas"]
     cw, ch = canvas["size"]
+    sprites = sprites or {}
 
     boxes: list[str] = []
     for el in model["scene"]:
@@ -658,10 +774,12 @@ def render_html(model: dict, title: str = "LyShine preview") -> str:
             px, py = el["pivot"]
             transform = (f"transform:rotate({_num(el['rotation'])}rad);"
                          f"transform-origin:{_num(px * 100)}% {_num(py * 100)}%;")
+        uri = sprites.get(el.get("sprite"))
+        image = f"background-image:url({uri});" if uri else ""
         style = (
             f"position:absolute;left:{_num(el['x'])}px;top:{_num(el['y'])}px;"
             f"width:{_num(el['w'])}px;height:{_num(el['h'])}px;"
-            f"background:{_css_color(el['color'], el['alpha'])};{transform}"
+            f"background:{_css_color(el['color'], el['alpha'])};{transform}{image}"
         )
         if el["name"]:
             name = html.escape(el["name"])
@@ -676,9 +794,10 @@ def render_html(model: dict, title: str = "LyShine preview") -> str:
             f'<span class="lyshine-unknown">unknown {html.escape(uid)}</span>'
             for uid in el["unknown_classes"]
         )
+        sprite_attr = f' data-sprite="{html.escape(el["sprite"])}"' if uri else ""
         boxes.append(
-            f'<div class="lyshine-el{dashed}" data-entity="{el["id"] if el["id"] is not None else ""}" '
-            f'style="{style}">{label}{text}{unknown}</div>'
+            f'<div class="lyshine-el{dashed}" data-entity="{el["id"] if el["id"] is not None else ""}"'
+            f'{sprite_attr} style="{style}">{label}{text}{unknown}</div>'
         )
 
     model_json = json.dumps(model, ensure_ascii=False).replace("<", "\\u003c")
@@ -743,14 +862,38 @@ def render_html(model: dict, title: str = "LyShine preview") -> str:
 
 # --- commands ----------------------------------------------------------------
 
-def _render(pak_rel: str, entry: str) -> str:
+def _load_model(pak_rel: str, entry: str) -> dict:
     data, _meta = pakread.read_entry(pak_rel, entry)
-    ir = uicanvas.parse(data)
-    return render_html(build_model(ir), title=f"{pak_rel}::{entry}")
+    return build_model(uicanvas.parse(data))
 
 
-def cmd_render(pak_rel: str, entry: str, out: str | None) -> int:
-    document = _render(pak_rel, entry)
+def _render(pak_rel: str, entry: str, sprites: dict[str, str] | None = None) -> str:
+    return render_html(_load_model(pak_rel, entry), title=f"{pak_rel}::{entry}",
+                       sprites=sprites)
+
+
+def _read_entry_bytes(pak: str, entry: str) -> bytes:
+    """`pakread.read_entry` as the bytes-only `read` `load_sprites` expects."""
+    data, _meta = pakread.read_entry(pak, entry)
+    return data
+
+
+def _load_sprites(model: dict) -> dict[str, str]:
+    """Sprites from the read-only pak index; empty when the index is absent."""
+    if not PAK_INDEX.exists():
+        return {}
+    con = sqlite3.connect(f"file:{PAK_INDEX}?mode=ro", uri=True)
+    try:
+        return load_sprites(model, con, _read_entry_bytes)
+    finally:
+        con.close()
+
+
+def cmd_render(pak_rel: str, entry: str, out: str | None,
+               no_sprites: bool = False) -> int:
+    model = _load_model(pak_rel, entry)
+    sprites = None if no_sprites else _load_sprites(model)
+    document = render_html(model, title=f"{pak_rel}::{entry}", sprites=sprites)
     if out:
         target = Path(out)
     else:
@@ -861,7 +1004,7 @@ def main() -> int:
         return selftest()
     if cmd == "render" and len(argv) >= 3:
         out = argv[argv.index("--out") + 1] if "--out" in argv else None
-        return cmd_render(argv[1], argv[2], out)
+        return cmd_render(argv[1], argv[2], out, no_sprites="--no-sprites" in argv)
     if cmd == "set" and len(argv) >= 3:
         opts = _edit_opts(argv[3:])
         if opts is None:

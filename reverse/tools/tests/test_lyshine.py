@@ -11,10 +11,12 @@ confirms the CLI skips gracefully when the install is absent.
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import html as html_module
 import io
 import pathlib
+import sqlite3
 import struct
 import sys
 import tempfile
@@ -180,6 +182,93 @@ def synthetic_ir() -> dict:
 
 
 TEXT_COMPONENT = uuid.UUID("5b3fb2a7-5dc4-4033-a970-001cec85b6c4")
+IMAGE_COMPONENT = uuid.UUID("bdbefd23-dbb4-4726-a32d-4feac24e51f6")
+SEQUENCE_COMPONENT = uuid.UUID("bfac7909-3a56-4980-af7c-261a99d6371b")
+
+# The image component's sprite reference is a named-blob leaf with no seed entry;
+# the sequence component stores a folder path in a plain string leaf. Both CRCs are
+# measured from the real canvases (see `sprite_ref_path`).
+SPRITE_REF_CRC = 0x8DF2FDBE
+SEQUENCE_SPRITE_CRC = 0xCEE077ED
+SPRITE_TYPE_GUID = bytes.fromhex("59d5e20b34db4d8eb867d33cc2556355")
+
+
+def leaf_crc(type_id: uuid.UUID, name_crc: int, value: bytes) -> bytes:
+    """A leaf with an arbitrary name CRC and a value of any length."""
+    flags = uicanvas.FLAG_ELEMENT_HEADER | uicanvas.FLAG_HAS_NAME | uicanvas.FLAG_HAS_VALUE
+    width = 0
+    if len(value) > 7:
+        width = 1 if len(value) < 0x100 else 2 if len(value) < 0x10000 else 4
+        flags |= uicanvas.FLAG_EXTRA_SIZE_FIELD | width
+    else:
+        flags |= len(value)
+    out = bytearray([flags])
+    out += name_crc.to_bytes(4, "big")
+    out += type_id.bytes
+    if width:
+        out += len(value).to_bytes(width, "big")
+    out += value
+    out.append(uicanvas.FLAG_ELEMENT_END)
+    return bytes(out)
+
+
+def sprite_blob(path: str) -> bytes:
+    """A UiImageComponent sprite reference: 16B id, 16B zeros, 16B type id, len, path."""
+    head = bytes(16) + bytes(16) + SPRITE_TYPE_GUID
+    assert len(head) == 48
+    raw = path.encode("utf-8")
+    return head + len(raw).to_bytes(8, "big") + raw
+
+
+def sprite_stream(sprite: str | None = None, sequence: str | None = None) -> bytes:
+    """A canvas whose one widget carries an image and/or a sequence component."""
+    comps: list[bytes] = [transform((0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 200.0, 100.0))]
+    if sprite is not None:
+        comps.append(el(IMAGE_COMPONENT, "Element", None, (
+            leaf_crc(UNKNOWN_CLASS, SPRITE_REF_CRC, sprite_blob(sprite)),
+        )))
+    if sequence is not None:
+        comps.append(el(SEQUENCE_COMPONENT, "Element", None, (
+            leaf_crc(STRING, SEQUENCE_SPRITE_CRC, sequence.encode("utf-8")),
+        )))
+    widget = el(ENTITY, None, None, (
+        entity_id_node("Id", 0x31),
+        el(STRING, "Name", b"Widget"),
+        el(ELEMENT, "Components", None, tuple(comps)),
+    ))
+    root = el(ENTITY, None, None, (
+        entity_id_node("Id", ENTITY_ID),
+        el(STRING, "Name", b"Canvas"),
+        el(ELEMENT, "Components", None, (
+            el(CANVAS, "Element", None, (
+                el(VEC2, "CanvasSize", f32(800.0, 600.0)),
+                entity_id_node("RootElement", 0x31),
+            )),
+            widget,
+        )),
+    ), version=2)
+    return (bytes([uicanvas.STREAM_TAG]) + (3).to_bytes(4, "big") + root
+            + bytes([uicanvas.FLAG_ELEMENT_END]))
+
+
+def fake_index(rows: list[tuple[str, str]]) -> sqlite3.Connection:
+    """An in-memory pak index with the columns `sprite_entry` reads."""
+    con = sqlite3.connect(":memory:")
+    con.execute("CREATE TABLE entry (path TEXT, pak TEXT, ext TEXT, csize INT, "
+                "usize INT, crc INT, method INT)")
+    con.executemany("INSERT INTO entry VALUES (?, ?, '', 0, 0, 0, 15)", rows)
+    return con
+
+
+def tiny_rgba8_dds(width: int = 2, height: int = 2) -> bytes:
+    """A minimal uncompressed RGBA8 DDS the decoder accepts."""
+    header = bytearray(128)
+    header[0:4] = b"DDS "
+    struct.pack_into("<7I", header, 4, 124, 0x1007, height, width, 0, 0, 1)
+    struct.pack_into("<4I", header, 76, 32, 0x41, 0, 32)
+    struct.pack_into("<4I", header, 92, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000)
+    pixels = bytes([0, 0, 255, 255]) * (width * height)
+    return bytes(header) + pixels
 
 
 def unique_stream() -> bytes:
@@ -474,6 +563,87 @@ class CliTest(unittest.TestCase):
         with zipfile.ZipFile(out) as z:
             self.assertEqual(z.read("e"),
                              lyshine.edit_canvas_bytes(unique_stream(), "Text", "Hello world!"))
+
+
+class SpriteTest(unittest.TestCase):
+    """The image/sequence sprite reference, read from the canvas (T6)."""
+
+    def test_sprite_ref_path_reads_the_embedded_path(self) -> None:
+        self.assertEqual(lyshine.sprite_ref_path(sprite_blob("lyshineui/a/b.dds")),
+                         "lyshineui/a/b.dds")
+
+    def test_sprite_ref_path_none_for_empty_or_truncated(self) -> None:
+        self.assertIsNone(lyshine.sprite_ref_path(None))
+        self.assertIsNone(lyshine.sprite_ref_path(bytes(56)))       # length 0 -> no path
+        blob = sprite_blob("lyshineui/a/b.dds")
+        self.assertIsNone(lyshine.sprite_ref_path(blob[:-3]))       # path truncated
+        self.assertIsNone(lyshine.sprite_ref_path(blob[:40]))       # header truncated
+
+    def test_model_carries_the_image_sprite_path(self) -> None:
+        model = lyshine.build_model(uicanvas.parse(sprite_stream(sprite="lyshineui/a/b.dds")))
+        self.assertEqual([e["sprite"] for e in model["scene"] if e["sprite"]],
+                         ["lyshineui/a/b.dds"])
+
+    def test_model_carries_the_sequence_folder(self) -> None:
+        model = lyshine.build_model(uicanvas.parse(sprite_stream(sequence="lyshineui/images/seq")))
+        self.assertEqual([e["sprite"] for e in model["scene"] if e["sprite"]],
+                         ["lyshineui/images/seq"])
+
+    def test_model_sprite_is_none_without_a_sprite_component(self) -> None:
+        model = lyshine.build_model(synthetic_ir())
+        self.assertTrue(all(e["sprite"] is None for e in model["scene"]))
+
+    def test_render_embeds_a_data_uri(self) -> None:
+        model = lyshine.build_model(uicanvas.parse(sprite_stream(sprite="lyshineui/a/b.dds")))
+        uri = "data:image/png;base64,AAAA"
+        document = lyshine.render_html(model, sprites={"lyshineui/a/b.dds": uri})
+        self.assertIn(f"background-image:url({uri})", document)
+        self.assertIn('data-sprite="lyshineui/a/b.dds"', document)
+
+    def test_render_without_a_sprite_map_has_no_image(self) -> None:
+        model = lyshine.build_model(uicanvas.parse(sprite_stream(sprite="lyshineui/a/b.dds")))
+        self.assertNotIn("background-image", lyshine.render_html(model))
+
+    def test_unresolved_sprite_is_not_invented(self) -> None:
+        model = lyshine.build_model(uicanvas.parse(sprite_stream(sprite="lyshineui/a/b.dds")))
+        document = lyshine.render_html(
+            model, sprites={"other/path.dds": "data:image/png;base64,AAAA"})
+        self.assertNotIn("background-image", document)
+
+
+class SpriteLoadTest(unittest.TestCase):
+    """Resolve a canvas sprite path to PNG bytes through the pak index (T6)."""
+
+    def test_entry_exact_file(self) -> None:
+        con = fake_index([("lyshineui/a/b.dds", "DataStrm-part3.pak")])
+        self.assertEqual(lyshine.sprite_entry("lyshineui/a/b.dds", con),
+                         ("DataStrm-part3.pak", "lyshineui/a/b.dds"))
+
+    def test_entry_sequence_folder_takes_the_first_frame(self) -> None:
+        con = fake_index([("lyshineui/images/seq/blue_01.dds", "P.pak"),
+                          ("lyshineui/images/seq/blue_00.dds", "P.pak")])
+        self.assertEqual(lyshine.sprite_entry("lyshineui/images/seq", con),
+                         ("P.pak", "lyshineui/images/seq/blue_00.dds"))
+
+    def test_entry_missing_returns_none(self) -> None:
+        self.assertIsNone(lyshine.sprite_entry("nope/none.dds", fake_index([])))
+
+    def test_data_uri_png_passthrough(self) -> None:
+        png = b"\x89PNG\r\n\x1a\nhello"
+        uri = lyshine.sprite_data_uri("P.pak", "a/b.png", lambda pak, e: png)
+        self.assertEqual(uri, "data:image/png;base64," + base64.b64encode(png).decode())
+
+    def test_data_uri_decodes_a_dds(self) -> None:
+        uri = lyshine.sprite_data_uri("P.pak", "a/b.dds", lambda pak, e: tiny_rgba8_dds())
+        self.assertTrue(uri.startswith("data:image/png;base64,"))
+        raw = base64.b64decode(uri.split(",", 1)[1])
+        self.assertTrue(raw.startswith(b"\x89PNG\r\n\x1a\n"))
+
+    def test_load_sprites_skips_unresolved_paths(self) -> None:
+        model = lyshine.build_model(uicanvas.parse(sprite_stream(sprite="lyshineui/a/b.png")))
+        con = fake_index([("lyshineui/a/b.png", "P.pak")])
+        sprites = lyshine.load_sprites(model, con, lambda pak, e: b"\x89PNG\r\n\x1a\nx")
+        self.assertEqual(set(sprites), {"lyshineui/a/b.png"})
 
 
 class SelftestTest(unittest.TestCase):
