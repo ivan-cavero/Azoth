@@ -8,7 +8,8 @@
 //!
 //! * a Carrier `SM_CONNECT_REQUEST` is answered with the acceptance flight
 //!   (`SM_CLOCK_SYNC` + `SM_CONNECT_ACK` + `SM_CT_ACKS`), echoing the client's
-//!   envelope sequence; and
+//!   envelope sequence, every time the client asks and the retransmit cooldown
+//!   allows it -- not only the first time; and
 //! * the client's `RegistrationRequestV3Msg` (`wire 0x13`) is answered with the
 //!   Atlas card `flow.world-entry.rung.registration` (`wire 0x3`), whose body the
 //!   generated codec produces and which moves the client from
@@ -20,6 +21,17 @@
 //! times the server out after ten seconds of silence (`transportError 4`). That
 //! keepalive takes the envelope slot immediately after the `0x3` answer, which is
 //! why the post-registration ladder starts one sequence later.
+//!
+//! ## Why a second `SM_CONNECT_REQUEST` is answered
+//!
+//! `WaitingForActorGameConnection` is left when the client's Carrier connection
+//! reaches state 2, and `GridMate` reaches state 2 on the `CONNECT_ACK` path
+//! (`conn->m_state = CST_CONNECTED`, the sequence the reference's
+//! `carrier_state_datagram` quotes from `Carrier.cpp`). Our session used to answer
+//! that handshake exactly once, then go silent: every later request on the same
+//! transport -- which is the only shape a second, late Carrier connection attempt
+//! can take -- was dropped as "no carrier reply". The cooldown below is the
+//! client's own retransmit cadence, so re-answering cannot flood it.
 //!
 //! It mirrors the reference's `handle_app_data` in
 //! `services/world/src/azoth_world/rep.py`. Nothing here opens a socket: it takes
@@ -81,6 +93,36 @@ const REGISTRATION_UNRESOLVED_U64: u64 = 0x0B88_8D68_706C_415B;
 /// The flag byte of a reliable data-channel record: `MF_RELIABLE | MF_DATA_CHANNEL`.
 const RELIABLE_DATA_CHANNEL: u8 = MF_RELIABLE | MF_DATA_CHANNEL;
 
+/// How long a session waits before it answers another `SM_CONNECT_REQUEST`.
+///
+/// The client's Carrier resends its request until one of our datagrams is
+/// acknowledged, and it gives up on a lost datagram after 1000 ms
+/// (`DefaultTrafficControl`'s lost-packet timeout, quoted by the reference at
+/// `PeerSession.on_app_data` and by [`acceptance_flight`]'s own note). One answer
+/// per second is therefore one answer per request the client actually makes: it
+/// re-answers a late handshake without ever flooding a client that repeats itself.
+pub const CONNECT_REPLY_COOLDOWN_MS: u32 = 1000;
+
+/// Whether a `SM_CONNECT_REQUEST` in this datagram may be answered now.
+///
+/// A bool would be the fourth one on [`RepRequest`], and the distinction is a
+/// decision rather than a flag: the caller has already compared the cooldown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectReply {
+    /// Answer the request: this is the first one, or the cooldown has elapsed.
+    Allowed,
+    /// Stay silent: the client asked again inside its own retransmit cooldown.
+    Cooldown,
+}
+
+impl ConnectReply {
+    /// Whether the request may be answered.
+    #[must_use]
+    pub const fn is_allowed(self) -> bool {
+        matches!(self, Self::Allowed)
+    }
+}
+
 /// One inbound application datagram and the session facts its answer depends on.
 #[derive(Debug, Clone, Copy)]
 pub struct RepRequest<'a> {
@@ -90,6 +132,10 @@ pub struct RepRequest<'a> {
     pub client_env_seq: u16,
     /// Whether the acceptance flight has already gone out.
     pub handshake_done: bool,
+    /// Whether a `SM_CONNECT_REQUEST` in this datagram may be answered now. The
+    /// caller coalesces this with [`CONNECT_REPLY_COOLDOWN_MS`], so a client that
+    /// keeps asking is answered once per retransmit rather than once per datagram.
+    pub connect_reply: ConnectReply,
     /// Whether the registration response has already gone out.
     pub v3_done: bool,
     /// Whether an ACK may be sent now (coalesced by the caller's clock).
@@ -223,8 +269,20 @@ fn process(request: &RepRequest<'_>) -> Result<Outcome, RepError> {
         .collect();
 
     let mut outcome = Outcome::empty();
+    // A `SM_CONNECT_REQUEST` is answered every time the cooldown allows it, not
+    // only the first time.
+    //
+    // GridMate puts a Carrier connection in state 2 on the CONNECT_ACK path
+    // (`conn->m_state = CST_CONNECTED`, quoted by the reference's own
+    // `carrier_state_datagram`), and the client's Carrier resends the request until
+    // one of our datagrams is acknowledged. A session that answers only the first
+    // request goes silent for every later handshake on the same transport, which is
+    // what a second, late Carrier connection attempt looks like on the wire. The
+    // cooldown in [`CONNECT_REPLY_COOLDOWN_MS`] is the client's own retransmit
+    // cadence, so this re-answers a request the client made without ever answering
+    // twice for one datagram burst.
     if let Some(first) = connect_requests.first()
-        && !request.handshake_done
+        && request.connect_reply.is_allowed()
     {
         let welcome = connect_request_welcome(first).unwrap_or(everfall_wire::DEFAULT_WELCOME);
         outcome.replies.push(acceptance_flight(
@@ -342,6 +400,8 @@ pub struct RepSession {
     post_v3_reliable_seq: u16,
     keepalive_ms: u32,
     next_keepalive_at_ms: Option<u32>,
+    next_connect_reply_ms: Option<u32>,
+    connect_replies: u32,
 }
 
 impl RepSession {
@@ -377,6 +437,8 @@ impl RepSession {
             post_v3_reliable_seq: 1,
             keepalive_ms: Self::DEFAULT_KEEPALIVE_MS,
             next_keepalive_at_ms: None,
+            next_connect_reply_ms: None,
+            connect_replies: 0,
         }
     }
 
@@ -481,6 +543,19 @@ impl RepSession {
         self.v3_responded
     }
 
+    /// How many `SM_CONNECT_REQUEST` datagrams this session has answered.
+    ///
+    /// One is the handshake the client needs to open the REP connection; more than
+    /// one means the client asked again after that connection was already
+    /// accepted, which is the only wire shape a late Carrier connection handshake
+    /// can take. The caller logs it, because it is the measurement that decides
+    /// whether the client's actor game connection is a transport handshake it
+    /// expects us to answer or a condition it owns.
+    #[must_use]
+    pub const fn connect_replies(&self) -> u32 {
+        self.connect_replies
+    }
+
     /// Answer one decrypted application datagram.
     ///
     /// # Errors
@@ -503,11 +578,20 @@ impl RepSession {
             self.next_ack_ms = clock_ms.wrapping_add(self.ack_coalesce_ms);
         }
         let ack_first = ack_window_first(sequence, self.inbound_count, self.ack_window);
+        let connect_reply = if self
+            .next_connect_reply_ms
+            .is_none_or(|due| clock_ms.wrapping_sub(due).cast_signed() >= 0)
+        {
+            ConnectReply::Allowed
+        } else {
+            ConnectReply::Cooldown
+        };
 
         let request = RepRequest {
             app: datagram,
             client_env_seq: sequence,
             handshake_done: self.handshake_done,
+            connect_reply,
             v3_done: self.v3_responded,
             ack_allowed,
             ack_first,
@@ -516,6 +600,8 @@ impl RepSession {
         let outcome = process(&request)?;
         if outcome.had_connect_request {
             self.handshake_done = true;
+            self.connect_replies = self.connect_replies.saturating_add(1);
+            self.next_connect_reply_ms = Some(clock_ms.wrapping_add(CONNECT_REPLY_COOLDOWN_MS));
         }
         if outcome.answered_v3 {
             self.v3_responded = true;

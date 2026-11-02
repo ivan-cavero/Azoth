@@ -27,7 +27,7 @@ pub use crate::dispatcher::{DecisionRecord, DispatchError, OBJECTIVES_REPLY_WIRE
 pub use crate::emitter::{Emission, EmitError, emit};
 pub use crate::ladder::{LadderError, PlannedRecord, PostV3Ladder, Rung};
 pub use crate::rep::{
-    REGISTRATION_REQUEST_WIRE_ID, RepError, RepRequest, RepSession, SERVER_VERSION, SESSION_TOKEN,
-    ack_window_first, handle_app_data,
+    CONNECT_REPLY_COOLDOWN_MS, ConnectReply, REGISTRATION_REQUEST_WIRE_ID, RepError, RepRequest,
+    RepSession, SERVER_VERSION, SESSION_TOKEN, ack_window_first, handle_app_data,
 };
 pub use everfall_sim::Decision;

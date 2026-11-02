@@ -19,9 +19,10 @@
 //! does not parse, so the card's redacted slot is filled with the reference's own
 //! stub. The expected bytes below carry that stub.
 
+use everfall_wire::Datagram;
 use everfall_world::{
-    REGISTRATION_REQUEST_WIRE_ID, RepRequest, RepSession, SERVER_VERSION, SESSION_TOKEN,
-    handle_app_data,
+    CONNECT_REPLY_COOLDOWN_MS, ConnectReply, REGISTRATION_REQUEST_WIRE_ID, RepRequest, RepSession,
+    SERVER_VERSION, SESSION_TOKEN, handle_app_data,
 };
 
 /// The real `SM_CONNECT_REQUEST` datagram, envelope sequence 2.
@@ -71,6 +72,7 @@ fn a_real_connect_request_is_answered_with_the_acceptance_flight() {
         app: &app,
         client_env_seq: 2,
         handshake_done: false,
+        connect_reply: ConnectReply::Allowed,
         v3_done: false,
         ack_allowed: true,
         ack_first: 2,
@@ -88,6 +90,7 @@ fn a_real_v3_registration_is_answered_with_the_card_response() {
         app: &app,
         client_env_seq: 5,
         handshake_done: true,
+        connect_reply: ConnectReply::Allowed,
         v3_done: false,
         ack_allowed: true,
         ack_first: 5,
@@ -108,6 +111,7 @@ fn the_registration_reply_is_the_card_the_atlas_names() {
         app: &app,
         client_env_seq: 5,
         handshake_done: true,
+        connect_reply: ConnectReply::Allowed,
         v3_done: false,
         ack_allowed: true,
         ack_first: 5,
@@ -137,6 +141,7 @@ fn a_datagram_without_the_handshake_messages_is_not_answered() {
         app: &app,
         client_env_seq: 6,
         handshake_done: false,
+        connect_reply: ConnectReply::Allowed,
         v3_done: false,
         ack_allowed: true,
         ack_first: 6,
@@ -146,18 +151,98 @@ fn a_datagram_without_the_handshake_messages_is_not_answered() {
 }
 
 #[test]
-fn a_second_connect_request_after_the_flight_is_not_answered_again() {
+fn a_repeated_connect_request_is_answered_again_with_the_same_flight() {
+    // The client's Carrier resends its CONNECT_REQUEST until one of our datagrams
+    // is acknowledged, and the answer is what puts a Carrier connection in state 2
+    // (`conn->m_state = CST_CONNECTED`, the reference's note on
+    // `carrier_state_datagram`). A late request therefore gets the same flight, not
+    // silence: the acceptance flight is idempotent, so re-sending it cannot wedge
+    // the session.
     let app = hex_bytes(CONNECT_REQUEST);
     let request = RepRequest {
         app: &app,
         client_env_seq: 2,
         handshake_done: true,
+        connect_reply: ConnectReply::Allowed,
+        v3_done: false,
+        ack_allowed: true,
+        ack_first: 2,
+        clock_ms: CLOCK_MS,
+    };
+    let replies = handle_app_data(&request).expect("flight builds");
+    assert_eq!(replies.len(), 1, "a late request still gets one answer");
+    assert_eq!(
+        hex(&replies[0]),
+        EXPECTED_FLIGHT,
+        "the flight is the reference's bytes, byte for byte"
+    );
+}
+
+#[test]
+fn a_connect_request_inside_the_cooldown_gets_no_second_flight() {
+    let app = hex_bytes(CONNECT_REQUEST);
+    let request = RepRequest {
+        app: &app,
+        client_env_seq: 2,
+        handshake_done: true,
+        connect_reply: ConnectReply::Cooldown,
         v3_done: false,
         ack_allowed: true,
         ack_first: 2,
         clock_ms: CLOCK_MS,
     };
     assert!(handle_app_data(&request).expect("no replies").is_empty());
+}
+
+#[test]
+fn a_live_session_answers_a_repeated_connect_request_once_per_cooldown() {
+    // The retransmit cadence is the client's own: `DefaultTrafficControl` gives up
+    // on a lost datagram after 1000 ms, so at most one answer per second reaches a
+    // client that keeps asking. This is the shape a second, late Carrier connection
+    // handshake takes, and the reason it must not be answered on every datagram.
+    let app = hex_bytes(CONNECT_REQUEST);
+    let mut session = RepSession::new();
+
+    let first = session.on_app_data(&app, CLOCK_MS).expect("flight builds");
+    assert_eq!(first.len(), 1);
+    assert_eq!(session.connect_replies(), 1);
+
+    let inside = session
+        .on_app_data(&app, CLOCK_MS + CONNECT_REPLY_COOLDOWN_MS - 1)
+        .expect("no replies inside the cooldown");
+    assert!(inside.is_empty(), "the cooldown suppresses the repeat");
+    assert_eq!(session.connect_replies(), 1);
+
+    let after = session
+        .on_app_data(&app, CLOCK_MS + CONNECT_REPLY_COOLDOWN_MS)
+        .expect("flight rebuilds");
+    assert_eq!(
+        after.len(),
+        1,
+        "the next request past the cooldown is answered"
+    );
+    assert_eq!(session.connect_replies(), 2);
+    // The flight is idempotent in SHAPE, not byte for byte: two of its fields are
+    // facts about the moment of the answer, and both are meant to move. The sync
+    // record carries the server clock of that instant, and the piggybacked
+    // `SM_CT_ACKS` carries the sliding inbound range. Everything the client acts on
+    // - the envelope's echoed sequence, the channel, the flag bytes, the record
+    // order and the welcome payload - is identical.
+    let first_flight = Datagram::decode(&first[0]).expect("the flight is Carrier framing");
+    let repeat_flight = Datagram::decode(&after[0]).expect("the repeat is Carrier framing");
+    assert_eq!(
+        repeat_flight.envelope().sequence(),
+        first_flight.envelope().sequence(),
+        "both answers echo the client's envelope sequence"
+    );
+    let shape = |datagram: &Datagram| {
+        datagram
+            .records()
+            .iter()
+            .map(|record| (record.channel(), record.flags(), record.payload().len()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(shape(&repeat_flight), shape(&first_flight));
 }
 
 #[test]

@@ -89,6 +89,8 @@ OpenSSL from source, and the package is a prerequisite like the Windows SDK.
 | `application data: N bytes` | a decrypted Carrier datagram reached the world |
 | `rep reply sent: N bytes` | the world answered with the acceptance flight or the registration response |
 | `registration answered: …` | the `0x3` response went out; the client should leave `WaitingForREPConnection` |
+| `connect request answered (1): acceptance flight sent` | the client's `SM_CONNECT_REQUEST` opened the REP Carrier connection |
+| `connect request answered (N>1): acceptance flight sent again …` | the client asked for a Carrier connection **after** the REP one was already accepted. That is the only wire shape a late actor-game-connection handshake can take, and it is the measurement rung 15 depends on (see "Rung 15" below) |
 | `post-registration ladder armed: N record(s) …` | the three post-V3 rungs loaded and framed from the committed corpus |
 | `ladder sent: N bytes` | one post-V3 record went out on the server's clock: 300 ms after the registration, then one record per interval (4 ms between chunks of one message, 30 ms between messages). The 17-byte line that repeats once a second is the `SM_CLOCK_SYNC` keepalive, not a rung |
 | `no carrier reply` | the datagram carried no message this layer answers (e.g. a piggyback ACK) |
@@ -143,6 +145,45 @@ reaching state 2 (`[carrier+0xA0] == 2`, getter `0x145A934A0`), a
 **transport job**, not a message. The local rig satisfies it with the
 client-side patch set `private-run` applies.
 
+## Rung 15: what state 2 is, and the part the server owes
+
+`[carrier+0xA0] == 2` is a field the client writes, not a value it parses:
+
+- the getter is a pure comparison — `0x145A934A0` is
+  `cmp dword [rcx+0xA0],2 ; sete al ; ret` (`research/atlas/meanings.md`, the
+  Carrier flag table); and
+- a scan of the whole 1.460 image finds **no** `mov dword [reg+0xA0], 2` — every
+  such byte pattern in `.text` is a stack local (`c7 45 a0`). The value comes from
+  the client's own connection state machine.
+
+GridMate's state machine puts a connection in state 2 on the CONNECT_ACK path
+(`conn->m_state = CST_CONNECTED`, the sequence the reference quotes from
+`Carrier.cpp` in `services/world/src/azoth_world/rep.py::carrier_state_datagram`),
+and the client's Carrier keeps resending its `SM_CONNECT_REQUEST` until one of our
+datagrams is acknowledged. So the server's part is an **answer**, not a message:
+whichever Carrier connection is waiting, the request it sends must get the
+acceptance flight.
+
+What the server used to do: answer the **first** request only, then go silent for
+every later one (`no carrier reply`). The reference latches the same way, and the
+measured 1.460 session against it still crossed rung 15 in 167 ms
+(`Game.log` 13.210 `start actor game connection` → 13.377 `actor game connection
+succeeds`), so the latch is not proven to be the cause — but it made the two cases
+indistinguishable. The session now answers a request every
+`CONNECT_REPLY_COOLDOWN_MS` (1 000 ms, the client's own lost-packet retransmit
+timeout), so the live log says which case it is:
+
+| Server log | Reading |
+| --- | --- |
+| one `connect request answered (1)` for the whole session | the client never asks for a second Carrier connection: rung 15 is client-owned, and the force is the client-side patch (`frida-rep-force-ladder.py`, VA `0x145A934A0`) |
+| `connect request answered (2)` or more, and the client leaves rung 15 | the late handshake was the missing part; keep the answer and watch `WaitingForSpawnPoint` |
+| `connect request answered (2)` or more, and the client still times out at rung 15 | the answer reached the client and did not move it: the condition is upstream of the handshake, and the next lever is the write side (a Frida watchpoint on `[carrier+0xA0]` naming the writer) |
+
+The client-side force, if it comes to that, is the patch set in
+`services/launcher/runtime-tools/frida-rep-force-ladder.py`: it patches
+`0x145A934A0` (and the two rung flags after it) to `mov al,1; ret`, which is a
+local answer, not a protocol fact.
+
 **Provenance.** The rungs are re-encoded through their Atlas cards from the
 committed corpus (`research/fixtures/wire/wire-bodies.json`,
 `research/fixtures/wire/wire-fixtures.json`, `research/derived/state-bundle-fragments.json`),
@@ -169,10 +210,19 @@ The measured 1.460 boundary is `WaitingForPlayerSpawn`: the client passes
 `State(WaitingForPlayerSpawn) is timeout`. A stall there is the interior of the
 spawn bundle, not the transport above it.
 
+**Pass condition for the rung-15 attempt:** the client leaves
+`WaitingForActorGameConnection` for `WaitingForSpawnPoint` instead of timing out.
+The two lines to grep in its `Game.log` are
+`GameConnectionWrapper: actor game connection succeeds` and `Update state
+WaitingForActorGameConnection to new state WaitingForSpawnPoint`; the failure is
+`State(WaitingForActorGameConnection) is timeout : frames 10,
+currentTimeoutIntervalCount 2`.
+
 ### What falsifies the ladder
 
 | Observation | Reading |
 | --- | --- |
+| `connect request answered (N>1)` never appears, and the client times out at `WaitingForActorGameConnection` | no late Carrier handshake was attempted, so the rung is client-owned; see "Rung 15" above |
 | `post-registration ladder armed` never appears in the server log | the corpus or its extents were not found; the server still answers registration |
 | `ladder sent` lines appear but `Game.log` shows no `LevelInfoChanged` | the rung reached the Carrier but the client did not dispatch it: check the `0x65c`/`0x663` card framing (marker/varint) |
 | The client stalls at a NAMED state (`WaitingForActorGameConnection`, `WaitingForSpawnPoint`, `WaitingForPlayerSpawn`) and then logs `State(<name>) is timeout` | the rung above that state did not land; name the state in the report — it is the falsifier, not the fix |

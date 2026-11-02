@@ -162,6 +162,7 @@ fn pump_ladder(session: &mut RepSession, server: &mut Server) {
 /// Hand one decrypted datagram to the world and send every reply it returns.
 fn answer(session: &mut RepSession, server: &mut Server, data: &[u8]) {
     let was_answered = session.v3_responded();
+    let connect_replies = session.connect_replies();
     match session.on_app_data(data, clock_ms()) {
         Ok(replies) => {
             if replies.is_empty() {
@@ -175,6 +176,22 @@ fn answer(session: &mut RepSession, server: &mut Server, data: &[u8]) {
             }
         }
         Err(error) => log(format_args!("rep error: {error}")),
+    }
+    if session.connect_replies() != connect_replies {
+        // The FIRST answer opens the REP Carrier connection. Any later one is the
+        // client asking for a second, or asking again for the same one: that is the
+        // measurement that decides whether `WaitingForActorGameConnection` is a
+        // Carrier handshake this server owes an answer to, or a condition the client
+        // owns. Report it by name so the live attempt says which one it saw.
+        log(format_args!(
+            "connect request answered ({}): acceptance flight sent{}",
+            session.connect_replies(),
+            if session.connect_replies() == 1 {
+                ""
+            } else {
+                " again -- the client asked for a Carrier connection after the REP one was accepted"
+            }
+        ));
     }
     if !was_answered && session.v3_responded() {
         log(format_args!(
