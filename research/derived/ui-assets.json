@@ -1,0 +1,226 @@
+{
+  "generated": "2026-11-01",
+  "evidence": "measured",
+  "source": "state/cache/pak-index/pakindex.db",
+  "scope": "lyshineui/ inside DataStrm*.pak, plus *.loc.xml localization",
+  "rules": {
+    "canvas": "path under lyshineui/ with extension .dynamicuicanvas",
+    "luac": "path under lyshineui/ with extension .luac",
+    "dds": "path under lyshineui/ with extension .dds",
+    "loc": "path ending in .loc.xml (localization text; outside lyshineui/)",
+    "other": "any other path under lyshineui/ (font, sprite, slice, video, ...)",
+    "excluded": "every path outside lyshineui/ that is not a .loc.xml"
+  },
+  "kinds": {
+    "canvas": {
+      "count": 164,
+      "csize": 5880721,
+      "usize": 281537585,
+      "methods": {
+        "15": 164
+      },
+      "sample": [
+        {
+          "path": "lyshineui/_debug/fullscreenassert.dynamicuicanvas",
+          "csize": 2722,
+          "usize": 8903,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/_samples/styleguide.dynamicuicanvas",
+          "csize": 125495,
+          "usize": 9920249,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/arena/arenaentermenu.dynamicuicanvas",
+          "csize": 21350,
+          "usize": 411519,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/armory/armory.dynamicuicanvas",
+          "csize": 39962,
+          "usize": 907983,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/banner/banner.dynamicuicanvas",
+          "csize": 49202,
+          "usize": 1292135,
+          "method": 15
+        }
+      ]
+    },
+    "luac": {
+      "count": 1100,
+      "csize": 4468968,
+      "usize": 14100350,
+      "methods": {
+        "0": 7,
+        "15": 1093
+      },
+      "sample": [
+        {
+          "path": "lyshineui/_common/abilitiescommon.luac",
+          "csize": 1842,
+          "usize": 3599,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/_common/asynctaskmanager.luac",
+          "csize": 1199,
+          "usize": 2567,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/_common/attributionhelper.luac",
+          "csize": 1091,
+          "usize": 2515,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/_common/baseelement.luac",
+          "csize": 148,
+          "usize": 148,
+          "method": 0
+        },
+        {
+          "path": "lyshineui/_common/baseelementinternal.luac",
+          "csize": 2291,
+          "usize": 6019,
+          "method": 15
+        }
+      ]
+    },
+    "dds": {
+      "count": 54334,
+      "csize": 1201572022,
+      "usize": 9314099864,
+      "methods": {
+        "0": 20,
+        "15": 54314
+      },
+      "sample": [
+        {
+          "path": "lyshineui/_samples/styleguidebg.dds",
+          "csize": 561710,
+          "usize": 8294548,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/_samples/styleguidetitledivider.dds",
+          "csize": 777,
+          "usize": 7492,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/genericui/images/circle.dds",
+          "csize": 311,
+          "usize": 484,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/genericui/images/gradient.dds",
+          "csize": 509,
+          "usize": 4948,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/genericui/images/square.dds",
+          "csize": 108,
+          "usize": 828,
+          "method": 15
+        }
+      ]
+    },
+    "loc": {
+      "count": 1467,
+      "csize": 28446418,
+      "usize": 215006696,
+      "methods": {
+        "0": 59,
+        "15": 1408
+      },
+      "sample": [
+        {
+          "path": "localization/de-de/0c_01_npcmisc.loc.xml",
+          "csize": 379,
+          "usize": 818,
+          "method": 15
+        },
+        {
+          "path": "localization/de-de/0c_01_npctopics.loc.xml",
+          "csize": 199,
+          "usize": 199,
+          "method": 0
+        },
+        {
+          "path": "localization/de-de/0c_01_objectives.loc.xml",
+          "csize": 28544,
+          "usize": 240578,
+          "method": 15
+        },
+        {
+          "path": "localization/de-de/0c_02_npcmisc.loc.xml",
+          "csize": 799,
+          "usize": 2296,
+          "method": 15
+        },
+        {
+          "path": "localization/de-de/0c_02a_npcmisc.loc.xml",
+          "csize": 1055,
+          "usize": 5103,
+          "method": 15
+        }
+      ]
+    },
+    "other": {
+      "count": 418,
+      "csize": 7598121543,
+      "usize": 7617955472,
+      "methods": {
+        "0": 254,
+        "15": 164
+      },
+      "sample": [
+        {
+          "path": "lyshineui/attributes/attributemodifier.dynamicslice",
+          "csize": 19711,
+          "usize": 801660,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/attributes/damagestatrow.dynamicslice",
+          "csize": 7906,
+          "usize": 77892,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/attributes/statrow.dynamicslice",
+          "csize": 4007,
+          "usize": 26957,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/banner/achievementcard.dynamicslice",
+          "csize": 18116,
+          "usize": 395521,
+          "method": 15
+        },
+        {
+          "path": "lyshineui/banner/bannerlevelup.dynamicslice",
+          "csize": 21792,
+          "usize": 429609,
+          "method": 15
+        }
+      ]
+    }
+  },
+  "totals": {
+    "lyshineui": 56016,
+    "classified": 57483,
+    "csize": 8838489672,
+    "usize": 17442699967
+  }
+}

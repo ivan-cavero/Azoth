@@ -51,6 +51,22 @@
       "path": "pak/pakread.py",
       "kind": "pak"
     },
+    "uicanvas": {
+      "path": "pak/uicanvas.py",
+      "kind": "pak"
+    },
+    "uiassets": {
+      "path": "pak/uiassets.py",
+      "kind": "pak"
+    },
+    "lyshine": {
+      "path": "pak/lyshine.py",
+      "kind": "pak"
+    },
+    "dds": {
+      "path": "pak/dds.py",
+      "kind": "pak"
+    },
     "message-names": {
       "path": "type/message-names.py",
       "kind": "type"
@@ -107,6 +123,22 @@
     },
     "pakwrite": {
       "path": "pak/pakwrite.py",
+      "kind": "pak"
+    },
+    "uicanvas": {
+      "path": "pak/uicanvas.py",
+      "kind": "pak"
+    },
+    "uiassets": {
+      "path": "pak/uiassets.py",
+      "kind": "pak"
+    },
+    "lyshine": {
+      "path": "pak/lyshine.py",
+      "kind": "pak"
+    },
+    "dds": {
+      "path": "pak/dds.py",
       "kind": "pak"
     },
     "analyze": {
