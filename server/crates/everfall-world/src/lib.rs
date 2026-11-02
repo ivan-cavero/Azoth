@@ -32,7 +32,8 @@ pub use crate::ladder::{
     LadderError, PlannedRecord, PostV3Ladder, Rung,
 };
 pub use crate::rep::{
-    CONNECT_REPLY_COOLDOWN_MS, ConnectReply, REGISTRATION_REQUEST_WIRE_ID, RepError, RepRequest,
-    RepSession, SERVER_VERSION, SESSION_TOKEN, ack_window_first, handle_app_data,
+    CONNECT_REPLY_COOLDOWN_MS, ConnectReply, RECORD_HEAD_BYTES, REGISTRATION_REQUEST_WIRE_ID,
+    ReceivedRecord, ReceivedVerdict, RepAnswer, RepError, RepParseError, RepRequest, RepSession,
+    SERVER_VERSION, SESSION_TOKEN, ack_window_first, handle_app_data, handle_app_data_reported,
 };
 pub use everfall_sim::Decision;

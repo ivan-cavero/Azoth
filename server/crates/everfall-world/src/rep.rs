@@ -42,9 +42,9 @@ use core::fmt;
 
 use everfall_wire::generated::FlowWorldEntryRungRegistration;
 use everfall_wire::{
-    CarrierError, Compression, Datagram, Envelope, MF_DATA_CHANNEL, MF_RELIABLE, MessageRecord,
-    Opaque, RECORD_TYPE_MARKER, SM_CLOCK_SYNC, SM_CT_ACKS, SYSTEM_CHANNEL, WireError,
-    acceptance_flight, clock_sync, connect_request_welcome, ct_acks, decode_records,
+    CarrierError, Compression, Datagram, Envelope, Lz4Error, MF_DATA_CHANNEL, MF_RELIABLE,
+    MessageRecord, Opaque, RECORD_TYPE_MARKER, SM_CLOCK_SYNC, SM_CT_ACKS, SYSTEM_CHANNEL,
+    WireError, acceptance_flight, clock_sync, connect_request_welcome, ct_acks, decode_records,
     decompress_block, is_connect_request, typed_record,
 };
 
@@ -210,6 +210,20 @@ pub fn handle_app_data(request: &RepRequest<'_>) -> Result<Vec<Vec<u8>>, RepErro
     process(request).map(|outcome| outcome.replies)
 }
 
+/// Answer one application datagram and report what it contained.
+///
+/// Same decision as [`handle_app_data`]; the difference is that the answer also
+/// carries the records the client sent, each with the verdict it got, so a
+/// caller can print what the server RECEIVED and not only what it sent. This is
+/// observation: it changes no reply byte.
+///
+/// # Errors
+/// Returns a [`RepError`] only when one of the server's own replies cannot be
+/// framed, which is a bug in this crate rather than bad client input.
+pub fn handle_app_data_reported(request: &RepRequest<'_>) -> Result<RepAnswer, RepError> {
+    process(request).map(Outcome::into_answer)
+}
+
 /// The first envelope sequence of the continuous ACK range.
 ///
 /// Sliding, not pinned: while the session is younger than `window` this is the
@@ -223,9 +237,140 @@ pub fn ack_window_first(ack_last: u16, datagrams_seen: u32, window: u16) -> u16 
     ack_last.wrapping_sub(width.saturating_sub(1))
 }
 
+/// How many payload bytes of a received record the operator log keeps.
+///
+/// Enough to recognise a typed envelope's `00 01 <type>` marker and the head of
+/// a system message, which is what identifies a record the server did not answer.
+pub const RECORD_HEAD_BYTES: usize = 16;
+
+/// Why an inbound datagram carried no Carrier record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum RepParseError {
+    /// The 4-byte Carrier envelope did not decode.
+    Envelope(CarrierError),
+    /// The LZ4 body of a compressed envelope did not decode.
+    Lz4(Lz4Error),
+    /// The record run after the envelope did not decode.
+    Records(CarrierError),
+}
+
+impl fmt::Display for RepParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Envelope(source) => write!(f, "envelope: {source}"),
+            Self::Lz4(source) => write!(f, "lz4 body: {source}"),
+            Self::Records(source) => write!(f, "record run: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for RepParseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Envelope(source) | Self::Records(source) => Some(source),
+            Self::Lz4(source) => Some(source),
+        }
+    }
+}
+
+/// What the session did with one received record.
+///
+/// The verdict is produced by the same pass that decides the replies, so the log
+/// cannot disagree with what was actually sent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReceivedVerdict {
+    /// Answered with the acceptance flight.
+    AnsweredConnectRequest,
+    /// Answered with the `0x3` registration response.
+    AnsweredRegistration,
+    /// Acknowledged at the transport level with `SM_CT_ACKS`.
+    Acknowledged,
+    /// The client asked for a connection again inside its own retransmit cooldown.
+    ConnectRequestCooldown,
+    /// A second connect request in the same datagram; only the first is answered.
+    ConnectRequestAfterFirst,
+    /// The registration response already went out; this retry needs no answer.
+    RegistrationAlreadyAnswered,
+    /// The record asks the server for no answer of its own (client ACKs, clock sync).
+    NoAnswerNeeded,
+}
+
+impl ReceivedVerdict {
+    /// The verdict as the operator log words it.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AnsweredConnectRequest => "answered: acceptance flight",
+            Self::AnsweredRegistration => "answered: registration 0x3",
+            Self::Acknowledged => "answered: SM_CT_ACKS",
+            Self::ConnectRequestCooldown => {
+                "ignored: connect request inside the retransmit cooldown"
+            }
+            Self::ConnectRequestAfterFirst => {
+                "ignored: only the first connect request of a datagram is answered"
+            }
+            Self::RegistrationAlreadyAnswered => "ignored: registration already answered",
+            Self::NoAnswerNeeded => "ignored: no answer of its own",
+        }
+    }
+}
+
+/// One record the client sent, with the verdict the session reached for it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReceivedRecord {
+    /// Position in the datagram's record run, from 0.
+    pub index: usize,
+    /// The channel the record rode on (0..=3).
+    pub channel: u8,
+    /// The raw flag byte the record was decoded from.
+    pub flags: u8,
+    /// The system message id, when this is a system-channel record.
+    pub system_message_id: Option<u8>,
+    /// Payload byte count.
+    pub payload_len: usize,
+    /// The first [`RECORD_HEAD_BYTES`] of the payload.
+    pub head: Vec<u8>,
+    /// What the session did with the record.
+    pub verdict: ReceivedVerdict,
+}
+
+/// One inbound datagram as the server saw it: what it parsed into, and why not.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct RepAnswer {
+    /// The reply datagrams to send.
+    pub replies: Vec<Vec<u8>>,
+    /// The records the client sent, in wire order, with their verdicts.
+    pub records: Vec<ReceivedRecord>,
+    /// The Carrier envelope sequence, when the envelope decoded.
+    pub envelope_sequence: Option<u16>,
+    /// Whether the body arrived as an LZ4 block.
+    pub compressed: bool,
+    /// Why the datagram carried no record, when it did not.
+    pub parse_error: Option<RepParseError>,
+}
+
+impl RepAnswer {
+    /// A datagram whose envelope did not decode.
+    fn unparsed(error: RepParseError) -> Self {
+        Self {
+            replies: Vec::new(),
+            records: Vec::new(),
+            envelope_sequence: None,
+            compressed: false,
+            parse_error: Some(error),
+        }
+    }
+}
+
 /// The reply datagrams plus the session facts that changed.
 struct Outcome {
     replies: Vec<Vec<u8>>,
+    records: Vec<ReceivedRecord>,
+    envelope_sequence: Option<u16>,
+    compressed: bool,
+    parse_error: Option<RepParseError>,
     /// A `SM_CONNECT_REQUEST` was answered with the acceptance flight.
     had_connect_request: bool,
     /// A registration request was answered with the `0x3` response.
@@ -236,27 +381,57 @@ impl Outcome {
     const fn empty() -> Self {
         Self {
             replies: Vec::new(),
+            records: Vec::new(),
+            envelope_sequence: None,
+            compressed: false,
+            parse_error: None,
             had_connect_request: false,
             answered_v3: false,
+        }
+    }
+
+    fn into_answer(self) -> RepAnswer {
+        RepAnswer {
+            replies: self.replies,
+            records: self.records,
+            envelope_sequence: self.envelope_sequence,
+            compressed: self.compressed,
+            parse_error: self.parse_error,
         }
     }
 }
 
 /// Decode one datagram, decide, and build the replies.
 fn process(request: &RepRequest<'_>) -> Result<Outcome, RepError> {
-    let Ok((envelope, body)) = Envelope::decode(request.app) else {
-        return Ok(Outcome::empty());
+    let mut outcome = Outcome::empty();
+    let (envelope, body) = match Envelope::decode(request.app) {
+        Ok((envelope, body)) => {
+            outcome.envelope_sequence = Some(envelope.sequence());
+            outcome.compressed = envelope.is_compressed();
+            (envelope, body)
+        }
+        Err(error) => {
+            outcome.parse_error = Some(RepParseError::Envelope(error));
+            return Ok(outcome);
+        }
     };
     let body = if envelope.is_compressed() {
         match decompress_block(body) {
             Ok(decoded) => decoded,
-            Err(_) => return Ok(Outcome::empty()),
+            Err(error) => {
+                outcome.parse_error = Some(RepParseError::Lz4(error));
+                return Ok(outcome);
+            }
         }
     } else {
         body.to_vec()
     };
-    let Ok(records) = decode_records(&body) else {
-        return Ok(Outcome::empty());
+    let records = match decode_records(&body) {
+        Ok(records) => records,
+        Err(error) => {
+            outcome.parse_error = Some(RepParseError::Records(error));
+            return Ok(outcome);
+        }
     };
 
     let connect_requests: Vec<&MessageRecord> = records
@@ -268,7 +443,6 @@ fn process(request: &RepRequest<'_>) -> Result<Outcome, RepError> {
         .filter(|record| is_registration_request(record))
         .collect();
 
-    let mut outcome = Outcome::empty();
     // A `SM_CONNECT_REQUEST` is answered every time the cooldown allows it, not
     // only the first time.
     //
@@ -303,14 +477,85 @@ fn process(request: &RepRequest<'_>) -> Result<Outcome, RepError> {
     let needs_ack = request.handshake_done
         && connect_requests.is_empty()
         && records.iter().any(needs_acknowledgement);
-    if needs_ack && request.ack_allowed {
+    let acknowledged = needs_ack && request.ack_allowed;
+    if acknowledged {
         outcome.replies.push(ct_acks(
             request.client_env_seq,
             request.ack_first,
             request.client_env_seq,
         )?);
     }
+    outcome.records = report_records(
+        &records,
+        &Answered {
+            connect_request: if outcome.had_connect_request {
+                records.iter().position(is_connect_request)
+            } else {
+                None
+            },
+            registration: outcome.answered_v3,
+            acked: acknowledged,
+            connect_reply: request.connect_reply,
+        },
+    );
     Ok(outcome)
+}
+
+/// The decisions one datagram's record report is derived from.
+#[derive(Debug, Clone, Copy)]
+struct Answered {
+    /// Index of the record answered with the acceptance flight, when there is one.
+    connect_request: Option<usize>,
+    /// The `0x3` response answered the registration request in this datagram.
+    registration: bool,
+    /// `SM_CT_ACKS` acknowledged this datagram.
+    acked: bool,
+    /// Whether a connect request in this datagram was allowed an answer.
+    connect_reply: ConnectReply,
+}
+
+impl Answered {
+    /// The verdict for one received record.
+    fn verdict(self, index: usize, record: &MessageRecord) -> ReceivedVerdict {
+        if self.connect_request == Some(index) {
+            return ReceivedVerdict::AnsweredConnectRequest;
+        }
+        if is_registration_request(record) {
+            return if self.registration {
+                ReceivedVerdict::AnsweredRegistration
+            } else {
+                ReceivedVerdict::RegistrationAlreadyAnswered
+            };
+        }
+        if self.acked && needs_acknowledgement(record) {
+            return ReceivedVerdict::Acknowledged;
+        }
+        if is_connect_request(record) {
+            return if self.connect_reply.is_allowed() {
+                ReceivedVerdict::ConnectRequestAfterFirst
+            } else {
+                ReceivedVerdict::ConnectRequestCooldown
+            };
+        }
+        ReceivedVerdict::NoAnswerNeeded
+    }
+}
+
+/// Report every record the client sent, with the verdict it got.
+fn report_records(records: &[MessageRecord], answered: &Answered) -> Vec<ReceivedRecord> {
+    records
+        .iter()
+        .enumerate()
+        .map(|(index, record)| ReceivedRecord {
+            index,
+            channel: record.channel(),
+            flags: record.flags(),
+            system_message_id: record.system_message_id(),
+            payload_len: record.payload().len(),
+            head: record.payload()[..record.payload().len().min(RECORD_HEAD_BYTES)].to_vec(),
+            verdict: answered.verdict(index, record),
+        })
+        .collect()
 }
 
 /// True when a record should be acknowledged at the transport level.
@@ -599,10 +844,28 @@ impl RepSession {
         datagram: &[u8],
         clock_ms: u32,
     ) -> Result<Vec<Vec<u8>>, RepError> {
-        let Ok((envelope, _)) = Envelope::decode(datagram) else {
-            return Ok(Vec::new());
+        self.on_app_data_reported(datagram, clock_ms)
+            .map(|answer| answer.replies)
+    }
+
+    /// Answer one decrypted application datagram and report what it contained.
+    ///
+    /// Same decision as [`Self::on_app_data`], plus the records the client sent
+    /// with the verdict each one got, so the caller can print the inbound side of
+    /// the connection and not only the outbound one.
+    ///
+    /// # Errors
+    /// Returns a [`RepError`] only when one of the server's own replies cannot be
+    /// framed; bad client input yields a report with the parse reason.
+    pub fn on_app_data_reported(
+        &mut self,
+        datagram: &[u8],
+        clock_ms: u32,
+    ) -> Result<RepAnswer, RepError> {
+        let sequence = match Envelope::decode(datagram) {
+            Ok((envelope, _)) => envelope.sequence(),
+            Err(error) => return Ok(RepAnswer::unparsed(RepParseError::Envelope(error))),
         };
-        let sequence = envelope.sequence();
         self.inbound_count = self.inbound_count.saturating_add(1);
 
         let ack_allowed = self.ack_coalesce_ms == 0
@@ -668,7 +931,7 @@ impl RepSession {
                     Some(clock_ms.wrapping_add(ladder.heartbeat().first_offset_ms()));
             }
         }
-        Ok(outcome.replies)
+        Ok(outcome.into_answer())
     }
 }
 
@@ -681,6 +944,7 @@ impl Default for RepSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use everfall_wire::SM_CONNECT_REQUEST;
 
     #[test]
     fn the_ack_window_slides_after_the_window_width() {
@@ -689,6 +953,115 @@ mod tests {
         assert_eq!(ack_window_first(100, 10, 4), 97);
         // Wrap-safe: a range that crosses the 16-bit boundary stays one short range.
         assert_eq!(ack_window_first(1, 2, 16_384), 0);
+    }
+
+    /// The real captured `SM_CONNECT_REQUEST`, envelope sequence 2
+    /// (`.azoth/logs/world.log`, client build `1.400.6031.6004151`).
+    const CONNECT_REQUEST: &str =
+        "80010002a00005030000ffff0000000501880006ffff000000050101880002ffff2006";
+
+    fn hex_bytes(hex: &str) -> Vec<u8> {
+        (0..hex.len() / 2)
+            .map(|index| {
+                u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16).expect("hex digit pair")
+            })
+            .collect()
+    }
+
+    fn request(app: &[u8], connect_reply: ConnectReply) -> RepRequest<'_> {
+        RepRequest {
+            app,
+            client_env_seq: 2,
+            handshake_done: false,
+            connect_reply,
+            v3_done: false,
+            ack_allowed: true,
+            ack_first: 2,
+            clock_ms: 0x9947_9CB9,
+        }
+    }
+
+    #[test]
+    fn every_received_record_is_reported_with_the_verdict_it_got() {
+        let app = hex_bytes(CONNECT_REQUEST);
+        let answer = handle_app_data_reported(&request(&app, ConnectReply::Allowed))
+            .expect("the captured connect request is answered");
+
+        assert_eq!(answer.envelope_sequence, Some(2));
+        assert!(!answer.compressed);
+        assert_eq!(answer.parse_error, None);
+        assert_eq!(answer.records.len(), 3);
+        let record = &answer.records[0];
+        assert_eq!(record.index, 0);
+        assert_eq!(record.channel, SYSTEM_CHANNEL);
+        assert_eq!(record.flags, 0xA0);
+        assert_eq!(record.system_message_id, Some(SM_CONNECT_REQUEST));
+        assert_eq!(record.payload_len, 5);
+        assert_eq!(record.head, vec![0x00, 0x00, 0x00, 0x05, 0x01]);
+        assert_eq!(record.verdict, ReceivedVerdict::AnsweredConnectRequest);
+        // The capture repeats the request once and piggybacks the client's ACK in
+        // the SAME datagram; only the first request is answered.
+        assert_eq!(
+            answer.records[1].verdict,
+            ReceivedVerdict::ConnectRequestAfterFirst
+        );
+        assert_eq!(answer.records[2].system_message_id, Some(SM_CT_ACKS));
+        assert_eq!(answer.records[2].verdict, ReceivedVerdict::NoAnswerNeeded);
+    }
+
+    #[test]
+    fn a_connect_request_inside_the_cooldown_is_reported_as_ignored() {
+        let app = hex_bytes(CONNECT_REQUEST);
+        let answer = handle_app_data_reported(&request(&app, ConnectReply::Cooldown))
+            .expect("an unanswered request is not an error");
+
+        assert!(answer.replies.is_empty());
+        assert_eq!(
+            answer.records[0].verdict,
+            ReceivedVerdict::ConnectRequestCooldown
+        );
+    }
+
+    #[test]
+    fn a_registration_request_is_reported_as_answered_by_the_0x3_response() {
+        let mut payload = vec![0u8; 68];
+        payload[20] = RECORD_TYPE_MARKER[0];
+        payload[21] = RECORD_TYPE_MARKER[1];
+        payload[22] = REGISTRATION_REQUEST_WIRE_ID as u8;
+        let app = Datagram::new(
+            Envelope::new(7, Compression::Plaintext),
+            vec![MessageRecord::new(0, payload).with_reliable()],
+        )
+        .encode()
+        .expect("the registration datagram encodes");
+
+        let answer = handle_app_data_reported(&request(&app, ConnectReply::Allowed))
+            .expect("the registration is answered");
+
+        assert_eq!(answer.replies.len(), 1);
+        assert_eq!(answer.records.len(), 1);
+        assert_eq!(
+            answer.records[0].verdict,
+            ReceivedVerdict::AnsweredRegistration
+        );
+        assert_eq!(answer.records[0].system_message_id, None);
+    }
+
+    #[test]
+    fn a_datagram_that_does_not_parse_is_reported_with_its_reason() {
+        let app = [0xFF; 4];
+        let answer = handle_app_data_reported(&request(&app, ConnectReply::Allowed))
+            .expect("a bad datagram is not a server error");
+
+        assert!(answer.replies.is_empty());
+        assert!(answer.records.is_empty());
+        assert_eq!(answer.envelope_sequence, None);
+        assert_eq!(
+            answer.parse_error,
+            Some(RepParseError::Envelope(CarrierError::BadEnvelopeType {
+                found: 0xFF
+            }))
+        );
     }
 
     #[test]

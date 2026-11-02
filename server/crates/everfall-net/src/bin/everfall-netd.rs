@@ -25,6 +25,7 @@
 
 use std::env;
 use std::fmt::Arguments;
+use std::fmt::Write as _;
 use std::fs;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
@@ -33,7 +34,7 @@ use std::time::Duration;
 
 use everfall_net::{Milestone, RsaIdentity, Server};
 use everfall_world::ladder::CapturedRungs;
-use everfall_world::{Decision, PostV3Ladder, RepSession};
+use everfall_world::{Decision, PostV3Ladder, RepAnswer, RepSession};
 
 /// Default port: the client's measured REP address.
 const DEFAULT_PORT: u16 = 9000;
@@ -162,15 +163,20 @@ fn pump_ladder(session: &mut RepSession, server: &mut Server) {
 }
 
 /// Hand one decrypted datagram to the world and send every reply it returns.
+///
+/// The world's answer also carries what the datagram CONTAINED, which is printed
+/// before the replies leave: the inbound side is the measurement, and this
+/// function reports it without touching a reply byte.
 fn answer(session: &mut RepSession, server: &mut Server, data: &[u8]) {
     let was_answered = session.v3_responded();
     let connect_replies = session.connect_replies();
-    match session.on_app_data(data, clock_ms()) {
-        Ok(replies) => {
-            if replies.is_empty() {
+    match session.on_app_data_reported(data, clock_ms()) {
+        Ok(answer) => {
+            report_inbound(&answer);
+            if answer.replies.is_empty() {
                 log(format_args!("no carrier reply"));
             }
-            for reply in replies {
+            for reply in answer.replies {
                 match server.send_application_data(&reply) {
                     Ok(sent) => log(format_args!("rep reply sent: {sent} bytes")),
                     Err(error) => log(format_args!("rep reply failed: {error}")),
@@ -199,7 +205,57 @@ fn answer(session: &mut RepSession, server: &mut Server, data: &[u8]) {
         log(format_args!(
             "registration answered: the client should now pass WaitingForREPConnection"
         ));
+        log(format_args!(
+            "===== ACTOR CONNECTION WINDOW OPEN: every record the client sends from here is logged below, answered or not, until its actor game connection times out ====="
+        ));
     }
+}
+
+/// Print one inbound datagram the way the operator reads it: the envelope, then
+/// every record the client sent with the verdict the world reached for it.
+///
+/// The verdict comes from the same pass that decided the replies, so this line
+/// cannot disagree with what actually went out. It reports, it never decides.
+fn report_inbound(answer: &RepAnswer) {
+    log(format_args!(
+        "inbound datagram: envelope {}, {}, {} record(s)",
+        answer
+            .envelope_sequence
+            .map_or_else(|| String::from("(undecoded)"), |seq| seq.to_string()),
+        if answer.compressed {
+            "lz4"
+        } else {
+            "plaintext"
+        },
+        answer.records.len()
+    ));
+    if let Some(error) = &answer.parse_error {
+        log(format_args!("inbound datagram NOT PARSED: {error}"));
+    }
+    for record in &answer.records {
+        let system = record
+            .system_message_id
+            .map_or_else(String::new, |id| format!(" sys {id:#04x}"));
+        log(format_args!(
+            "    record {}: channel {} flags {:#04x}{system} payload {} bytes head {} -> {}",
+            record.index,
+            record.channel,
+            record.flags,
+            record.payload_len,
+            hex_head(&record.head),
+            record.verdict.as_str()
+        ));
+    }
+}
+
+/// The first bytes of a payload, lower-case hex, space separated.
+fn hex_head(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 3);
+    for byte in bytes {
+        write!(out, "{byte:02x} ").expect("writing into a String cannot fail");
+    }
+    out.truncate(out.trim_end().len());
+    out
 }
 
 /// Resolve the bind port from `argv[1]`, else `EVERFALL_NET_PORT`, else 9000.

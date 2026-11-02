@@ -1,0 +1,37 @@
+{
+  "$comment": "Observation of what the client sends in the actor-connection window, captured by an instrumented everfall-netd. This is the differential that isolates why the client never leaves WaitingForActorGameConnection with our server while it leaves it in 167 ms against the Python lab.",
+  "date": "2026-11-02",
+  "context": {
+    "lab_success_window_ms": 167,
+    "lab_success": "start actor game connection 10:00:13.210 -> actor game connection succeeds 10:00:13.377, with NO server message in between, so the rung is crossed by Carrier machinery and not by a ladder record",
+    "ours": "start actor game connection -> WaitingForActorGameConnection -> State(...) is timeout, never crossing"
+  },
+  "client_records_seen_in_the_window": [
+    {
+      "channel": 3, "flags": "0xa0", "sys": "0x01",
+      "note": "SM_CONNECT_REQUEST -> ANSWERED with the acceptance flight"
+    },
+    {
+      "channel": 3, "flags": "0x88", "sys": "0x01",
+      "note": "a second connect request in the SAME datagram -> ignored ('only the first connect request of a datagram')"
+    },
+    {
+      "channel": 0, "flags": "0x05", "payload": 1115, "compressed": true,
+      "note": "the client's chunked channel-0 record -> answered with SM_CT_ACKS"
+    },
+    {
+      "channel": 0, "flags": "0x01", "payload": 239, "compressed": true,
+      "note": "second channel-0 record -> answered with SM_CT_ACKS"
+    },
+    {
+      "channel": 3, "flags": "0x20", "sys": "0x06", "head": "81 00 07 13 06",
+      "note": "SM_CT_ACKS, the client's own carrier acknowledgements -> IGNORED, repeating every ~113 ms"
+    },
+    {
+      "channel": 3, "flags": "0x20", "sys": "0x06", "head": "40 00 08 00 05 06",
+      "note": "SM_CT_ACKS again -> IGNORED"
+    }
+  ],
+  "finding": "SM_CT_ACKS is system id 6 (services/world/src/azoth_world/javelin/frame.py:29). Our server ignores the client's acknowledgements while the Python reference DECODES them (rep.py:4814, 'Decode the client's SM_CT_ACKS (Carrier.cpp WriteAckData format)') and maintains a window over them. So our server never knows which of its reliable datagrams the client acknowledged.",
+  "hypothesis_to_test": "Processing the client's SM_CT_ACKS, as the reference does, is what lets the Carrier connection machinery complete on the server side so the client's actor game connection succeeds. The live run discriminates; it is not proven."
+}
