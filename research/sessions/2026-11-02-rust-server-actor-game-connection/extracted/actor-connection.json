@@ -1,0 +1,38 @@
+{
+  "$comment": "Third milestone of the night, and the furthest the client has ever climbed against a server from this repository: it left WaitingForREPConnection and reached WaitingForActorGameConnection. Tracked evidence; the prose note stays local per research/.gitignore.",
+  "date": "2026-11-02",
+  "server": {
+    "binary": "everfall-netd (everfall-net + everfall-world::rep + the post-registration ladder)",
+    "tls": "OpenSSL 4.1.0 prebuilt, RSA 2048 CN=New World",
+    "port": 9000
+  },
+  "server_log_facts": {
+    "connected": "2026-11-02T00:59:01Z",
+    "registration_answered": 1,
+    "ladder_armed": "20 record(s)",
+    "ladder_sent_total": 210,
+    "keepalive_datagrams": 190,
+    "keepalive_size_bytes": 17,
+    "keepalive_cadence_s": 1.01,
+    "session_survived": "00:59:01 to 01:02:12 (over three minutes)",
+    "fatal_errors": 0
+  },
+  "client_log_facts": {
+    "received_registration_response_from_rep": 1,
+    "reached_state": "WaitingForActorGameConnection",
+    "transitions": [
+      "ObtainREPRequirements -> StartREPConnection",
+      "StartREPConnection -> WaitingForREPConnection",
+      "WaitingForREPConnection -> WaitingForActorGameConnection"
+    ],
+    "stall": "State(WaitingForActorGameConnection) is timeout : frames 10, currentTimeoutIntervalCount 2",
+    "no_transportError": true
+  },
+  "conclusion": "With the clock-sync keepalive added, the client no longer disconnects: it leaves WaitingForREPConnection and reaches WaitingForActorGameConnection, and the session lives for minutes instead of dying at ten seconds of silence. This is two rungs further than the night began.",
+  "why_it_stalls_here": "The atlas records that this rung is left when the Carrier actor game connection reaches state 2 ([carrier+0xA0] == 2, getter 0x145A934A0), and explicitly that it is a transport condition rather than a message. So the next investigation is what moves that condition, not what to send.",
+  "next": [
+    "determine what makes the client's Carrier actor game connection reach state 2",
+    "the atlas rows for rung 15 and the frida-rep-force-ladder probe name the getters involved",
+    "after that rung: WaitingForSpawnPoint, then WaitingForPlayerSpawn, then InGame"
+  ]
+}
