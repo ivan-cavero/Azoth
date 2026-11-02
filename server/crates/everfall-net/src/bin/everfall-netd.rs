@@ -36,6 +36,9 @@ use everfall_world::{Decision, PostV3Ladder, RepSession};
 /// Default port: the client's measured REP address.
 const DEFAULT_PORT: u16 = 9000;
 
+/// The idle poll when no ladder record is imminent (~50 Hz).
+const IDLE_STEP_MS: u64 = 20;
+
 /// Print one timestamped line.
 fn log(args: Arguments<'_>) {
     println!("[{}] {args}", stamp());
@@ -101,9 +104,17 @@ fn main() -> ExitCode {
     }
 
     loop {
-        // A short step so the session's ladder is released on ~50 Hz ticks,
-        // the cadence the reference sends the post-V3 flight on.
-        match server.step(Duration::from_millis(20)) {
+        // Sleep at most until the next ladder record is due, so the reference's
+        // 4 ms chunk gap is honoured instead of being rounded up to the idle
+        // poll. The session still refuses an early record, so this only wakes it.
+        let wait_ms = if server.is_connected() {
+            session
+                .ladder_wait_ms(clock_ms())
+                .map_or(IDLE_STEP_MS, |ms| u64::from(ms).min(IDLE_STEP_MS))
+        } else {
+            IDLE_STEP_MS
+        };
+        match server.step(Duration::from_millis(wait_ms.max(1))) {
             Ok(events) => {
                 for event in events {
                     match event {
@@ -133,7 +144,7 @@ fn main() -> ExitCode {
     }
 }
 
-/// Send every post-registration datagram the session's clock says is due.
+/// Send the post-registration datagram the session's clock says is due.
 fn pump_ladder(session: &mut RepSession, server: &mut Server) {
     match session.tick(clock_ms()) {
         Ok(replies) => {

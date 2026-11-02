@@ -75,7 +75,7 @@ OpenSSL from source, and the package is a prerequisite like the Windows SDK.
 | `rep reply sent: N bytes` | the world answered with the acceptance flight or the registration response |
 | `registration answered: …` | the `0x3` response went out; the client should leave `WaitingForREPConnection` |
 | `post-registration ladder armed: N record(s) …` | the three post-V3 rungs loaded and framed from the committed corpus |
-| `ladder sent: N bytes` | a post-V3 rung went out on the server's clock (300 ms after the registration) |
+| `ladder sent: N bytes` | one post-V3 record went out on the server's clock: 300 ms after the registration, then one record per interval (4 ms between chunks of one message, 30 ms between messages) |
 | `no carrier reply` | the datagram carried no message this layer answers (e.g. a piggyback ACK) |
 | `fatal Error: …` | OpenSSL gave up; the connection must be dropped |
 
@@ -100,6 +100,7 @@ machine should move `WaitingForREPConnection -> WaitingForActorGameConnection`.
 | `Connected`, then `application data` but never `registration answered` | The DTLS layer is fine; the Carrier layer did not recognise the registration. The client's V3 may not carry the `00 01 13` marker where the server looks, or the reply was not ACKed. |
 | `registration answered`, but `Game.log` never logs `received registration response from REP` and the state stays `WaitingForREPConnection` | The `0x3` body was sent but rejected. The card layout, the VLQ32 length, or the session token is wrong; the response did NOT do its job. |
 | `registration answered` and `Game.log` logs `received registration response from REP`, state `WaitingForActorGameConnection` | The client passed REP registration. Proceed to the post-registration ladder. |
+| The `ladder sent` lines share one timestamp (a burst) | The pacing regressed. The reference sends one record per interval and the client's Carrier queue truncates a burst; the session's scheduler must release one record per tick, not sweep a deadline. |
 
 ## Post-registration ladder
 

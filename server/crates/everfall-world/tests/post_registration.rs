@@ -295,33 +295,118 @@ fn a_session_sends_the_ladder_only_after_the_post_v3_delay() {
     assert_eq!(wire_id, SELF_IDENT_WIRE_ID);
 }
 
-#[test]
-fn the_session_drains_the_whole_ladder_on_its_own_clock() {
+/// A session with the captured corpus armed at `clock`.
+fn armed_session(clock: u32) -> RepSession {
     let mut session = RepSession::new();
-    let plan = ladder();
-    let plan_len = plan.records().len();
-    let expected_last = plan.records().last().expect("at least one record").rung();
-    session.set_ladder(plan);
-    let clock = 0x9947_9CB9;
+    session.set_ladder(ladder());
     session
         .on_app_data(&hex_bytes(CONNECT_REQUEST), clock)
         .expect("flight builds");
     session
         .on_app_data(&hex_bytes(V3_REGISTRATION), clock)
         .expect("registration builds");
+    session
+}
 
-    let replies = session.tick(clock + 10_000).expect("tick");
-    assert_eq!(replies.len(), plan_len, "every planned datagram is emitted");
-    assert!(
-        replies.iter().all(|reply| reply.starts_with(&[0x80, 0x01])),
-        "every ladder datagram is a plaintext Carrier envelope"
+#[test]
+fn a_late_tick_releases_one_record_and_re_arms_the_next_gap() {
+    let clock = 0x9947_9CB9;
+    let mut session = armed_session(clock);
+
+    // The old scheduler swept every record whose absolute offset had passed, so a
+    // single late tick dumped the whole ladder. A late tick now releases exactly
+    // one record and schedules the next a gap later, from the send time.
+    let first = session.tick(clock + 10_000).expect("tick");
+    assert_eq!(
+        first.len(),
+        1,
+        "a late tick releases one record, not the whole backlog"
     );
-    let last = replies.last().expect("at least one reply");
     assert!(
-        !Datagram::decode(last)
-            .expect("plaintext datagram")
-            .records()
-            .is_empty()
+        session.tick(clock + 10_000).expect("tick").is_empty(),
+        "the same instant cannot release a second record"
     );
-    assert_eq!(expected_last, Rung::State);
+    let next = session.tick(clock + 10_000 + CHUNK_GAP_MS).expect("tick");
+    assert_eq!(next.len(), 1, "the next chunk is due one gap later");
+}
+
+#[test]
+fn the_ladder_comes_out_at_the_reference_pacing() {
+    let plan = ladder();
+    let expected: Vec<u32> = plan
+        .records()
+        .iter()
+        .map(everfall_world::PlannedRecord::offset_ms)
+        .collect();
+    let last = *expected.last().expect("the ladder has records");
+    let clock = 0x9947_9CB9;
+    let mut session = armed_session(clock);
+
+    let mut releases: Vec<(u32, Vec<u8>)> = Vec::new();
+    for elapsed in 0..=last + 1 {
+        let datagrams = session.tick(clock.wrapping_add(elapsed)).expect("tick");
+        assert!(
+            datagrams.len() <= 1,
+            "one record per tick, got {} at {elapsed} ms",
+            datagrams.len()
+        );
+        for datagram in datagrams {
+            releases.push((elapsed, datagram));
+        }
+    }
+
+    assert_eq!(releases.len(), expected.len(), "the whole ladder drains");
+    let times: Vec<u32> = releases.iter().map(|(at, _)| *at).collect();
+    assert_eq!(
+        times, expected,
+        "each record leaves at the plan's reference offset, one per interval"
+    );
+
+    // The gaps are exactly the reference's: 4 ms between chunks of one message,
+    // 30 ms between messages, and never zero.
+    let gaps: Vec<u32> = times.windows(2).map(|pair| pair[1] - pair[0]).collect();
+    assert!(
+        gaps.contains(&CHUNK_GAP_MS),
+        "chunks are separated by the chunk gap"
+    );
+    assert!(
+        gaps.contains(&MESSAGE_INTERVAL_MS),
+        "rungs are separated by the message interval"
+    );
+    assert!(
+        gaps.iter()
+            .all(|&gap| gap == CHUNK_GAP_MS || gap == MESSAGE_INTERVAL_MS),
+        "no gap is anything but a chunk gap or a message interval: {gaps:?}"
+    );
+
+    // The flags are the reference's, and a chunked rung carries the constant
+    // TOTAL as `numChunks`, not a countdown.
+    let mut chunk_counts: Vec<u16> = Vec::new();
+    for (index, (_, datagram)) in releases.iter().enumerate() {
+        let record = &plan.records()[index];
+        let decoded = Datagram::decode(datagram).expect("plaintext datagram");
+        assert_eq!(decoded.records().len(), 1, "one record per datagram");
+        let wire = &decoded.records()[0];
+        match record.chunk() {
+            None => {
+                assert_eq!(wire.flags(), 0x21, "a single record uses 0x21");
+                assert_eq!(wire.num_chunks(), 1, "a single record declares one chunk");
+            }
+            Some(chunk) => {
+                assert_eq!(wire.flags(), 0x25, "a chunked record uses 0x25");
+                assert_eq!(
+                    usize::from(wire.num_chunks()),
+                    chunk.count(),
+                    "numChunks is the constant total, not a countdown"
+                );
+                if record.rung() == Rung::SelfIdentification {
+                    chunk_counts.push(wire.num_chunks());
+                }
+            }
+        }
+    }
+    assert!(
+        chunk_counts.windows(2).all(|pair| pair[0] == pair[1]),
+        "every chunk of a rung declares the same total: {chunk_counts:?}"
+    );
 }

@@ -328,6 +328,7 @@ pub struct RepSession {
     next_ack_ms: u32,
     ladder: Option<PostV3Ladder>,
     armed_at_ms: Option<u32>,
+    next_release_at_ms: Option<u32>,
     next_post_v3: usize,
     post_v3_envelope_seq: u16,
     post_v3_message_seq: u16,
@@ -353,6 +354,7 @@ impl RepSession {
             next_ack_ms: 0,
             ladder: None,
             armed_at_ms: None,
+            next_release_at_ms: None,
             next_post_v3: 0,
             post_v3_envelope_seq: 0,
             post_v3_message_seq: 1,
@@ -371,43 +373,70 @@ impl RepSession {
         self.armed_at_ms.is_some()
     }
 
-    /// Emit every post-registration datagram that is now due.
+    /// Emit the one post-registration datagram that is now due, if any.
     ///
-    /// The reference sends the post-V3 flight from its own tick, not from
-    /// inbound traffic, so this is the caller's clock advancing the ladder. A
-    /// session with no armed ladder, or one armed less than
-    /// [`POST_V3_DELAY_MS`](crate::ladder::POST_V3_DELAY_MS) ago, returns no
-    /// datagrams.
+    /// The reference does not sweep a deadline: it sends one message per
+    /// `REPLAY_INTERVAL_S` and sleeps the chunk gap BETWEEN the chunks of one
+    /// message (`rep.py::maybe_pump_replay` / `_send_replay_message`). This
+    /// session keeps the same shape: it releases at most one record per call and
+    /// re-arms [`Self::next_release_at_ms`] from the clock of the release plus
+    /// the plan's gap to the next record. A late or coarse tick therefore cannot
+    /// dump the backlog, which is what a deadline sweep does.
+    ///
+    /// A session with no armed ladder, or one whose ladder has drained, returns
+    /// no datagrams. Before the record is due it returns no datagrams either.
     ///
     /// # Errors
     /// Returns a [`RepError`] only when one of the server's own planned
     /// datagrams cannot be framed.
     pub fn tick(&mut self, clock_ms: u32) -> Result<Vec<Vec<u8>>, RepError> {
-        let Some(start) = self.armed_at_ms else {
-            return Ok(Vec::new());
-        };
         let Some(ladder) = self.ladder.as_ref() else {
             return Ok(Vec::new());
         };
-        let elapsed = clock_ms.wrapping_sub(start);
-        let mut out = Vec::new();
-        while let Some(record) = ladder.records().get(self.next_post_v3) {
-            if record.offset_ms() > elapsed {
-                break;
-            }
-            let datagram = ladder.datagram(
-                self.next_post_v3,
-                self.post_v3_envelope_seq,
-                self.post_v3_message_seq,
-                self.post_v3_reliable_seq,
-            )?;
-            self.post_v3_envelope_seq = self.post_v3_envelope_seq.wrapping_add(1);
-            self.post_v3_message_seq = self.post_v3_message_seq.wrapping_add(1);
-            self.post_v3_reliable_seq = self.post_v3_reliable_seq.wrapping_add(1);
-            self.next_post_v3 += 1;
-            out.push(datagram);
+        let Some(due) = self.next_release_at_ms else {
+            return Ok(Vec::new());
+        };
+        // Signed wrap-space compare: a negative difference means "not yet".
+        if clock_ms.wrapping_sub(due).cast_signed() < 0 {
+            return Ok(Vec::new());
         }
-        Ok(out)
+        let Some(record) = ladder.records().get(self.next_post_v3) else {
+            self.next_release_at_ms = None;
+            return Ok(Vec::new());
+        };
+
+        let datagram = ladder.datagram(
+            self.next_post_v3,
+            self.post_v3_envelope_seq,
+            self.post_v3_message_seq,
+            self.post_v3_reliable_seq,
+        )?;
+        self.post_v3_envelope_seq = self.post_v3_envelope_seq.wrapping_add(1);
+        self.post_v3_message_seq = self.post_v3_message_seq.wrapping_add(1);
+        self.post_v3_reliable_seq = self.post_v3_reliable_seq.wrapping_add(1);
+        self.next_post_v3 += 1;
+
+        self.next_release_at_ms = ladder.records().get(self.next_post_v3).map(|next| {
+            // The plan's own offset difference is the reference's gap: 4 ms
+            // between chunks of one message, 30 ms between messages.
+            let gap = next.offset_ms().saturating_sub(record.offset_ms());
+            clock_ms.wrapping_add(gap)
+        });
+        Ok(vec![datagram])
+    }
+
+    /// Milliseconds until the next ladder record is due, once armed.
+    ///
+    /// `None` when the ladder is not armed or has drained. `Some(0)` when a
+    /// record is already due. A caller that sleeps for this long (capped by its
+    /// own tick) honours the reference's 4 ms chunk gap without polling.
+    #[must_use]
+    pub fn ladder_wait_ms(&self, clock_ms: u32) -> Option<u32> {
+        let due = self.next_release_at_ms?;
+        self.ladder.as_ref()?.records().get(self.next_post_v3)?;
+        let ahead = due.wrapping_sub(clock_ms);
+        // Signed wrap-space: a "negative" remaining time is already due.
+        Some(if ahead.cast_signed() <= 0 { 0 } else { ahead })
     }
 
     /// Whether the acceptance flight has gone out.
@@ -467,6 +496,11 @@ impl RepSession {
             if self.ladder.is_some() && self.armed_at_ms.is_none() {
                 self.armed_at_ms = Some(clock_ms);
                 self.next_post_v3 = 0;
+                self.next_release_at_ms = self
+                    .ladder
+                    .as_ref()
+                    .and_then(|ladder| ladder.records().first())
+                    .map(|first| clock_ms.wrapping_add(first.offset_ms()));
                 self.post_v3_envelope_seq = sequence.wrapping_add(2);
                 self.post_v3_message_seq = 1;
                 self.post_v3_reliable_seq = 1;
