@@ -84,6 +84,10 @@ def reverse_tool(args: list[str]) -> int:
         "types": "inspect RTTI and native type metadata",
         "pak-index": "index game package directories",
         "pak-read": "inspect or decode entries from a game package",
+        "uicanvas": "read and re-serialize LyShine UI canvases (.dynamicuicanvas)",
+        "uiassets": "classify UI assets from the PAK index into a derived inventory",
+        "lyshine": "name a LyShine canvas, render an HTML preview, edit a named field, or build a patch pak",
+        "dds": "decode a New World .dds texture to PNG",
         "ingest-log": "turn an existing Game.log into a structured session",
     }
     if not args or args[0] in {"list", "--help", "-h"}:
