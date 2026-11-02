@@ -50,8 +50,8 @@ Client build: 1.460.6033.6024067, SHA-256
 | T2 | S1 | UI asset classifier over the existing index -> `research/derived/ui-assets.json` (canvas / dds / luac / loc), with size, method and evidence word. **DONE 2026-11-01**: `ef.py re uiassets`, 8 unit tests + catalog gate green, selftest pins 164/1100/54334/56016. | worker (context backstop) | not committed (repo rule) |
 | T3 | S2, S4 | IR -> HTML preview renderer (static; no behaviours). **DONE 2026-11-01**: `ef.py re lyshine render` -> self-contained HTML; fpsscreen renders canvas 1920x1080 with 4 positioned rects (`_root`/`FPS`/`Label`/`Text`) + unknown-class/field inventory; 16 unit tests + selftest green. | worker | not committed (repo rule) |
 | T4 | S2, S5 | Edit named tokens on the IR + export back to `.dynamicuicanvas` + `pakwrite` a patch pak. **DONE 2026-11-01**: `ef.py re lyshine set`/`patch`; fail-closed on missing/ambiguous/undecodable; verified byte-exactness still holds (newinventory 21 MB / 761k elements) and an alpha edit changes exactly 1 byte. | worker | not committed (repo rule) |
-| T5 | S4, S5 | `.dds` -> PNG decoder (stdlib: DDS header + BC1/BC2/BC3/BC7 + zlib PNG). | pending | not committed (repo rule) |
-| T6 | S2 | Renderer embeds sprite PNGs into the preview (private/ignored output only). | pending | not committed (repo rule) |
+| T5 | S4, S5 | `.dds` -> PNG decoder (stdlib: DDS header + BC1/BC2/BC3/BC4/BC5/BC7 + zlib PNG). **DONE**: `reverse/tools/pak/dds.py` (`ef.py re dds`), 11 unit tests + selftest; the code landed with the UI commit. | inline | `9859626` |
+| T6 | S2 | Renderer embeds sprite PNGs into the preview (private/ignored output only). **DONE 2026-11-02**: `sprite_ref_path` / `sprite_entry` / `sprite_data_uri` / `load_sprites`; `render_html(..., sprites=)` adds `background-image` + `data-sprite` only for a RESOLVED path, and `cmd_render` loads sprites from the read-only pak index with a new `--no-sprites` opt-out. 45 tests green (13 RED first); a real render of `arenaentermenu` embeds 106 sprites, `--no-sprites` embeds 0. | worker | not committed (repo rule) |
 | T7 | S2 | `.luac` (compiled Lua) decompile, to read the UI behaviours. | pending | not committed (repo rule) |
 
 ## Log
@@ -119,3 +119,34 @@ Client build: 1.460.6033.6024067, SHA-256
   `alpha=0.5` edit and confirmed EXACTLY one byte changed (offset 3851: 00 -> 3f). The in-game load
   step (copy to `<install>/Assets/` + first `PaksList.lst` line) is human-owned and NOT run; the
   install was never touched. Not committed (repo rule).
+- **L11** — T5 outcome and the move to this branch, 2026-11-02. T5 (`.dds` -> PNG, stdlib) shipped
+  inside the same UI change: `reverse/tools/pak/dds.py` (BC1/2/3/4/5/7 + RGBA8/BGRA8, PNG written
+  with `struct`+`zlib`), 11 unit tests + `ef.py re dds selftest`. The whole UI feature was written
+  in a parallel session on `feat/lyshine-ui-pipeline` (`aab624c`, pushed) and is now CHERRY-PICKED
+  onto `refactor/knowledge-os` as `9859626` at the owner's instruction ("traelo todo aqui y hazlo
+  en esta"); T1-T5 therefore live in this branch's history now. Its own test table above is stale
+  for T5 (it said pending while the code was already in that commit).
+- **L12** — T6 measurement, 2026-11-02. The sprite reference was measured on the real canvases
+  (client 1.460.6033.6024067) rather than guessed. A `LyShine::UiImageComponent` stores its sprite
+  in a named-blob leaf (CRC `0x8df2fdbe`, no seed entry): 16B asset GUID, 16B zeros, 16B constant
+  sprite-type GUID `59d5e20b34db4d8eb867d33cc2556355`, then a u64 BIG-ENDIAN path length and the
+  UTF-8 path (e.g. `lyshineui/images/icons/misc/dropdownarrowwhite.dds`); parsing all 164 canvases
+  read 58,178 blobs, 0 malformed, 1,754 distinct paths. A `LyShine::UiImageSequenceComponent`
+  stores a frame FOLDER in a plain string leaf (CRC `0xcee077ed`), e.g.
+  `lyshineui/images/slices/button/blue_loop` -> `.../blue_00.dds`. Resolution is through the pak
+  index: exact path, else the folder's first frame by `ORDER BY path`. The renderer embeds a PNG
+  data URI only into the private/ignored output (`.azoth/tmp/lyshine/`), never into the repo (S5).
+- **L13** — T6 outcome and verification, 2026-11-02. Implementation in `reverse/tools/pak/lyshine.py`:
+  `sprite_ref_path` (blob -> path), `_entity_sprite` (image or sequence component -> path),
+  `sprite_entry` (pak-index lookup; LIKE prefix properly escaped with `ESCAPE '\'`),
+  `sprite_data_uri` (`.png` passthrough, else `dds.decode` + `dds.png_bytes`), `load_sprites`
+  (path -> data URI, skipping anything unresolved), and `render_html(..., sprites=)` which emits
+  `background-image:url(<uri>)` + `data-sprite` ONLY for a resolved path. Writer self-verification
+  (the assess plan adds no separate verifier because RDD is off and no Task Size high-risk item is
+  escalated): `test_lyshine.py` 45/45 green after a recorded RED of 13 errors, `test_uicanvas` 11,
+  `test_uiassets` 8, `test_dds` 11 + selftest, catalog gate green. End to end on the real install: a
+  render of `lyshineui/arena/arenaentermenu.dynamicuicanvas` embeds **106** sprite data URIs and
+  `--no-sprites` embeds **0**; the output lands under the gitignored `.azoth/tmp/`. One deviation
+  from the handoff: `pakread.read_entry` returns `(bytes, meta)`, so the CLI path passes a bytes
+  adapter. **Risk: none** (no stored data is rewritten and no shared contract changes; the model
+  only gains an additive `sprite` key and the sprite bytes are private output).
