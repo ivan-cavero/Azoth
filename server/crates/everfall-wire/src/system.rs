@@ -109,11 +109,7 @@ pub fn acceptance_flight(
     ack_first: u16,
     ack_last: u16,
 ) -> Result<Vec<u8>, CarrierError> {
-    let mut clock = clock_ms.to_be_bytes().to_vec();
-    clock.push(SM_CLOCK_SYNC);
-    let clock_sync = MessageRecord::new(SYSTEM_CHANNEL, clock)
-        .with_flags_override(FLAGS_UNRELIABLE_DATA_CHANNEL)
-        .with_reliable_sequence(INITIAL_RELIABLE_SEQUENCE);
+    let clock_sync = clock_sync_record(clock_ms);
 
     let mut ack = welcome.to_vec();
     ack.push(SM_CONNECT_ACK);
@@ -130,6 +126,33 @@ pub fn acceptance_flight(
         vec![clock_sync, connect_ack, piggyback],
     )
     .encode()
+}
+
+/// A stand-alone `SM_CLOCK_SYNC` datagram: the reference's `clock_sync_datagram`.
+///
+/// This is the keepalive the reference's `PeerSession.maybe_keepalive` sends once
+/// a second after the registration answer, and the datagram that holds the
+/// client's transport open: its own words are "`CLOCK_SYNC` ~1/s after V3 so
+/// `ClientSDK` does not disconnect (4) at 10s of server silence". One unreliable
+/// system record, flags `0x20`, sequence 0, reliable sequence `0xffff`.
+///
+/// # Errors
+/// Returns a [`CarrierError`] only if the five-byte payload cannot be framed.
+pub fn clock_sync(envelope_seq: u16, clock_ms: u32) -> Result<Vec<u8>, CarrierError> {
+    Datagram::new(
+        Envelope::new(envelope_seq, Compression::Plaintext),
+        vec![clock_sync_record(clock_ms)],
+    )
+    .encode()
+}
+
+/// The `SM_CLOCK_SYNC` record both the flight and the keepalive carry.
+fn clock_sync_record(clock_ms: u32) -> MessageRecord {
+    let mut clock = clock_ms.to_be_bytes().to_vec();
+    clock.push(SM_CLOCK_SYNC);
+    MessageRecord::new(SYSTEM_CHANNEL, clock)
+        .with_flags_override(FLAGS_UNRELIABLE_DATA_CHANNEL)
+        .with_reliable_sequence(INITIAL_RELIABLE_SEQUENCE)
 }
 
 /// A stand-alone `SM_CT_ACKS` datagram, so the client treats its reliable
@@ -193,6 +216,24 @@ mod tests {
                 0x05, 0x00, 0x05, 0x06,
             ]
         );
+    }
+
+    #[test]
+    fn the_keepalive_matches_the_reference_bytes() {
+        // `rep.py::clock_sync_datagram(0x0006)` with the server clock at
+        // 0x99479cb9, which is the frame the differential test reads first.
+        let raw = clock_sync(0x0006, 0x9947_9CB9).expect("keepalive encodes");
+        assert_eq!(
+            raw,
+            [
+                0x80, 0x01, 0x00, 0x06, // envelope
+                0x20, 0x00, 0x05, 0x03, 0x00, 0x00, 0xff, 0xff, 0x99, 0x47, 0x9c, 0xb9, 0x04,
+            ]
+        );
+        let records = decode_records(&raw[4..]).expect("records decode");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].system_message_id(), Some(SM_CLOCK_SYNC));
+        assert!(!records[0].is_reliable());
     }
 
     #[test]

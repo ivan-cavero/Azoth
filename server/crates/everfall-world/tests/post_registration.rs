@@ -285,14 +285,31 @@ fn a_session_sends_the_ladder_only_after_the_post_v3_delay() {
     assert!(session.v3_responded());
     assert!(session.post_v3_armed());
 
+    // The reference's `Tick` runs its keepalive before the replay pump, so the
+    // first datagram after the registration answer is the SM_CLOCK_SYNC
+    // keepalive, and the ladder itself still waits the 300 ms.
+    let keepalive = session.tick(clock + 100).expect("tick");
+    assert_eq!(keepalive.len(), 1, "the keepalive holds the transport open");
+    assert!(is_keepalive(&keepalive[0]), "and it is a system record");
     assert!(
-        session.tick(clock + 100).expect("tick").is_empty(),
-        "nothing is sent before the 300 ms post-V3 delay"
+        session
+            .tick(clock + POST_V3_DELAY_MS - 1)
+            .expect("tick")
+            .is_empty(),
+        "the ladder is not due before the 300 ms post-V3 delay"
     );
     let first = session.tick(clock + POST_V3_DELAY_MS).expect("tick");
     assert_eq!(first.len(), 1, "the first self-identification chunk is due");
     let (wire_id, _) = record_payload(&first[0]);
     assert_eq!(wire_id, SELF_IDENT_WIRE_ID);
+}
+
+/// True when the datagram is the reference's `SM_CLOCK_SYNC` keepalive.
+fn is_keepalive(datagram: &[u8]) -> bool {
+    let decoded = Datagram::decode(datagram).expect("plaintext datagram");
+    decoded.records().len() == 1
+        && decoded.records()[0].channel() == 3
+        && decoded.records()[0].system_message_id() == Some(everfall_wire::SM_CLOCK_SYNC)
 }
 
 /// A session with the captured corpus armed at `clock`.
@@ -315,13 +332,19 @@ fn a_late_tick_releases_one_record_and_re_arms_the_next_gap() {
 
     // The old scheduler swept every record whose absolute offset had passed, so a
     // single late tick dumped the whole ladder. A late tick now releases exactly
-    // one record and schedules the next a gap later, from the send time.
+    // one datagram and schedules the next a gap later, from the send time.
     let first = session.tick(clock + 10_000).expect("tick");
     assert_eq!(
         first.len(),
         1,
-        "a late tick releases one record, not the whole backlog"
+        "a late tick releases one datagram, not the whole backlog"
     );
+    assert!(
+        is_keepalive(&first[0]),
+        "and the first one due is the reference's keepalive"
+    );
+    let record = session.tick(clock + 10_000).expect("tick");
+    assert_eq!(record.len(), 1, "the ladder takes the next tick");
     assert!(
         session.tick(clock + 10_000).expect("tick").is_empty(),
         "the same instant cannot release a second record"
@@ -347,7 +370,7 @@ fn the_ladder_comes_out_at_the_reference_pacing() {
         let datagrams = session.tick(clock.wrapping_add(elapsed)).expect("tick");
         assert!(
             datagrams.len() <= 1,
-            "one record per tick, got {} at {elapsed} ms",
+            "one datagram per tick, got {} at {elapsed} ms",
             datagrams.len()
         );
         for datagram in datagrams {
@@ -355,8 +378,25 @@ fn the_ladder_comes_out_at_the_reference_pacing() {
         }
     }
 
-    assert_eq!(releases.len(), expected.len(), "the whole ladder drains");
-    let times: Vec<u32> = releases.iter().map(|(at, _)| *at).collect();
+    // The keepalive is the reference's, on its own 1 s clock; the ladder is the
+    // rest and keeps the plan's offsets.
+    let mut keepalive_times: Vec<u32> = Vec::new();
+    let mut ladder: Vec<&(u32, Vec<u8>)> = Vec::new();
+    for release in &releases {
+        if is_keepalive(&release.1) {
+            keepalive_times.push(release.0);
+        } else {
+            ladder.push(release);
+        }
+    }
+    assert_eq!(
+        keepalive_times,
+        vec![0],
+        "one keepalive opens the stream, the window is shorter than its period"
+    );
+
+    assert_eq!(ladder.len(), expected.len(), "the whole ladder drains");
+    let times: Vec<u32> = ladder.iter().map(|(at, _)| *at).collect();
     assert_eq!(
         times, expected,
         "each record leaves at the plan's reference offset, one per interval"
@@ -382,7 +422,7 @@ fn the_ladder_comes_out_at_the_reference_pacing() {
     // The flags are the reference's, and a chunked rung carries the constant
     // TOTAL as `numChunks`, not a countdown.
     let mut chunk_counts: Vec<u16> = Vec::new();
-    for (index, (_, datagram)) in releases.iter().enumerate() {
+    for (index, (_, datagram)) in ladder.iter().enumerate() {
         let record = &plan.records()[index];
         let decoded = Datagram::decode(datagram).expect("plaintext datagram");
         assert_eq!(decoded.records().len(), 1, "one record per datagram");

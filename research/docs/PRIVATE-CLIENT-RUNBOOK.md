@@ -11,8 +11,23 @@ client moves `WaitingForREPConnection` (14) → `WaitingForActorGameConnection`
 (15) and logs `received registration response from REP`. The server also now
 arms the **post-registration ladder** once the registration is answered: the
 self-identification record (`0x65c`), level info (`0x663`) and the emitted
-state bundle (`0x08`), sent on the server's own clock. See "Post-registration
-ladder" below for what that can and cannot reach.
+state bundle (`0x08`), sent on the server's own clock, with the reference's
+`SM_CLOCK_SYNC` **keepalive** opening the stream and repeating once a second.
+See "Post-registration ladder" below for what that can and cannot reach.
+
+**What the differential test settled (2026-11-02).** The twenty ladder records
+were compared byte for byte against the Python reference and are identical:
+envelope, flags, sub-headers, `numChunks`, sequence, relative sequence, payload
+and total length, all twenty. The stream was not: the reference's
+`PeerSession.tick` runs `maybe_keepalive` before `maybe_pump_replay`, so the
+datagram immediately after the `0x3` answer is an `SM_CLOCK_SYNC` keepalive at
+envelope `inbound + 1`, and the ladder then occupies `inbound + 2` onwards. The
+spike sent the ladder and nothing else, and the reference's own note on that
+keepalive is "CLOCK_SYNC ~1/s after V3 so ClientSDK does not disconnect (4) at
+10s of server silence" — the exact symptom (`transportError 4`, about ten
+seconds after the last `ladder sent`). The session now emits it. The gate is
+`everfall-world/tests/oracle_differential.rs`, regenerable with
+`everfall-world/tests/fixtures/oracle_ladder.py`.
 
 The spike is **OpenSSL** presenting an **RSA 2048 self-signed certificate**
 (`CN=New World`), matching the Python lab. That was decided by measurement:
@@ -75,7 +90,7 @@ OpenSSL from source, and the package is a prerequisite like the Windows SDK.
 | `rep reply sent: N bytes` | the world answered with the acceptance flight or the registration response |
 | `registration answered: …` | the `0x3` response went out; the client should leave `WaitingForREPConnection` |
 | `post-registration ladder armed: N record(s) …` | the three post-V3 rungs loaded and framed from the committed corpus |
-| `ladder sent: N bytes` | one post-V3 record went out on the server's clock: 300 ms after the registration, then one record per interval (4 ms between chunks of one message, 30 ms between messages) |
+| `ladder sent: N bytes` | one post-V3 record went out on the server's clock: 300 ms after the registration, then one record per interval (4 ms between chunks of one message, 30 ms between messages). The 17-byte line that repeats once a second is the `SM_CLOCK_SYNC` keepalive, not a rung |
 | `no carrier reply` | the datagram carried no message this layer answers (e.g. a piggyback ACK) |
 | `fatal Error: …` | OpenSSL gave up; the connection must be dropped |
 
@@ -101,6 +116,7 @@ machine should move `WaitingForREPConnection -> WaitingForActorGameConnection`.
 | `registration answered`, but `Game.log` never logs `received registration response from REP` and the state stays `WaitingForREPConnection` | The `0x3` body was sent but rejected. The card layout, the VLQ32 length, or the session token is wrong; the response did NOT do its job. |
 | `registration answered` and `Game.log` logs `received registration response from REP`, state `WaitingForActorGameConnection` | The client passed REP registration. Proceed to the post-registration ladder. |
 | The `ladder sent` lines share one timestamp (a burst) | The pacing regressed. The reference sends one record per interval and the client's Carrier queue truncates a burst; the session's scheduler must release one record per tick, not sweep a deadline. |
+| `ladder sent` lines stop and the client logs `Unexpected client disconnect! {"transportError":4}` about ten seconds later | The keepalive stopped. The 17-byte `SM_CLOCK_SYNC` must keep leaving once a second for the whole session — the reference sends it forever, not only while replaying. |
 
 ## Post-registration ladder
 
@@ -110,9 +126,16 @@ The rungs above registration, in the order and at the pacing the reference uses
 
 | Order | Rung | Wire | Kind | Pacing |
 | --- | --- | --- | --- | --- |
+| 14 → 15 | `SM_CLOCK_SYNC` keepalive (system channel 3) | — | SEND | the first tick after the `0x3` answer, then once a second for the rest of the session |
 | 15 → 16 | self-identification, `PlayerManagerSelfIdentificationMsg` | `0x65c` | SEND (relayed on the server's clock) | 300 ms after the `0x3`, chunked at 1,100 B with a 4 ms gap |
 | 16 → 17 | level info, `LevelInfoChangedMsg` | `0x663` | SEND | one message interval (30 ms) after the self-ident |
 | 17 → 18 | spawn state, `ReplicatedStateBundle` | `0x08` | SEND (the emitter's `Emission`) | right up to the state bundle, chunked |
+
+The keepalive row is why the ladder's envelopes start at `inbound + 2`: the
+reference's outbound counter is `max(1, inbound + 1)`, its `0x3` answer is built
+from `inbound + 1` without consuming it, and the keepalive takes that slot. Send
+the ladder at `+ 2` with no keepalive and the reference's `+ 1` datagram is
+simply missing from the stream.
 
 The `WaitingForREPConnection` → `WaitingForActorGameConnection` transition is
 **not** one of these: the atlas measures it as the Carrier actor game connection
@@ -153,7 +176,8 @@ spawn bundle, not the transport above it.
 | `post-registration ladder armed` never appears in the server log | the corpus or its extents were not found; the server still answers registration |
 | `ladder sent` lines appear but `Game.log` shows no `LevelInfoChanged` | the rung reached the Carrier but the client did not dispatch it: check the `0x65c`/`0x663` card framing (marker/varint) |
 | The client stalls at a NAMED state (`WaitingForActorGameConnection`, `WaitingForSpawnPoint`, `WaitingForPlayerSpawn`) and then logs `State(<name>) is timeout` | the rung above that state did not land; name the state in the report — it is the falsifier, not the fix |
-| `@mm_csdkerr_disconnect (4)` / `transportError` right after `ladder sent` | the chunk framing is wrong (flags `0x25`, `num_chunks`, one chunk per datagram) |
+| `@mm_csdkerr_disconnect (4)` / `transportError` right after `ladder sent` | the chunk framing is wrong (flags `0x25`, `num_chunks`, one chunk per datagram) — the differential test says these bytes are identical to the reference, so read the next row before blaming them |
+| `transportError 4` about ten seconds after the last `ladder sent`, with the state still `WaitingForREPConnection` | the server went silent; check that the 17-byte keepalive keeps leaving once a second |
 
 ## Local proof (no client required)
 
@@ -169,6 +193,12 @@ captured datagrams** through the carrier layer and assert the reply bytes:
   them only after the 300 ms delay, that the self-ident and level-info bodies
   re-encode byte for byte, and that the state rung is the emitter's payload,
   chunked; and
+- `everfall-world/tests/oracle_differential.rs` is the differential gate: it
+  drives the session through the V3 answer and compares the whole post-V3
+  stream, datagram for datagram, against the Python reference's own encoding
+  (`tests/fixtures/oracle_ladder.py` prints the table it pins). A one-byte
+  payload change, a flag, a chunk count, a sequence or a missing keepalive
+  fails it by record index; and
 - `everfall-wire/tests/carrier_parity.rs` pins the envelope/record framing against
   the same captures.
 

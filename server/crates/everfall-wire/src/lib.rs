@@ -52,5 +52,6 @@ pub use crate::state_bundle::{
 pub use crate::state_component::LocalPlayerState;
 pub use crate::system::{
     DEFAULT_WELCOME, SM_CLOCK_SYNC, SM_CONNECT_ACK, SM_CONNECT_REQUEST, SM_CT_ACKS, SM_DISCONNECT,
-    SYSTEM_CHANNEL, acceptance_flight, connect_request_welcome, ct_acks, is_connect_request,
+    SYSTEM_CHANNEL, acceptance_flight, clock_sync, connect_request_welcome, ct_acks,
+    is_connect_request,
 };

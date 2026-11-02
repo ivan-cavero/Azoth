@@ -14,6 +14,13 @@
 //!   generated codec produces and which moves the client from
 //!   `WaitingForREPConnection` to `WaitingForActorGameConnection`.
 //!
+//! Once the registration is answered the session also keeps the connection alive:
+//! the reference's `maybe_keepalive` sends an `SM_CLOCK_SYNC` datagram every
+//! second for the rest of the session, and without it the client's transport
+//! times the server out after ten seconds of silence (`transportError 4`). That
+//! keepalive takes the envelope slot immediately after the `0x3` answer, which is
+//! why the post-registration ladder starts one sequence later.
+//!
 //! It mirrors the reference's `handle_app_data` in
 //! `services/world/src/azoth_world/rep.py`. Nothing here opens a socket: it takes
 //! bytes and returns the bytes to send, so the DTLS loop owns the transport and
@@ -25,8 +32,8 @@ use everfall_wire::generated::FlowWorldEntryRungRegistration;
 use everfall_wire::{
     CarrierError, Compression, Datagram, Envelope, MF_DATA_CHANNEL, MF_RELIABLE, MessageRecord,
     Opaque, RECORD_TYPE_MARKER, SM_CLOCK_SYNC, SM_CT_ACKS, SYSTEM_CHANNEL, WireError,
-    acceptance_flight, connect_request_welcome, ct_acks, decode_records, decompress_block,
-    is_connect_request, typed_record,
+    acceptance_flight, clock_sync, connect_request_welcome, ct_acks, decode_records,
+    decompress_block, is_connect_request, typed_record,
 };
 
 use crate::ladder::{LadderError, PostV3Ladder};
@@ -333,6 +340,8 @@ pub struct RepSession {
     post_v3_envelope_seq: u16,
     post_v3_message_seq: u16,
     post_v3_reliable_seq: u16,
+    keepalive_ms: u32,
+    next_keepalive_at_ms: Option<u32>,
 }
 
 impl RepSession {
@@ -341,6 +350,13 @@ impl RepSession {
 
     /// The reference's ACK coalescing interval (`AZOTH_ACK_COALESCE_S` = 0.05 s).
     pub const DEFAULT_ACK_COALESCE_MS: u32 = 50;
+
+    /// The reference's `SM_CLOCK_SYNC` keepalive period after the V3 answer.
+    ///
+    /// `maybe_keepalive` sends one datagram and then stays quiet until a second
+    /// has passed. The reference's own note on why it exists: "`CLOCK_SYNC` ~1/s
+    /// after V3 so `ClientSDK` does not disconnect (4) at 10s of server silence".
+    pub const DEFAULT_KEEPALIVE_MS: u32 = 1000;
 
     /// A session that has answered nothing yet.
     #[must_use]
@@ -359,6 +375,8 @@ impl RepSession {
             post_v3_envelope_seq: 0,
             post_v3_message_seq: 1,
             post_v3_reliable_seq: 1,
+            keepalive_ms: Self::DEFAULT_KEEPALIVE_MS,
+            next_keepalive_at_ms: None,
         }
     }
 
@@ -373,23 +391,35 @@ impl RepSession {
         self.armed_at_ms.is_some()
     }
 
-    /// Emit the one post-registration datagram that is now due, if any.
+    /// Emit the one datagram that is now due, if any.
     ///
-    /// The reference does not sweep a deadline: it sends one message per
-    /// `REPLAY_INTERVAL_S` and sleeps the chunk gap BETWEEN the chunks of one
-    /// message (`rep.py::maybe_pump_replay` / `_send_replay_message`). This
-    /// session keeps the same shape: it releases at most one record per call and
-    /// re-arms [`Self::next_release_at_ms`] from the clock of the release plus
-    /// the plan's gap to the next record. A late or coarse tick therefore cannot
-    /// dump the backlog, which is what a deadline sweep does.
+    /// The reference's `PeerSession.tick` runs `maybe_keepalive` before
+    /// `maybe_pump_replay`, so the keepalive owns the tick it falls due on and
+    /// the ladder waits for the next one. Neither emitter sweeps a deadline: the
+    /// reference sends one replay message per `REPLAY_INTERVAL_S` and sleeps the
+    /// chunk gap BETWEEN the chunks of one message (`maybe_pump_replay` /
+    /// `_send_replay_message`). This session keeps the same shape: it releases at
+    /// most one datagram per call and re-arms [`Self::next_release_at_ms`] from the
+    /// clock of the release plus the plan's gap to the next record. A late or
+    /// coarse tick therefore cannot dump the backlog, which is what a deadline
+    /// sweep does.
     ///
-    /// A session with no armed ladder, or one whose ladder has drained, returns
-    /// no datagrams. Before the record is due it returns no datagrams either.
+    /// The keepalive is armed by the registration answer alone, so a session with
+    /// no ladder still keeps the client's transport alive; a ladder that has
+    /// drained does not stop it either.
     ///
     /// # Errors
     /// Returns a [`RepError`] only when one of the server's own planned
     /// datagrams cannot be framed.
     pub fn tick(&mut self, clock_ms: u32) -> Result<Vec<Vec<u8>>, RepError> {
+        if let Some(due) = self.next_keepalive_at_ms
+            && clock_ms.wrapping_sub(due).cast_signed() >= 0
+        {
+            self.next_keepalive_at_ms = Some(clock_ms.wrapping_add(self.keepalive_ms));
+            let datagram = clock_sync(self.post_v3_envelope_seq, clock_ms)?;
+            self.post_v3_envelope_seq = self.post_v3_envelope_seq.wrapping_add(1);
+            return Ok(vec![datagram]);
+        }
         let Some(ladder) = self.ladder.as_ref() else {
             return Ok(Vec::new());
         };
@@ -489,10 +519,19 @@ impl RepSession {
         }
         if outcome.answered_v3 {
             self.v3_responded = true;
-            // The post-V3 flight goes out on the SERVER's clock, 300 ms after
-            // the registration answer (the reference's `maybe_send_post_v3`).
-            // Arm it once, from the V3 datagram's own envelope sequence: its
-            // reply used `sequence + 1`, so the ladder continues at `+ 2`.
+            // The post-V3 stream goes out on the SERVER's clock, starting on the
+            // first tick after the registration answer.
+            //
+            // The outbound envelope counter is the reference's `next_out_seq`:
+            // `max(1, inbound + 1)`, and the V3 answer is built from
+            // `inbound + 1` WITHOUT consuming it. So the keepalive takes
+            // `inbound + 1` and the ladder's first record takes `inbound + 2`,
+            // exactly as `PeerSession.on_app_data` -> `maybe_keepalive` ->
+            // `maybe_pump_replay` order them.
+            self.post_v3_envelope_seq = sequence.wrapping_add(1);
+            self.post_v3_message_seq = 1;
+            self.post_v3_reliable_seq = 1;
+            self.next_keepalive_at_ms = Some(clock_ms);
             if self.ladder.is_some() && self.armed_at_ms.is_none() {
                 self.armed_at_ms = Some(clock_ms);
                 self.next_post_v3 = 0;
@@ -501,9 +540,6 @@ impl RepSession {
                     .as_ref()
                     .and_then(|ladder| ladder.records().first())
                     .map(|first| clock_ms.wrapping_add(first.offset_ms()));
-                self.post_v3_envelope_seq = sequence.wrapping_add(2);
-                self.post_v3_message_seq = 1;
-                self.post_v3_reliable_seq = 1;
             }
         }
         Ok(outcome.replies)
