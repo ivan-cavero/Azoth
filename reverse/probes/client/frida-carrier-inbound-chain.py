@@ -23,6 +23,7 @@ from pathlib import Path
 
 import frida
 
+DEFRAMER = 0x146AE5A70   # Carrier record de-frame/reassembly state machine
 PARSE = 0x146B701B0
 DISPATCH = 0x146B707D0
 ENQUEUE = 0x146B6D590
@@ -32,11 +33,18 @@ const mod = Process.findModuleByName('NewWorld.exe');
 if (mod === null) { send({ ev: 'error', error: 'no exe' }); } else {
   const base = mod.base;
   const rva = (v) => base.add(v - 0x140000000);
-  let parse = 0, dispatch = 0, enqueue = 0;
+  let deframe = 0, parse = 0, dispatch = 0, enqueue = 0;
+  const states = {};
+  Interceptor.attach(rva(0x146AE5A70), {
+    onEnter() {
+      deframe++;
+      try { const st = this.context.rcx.readS32(); states[st] = (states[st] || 0) + 1; } catch (e) {}
+    }
+  });
   Interceptor.attach(rva(0x146B701B0), { onEnter() { parse++; } });
   Interceptor.attach(rva(0x146B707D0), { onEnter() { dispatch++; } });
   Interceptor.attach(rva(0x146B6D590), { onEnter() { enqueue++; } });
-  rpc.exports = { status() { return { parse: parse, dispatch: dispatch, enqueue: enqueue }; } };
+  rpc.exports = { status() { return { deframe: deframe, states: states, parse: parse, dispatch: dispatch, enqueue: enqueue }; } };
   send({ ev: 'ready', base: base.toString(16) });
 }
 """
@@ -86,7 +94,7 @@ def main() -> int:
             time.sleep(args.poll)
             try:
                 st = script.exports_sync.status()
-                print(f"[chain] parse={st['parse']} dispatch={st['dispatch']} enqueue={st['enqueue']}", flush=True)
+                print(f"[chain] deframe={st['deframe']} states={json.dumps(st['states'])} parse={st['parse']} dispatch={st['dispatch']} enqueue={st['enqueue']}", flush=True)
             except Exception as exc:
                 print("[chain] status error:", exc, flush=True)
     except KeyboardInterrupt:
