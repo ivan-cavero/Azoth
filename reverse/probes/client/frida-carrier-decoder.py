@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Which wire types does the client DECODE from the inbound stream? (Rust vs Python)
 
+STATUS: the VAs below are INADVERTENTLY inherited from the 1.400 records and DO NOT fire in
+1.460 -- measured 2026-11-05: against the PYTHON control (which reaches InGame) this probe
+reports `decodes=0 dispatch=0 pushes=0`, exactly like the Rust run, so it measures nothing.
+Superseded by `frida-carrier-queue-depth.py`, which is validated (Python maxDepth>0, Rust 0).
+Keep only as a template; every address MUST be validated against the Python control before
+it is used to conclude a negative.
+
 CONTEXT. Against the Rust server the `0x65c` record is never dispatched, while against the
 Python lab it is. The framing is byte-parity, so the question is WHERE the record dies:
 in the record decoder (length vlq / unmarshal) or in the queue/dispatch.
@@ -26,7 +33,8 @@ from pathlib import Path
 
 import frida
 
-DECODER = 0x146B6EA20
+DECODER = 0x146B6EB70    # inbound decode entry (V6 slot +0x10)
+TYPE_DISPATCH = 0x146B6F190  # ten-GUID switch; everything else is queued
 DRAIN = 0x146B6E7C0
 
 JS = r"""
@@ -38,7 +46,8 @@ if (mod === null) {
   const rva = (v) => base.add(v - 0x140000000);
   const types = {};
   const sentTypes = {};
-  let decodes = 0, drains = 0;
+  let decodes = 0, drains = 0, dispatch = 0, pushes = 0;
+  const guids = {};
 
   function note(t) {
     types[t] = (types[t] || 0) + 1;
@@ -60,7 +69,7 @@ if (mod === null) {
     } catch (e) {}
   }
 
-  Interceptor.attach(rva(0x146B6EA20), {
+  Interceptor.attach(rva(0x146B6EB70), {
     onEnter() {
       decodes++;
       // The buffer pointer is one of the first two arguments; try both.
@@ -69,9 +78,36 @@ if (mod === null) {
     }
   });
 
-  Interceptor.attach(rva(0x146B6E7C0), { onEnter() { drains++; } });
+  Interceptor.attach(rva(0x146B6E7C0), {
+    onEnter() {
+      drains++;
+      // Drainer: rcx=processor. Read the first popped node's object vtable[+0x30]
+      // (the 16-byte type GUID the dispatch compares). Guarded: any read failure
+      // is silent, and nothing here writes memory.
+      try {
+        const q = this.context.rcx.add(0x50).readPointer();
+        const head = q.add(0x28).readU32();
+        const cap = q.add(0x20).readU32();
+        const base2 = q.add(0x18).readPointer();
+        if (!base2.isNull() && cap > 0) {
+          const node = base2.add((head & (cap - 1)) * 8).readPointer();
+          if (!node.isNull()) {
+            const obj = node.readPointer();
+            if (!obj.isNull()) {
+              const vt = obj.readPointer().readPointer(); // object vtable
+              const g = vt.add(0x30).readByteArray(16);
+              const hex = Array.from(new Uint8Array(g)).map(x => x.toString(16).padStart(2,'0')).join('');
+              guids[hex] = (guids[hex] || 0) + 1;
+              if (guids[hex] <= 2) send({ ev: 'guid', guid: hex, n: guids[hex] });
+            }
+          }
+        }
+      } catch (e) {}
+    }
+  });
+  Interceptor.attach(rva(0x146B6F190), { onEnter() { dispatch++; } });
 
-  rpc.exports = { status() { return { decodes: decodes, drains: drains, types: types }; } };
+  rpc.exports = { status() { return { decodes: decodes, drains: drains, dispatch: dispatch, pushes: pushes, types: types, guids: guids }; } };
   send({ ev: 'ready', base: base.toString(16) });
 }
 """
@@ -124,7 +160,7 @@ def main() -> int:
             time.sleep(args.poll)
             try:
                 st = script.exports_sync.status()
-                print(f"[dec] decodes={st['decodes']} drains={st['drains']} types={json.dumps(st['types'])}", flush=True)
+                print(f"[dec] decodes={st['decodes']} dispatch={st['dispatch']} pushes={st['pushes']} drains={st['drains']} types={json.dumps(st['types'])} guids={json.dumps(st['guids'])}", flush=True)
             except Exception as exc:  # noqa: BLE001
                 print("[dec] status error:", exc, flush=True)
     except KeyboardInterrupt:
