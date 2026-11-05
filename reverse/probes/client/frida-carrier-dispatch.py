@@ -61,7 +61,14 @@ if (mod === null) {
       const hr = handler ? handler.sub(base).toString(16) : 'null';
       counts[hr] = (counts[hr] || 0) + 1;
       if (counts[hr] <= 2 && handler) {
-        send({ ev: 'dispatch', handler_rva: hr, off: off, record: rec && rec.toString(), n: total });
+        let bt = [];
+        try {
+          bt = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                 .map((a) => DebugSymbol.fromAddress(a).toString());
+        } catch (e) {}
+        send({ ev: 'dispatch', handler_rva: hr, off: off, record: rec && rec.toString(),
+               n: total, ret_rva: this.returnAddress ? this.returnAddress.sub(base).toString(16) : null,
+               backtrace: bt });
       }
     }
   });
