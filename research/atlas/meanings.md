@@ -419,7 +419,12 @@ read those Carrier flags, and their addresses on 1.460 are verified:
 None of the three has a `.pdata` entry (no stack, no frame), which is normal for a
 leaf and is why walking the function table cannot find them.
 
-**What this means for the rung that was blocked.** Rung 15 is *not* a message. It
+**What this means for the rung that was blocked.** _(Superseded 2026-11-05: the
+paragraph below is falsified by measurement — see `odd/tasks/carrier-inbound.md`
+L34/L36/L7. Rung 15 IS moved by the `0x65c` self-ident handler, which writes
+`[carrier+0xA0]=2`; the client does not parse that record against the Rust server
+because the post-registration ladder never reaches its stream parser.)_
+Rung 15 is *not* a message. It
 is not `ClientAddEntryMsg` (`0xa4`), and it is not the 21-byte body the lab carries.
 A private server moves the client out of 15 by completing the Carrier actor game
 connection, which is a transport job. `PlayerManagerSelfIdentificationMsg` still
@@ -430,7 +435,7 @@ is, which is a precondition for that spawn, not the transition itself.
 Three rungs stalled the ladder, each for a different reason, and the reason
 matters more than the status:
 
-- **15** — **closed as a transport question.** The rung is left when the Carrier
+- **15** — **corrected 2026-11-05: NOT a transport question.** It is moved by the `0x65c` handler (see L36/L7). The rung is left when the Carrier
   actor game connection reaches state 2 (`[carrier+0xA0] == 2`, getter at
   `0x145A934A0`), not when a message arrives. `ClientAddEntryMsg` carries the
   player's 16-byte actor id and arrives immediately before level info, but it is a

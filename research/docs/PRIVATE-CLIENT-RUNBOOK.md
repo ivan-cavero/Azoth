@@ -162,6 +162,17 @@ reaching state 2 (`[carrier+0xA0] == 2`, getter `0x145A934A0`), a
 **transport job**, not a message. The local rig satisfies it with the
 client-side patch set `private-run` applies.
 
+> **CORRECTION (2026-11-05, measured).** Both claims above are false. Rung 15 IS a
+> message-driven transition: the wire-`0x65c` self-ident handler `FUN_146455ec0`
+> calls `FUN_145a88140`, which writes `*(undefined4 *)(carrier + 0xa0) = 2`
+> UNCONDITIONALLY (decompiled; a hardware watchpoint captured the store at
+> `pc_rva 0x5a882ab`). A static sweep does find it — the "no `mov dword
+> [reg+0xA0], 2`" claim below is wrong. Against the Python lab the client crosses
+> rung 15 and the `0x65c` handler runs once; against this Rust server the handler
+> never runs because **not one record of the post-registration ladder reaches the
+> client's stream parser** (paired: parse 2187 vs 1, enqueue 1805 vs 0). See
+> `odd/tasks/carrier-inbound.md` L6/L7 and rung-15 L34/L36.
+
 ## Rung 15: what state 2 is, and the part the server owes
 
 `[carrier+0xA0] == 2` is a field the client writes, not a value it parses:
