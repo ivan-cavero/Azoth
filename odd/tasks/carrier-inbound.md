@@ -63,3 +63,16 @@ Client build: 1.460.6033.6024067, SHA-256 `30fe6461f929ba44178376a72f0765dc5da28
     - **H1 (sequence)**: el cliente descarta por `sequence` esperada; usar el `sequence` del capture (como el lab) en lugar de un contador propio.
     - **H3 (reensamblado)**: si H1/H2 fallan, comparar los 12 datagramas de chunk campo por campo contra los del lab.
   - Corrección de documentación pendiente: `PRIVATE-CLIENT-RUNBOOK.md:160-176` afirma que rung 15 es "a transport job" y que "no `mov dword [reg+0xA0],2` exists" — ambas falsadas por L34/L36.
+
+- **L5** — corrección importante sobre las mediciones de L4 y anteriores. Probé tres VAs derivadas de los registros 1.400 (`0x146b6eb70` decode entry, `0x146b6f190` type-dispatch, `0x146b6fde3` fallback push) y agregué la lectura del type GUID en el drenador. Resultado: **en el control Python —que llega a InGame— `decodes=0`, `dispatch=0`, `pushes=0`, igual que en el Rust**. Es decir esas tres direcciones **no son esas funciones en 1.460** y todas las corridas que las usaban midieron nada (los `guid` impresos son bytes de instrucción: mi lectura de la cola usa offsets equivocados). Además descubrí que mi hook en `0x146b6fde3` caía **dentro de una instrucción**, y eso mataba al cliente en `WaitingForREPConnection` (explica 3 "cuelgues" que atribuí al cliente).
+  - **Mediciones que SÍ están validadas** (se disparan cuando deben, controladas contra el mundo Python):
+    | Punto | Python | Rust |
+    | --- | --- | --- |
+    | `FUN_146455ec0` handler `0x65c` | 1 | **0** |
+    | `FUN_14647c210` fallback dispatcher | 1 | **0** |
+    | `FUN_145a88140` setter (`[carrier+0xA0]=2`) | 1 | **0** |
+    | `FUN_146b6e7c0` drainer | miles | miles |
+    | `[carrier+0xA0]` (watchpoint) | 1→2 | queda en 1 |
+  - **Conclusión sostenida**: el cliente, contra el Rust, **nunca produce el único dispatch de fallback que en el lab lleva al handler del `0x65c`**. El drenador corre igual en ambos, así que el faltante está en **qué entra a la cola** (el parse/encolado), no en el drenaje ni en el dispatch.
+  - **Pendiente para continuar**: localizar en 1.460 (a) el decoder/encolado real y (b) el reader de la cola, por decompilación dirigida (no por VAs heredadas de 1.400). Los registros 1.400 en `client-functions.json` sirven de pista estructural, no de dirección.
+  - Nota de método: las VAs heredadas de otro build **no son medición**. Toda dirección nueva debe validarse contra el control Python (debe dispararse) antes de usarse para concluir un negativo.
