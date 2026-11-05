@@ -76,3 +76,14 @@ Client build: 1.460.6033.6024067, SHA-256 `30fe6461f929ba44178376a72f0765dc5da28
   - **Conclusión sostenida**: el cliente, contra el Rust, **nunca produce el único dispatch de fallback que en el lab lleva al handler del `0x65c`**. El drenador corre igual en ambos, así que el faltante está en **qué entra a la cola** (el parse/encolado), no en el drenaje ni en el dispatch.
   - **Pendiente para continuar**: localizar en 1.460 (a) el decoder/encolado real y (b) el reader de la cola, por decompilación dirigida (no por VAs heredadas de 1.400). Los registros 1.400 en `client-functions.json` sirven de pista estructural, no de dirección.
   - Nota de método: las VAs heredadas de otro build **no son medición**. Toda dirección nueva debe validarse contra el control Python (debe dispararse) antes de usarse para concluir un negativo.
+
+- **L6** — PRUEBA PAREADA (misma sonda `reverse/probes/client/frida-carrier-queue-depth.py`, mismo cliente). El drenador `FUN_146b6e7c0` saca de la cola en `processor+0x50`, cuyo contador int64 vive en `queue+0x30` (verificado en el propio decompilado: `plVar5 = (longlong *)(piVar12 + 0xc); *plVar5 -= 1`).
+  | | Mundo Python | Rust |
+  | --- | --- | --- |
+  | `drains` | miles | 4672 |
+  | `maxDepth` de la cola | **28** | **0** |
+  | muestras con `depth > 0` | **1487** | **0** |
+  Evidencia: `.azoth/logs/run-20261105-qdepth-{python,rust}/`.
+  **Conclusión (binaria y pareada)**: contra el Rust el cliente **no encola ni un solo record inbound**, aunque recibe y ACKea cada datagrama (`Connected`, `SM_CT_ACKS` fluyen). El corte está **aguas arriba de la cola**: en la recepción/ruteo del datagrama al *stream processor*. NO es el dispatch (L38), NO es el cuerpo del mensaje (oráculo = `rep.py` real, `frame.marshal_datagram`/`MessageRecord`/`chunk_replay_payload`), NO son los flags (Rust emite `0x21` single / `0x25` chunked, igual que la referencia).
+  - Corrección pareada del control: el `oracle_ladder.py` **sí** importa el código real de la referencia (no es circular); aun así el fallo persiste, lo que confirma que la diferencia no está en el cuerpo de los records de la escalera.
+  - **Siguiente instrumento** (nueva unidad, no más VAs heredadas): decompilar en 1.460 el **ruteo inbound** — de `SSL_read`/DTLS a `FUN_146b6e7c0` — buscando la función que decide a qué `stream_processor` (y si) se entregan las app-data de una conexión. Hipótesis a testear con una sonda sobre esa función: el Rust no "registra" su conexión en el processor como el lab, así que sus datagramas se ACKean pero no se encolan.
