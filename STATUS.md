@@ -24,14 +24,14 @@ Rungs 14→17 in order: `StartREPConnection` → `WaitingForREPConnection` → (
 
 **Rung 15 is confirmed on 1.460** and closed itself with no forced gate. **Auth is no
 longer the wall**: the persona login completes and the client renders character select.
-
 **Rung 17 is passed and the world renders** (2026-10-26). The 120 s timeout was never
 the bundle: `ClientContext::Initialize` self-cleans when a predicate returns 0, so every
-bundle was dropped with `clientContext == nullptr`. The world-phase patch set fixes that,
-and the 1.460 ladder runs **never applied it** because the launcher only runs it under
-`-Watch`. With `private-run.py --settle 55` plus `AZOTH_REPLAY_LOCAL_PLAYER_UUID=character`
-(read at import: restart the world), one run gives `player spawn succeeds`, `InGame`, **26
-`Slice:` lines**, 0 `Cleanup()`, 0 errors, and Windsward on screen, player possessed.
+bundle was dropped with `clientContext == nullptr`; the world-phase patch set fixes that.
+**`-Watch` now works (2026-11-09)**: the EOS stub points at the build-scoped resolver
+(`0x1444F8B20`) and the launcher waits for `OnCampfireLoginComplete` plus 60 s, so
+`python ef.py game` reached character select, Play, the ladder and `InGame` with a body,
+staying up 26 min with 0 disconnects (baseline: 19 s). Terrain still does not stream
+(0 `Slice:` lines, gate 6).
 
 ## Named, 2026-10-26
 
