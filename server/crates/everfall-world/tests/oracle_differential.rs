@@ -69,9 +69,10 @@ const HEARTBEAT_WIRE_ID: u32 = 0x15d;
 const ORACLE_HEARTBEAT: (u16, u8, u16, u16, u16, u16, u64) =
     (0x0007, 0x21, 13, 1, 1, 1, 0x7bed_54d1_1179_21cc);
 
-/// The oracle's twenty-two planned records: `0x40a`, `0x1be`, the chunked
-/// `0x65c`, level info and the emitted state bundle.
-const ORACLE_LADDER: [(u16, u8, u16, u16, u16, u16, u64); 22] = [
+/// The oracle's twenty-three planned records: `0x40a`, `0x1be`, the chunked
+/// `0x65c`, the body-less `0x651` spawn-point signal, level info and the
+/// emitted state bundle.
+const ORACLE_LADDER: [(u16, u8, u16, u16, u16, u16, u64); 23] = [
     (0x0008, 0x21, 77, 1, 2, 2, 0xb154_f80f_527f_e273),
     (0x0009, 0x21, 77, 1, 3, 3, 0x758f_4ff3_006b_c4ed),
     (0x000a, 0x25, 1100, 12, 4, 4, 0x0803_58a3_73b4_32f0),
@@ -86,14 +87,17 @@ const ORACLE_LADDER: [(u16, u8, u16, u16, u16, u16, u64); 22] = [
     (0x0013, 0x25, 1100, 12, 13, 13, 0x30f0_60ca_9cf4_c2c2),
     (0x0014, 0x25, 1100, 12, 14, 14, 0x9087_d012_f7d0_42ab),
     (0x0015, 0x25, 608, 12, 15, 15, 0xdc09_c573_9424_2b56),
-    (0x0016, 0x21, 111, 1, 16, 16, 0x9eaa_be6d_9016_5f41),
-    (0x0017, 0x25, 1100, 7, 17, 17, 0xe47d_6e44_2c01_e78d),
-    (0x0018, 0x25, 1100, 7, 18, 18, 0x1f7b_112c_3729_ed19),
-    (0x0019, 0x25, 1100, 7, 19, 19, 0x73b5_4db6_0dbe_e687),
-    (0x001a, 0x25, 1100, 7, 20, 20, 0x67c1_4c4d_d37c_7cd5),
-    (0x001b, 0x25, 1100, 7, 21, 21, 0x1044_f973_af02_6578),
-    (0x001c, 0x25, 1100, 7, 22, 22, 0x6ee8_fedd_5490_ceda),
-    (0x001d, 0x25, 569, 7, 23, 23, 0xb1f1_cf09_368d_3928),
+    // `0x651` `ReceivePlayerSpawnPointMsg`: the typed header alone, five
+    // bytes once the record's own length prefix is counted.
+    (0x0016, 0x21, 5, 1, 16, 16, 0x477d_bf2d_1d89_7b3d),
+    (0x0017, 0x21, 111, 1, 17, 17, 0xa2dc_0180_7dce_c89c),
+    (0x0018, 0x25, 1100, 7, 18, 18, 0xd32a_ad1b_3cab_fac0),
+    (0x0019, 0x25, 1100, 7, 19, 19, 0x9b44_e848_491c_437e),
+    (0x001a, 0x25, 1100, 7, 20, 20, 0xcb2b_59be_e95d_c866),
+    (0x001b, 0x25, 1100, 7, 21, 21, 0xb4b2_cc98_3b9f_60d6),
+    (0x001c, 0x25, 1100, 7, 22, 22, 0x9001_8414_cc6b_54ed),
+    (0x001d, 0x25, 1100, 7, 23, 23, 0x94fc_0a2c_690d_f5b5),
+    (0x001e, 0x25, 569, 7, 24, 24, 0xe924_192b_6fd8_d3ff),
 ];
 
 /// FNV-1a 64 of the oracle's keepalive, the datagram that opens the stream.
@@ -442,8 +446,8 @@ fn the_keepalive_continues_after_the_ladder_drains() {
         keepalives,
         vec![
             (0, 0x0006),
-            (KEEPALIVE_MS, 0x001e),
-            (KEEPALIVE_MS * 2, 0x0020),
+            (KEEPALIVE_MS, 0x001f),
+            (KEEPALIVE_MS * 2, 0x0021),
         ],
         "one keepalive per period, on the envelope counter the ladder and the heartbeat share"
     );

@@ -103,6 +103,17 @@ const RELIABLE_DATA_CHANNEL: u8 = MF_RELIABLE | MF_DATA_CHANNEL;
 /// The flag byte of a reliable chunked datagram, the reference's `0x25`.
 const RELIABLE_CHUNKS_DATA_CHANNEL: u8 = MF_RELIABLE | MF_CHUNKS | MF_DATA_CHANNEL;
 
+/// `ReceivePlayerSpawnPointMsg`, wire `0x651`.
+///
+/// A body-less signal, so there is no Atlas card to encode it through: the
+/// record is `00 01` then the prefix varint of 1617, i.e. `00 01 91 19`. That
+/// is exactly the four bytes `0x7_T0x651_R.bin` in the committed corpus holds,
+/// and the name is the client's own - the registration hook resolves
+/// `typeIndex[1617]` to `ReceivePlayerSpawnPointMsg@ClientViewListenerTrait@Javelin`.
+/// It sits between the self-identification and the level info in the capture
+/// (`research/atlas/meanings.md`, "The first typed exchange, measured").
+const SPAWN_POINT_WIRE_ID: u32 = 0x651;
+
 /// Which rung of the post-registration ladder a planned record belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Rung {
@@ -112,6 +123,12 @@ pub enum Rung {
     CoatlicueTiming,
     /// `PlayerManagerSelfIdentificationMsg`, wire `0x65c`.
     SelfIdentification,
+    /// `ReceivePlayerSpawnPointMsg`, wire `0x651`.
+    ///
+    /// A signal with no body: the record is the typed header and nothing else,
+    /// so this rung is framed directly from its wire id instead of through a
+    /// card. See `spawn_point` below.
+    SpawnPoint,
     /// `LevelInfoChangedMsg`, wire `0x663`.
     LevelInfo,
     /// The type-`0x08` replicated-state bundle the emitter authors.
@@ -321,6 +338,8 @@ impl PostV3Ladder {
         self_identification.encode(&mut body)?;
         let self_ident = framed(FlowWorldEntryRungSelfIdentification::WIRE_ID, &body)?;
 
+        let spawn_point = framed(SPAWN_POINT_WIRE_ID, &[])?;
+
         let mut body = Vec::new();
         level_info.encode(&mut body)?;
         let level_info_payload = framed(FlowWorldEntryRungLevelInfo::WIRE_ID, &body)?;
@@ -340,6 +359,7 @@ impl PostV3Ladder {
                 (Rung::CalendarConnected, calendar),
                 (Rung::CoatlicueTiming, coatlicue),
                 (Rung::SelfIdentification, self_ident),
+                (Rung::SpawnPoint, spawn_point),
                 (Rung::LevelInfo, level_info_payload),
                 (Rung::State, state_payload),
             ]),
@@ -457,7 +477,7 @@ pub fn build_datagram(
 /// The plan starts one [`MESSAGE_INTERVAL_MS`] after the heartbeat, because the
 /// heartbeat owns [`HEARTBEAT_OFFSET_MS`]: the capture's spacing has to hold
 /// from the first record, and the first record is the ping.
-fn plan_rungs(rungs: [(Rung, Vec<u8>); 5]) -> Vec<PlannedRecord> {
+fn plan_rungs(rungs: [(Rung, Vec<u8>); 6]) -> Vec<PlannedRecord> {
     let mut plan = Vec::new();
     let mut at = HEARTBEAT_OFFSET_MS.saturating_add(MESSAGE_INTERVAL_MS);
     for (rung, payload) in rungs {

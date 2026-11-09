@@ -34,6 +34,9 @@ const PING_WIRE_ID: u32 = 0x15d;
 const CALENDAR_WIRE_ID: u32 = 0x40a;
 const COATLICUE_WIRE_ID: u32 = 0x1be;
 const SELF_IDENT_WIRE_ID: u32 = 0x65c;
+// `ReceivePlayerSpawnPointMsg`: a body-less signal, so this test names its wire
+// id directly instead of reading a corpus body.
+const SPAWN_POINT_WIRE_ID: u32 = 0x651;
 const LEVEL_INFO_WIRE_ID: u32 = 0x663;
 const STATE_WIRE_ID: u32 = 0x08;
 
@@ -207,10 +210,10 @@ fn the_capture_order_puts_the_three_records_before_the_self_identification() {
             CALENDAR_WIRE_ID,
             COATLICUE_WIRE_ID,
             SELF_IDENT_WIRE_ID,
+            SPAWN_POINT_WIRE_ID,
             LEVEL_INFO_WIRE_ID,
-            STATE_WIRE_ID,
         ],
-        "the capture's order is ping, calendar, coatlicue timing, THEN self-ident, level info, state: {order:?}"
+        "the capture's order is ping, calendar, coatlicue timing, THEN self-ident, the spawn-point signal, level info, state: {order:?}"
     );
     assert!(
         sent.iter().any(|&(_, wire_id)| wire_id == STATE_WIRE_ID),

@@ -224,6 +224,9 @@ def main() -> None:
         typed_body(0x40A, wire_body(0x40A)),
         typed_body(0x1BE, wire_body(0x1BE)),
         typed_body(0x65C, wire_body(0x65C)),
+        # `ReceivePlayerSpawnPointMsg` has no body: the record is the typed
+        # header alone, which the corpus holds as 00 01 91 19 at seq 0x07.
+        typed_body(0x651, b""),
         typed_body(0x663, wire_body(0x663)),
         state_bundle_body("0x9e_T0x8_R.bin"),
     ):
