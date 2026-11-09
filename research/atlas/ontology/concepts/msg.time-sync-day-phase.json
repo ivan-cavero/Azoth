@@ -2,7 +2,10 @@
   "uid": "msg.time-sync-day-phase",
   "kind": "message",
   "name": "TimeComponentClientFacet_SyncDayPhase",
-  "aliases": ["wire:0x1097", "SyncDayPhase"],
+  "aliases": [
+    "wire:0x1097",
+    "SyncDayPhase"
+  ],
   "summary": "The time facet's day-phase sync. 12-byte record: the shared two-u64 head then one u32 BE holding the value 2 in the one captured instance. The writer FUN_1426d64f0 emits exactly head + one u32 and nothing else, and the reader FUN_1426d6530 consumes the same two fields, which is what accounts for 16+4 = 20 body bytes against the 24-byte record.",
   "purpose": "Tell the client which day phase it is in. The captured value 2 is the only phase ever seen, so the enum's members are not enumerated; what phase 0 or 1 mean is unmeasured. The value is carried as a plain u32 rather than an enum because the closed vocabulary has no named enum for it and only one member is observed.",
   "authority": "server",
@@ -61,10 +64,6 @@
     {
       "op": "part_of",
       "to": "flow.presence"
-    },
-    {
-      "op": "sibling_of",
-      "to": "msg.time-sync-time-change"
     }
   ],
   "confidence": "layout",

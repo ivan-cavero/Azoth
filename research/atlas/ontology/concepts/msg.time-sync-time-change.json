@@ -2,7 +2,10 @@
   "uid": "msg.time-sync-time-change",
   "kind": "message",
   "name": "TimeComponentClientFacet_SyncTimeChange",
-  "aliases": ["wire:0x1096", "SyncTimeChange"],
+  "aliases": [
+    "wire:0x1096",
+    "SyncTimeChange"
+  ],
   "summary": "The time facet's calendar sync. 80-byte record: the shared two-u64 head then FOURTEEN fields in a fixed order - three f32 BE, six u32 BE, one u64 BE, then four more f32 BE. The writer FUN_144072fc0 delegates to FUN_1469e75e0, an explicit list of fourteen primitive calls, so the layout is read straight from the code rather than fitted to the sample, and 16 + 60 = 76 body bytes exactly. The values are self-describing: two round numbers (6.0, -1.0), two second counts that are hours (3600, 1800), a HH:MM:SS split (21300 s = 5:55, 65100 s = 18:05), and two doubled phase factors (1/6 twice, 5/6 twice).",
   "purpose": "Tell the client the world's calendar state: the day/night split, its scale factors, and a time-of-day. What each field is named in the client's own struct is not read here, so the fields are named for what their VALUES measure, not for a decoded symbol.",
   "authority": "server",
@@ -217,10 +220,6 @@
     {
       "op": "part_of",
       "to": "flow.presence"
-    },
-    {
-      "op": "sibling_of",
-      "to": "msg.time-sync-day-phase"
     }
   ],
   "confidence": "layout",

@@ -2,7 +2,11 @@
   "uid": "msg.action-list-receive-input-from-client",
   "kind": "message",
   "name": "ActionListComponentServerFacet_ReceiveInputFromClient",
-  "aliases": ["wire:0x635", "ReceiveInputFromClient", "channel-1 input stream"],
+  "aliases": [
+    "wire:0x635",
+    "ReceiveInputFromClient",
+    "channel-1 input stream"
+  ],
   "summary": "The client's input frame list, and the first C2S type the server has to PARSE rather than emit. Five committed records, 65/80/95/110/125 body bytes, growing by exactly 15. The container is exact on all five: shared head 16 + a 30-byte block + a flag byte + a count byte + a 3-byte presence mask + N frames of 15 bytes. N is 1..5 and equals (len - 50) / 15 with no remainder. The frames are DELTA-ENCODED - the element encoder compares each field against a reference object and sets one mask bit per differing field - so this card models the container and the mask, NOT the fields inside a frame, which the capture cannot close.",
   "purpose": "Carry the client's per-frame input state: camera pitch, camera yaw, world x and world y, per the movement block the atlas already decoded at 1.460 from the same type on the same channel. The Rust server must DECODE this; it never authors it. What the client expects the server to do with each frame is not measured.",
   "authority": "client",
@@ -51,7 +55,7 @@
       "size": 29,
       "type": "bytes(29)",
       "evidence": "measured",
-      "note": "Measured 00 01|00 00|91 02|06 00|00 01|01 .. 20 07 19 4b 00 00 00 ac 0f but NOT constant: byte 0x11 is 01 in the first record and 00 in the other four. Carried as a raw run because the element encoder walks the SAME offsets against a reference object and only emits what differs; those differing fields are written here, in front of the mask, so this block is that prefix run and nothing in it is named. The 0x91 02 inside it is the prefix varint for 273, matching the atlas's pinned u16 BE writer, but what 273 indexes is not established.",
+      "note": "Measured as a 29-byte run at body 0x10..0x2d that is NOT constant: body byte 0x11 is 01 in the first record and 00 in the other four. Carried as a raw run because the element encoder walks the SAME offsets against a reference object and only emits what differs; those differing fields are written here, in front of the mask, so this block is that prefix run and nothing in it is named. One value inside it reads as the pinned prefix varint for 273, but what that indexes is not established. (The raw dump of this region is quoted in the capture evidence, where it belongs, not in this field note.)",
       "provenance": "capture: all five bodies at 0x10..0x2d; decompile: the element encoder FUN_142a26340 writes a 3-byte mask and then per-field runs"
     },
     {
