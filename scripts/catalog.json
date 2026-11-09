@@ -130,6 +130,11 @@
       "kind": "export",
       "file": "export-spawn-template.py"
     },
+    "export-wire-bodies": {
+      "path": "export/export-wire-bodies.py",
+      "kind": "export",
+      "file": "export-wire-bodies.py"
+    },
     "export-wire-fixtures": {
       "path": "export/export-wire-fixtures.py",
       "kind": "export",
