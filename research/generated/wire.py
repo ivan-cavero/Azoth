@@ -790,6 +790,17 @@ MESSAGES = {
             ('auto_pinning_flags', 'vec<bool_byte>'),
         ),
     },
+    3236: {
+        'uid': 'msg.event-notification-sync-notifications',
+        'name': 'EventNotificationComponentClientFacet_SyncNotifications',
+        'direction': 'S2C',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('notifications', 'counted(nested(codec.event-notification-entry))'),
+            ('tail_flag', 'bool_byte'),
+        ),
+    },
     3895: {
         'uid': 'msg.server-equip-item',
         'name': 'PaperdollComponentServerFacet_ServerEquipItem',
@@ -1128,6 +1139,13 @@ CODECS = {
                 )),
             ),
         },
+    },
+    'codec.event-notification-entry': {
+        'name': 'EventNotificationEntry',
+        'fields': (
+            ('notification_key', 'u32be'),
+            ('notification_value', 'u32be'),
+        ),
     },
     'codec.objectives-active-objective': {
         'name': 'ObjectivesActiveObjective',

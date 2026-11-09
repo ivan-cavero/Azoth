@@ -14,6 +14,7 @@ use everfall_wire::generated::{
     FlowWorldEntryRungSelfIdentification, MsgChatSetProfanityFilterEnabled, MsgClientAddEntry,
     MsgContractsLookupContractsByParticipant, MsgContractsOnLookupContractsByParticipant,
     MsgGlobalStorageReceiveStorageSearchItems, MsgGridTrackingUpdatePhasing,
+    MsgEventNotificationSyncNotifications,
     MsgMountDashToggleChanged, MsgMountSlowWalkChanged, MsgObjectivesSetObjectiveAutoPinning,
     MsgObjectivesUpdateTrackedObjectives, MsgPlayerAckLevelInfoChanged,
     MsgPlayerCullLimitPctChangeRequest, MsgReceiveSettingsFromClient, MsgSetReplicateStorage,
@@ -1131,4 +1132,87 @@ fn objectives_count_caps_are_enforced() {
     let mut pinning = vec![0u8; 16];
     pinning.push(37); // 0xa95 states at most 36 flag bytes
     assert!(MsgObjectivesSetObjectiveAutoPinning::decode(&pinning).is_err());
+}
+
+#[test]
+fn event_notification_sync_0xca4_closes_the_container_on_the_byte() {
+    // The only remaining server->client type in the 1.365 corpus. 102-byte
+    // record: typed header 4 + a 98-byte body. The body is the shared head, a
+    // prefix-varint count of 10, ten (key, value) u32 BE pairs, then one strict
+    // boolean. 16 + 1 + 80 + 1 = 98 exactly, so no byte is left to interpretation.
+    let body = body_for(&fixture_text(), 0xca4);
+    assert_eq!(body.len(), 98, "0xca4 body length");
+
+    let decoded = MsgEventNotificationSyncNotifications::decode(&body).expect("decode 0xca4");
+    assert_eq!(MsgEventNotificationSyncNotifications::WIRE_ID, 0xca4);
+    assert_eq!(
+        decoded.local_facet_id, 0xa0b4_5ffb_d9b3_264b,
+        "the event-notification client facet's own local id"
+    );
+    assert_eq!(
+        decoded.local_actor_id_word0, 0xbf85_314b_bc4a_951a,
+        "the shared local-actor word"
+    );
+
+    // The container arithmetic: the count field and the elements it gates must
+    // account for every byte between the head and the tail.
+    assert_eq!(
+        decoded.notifications.len(),
+        10,
+        "the measured count is 10 elements"
+    );
+    assert_eq!(
+        16 + 1 + 8 * decoded.notifications.len() + 1,
+        body.len(),
+        "head + count + pairs + tail is the whole body"
+    );
+
+    // Every key is distinct and no key appears in the client binary, which is
+    // why the element card leaves the key's meaning unnamed: these are
+    // per-session ids, not client constants.
+    let keys: Vec<u32> = decoded
+        .notifications
+        .iter()
+        .map(|entry| entry.notification_key)
+        .collect();
+    let distinct: std::collections::HashSet<u32> = keys.iter().copied().collect();
+    assert_eq!(distinct.len(), keys.len(), "all ten keys are distinct");
+    assert_eq!(keys[0], 0xf73a_b744, "first measured key");
+    assert_eq!(
+        decoded.notifications[0].notification_value, 0x2b,
+        "first measured value"
+    );
+
+    // The tail is a strict boolean, and `bool_byte` must refuse anything wider.
+    assert!(decoded.tail_flag, "the measured tail byte is 0x01");
+
+    let mut out = Vec::new();
+    decoded.encode(&mut out).expect("encode 0xca4");
+    assert_eq!(out, body, "0xca4 did not round-trip byte for byte");
+}
+
+#[test]
+fn event_notification_tail_uses_the_shared_bool_byte_codec() {
+    // `tail_flag` is `bool_byte`, which this crate defines as "any non-zero
+    // byte is true". The CLIENT's reader for the same slot is stricter - it
+    // refuses any byte at or above 2 - but `bool_byte` does not model that
+    // rejection, so this test pins what the generated codec actually
+    // guarantees and does not claim more. A body with 0x02 in the tail decodes
+    // as `true`; that is a known, stated difference between the card's note and
+    // the vocabulary, recorded here rather than papered over.
+    let body = body_for(&fixture_text(), 0xca4);
+    let mut wide = body.clone();
+    *wide.last_mut().expect("a last byte") = 2;
+    let decoded = MsgEventNotificationSyncNotifications::decode(&wide)
+        .expect("bool_byte accepts any non-zero byte");
+    assert!(
+        decoded.tail_flag,
+        "0x02 decodes as true under bool_byte, which is why the card names the \
+         client-side `< 2` rule as codec evidence instead of relying on the type"
+    );
+
+    // 0x00, by contrast, is the only byte that reads as false.
+    *wide.last_mut().expect("a last byte") = 0;
+    let zero = MsgEventNotificationSyncNotifications::decode(&wide).expect("decode with 0x00 tail");
+    assert!(!zero.tail_flag);
 }

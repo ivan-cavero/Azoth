@@ -1,0 +1,72 @@
+{
+  "uid": "codec.event-notification-entry",
+  "kind": "codec",
+  "name": "EventNotificationEntry",
+  "aliases": [
+    "notification map element",
+    "one (u32, u32) member of the notifications map"
+  ],
+  "summary": "One element of the 0xca4 notifications map: two u32 BE, a key then a value. The element is not a guess at the sample - the deserializer reads exactly two FUN_14087a3c0 u32 calls per element, and the map insert FUN_143029f80 allocates a 0x18-byte node and stores ONLY the first u32 (node +0x10) as the hash key, leaving the second at node +0x14. A key-and-value pair is therefore structural, not a reading of the bytes.",
+  "purpose": "Give the notifications map a named element so the container is counted(nested(codec.event-notification-entry)) and the generated struct never declares an unnamed 8-byte run.",
+  "authority": "server",
+  "wire": {
+    "transport": "rep"
+  },
+  "fields": [
+    {
+      "name": "notification_key",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured f7 3a b7 44 in the first element, and nine more distinct values in the only capture. The map insert FUN_143029f80 stores this u32 at node +0x10 and hashes it, so it is the map KEY rather than one of two payload words. What it identifies is unnamed: all ten values are absent from the client binary in both byte orders and absent from the replay corpus, so they are per-session data and not a client constant or enum. It is a key, not a notification id the atlas can name.",
+      "provenance": "decompile: writer FUN_143025640 element loop (FUN_140876e70 from puVar1+2) and deserializer FUN_143027250 (FUN_14087a3c0); map insert FUN_143029f80; capture: 0x9_T0xca4_R.bin body[0x11..0x61]"
+    },
+    {
+      "name": "notification_value",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x04",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 0x2b in the first element; the ten captured values are 0x2b, 6, 1, 0xe2, 0x518, 0x18, 0x10, 0x6b1, 0x17ca and 0x17 - all small, the largest 0x17ca. The map insert stores it at node +0x14, beside the key at +0x10, so it is the value mapped to that key. Its meaning is unnamed: no consumer of this map was reached, and the small range is consistent with a count or a duration but does not prove either.",
+      "provenance": "decompile: writer FUN_143025640 (FUN_140876e70 from puVar1+0x14) and deserializer FUN_143027250; capture: 0x9_T0xca4_R.bin"
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "msg.event-notification-sync-notifications"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "writer FUN_143025640 walks a std::list from the sentinel at container +0x08 and writes each element as TWO u32 BE: FUN_140876e70 from node +0x10, then FUN_140876e70 from node +0x14. The deserializer FUN_143027250 agrees exactly: a prefix-varint count read by FUN_14087b760, then per element two FUN_14087a3c0 u32 reads into uStack_48/+4 and back, then the insert"
+    },
+    {
+      "type": "decompile",
+      "ref": "the map insert FUN_143029f80 allocates a 0x18-byte node with FUN_141499390, stores *param_3 (ONE u32) at node +0x10, and hashes that same u32 with func_0x0001414a1220. Only the first word is a key; the second word rides along at node +0x14. That is what makes this a key/value pair rather than two independent numbers"
+    },
+    {
+      "type": "capture",
+      "ref": "0x9_T0xca4_R.bin: ten elements, key/value = (0xf73ab744, 0x2b), (0x23c4d7c2, 0x6), (0x0b2132dc, 0x1), (0x4101344e, 0xe2), (0x5e8b5831, 0x518), (0xe4bd0a9d, 0x18), (0xc77f0b9e, 0x10), (0x683169f8, 0x6b1), (0x6a0c5c7e, 0x17ca), (0xcbd637dc, 0x17). All ten keys are distinct"
+    },
+    {
+      "type": "capture",
+      "ref": "all ten key values were searched for in the client binary (both byte orders, as u32) and in the 1.365 replay text, and none occurs in either. The keys are per-session data, so they cannot be named from a client symbol table"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": null,
+    "module": null
+  }
+}

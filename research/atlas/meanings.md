@@ -2891,6 +2891,64 @@ found, and the value turned out to be the facet's own registered local id: see
 named `local_facet_id` and marked `meaning: known` in every card that carries the
 head.
 
+## `0xca4` closes the corpus: a notification map, exact on the byte (2026-11-09)
+
+`EventNotificationComponentClientFacet_SyncNotifications` was the last unnamed type in the
+1.365 corpus and the only remaining **server-to-client** one. It is 102 bytes: typed header
+`00 01 a4 32` (`a4 32` is a WIDE prefix varint, 50<<6 | 36 = 3236, not `0xa4 0x02`) and a
+98-byte body that closes on all of it:
+
+```
+16  head, the two u64 BE
+ 1  prefix-varint count = 0x0a = 10
+80  ten elements, each (u32 key, u32 value)
+ 1  strict boolean tail = 0x01
+```
+
+`16 + 1 + 80 + 1 = 98` with no remainder. Both sides agree independently: the writer
+`FUN_14319b2a0` is head, then `FUN_143025640` on `+0x28`, then one byte; the reader
+`FUN_14319b310` is head, then `FUN_143027250`, then one byte with the `< 2` check.
+
+**The element is a key/value pair, and that is structural rather than sampled.** Three
+functions fix it:
+
+- The writer `FUN_143025640` walks a `std::list` and writes **two** `u32 BE` per node -
+  `FUN_140876e70` from node `+0x10`, then from `+0x14`.
+- The reader `FUN_143027250` reads a prefix-varint count, then per element **exactly two**
+  `FUN_14087a3c0` u32 reads, and both sides refuse a count at or above `0x2000001`.
+- The map insert `FUN_143029f80` allocates a `0x18`-byte node and stores **only the first**
+  u32 at node `+0x10`, hashing it - the second rides along at `+0x14`.
+
+So the first word is the map KEY and the second is its VALUE. Two independent u32s would
+produce the same bytes; only the insert separates them.
+
+**The family is a second signal.** `0xca2`
+`RequestSendNotificationWithReplacements` uses the same node walk with a u32 key and a
+*string* in the value slot, so "key, then one member" is the shape shared across the
+EventNotification types while the member's type is per-message. `0xca1` and `0xca7` share
+the one-u32 reader `FUN_1426d64f0`; `0xca8` shares the bool codec `FUN_1425a3070`.
+
+**What stays unnamed, and why it must.** All ten keys are absent from the client binary in
+both byte orders and absent from the replay corpus, so they are per-session data - a key
+for a notification this *account* has, not a client enum the atlas could name. The values
+are all small (`0x2b, 6, 1, 0xe2, 0x518, 0x18, 0x10, 0x6b1, 0x17ca, 0x17`), consistent
+with a count or a duration but proving neither. The tail flag is `0x01` in the one sample.
+One record exists, so no field beyond the container has a second sample behind it; the
+layout is complete because both writer and reader account for every byte, and the meanings
+are honestly `layout-only`.
+
+**One stated gap.** The client's reader refuses a tail byte at or above 2, but the
+vocabulary's `bool_byte` models only the width and the non-zero test, so the generated
+codec accepts `0x02` where the client would reject it. The card says so, and a test pins
+the codec's actual contract (`event_notification_tail_uses_the_shared_bool_byte_codec`)
+rather than silently claiming a strictness the type does not enforce.
+
+The card's `notifications` field also carries `max: 0x2000000`, and that bound comes from
+the client's own refusal rather than from an invented constant. It is the first card to
+express a bound that wide, which exposed a generator bug: `max` was emitted raw and tripped
+`clippy::unreadable_literal` above five digits. `ontology-gen.py` now formats every `max`
+through `rust_int_literal`, so the bound prints as `33_554_432`.
+
 ## The message-object vtable slots, named the right way round (2026-11-09)
 
 The name-accessor walk gives an object vtable, and that vtable's three interesting slots

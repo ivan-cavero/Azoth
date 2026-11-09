@@ -175,6 +175,16 @@
 | balances | nested(codec.entitlement-balances) | — | measured | known | Group 0 member 1, named by the reflection string at 0x148177170; the member object at ctor offset 0xc20 carries vtable 0x148175a00 and its reader is vtable +0x30 = 0x1430516a0. |
 | entitlementsReceived | nested(codec.entitlement-received) | — | measured | known | Group 0 member 2, named by the reflection string at 0x148177180; the member object at ctor offset 0x80e8 carries vtable 0x148040208 and its reader is vtable +0x30 = 0x1417b4c20, one strict zero-or-one byte. |
 
+## codec.event-notification-entry — EventNotificationEntry
+
+- kind: codec; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| notification_key | u32be | 0x00 | measured | layout-only | Measured f7 3a b7 44 in the first element, and nine more distinct values in the only capture. The map insert FUN_143029f80 stores this u32 at node +0x10 and hashes it, so it is the map KEY rather than one of two payload words. What it identifies is unnamed: all ten values are absent from the client binary in both byte orders and absent from the replay corpus, so they are per-session data and not a client constant or enum. It is a key, not a notification id the atlas can name. |
+| notification_value | u32be | 0x04 | measured | layout-only | Measured 0x2b in the first element; the ten captured values are 0x2b, 6, 1, 0xe2, 0x518, 0x18, 0x10, 0x6b1, 0x17ca and 0x17 - all small, the largest 0x17ca. The map insert stores it at node +0x14, beside the key at +0x10, so it is the value mapped to that key. Its meaning is unnamed: no consumer of this map was reached, and the small range is consistent with a count or a duration but does not prove either. |
+
 ## codec.objectives-active-objective — ObjectivesActiveObjective
 
 - kind: codec; status: verified; confidence: layout
@@ -784,6 +794,19 @@
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id, written big-endian. Read little-endian those eight bytes are 1a954abc4b3185bf, the front half of the actor id ClientAddEntryMsg (0xa4) hands the client. |
 | lookup_id | bytes(16) | 0x10 | measured | layout-only | Measured e1 63 43 70 30 7b 4d 06 a7 2f d9 df 00 5c d9 42. This is the strongest fact in the card: the same 16 bytes are the TRAILING field of the client's own 0x9fc request for this lookup, and they appear nowhere else in the 138-record corpus. So the response echoes an id the request supplied. The decompiled reader FUN_142da4680 carries it as a bare raw run, 16 bytes, from object +0x90, and the generic raw-run primitive names nothing, so the meaning stays unnamed: it may be the looked-up participant rather than the caller, and no measurement distinguishes those. It is NOT the player actor id (that is the head's second u64) and NOT the 0x9fc participant_id (1a954abc4b3185bfbe37c3d8592618e0). |
 | trailing_block | bytes(6) | 0x20 | measured | layout-only | Measured 00 00 00 00 00 00 in the one captured instance. The codec that reads it, reached from FUN_142da4680, reads a prefix-varint count and then a small scalar suffix, and six bytes is exactly what the captured record leaves after head and id; but with every byte zero the internal split is not pinned by data, so the field is carried as one fixed 6-byte run rather than as a guessed count plus elements. This is the only site an actual contract payload could occupy, and it is empty here: the captured answer returns nothing. |
+
+## msg.event-notification-sync-notifications — EventNotificationComponentClientFacet_SyncNotifications
+
+- wire 0xca4, S2C
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured a0 b4 5f fb d9 b3 26 4b = 0xa0b45ffbd9b3264b. First u64 of the shared message head: the sending facet's own local id, the event-notification client facet. It is NOT any other facet id the atlas has named - the social, chat, mount, player, time, traversal and voice ids are all different - so this is the ninth per-component id in the corpus, and it appears on this wire only. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| notifications | counted(nested(codec.event-notification-entry)) | 0x10 | measured | layout-only | The element count (measured 0x0a = 10, so one byte) followed by that many 8-byte elements: 0x10 + 1 + 80 = 0x61, where the tail byte starts. counted(...) carries its own prefix-varint, so the count is part of this one field and is not declared twice. The writer FUN_143025640 writes the list size with FUN_140877b10 and the deserializer FUN_143027250 reads it with FUN_14087b760; both refuse a count at or above 0x2000001, which is where the bound comes from rather than being invented. |
+| tail_flag | bool_byte | 0x61 | measured | layout-only | Measured 0x01, and it is the body's last byte: 0x61 + 1 = 0x62 = 98, leaving nothing over. The writer writes it as a strict non-zero test from object +0x20 and the CLIENT's reader reads one byte through FUN_1408787b0 and REFUSES anything at or above 2. The vocabulary's bool_byte models only the width and the non-zero test, not that rejection, so the generated codec accepts 0x02 as true while this note records that the client would refuse it. What the flag switches is unnamed - one sample, value 1. |
 
 ## msg.fragment-update — FragmentUpdateMsg
 

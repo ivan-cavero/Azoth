@@ -1,0 +1,116 @@
+{
+  "uid": "msg.event-notification-sync-notifications",
+  "kind": "message",
+  "name": "EventNotificationComponentClientFacet_SyncNotifications",
+  "aliases": [
+    "wire:0xca4",
+    "SyncNotifications"
+  ],
+  "summary": "The server hands the client a set of notifications. A 102-byte record with a 98-byte body: the shared two-u64 head, a prefix-varint count of TEN, ten (key, value) pairs of two u32 BE, then one strict boolean byte. The container is exact on the byte - 16 + 1 + 10*8 + 1 = 98 with two bytes to spare on the varint-width allowance - and both the writer and the reader state the same shape independently.",
+  "purpose": "Synchronise the notification component's map to the client. This is the only server-to-client type left unnamed in the 1.365 corpus, and the only one of the fifteen that the server must both encode and account for at world entry.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": [
+      "the notification facet syncs its map to the client, at seq 0x09 of world entry"
+    ],
+    "if_absent": "the client receives no notification state. The capture sends it third, after registration and the response, so it is early in the entry sequence rather than event-driven"
+  },
+  "wire": {
+    "id": "0xca4",
+    "direction": "S2C",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 a4 32, i.e. type index 3236 = 0xca4. A server record carries the body at record offset 4 - the typed header is the first four bytes - so a 98-byte body makes a 102-byte record. The typed header's second byte is 0x32, not 0x02: this is a WIDE prefix varint (n=1, low=0x24, continuation 0x32), value 50<<6 | 36 = 3236, and it round-trips through javelin/varint.py.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured a0 b4 5f fb d9 b3 26 4b = 0xa0b45ffbd9b3264b. First u64 of the shared message head: the sending facet's own local id, the event-notification client facet. It is NOT any other facet id the atlas has named - the social, chat, mount, player, time, traversal and voice ids are all different - so this is the ninth per-component id in the corpus, and it appears on this wire only.",
+      "provenance": "corpus-wide scan; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "notifications",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": "8 * notification_count",
+      "type": "counted(nested(codec.event-notification-entry))",
+      "evidence": "measured",
+      "note": "The element count (measured 0x0a = 10, so one byte) followed by that many 8-byte elements: 0x10 + 1 + 80 = 0x61, where the tail byte starts. counted(...) carries its own prefix-varint, so the count is part of this one field and is not declared twice. The writer FUN_143025640 writes the list size with FUN_140877b10 and the deserializer FUN_143027250 reads it with FUN_14087b760; both refuse a count at or above 0x2000001, which is where the bound comes from rather than being invented.",
+      "provenance": "decompile: writer FUN_143025640 (FUN_140877b10 on container +0x18) and deserializer FUN_143027250 (FUN_14087b760), both on container +0x28; element card codec.event-notification-entry; capture: 0x9_T0xca4_R.bin body[0x10..0x61]",
+      "max": 33554432
+    },
+    {
+      "name": "tail_flag",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x61",
+      "size": 1,
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "Measured 0x01, and it is the body's last byte: 0x61 + 1 = 0x62 = 98, leaving nothing over. The writer writes it as a strict non-zero test from object +0x20 and the CLIENT's reader reads one byte through FUN_1408787b0 and REFUSES anything at or above 2. The vocabulary's bool_byte models only the width and the non-zero test, not that rejection, so the generated codec accepts 0x02 as true while this note records that the client would refuse it. What the flag switches is unnamed - one sample, value 1.",
+      "provenance": "decompile: writer FUN_14319b2a0 and deserializer FUN_14319b310; capture: 0x9_T0xca4_R.bin body[0x61]"
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    },
+    {
+      "op": "consumes",
+      "to": "codec.event-notification-entry"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x14819db58, resolved by the name-accessor walk: its +0x08 slot is 0x14319b420, a ret returning the string 'EventNotificationComponentClientFacet_SyncNotifications'. Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2: +0x58 = FUN_14319b000 is the APPLY handler (manager singleton, no stream); +0x60 = FUN_14319b2a0 is the WRITER; +0x68 = FUN_14319b310 is the READER"
+    },
+    {
+      "type": "decompile",
+      "ref": "writer FUN_14319b2a0 is three steps: FUN_1414dbca0() for the shared head, FUN_143025640 on object +0x28 for the map, then one raw byte from +0x20. FUN_143025640 writes a prefix-varint list size, then per node two u32 BE"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_14319b310 mirrors it: FUN_14150e670() for the shared head, FUN_143027250 on +0x28, then one FUN_1408787b0 byte with a `< 2` check. FUN_143027250 reads a prefix-varint count and, per element, exactly two FUN_14087a3c0 u32 reads. Writer and reader therefore agree field for field"
+    },
+    {
+      "type": "decompile",
+      "ref": "the family confirms the container independently: 0xca2 RequestSendNotificationWithReplacements uses the SAME node walk (FUN_1407d64f0) with a u32 key and a STRING in the value slot, so the key-then-member shape is shared across the EventNotification types while the value's type is per-message. 0xca1 and 0xca7 share the one-u32 reader FUN_1426d64f0, and 0xca8 shares the bool reader FUN_1425a3070"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x9_T0xca4_R.bin at seq 0x09, 102 bytes: typed header 00 01 a4 32, then body a0b45ffbd9b3264b | bf85314bbc4a951a | 0a | ten (key, value) u32 pairs | 01. 16 + 1 + 80 + 1 = 98 exactly"
+    },
+    {
+      "type": "atlas",
+      "ref": "the 1.365 corpus supplies no second sample of 0xca4, so every field meaning beyond the container rests on this one record. The layout is nonetheless complete: both the writer and the separate reader account for all 98 bytes, and the element's key/value split comes from the map insert, not from the sample"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": null,
+    "module": null
+  }
+}

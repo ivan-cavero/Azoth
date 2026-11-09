@@ -61,6 +61,9 @@ TARGETS: dict[int, str] = {
     0x1be: "CoatlicueTimingConfigurationConnectedMsg",
     0x663: "LevelInfoChangedMsg",
     0x65c: "PlayerManagerSelfIdentificationMsg",
+    # The only remaining server->client type in the corpus: a map of notification
+    # pairs. It is S2C, so its body is in the committed corpus.
+    0xca4: "EventNotificationComponentClientFacet_SyncNotifications",
     0x8: "ReplicatedStateBundle (spawn record)",
     0x5de: "AttributeComponentServerFacet_RequestSpendAttributePoints",
     0xf37: "PaperdollComponentServerFacet_ServerEquipItem",

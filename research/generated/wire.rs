@@ -1584,6 +1584,92 @@ impl MsgObjectivesSetObjectiveAutoPinning {
     }
 }
 
+/// `msg.event-notification-sync-notifications` — one Atlas card.
+///
+/// Message card, wire id `3236`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgEventNotificationSyncNotifications {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `notifications` (`counted(nested(codec.event-notification-entry))`); meaning unnamed.
+    pub notifications: Vec<CodecEventNotificationEntry>,
+    /// Body field `tail_flag` (`bool_byte`); meaning unnamed.
+    pub tail_flag: bool,
+}
+
+impl MsgEventNotificationSyncNotifications {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.event-notification-sync-notifications";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 3236;
+
+    /// Decode one `msg.event-notification-sync-notifications` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            notifications: {
+                let count = reader.prefix_varint("notifications")?;
+                if count > 33_554_432 {
+                    return Err(WireError::OutOfRange {
+                        field: "notifications",
+                        max: 33_554_432,
+                        value: count,
+                    });
+                }
+                let mut value = Vec::new();
+                for _ in 0..count {
+                    value.push(CodecEventNotificationEntry::read_from(reader)?);
+                }
+                value
+            },
+            tail_flag: reader.bool_byte("tail_flag")?,
+        })
+    }
+
+    /// Encode one `msg.event-notification-sync-notifications` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.prefix_varint(self.notifications.len() as u64)?;
+        for value in &self.notifications {
+            value.write_to(writer)?;
+        }
+        writer.u8(u8::from(self.tail_flag));
+        Ok(())
+    }
+}
+
 /// `msg.server-equip-item` — one Atlas card.
 ///
 /// Message card, wire id `3895`.
@@ -3868,6 +3954,65 @@ impl CodecEntitlementReplicatedState {
                 }
             }
         }
+        Ok(())
+    }
+}
+
+/// `codec.event-notification-entry` — one Atlas card.
+///
+/// Nested sub-codec card (no wire id).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodecEventNotificationEntry {
+    /// Body field `notification_key` (`u32be`); meaning unnamed.
+    pub notification_key: u32,
+    /// Body field `notification_value` (`u32be`); meaning unnamed.
+    pub notification_value: u32,
+}
+
+impl CodecEventNotificationEntry {
+    /// The Atlas card id.
+    pub const UID: &'static str = "codec.event-notification-entry";
+
+    /// Decode one `codec.event-notification-entry` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            notification_key: reader.u32be("notification_key")?,
+            notification_value: reader.u32be("notification_value")?,
+        })
+    }
+
+    /// Encode one `codec.event-notification-entry` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u32be(self.notification_key);
+        writer.u32be(self.notification_value);
         Ok(())
     }
 }

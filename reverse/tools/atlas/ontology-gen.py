@@ -1023,6 +1023,17 @@ def rust_variant_name(name: str) -> str:
     return variant
 
 
+def rust_int_literal(value: int) -> str:
+    """A decimal literal with `_` separators, so a large bound stays readable.
+
+    The card's `max` is a plain integer; emitted raw it trips
+    `clippy::unreadable_literal` on anything wider than five digits. Grouping by
+    three from the right is what rustfmt and clippy expect.
+    """
+    text = f"{value:_}" if value >= 0 else f"-{abs(value):_}"
+    return text
+
+
 def _rust_element(
     codec: str, name: str, atlas_id: str
 ) -> tuple[str, str, str, bool]:
@@ -1115,8 +1126,8 @@ def _rust_member(
         decode = [f'let count = reader.prefix_varint("{name}")?;']
         if maximum is not None:
             decode.append(
-                f'if count > {maximum} {{ return Err(WireError::OutOfRange '
-                f'{{ field: "{name}", max: {maximum}, value: count }}); }}'
+                f'if count > {rust_int_literal(maximum)} {{ return Err(WireError::OutOfRange '
+                f'{{ field: "{name}", max: {rust_int_literal(maximum)}, value: count }}); }}'
             )
         decode.extend(
             [
@@ -1213,10 +1224,10 @@ def _rust_field(field: dict) -> dict:
         if maximum is not None and codec == "prefix_varint":
             result["decode"] = [
                 f'let value = reader.prefix_varint("{name}")?;',
-                f"if value > {maximum} {{",
+                f"if value > {rust_int_literal(maximum)} {{",
                 "    return Err(WireError::OutOfRange {",
                 f'        field: "{name}",',
-                f"        max: {maximum},",
+                f"        max: {rust_int_literal(maximum)},",
                 "        value,",
                 "    });",
                 "}",
@@ -1249,10 +1260,10 @@ def _rust_field(field: dict) -> dict:
         if maximum is not None:
             result["decode"] = [
                 f'let value = reader.prefixed_opaque("{name}", "{atlas_id}")?;',
-                f"if value.len() as u64 > {maximum} {{",
+                f"if value.len() as u64 > {rust_int_literal(maximum)} {{",
                 "    return Err(WireError::OutOfRange {",
                 f'        field: "{name}",',
-                f"        max: {maximum},",
+                f"        max: {rust_int_literal(maximum)},",
                 "        value: value.len() as u64,",
                 "    });",
                 "}",
@@ -1284,10 +1295,10 @@ def _rust_field(field: dict) -> dict:
         if maximum is not None:
             decode.extend(
                 [
-                    f"if count > {maximum} {{",
+                    f"if count > {rust_int_literal(maximum)} {{",
                     "    return Err(WireError::OutOfRange {",
                     f'        field: "{name}",',
-                    f"        max: {maximum},",
+                    f"        max: {rust_int_literal(maximum)},",
                     "        value: count,",
                     "    });",
                     "}",
@@ -1324,10 +1335,10 @@ def _rust_field(field: dict) -> dict:
         if maximum is not None:
             decode.extend(
                 [
-                    f"if count > {maximum} {{",
+                    f"if count > {rust_int_literal(maximum)} {{",
                     "    return Err(WireError::OutOfRange {",
                     f'        field: "{name}",',
-                    f"        max: {maximum},",
+                    f"        max: {rust_int_literal(maximum)},",
                     "        value: count,",
                     "    });",
                     "}",
@@ -1432,8 +1443,8 @@ def _rust_field(field: dict) -> dict:
         decode = [f'let rows = reader.prefix_varint("{name}")?;']
         if maximum is not None:
             decode.append(
-                f"if rows > {maximum} {{ return Err(WireError::OutOfRange "
-                f'{{ field: "{name}", max: {maximum}, value: rows }}); }}'
+                f"if rows > {rust_int_literal(maximum)} {{ return Err(WireError::OutOfRange "
+                f'{{ field: "{name}", max: {rust_int_literal(maximum)}, value: rows }}); }}'
             )
         decode.append(f'let cols = reader.prefix_varint("{name}")?;')
         decode.extend(
