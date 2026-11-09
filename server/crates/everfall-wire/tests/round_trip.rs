@@ -17,7 +17,7 @@ use everfall_wire::generated::{
     MsgObjectivesSetObjectiveAutoPinning, MsgObjectivesUpdateTrackedObjectives,
     MsgReceiveSettingsFromClient, MsgSetReplicateStorage, MsgSocialReceiveAvailableTitles,
     MsgTimeSyncDayPhase, MsgTimeSyncTimeChange, MsgTimeSyncToClient, MsgTimeSynch0x14f,
-    MsgVoiceChatServiceRegistered,
+    MsgVoiceChatRegisterService, MsgVoiceChatServiceRegistered,
 };
 
 fn fixture_text() -> String {
@@ -753,6 +753,52 @@ fn voice_chat_service_registered_0x1067_round_trips_its_three_strings() {
     let mut out = Vec::new();
     decoded.encode(&mut out).expect("encode 0x1067 body");
     assert_eq!(out, body, "0x1067 did not round-trip byte for byte");
+}
+
+#[test]
+fn voice_chat_register_service_0x66b_shares_the_0x1067_facet_id() {
+    // The one committed 0x66b record, 44 bytes: frame head 8 + actor id 16 +
+    // typed header 4 + a 16-byte body that is the shared head alone. Corpus
+    // `services/world/replay/messages-redacted.txt`, seq 0x64 - one record
+    // BEFORE the server's 0x1067 at seq 0x65.
+    let record = hex_bytes(
+        "98e3e4a100000024\
+         1a954abc4b3185bfbe37c3d8592618e0\
+         0001ab19\
+         d8c9c8af5e7a353cbf85314bbc4a951a",
+    );
+    assert_eq!(record.len(), 44, "0x66b record length");
+    assert_eq!(MsgVoiceChatRegisterService::WIRE_ID, 0x66b);
+
+    let body = &record[28..];
+    assert_eq!(body.len(), 16, "0x66b body is the head and nothing else");
+    let decoded = MsgVoiceChatRegisterService::decode(body).expect("decode 0x66b");
+
+    // The strongest thing this test can assert: the client's own voice-chat
+    // facet id is the one the server's 0x1067 carries. One facet, seen from
+    // both ends of a handshake, across two wire types. The 0x1067 record is not
+    // in `wire-bodies.json`, so it is decoded from the same literal the 0x1067
+    // test uses - the one committed record at corpus seq 0x65.
+    let served_record = hex_bytes(
+        "0001a741d8c9c8af5e7a353cbf85314bbc4a951a\
+         2068747470733a2f2f6e7778702e7777772e7669766f782e636f6d2f617069322f\
+         0f616d617a6f6e393035302d6e653833\
+         0f406e7778702e7669766f782e636f6d\
+         00",
+    );
+    let served = MsgVoiceChatServiceRegistered::decode(&served_record[4..]).expect("decode 0x1067");
+    assert_eq!(
+        decoded.local_facet_id, served.local_facet_id,
+        "the client and the server name the same voice-chat facet"
+    );
+    assert_eq!(
+        decoded.local_actor_id_word0, served.local_actor_id_word0,
+        "and the same local actor"
+    );
+
+    let mut out = Vec::new();
+    decoded.encode(&mut out).expect("encode 0x66b body");
+    assert_eq!(out, body, "0x66b did not round-trip byte for byte");
 }
 
 #[test]

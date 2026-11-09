@@ -980,6 +980,67 @@ impl FlowWorldEntryRungLevelInfo {
     }
 }
 
+/// `msg.voice-chat-register-service` — one Atlas card.
+///
+/// Message card, wire id `1643`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgVoiceChatRegisterService {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+}
+
+impl MsgVoiceChatRegisterService {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.voice-chat-register-service";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 1643;
+
+    /// Decode one `msg.voice-chat-register-service` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+        })
+    }
+
+    /// Encode one `msg.voice-chat-register-service` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        Ok(())
+    }
+}
+
 /// `msg.contracts-on-lookup-contracts-by-participant` — one Atlas card.
 ///
 /// Message card, wire id `2278`.

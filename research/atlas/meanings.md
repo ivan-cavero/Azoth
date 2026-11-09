@@ -2891,6 +2891,27 @@ found, and the value turned out to be the facet's own registered local id: see
 named `local_facet_id` and marked `meaning: known` in every card that carries the
 head.
 
+## `0x66b` is `0x1067`'s other half, and the two name one facet (2026-11-09)
+
+`VoiceChatComponentServerFacet_RegisterVoiceChatService`, wire `0x66b`, type index 1643,
+direction C2S. One record, 44 bytes, body **16** - the shared head and nothing else,
+the same head-only shape `0x1098` has, so a bare signal is an established form in this
+protocol rather than a truncation.
+
+The measured relation is the point. The body's first u64 is
+`d8 c9 c8 af 5e 7a 35 3c`, byte for byte the value the server's `0x1067`
+`OnVoiceChatServiceRegistered` carries as its `local_facet_id`. Opposite directions,
+two wire types, one facet id: the two records are the two ends of one handshake, and
+the capture sends `0x66b` at seq `0x64`, immediately before `0x1067` at `0x65`.
+
+**Codec note, recorded because it matters.** The object vtable is `0x1482e2ab0`
+(name accessor `FUN_143f297b0`), but its `+0x58` and `+0x60` slots resolve to a per-type
+registration hook and a shared optional wrapper, not to a plain marshal/unmarshal pair,
+so the codec was not read from the vtable. The card is emitted anyway, and that is
+honest here only because the body is a fixed 16-byte head whose two members are already
+named and measured: there is no interior for a wrong codec to hide in. A body with
+fields would have needed the reader.
+
 ## `0x635` is a delta-encoded input container, and only the container is closed (2026-11-09)
 
 `ActionListComponentServerFacet_ReceiveInputFromClient`, wire `0x635`, type index 1589,

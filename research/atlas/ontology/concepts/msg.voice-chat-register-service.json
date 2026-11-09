@@ -1,0 +1,70 @@
+{
+  "uid": "msg.voice-chat-register-service",
+  "kind": "message",
+  "name": "VoiceChatComponentServerFacet_RegisterVoiceChatService",
+  "aliases": ["wire:0x66b", "RegisterVoiceChatService"],
+  "summary": "The client's acknowledgement of the voice service it was just handed. A 44-byte record with a 16-byte body: the shared two-u64 head and NOTHING ELSE. Its first u64 is d8 c9 c8 af 5e 7a 35 3c, the SAME value the server's 0x1067 OnVoiceChatServiceRegistered carries as its local_facet_id, so the two records are the two halves of one handshake and the equality is the cross-check. `0x1098` has the same head-only shape, so this is not a truncation: the message is a bare signal.",
+  "purpose": "Tell the voice-chat server facet that the client has seen the Vivox credentials and is registering against the service. What the client expects back, and whether the server must answer, is not measured - the capture holds one such record and no reply.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the client receives 0x1067 and registers its voice-chat component against the service"],
+    "if_absent": "the server's voice-chat facet never learns the client is ready. The capture sends it at seq 0x64, one record before 0x1067 at 0x65, so the two are adjacent in the same ladder"
+  },
+  "wire": { "id": "0x66b", "direction": "C2S", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 ab 19, i.e. type index 1643 = 0x66b. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 16-byte body makes a 44-byte record.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured d8 c9 c8 af 5e 7a 35 3c = 0xd8c9c8af5e7a353c. First u64 of the shared message head: the sending facet's own local id, the voice-chat client facet. It is the SAME value msg.voice-chat-service-registered carries on the server side, which is the measured cross-check that both records belong to one voice-chat handshake - one facet id, seen from both ends.",
+      "provenance": "capture: 0x64_T0x66b_W.bin body; cross-checked against the 0x1067 card's local_facet_id, measured equal"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id. Identical to the value 0x1098, 0x1033, 0x1033 and every other capture carries, so this is the local player.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x1482e2ab0, resolved by the name-accessor walk: its +0x08 slot is FUN_143f297b0 = lea rax,[0x1482e2b20]; ret, returning the string 'VoiceChatComponentServerFacet_RegisterVoiceChatService'"
+    },
+    {
+      "type": "decompile",
+      "ref": "the vtable's +0x58 and +0x60 slots are FUN_143f25c10 and FUN_14259f170, and BOTH resolve to per-type registration and shared optional-wrapper helpers rather than to a plain marshal/unmarshal pair, so the codec pair was not read from the vtable. The layout below rests on the capture and on the cross-message cross-check instead, and says so"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x64_T0x66b_W.bin at seq 0x64, 44 bytes: after the 8-byte frame head and the 16-byte actor id, the typed header 00 01 ab 19, then exactly 16 body bytes d8 c9 c8 af 5e 7a 35 3c bf 85 31 4b bc 4a 95 1a. Nothing remains, so the body is the head alone"
+    },
+    {
+      "type": "capture",
+      "ref": "the body's first u64 is byte-for-byte the same as record 0x65_T0x1067_R.bin's first body u64. Two different wire types, opposite directions, one facet id: that is a measured relation, not an inference from the message names"
+    },
+    {
+      "type": "atlas",
+      "ref": "msg.time-sync-to-client (0x1098) is the same shape - a 44-byte record whose 16-byte body is the shared head alone - so a head-only body is an established pattern in this protocol and not a special case invented here"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

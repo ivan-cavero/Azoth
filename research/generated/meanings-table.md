@@ -1041,6 +1041,17 @@
 | --- | --- | --- | --- | --- | --- |
 | blob | prefixed_bytes | — | partial | layout-only | prefix-varint; reject if >= 0x201; then raw bytes, max 512. The length prefix is part of prefixed_bytes, so there is no separate length field. |
 
+## msg.voice-chat-register-service — VoiceChatComponentServerFacet_RegisterVoiceChatService
+
+- wire 0x66b, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured d8 c9 c8 af 5e 7a 35 3c = 0xd8c9c8af5e7a353c. First u64 of the shared message head: the sending facet's own local id, the voice-chat client facet. It is the SAME value msg.voice-chat-service-registered carries on the server side, which is the measured cross-check that both records belong to one voice-chat handshake - one facet id, seen from both ends. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id. Identical to the value 0x1098, 0x1033, 0x1033 and every other capture carries, so this is the local player. |
+
 ## msg.voice-chat-service-registered — VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered
 
 - wire 0x1067, S2C

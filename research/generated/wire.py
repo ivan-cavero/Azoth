@@ -707,6 +707,15 @@ MESSAGES = {
             ('level_context_key', 'u64be'),
         ),
     },
+    1643: {
+        'uid': 'msg.voice-chat-register-service',
+        'name': 'VoiceChatComponentServerFacet_RegisterVoiceChatService',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+        ),
+    },
     2278: {
         'uid': 'msg.contracts-on-lookup-contracts-by-participant',
         'name': 'ContractsComponentClientFacet_OnLookupContractsByParticipant',
