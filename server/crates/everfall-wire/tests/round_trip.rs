@@ -804,6 +804,102 @@ fn social_receive_available_titles_0x1033_round_trips_both_vectors() {
     assert_eq!(out, body, "0x1033 did not round-trip byte for byte");
 }
 
+/// `0x635` is the client's input stream and the server must PARSE it, but the
+/// element encoder is a delta encoder whose reference baseline has not been
+/// read, so `everfall-wire` emits no codec for it. What CAN be falsified
+/// without guessing is the container arithmetic and the frame-id pattern, and
+/// those are checked here against the five committed records. This test is the
+/// card's evidence, not a decode.
+#[test]
+fn action_list_input_container_arithmetic_holds_on_all_five_records() {
+    // Bodies of seqs 0x6e..0x72 from `services/world/replay/messages-redacted.txt`.
+    // These are channel-1 records, so a body starts at record offset 28; the
+    // list below holds bodies only, with the 28-byte prefix already removed.
+    const BODIES: [&str; 5] = [
+        "fbde4b9a600d428fbf85314bbc4a951a00010000910206000001010000000000000000012007194b\
+         000000ac0f01010100000001c0802000808080800300000001",
+        "fbde4b9a600d428fbf85314bbc4a951a00000000910206000001010000000000000000012007194b\
+         000000ac0f01020100000002c0802000808080800300000001000000000100808080800300000001",
+        "fbde4b9a600d428fbf85314bbc4a951a00000000910206000001010000000000000000012007194b\
+         000000ac0f01030100000003c0802000808080800300000001000000000200808080800300000001\
+         000000000100808080800300000001",
+        "fbde4b9a600d428fbf85314bbc4a951a00000000910206000001010000000000000000012007194b\
+         000000ac0f01040100000004c0802000808080800300000001000000000300808080800300000001\
+         000000000200808080800300000001000000000100808080800300000001",
+        "fbde4b9a600d428fbf85314bbc4a951a00000000910206000001010000000000000000012007194b\
+         000000ac0f01050100000005c0802000808080800300000001000000000400808080800300000001\
+         0000000003008080808003000000010000000002008080808003000000010000000001008080808\
+         00300000001",
+    ];
+    // The container, in body-relative offsets: shared head 16, a 29-byte
+    // reference block, a flag byte, the frame count, a 3-byte presence mask,
+    // then 15 bytes per frame. Nothing is left over in any record.
+    const HEAD: usize = 16;
+    const REFERENCE_BLOCK: usize = 29;
+    const FLAG_AND_COUNT: usize = 2;
+    const MASK: usize = 3;
+    const FRAME_STRIDE: usize = 15;
+
+    for (index, hex) in BODIES.iter().enumerate() {
+        let body = hex_bytes(hex);
+        let count = body[HEAD + REFERENCE_BLOCK + 1] as usize;
+        assert_eq!(
+            count,
+            index + 1,
+            "record {index} carries its own sequence position as the frame count"
+        );
+        assert_eq!(
+            body.len(),
+            HEAD + REFERENCE_BLOCK + FLAG_AND_COUNT + MASK + FRAME_STRIDE * count,
+            "record {index}: 16 + 29 + 2 + 3 + 15*{count} must account for all {} bytes",
+            body.len()
+        );
+        assert_eq!(
+            body[HEAD + REFERENCE_BLOCK],
+            0x01,
+            "record {index}: the flag byte between the reference block and the count is 1"
+        );
+        assert_eq!(
+            &body[HEAD + REFERENCE_BLOCK + 2..HEAD + REFERENCE_BLOCK + 2 + MASK],
+            &[0x01, 0x00, 0x00],
+            "record {index}: only the first mask bit is set"
+        );
+
+        // The frames are a descending, wrapping id run: the highest id first,
+        // then every lower id down to 1. The id sat at frame+1 in the first
+        // frame and at frame+4 in the rest, so only the count and the
+        // descending order are asserted here, not the offset.
+        let first = HEAD + REFERENCE_BLOCK + FLAG_AND_COUNT + MASK;
+        let ids: Vec<u8> = (0..count)
+            .map(|frame| body[first + FRAME_STRIDE * frame + 1])
+            .collect();
+        assert_eq!(
+            ids[0], count as u8,
+            "record {index}: the first frame carries the highest id"
+        );
+        for frame in 1..count {
+            assert_eq!(
+                body[first + FRAME_STRIDE * frame + 4],
+                (count - frame) as u8,
+                "record {index}: frame {frame} carries the next lower id"
+            );
+        }
+    }
+
+    // The head is shared with every other message in the corpus.
+    let body = hex_bytes(BODIES[0]);
+    assert_eq!(
+        &body[..8],
+        &[0xfb, 0xde, 0x4b, 0x9a, 0x60, 0x0d, 0x42, 0x8f],
+        "the sending facet's own local id"
+    );
+    assert_eq!(
+        &body[8..16],
+        &[0xbf, 0x85, 0x31, 0x4b, 0xbc, 0x4a, 0x95, 0x1a],
+        "the local actor id's first eight bytes, the same value the 0x1098 carries"
+    );
+}
+
 #[test]
 fn objectives_count_caps_are_enforced() {
     // The card states a count cap; a body whose prefix-varint count is over the

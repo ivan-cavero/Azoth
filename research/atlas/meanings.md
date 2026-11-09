@@ -2891,6 +2891,54 @@ found, and the value turned out to be the facet's own registered local id: see
 named `local_facet_id` and marked `meaning: known` in every card that carries the
 head.
 
+## `0x635` is a delta-encoded input container, and only the container is closed (2026-11-09)
+
+`ActionListComponentServerFacet_ReceiveInputFromClient`, wire `0x635`, type index 1589,
+direction C2S. It is the only repeatedly-sent unnamed type in the corpus - five records
+at seqs `0x6e`..`0x72` - and it is the client's **input stream**: the atlas already
+decoded the movement block inside this wire type on channel 1
+(`the_movement_block_is_pitch_yaw_x_y_20261018`, 197810 samples: four big-endian
+float32 for camera pitch, camera yaw, world x, world y). So the server must parse this,
+and it is the first C2S type whose container is now named.
+
+**The container is exact on all five records.** Object vtable `0x14838bb08`, resolved
+by the name-accessor walk: `+0x08` is `FUN_144868ba0` (returns the name string), writer
+`+0x58` = `FUN_144868a90`, reader `+0x60` = `FUN_144868ac0`. The reader is
+`FUN_1414dbca0` for the shared head, then `FUN_144869020` → `FUN_142a28f30` → per-element
+`FUN_142a26320`. Body-relative:
+
+```
+shared head                    16 B   0x00  (local_facet_id, local_actor_id_word0)
+reference-state block          29 B   0x10  (byte 0x11 is 01 only in the first record)
+frame flag                      1 B   0x2d  (0x01 in all five)
+frame count                     1 B   0x2e  (01, 02, 03, 04, 05 in seq order)
+presence mask                   3 B   0x2f  (01 00 00 in all five)
+input frames          15 * count B   0x32  (ends the body, zero remainder)
+```
+
+`16 + 29 + 1 + 1 + 3 + 15*count` equals 65, 80, 95, 110 and 125 **exactly** in all
+five. A wrong stride would leave a remainder, so the stride is measured and not fitted.
+
+**Why the frames stay opaque, and why the card is refused.** `FUN_142a26340` is a
+**delta encoder**: it compares every field against a reference object and sets one bit
+in a 3-byte mask (written back at the end through stream `+0x28` seek and `+0x40` write
+of length 3) only for the fields that differ. That is why frames 2..N are mostly
+`80 80 80 80 03` - the unchanged fields the encoder suppressed. The capture shows the
+frames descending and wrapping: the 5-frame record holds ids `5,4,3,2,1` and the
+1-frame record holds only `1`, so every later record repeats all prior frames plus one
+new one. The closed Atlas vocabulary has no counted fixed-run member, and each of its
+three substitutes would be a lie here: `bytes(15*k)` drops the delta semantics, 15
+named scalars invent meanings the capture does not carry, and a `nested(...)` frame card
+would have to name the reference baseline, which has not been read. The gate therefore
+refuses the card with `opaque fields: input_frames`, which is the honest state: a Rust
+codec that parsed this container and left the frames opaque could not extract the
+pitch, yaw, x and y the server actually needs.
+
+**What is still missing.** The reference baseline the delta is taken against. Until it
+is read - live unmarshal, or the element reader walked field by field - `0x635` cannot
+be an emittable codec, and the server cannot decode client input. That is the single
+next blocker for movement authority.
+
 ## `0x16a0` is measured as far as its nested service types, and stops there (2026-11-09)
 
 `InventoriesComponentClientFacet_OnQueryInventories`. Two committed records, 113- and

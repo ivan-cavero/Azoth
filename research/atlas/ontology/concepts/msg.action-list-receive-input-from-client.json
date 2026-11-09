@@ -1,0 +1,125 @@
+{
+  "uid": "msg.action-list-receive-input-from-client",
+  "kind": "message",
+  "name": "ActionListComponentServerFacet_ReceiveInputFromClient",
+  "aliases": ["wire:0x635", "ReceiveInputFromClient", "channel-1 input stream"],
+  "summary": "The client's input frame list, and the first C2S type the server has to PARSE rather than emit. Five committed records, 65/80/95/110/125 body bytes, growing by exactly 15. The container is exact on all five: shared head 16 + a 30-byte block + a flag byte + a count byte + a 3-byte presence mask + N frames of 15 bytes. N is 1..5 and equals (len - 50) / 15 with no remainder. The frames are DELTA-ENCODED - the element encoder compares each field against a reference object and sets one mask bit per differing field - so this card models the container and the mask, NOT the fields inside a frame, which the capture cannot close.",
+  "purpose": "Carry the client's per-frame input state: camera pitch, camera yaw, world x and world y, per the movement block the atlas already decoded at 1.460 from the same type on the same channel. The Rust server must DECODE this; it never authors it. What the client expects the server to do with each frame is not measured.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["every input tick while the client has a live player - it is fire-and-forget, flags 0x20, and does not wait for an ACK"],
+    "if_absent": "the server has no client input and cannot predict or validate movement. The atlas measured a red ALC cable when input is not answered, so absence is visible to the player"
+  },
+  "wire": { "id": "0x635", "direction": "C2S", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 b5 18, i.e. type index 1589 = 0x635. A client channel-1 record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so the 65-byte body of the smallest record begins at byte 28 of a 93-byte record. Corpus direction is W for this type, which is client-to-server across the whole corpus (all 5 records are W).",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured fb de 4b 9a 60 0d 42 8f = 0xfbde4b9a600d428f in all five records. First u64 of the shared message head, the sending facet's own local id - here the action-list client facet. Shares the head with every other message in the corpus, which is what makes the container start at a known offset even though the record has a 28-byte prefix.",
+      "provenance": "corpus-wide scan; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a in all five records. Second u64 of the shared head: the first 8 bytes of the client's own actor id. The same value the 0x1098 card carries, and identical across all five captures, so this is the local player.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "reference_state_block",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 29,
+      "type": "bytes(29)",
+      "evidence": "measured",
+      "note": "Measured 00 01|00 00|91 02|06 00|00 01|01 .. 20 07 19 4b 00 00 00 ac 0f but NOT constant: byte 0x11 is 01 in the first record and 00 in the other four. Carried as a raw run because the element encoder walks the SAME offsets against a reference object and only emits what differs; those differing fields are written here, in front of the mask, so this block is that prefix run and nothing in it is named. The 0x91 02 inside it is the prefix varint for 273, matching the atlas's pinned u16 BE writer, but what 273 indexes is not established.",
+      "provenance": "capture: all five bodies at 0x10..0x2d; decompile: the element encoder FUN_142a26340 writes a 3-byte mask and then per-field runs"
+    },
+    {
+      "name": "frame_flags",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x2d",
+      "size": 1,
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Measured 0x01 in all five records. Sits between the reference block and the frame count, so it cannot be part of either. Constant across the capture, so a reading of it cannot be tested from these bytes.",
+      "provenance": "capture: all five bodies at 0x2d"
+    },
+    {
+      "name": "frame_count",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x2e",
+      "size": 1,
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Measured 01, 02, 03, 04, 05 across the five records, in seq order 0x6e..0x72. This is the count that closes the layout: 16 + 30 + 1 + 1 + 3 + 15*count equals the body length EXACTLY in all five records, with no remainder in any of them. A count byte plus a fixed stride is the strongest kind of container evidence, because a wrong stride leaves a remainder.",
+      "provenance": "capture: all five bodies; the arithmetic fits 65/80/95/110/125 with counts 1..5"
+    },
+    {
+      "name": "frame_presence_mask",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x2f",
+      "size": 3,
+      "type": "bytes(3)",
+      "evidence": "measured",
+      "note": "Measured 01 00 00 in all five records. The element encoder FUN_142a26340 seeks back after writing its fields and writes exactly 3 bytes of presence mask (stream vtable +0x40 with length 3 at the function's end), one bit per field, so the mask PRECEDES the frames it describes. This field is that mask. Its measured value 0x000001 says bit 0 is set - and bit 0 is the first field the encoder can emit - but which field bit 0 names is not established, so only the width and position are claimed.",
+      "provenance": "decompile: FUN_142a26340 tail - seek to the recorded position via stream +0x28, then +0x40 write of 3 bytes from the mask word; capture: 01 00 00 constant"
+    },
+    {
+      "name": "input_frames",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x32",
+      "size": "15 * frame_count",
+      "type": "opaque(input_frames)",
+      "evidence": "measured",
+      "note": "Exactly 15 bytes each, count given by frame_count, ending the body with zero remainder in all five records: 15*1..5 = the 15..75 bytes that remain after offset 0x32. Measured content is a DESCENDING id sequence that wraps - the 5-frame record holds ids 5,4,3,2,1 and the 1-frame record holds only 1, so every later record repeats all prior frames plus one new one. Ids sit at frame+1 for the first frame and frame+4 for the rest, with 0x80 in between. The element encoder is a DELTA encoder: it compares each field against a reference object and suppresses every unchanged one, which is why frames 2..N are mostly 0x80 and 0x03. OPAQUE ON PURPOSE, AND THE CARD IS THEREFORE REFUSED BY CODEGEN: the closed vocabulary has no counted fixed-run member, and any of the three available substitutes would be a lie. Flattening these bytes to bytes(15*k) would drop the client's delta semantics; calling them 15 scalars would invent field meanings the capture does not carry; a nested frame card would have to name the reference baseline, which has not been read. A codec that parsed the container and left the frames opaque could not extract the pitch, yaw, x and y the server actually needs, so this message stays markdown-only until the frame layout is closed.",
+      "provenance": "capture: five records, frames extracted at the measured stride; decompile: FUN_142a26340 compares each field against its reference object and sets a mask bit only on difference"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x14838bb08, resolved by the name-accessor walk: its +0x08 slot is FUN_144868ba0 = lea rax,[0x14838bb80]; ret, returning the string 'ActionListComponentServerFacet_ReceiveInputFromClient'. Writer slot +0x58 = FUN_144868a90, reader slot +0x60 = FUN_144868ac0"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_144868ac0 is two steps: FUN_1414dbca0() for the shared two-u64 head, then FUN_144869020 on object +0x30. FUN_144869020 calls FUN_142a28f30, which writes a count byte through FUN_140876e10 and then walks N 0x490-byte elements through FUN_142a26320"
+    },
+    {
+      "type": "decompile",
+      "ref": "the element encoder FUN_142a26340 accumulates a 3-byte presence mask in one 32-bit word at frame -0x31, comparing every field against a reference object; it writes only fields whose value differs and records one bit per field. At the end it seeks back and writes the 3-byte mask before the fields. That is why the mask sits between the count and the frames, and why the mask is exactly 3 bytes rather than a per-frame byte"
+    },
+    {
+      "type": "capture",
+      "ref": "five records 0x6e..0x72_T0x635_W.bin, 93..153 bytes, bodies 65..125. The layout 16 + 29 + 1 + 1 + 3 + 15*count accounts for the body EXACTLY in all five, with counts 1..5 in seq order. The frame id sequence is descending and wraps"
+    },
+    {
+      "type": "atlas",
+      "ref": "research/atlas/client-functions.json 'the_movement_block_is_pitch_yaw_x_y_20261018' and 'the_input_stream_carries_the_clients_movement_block_20261018' already decode this wire type at channel 1: four big-endian float32 after a 0.05 marker are camera pitch, camera yaw, world x and world y, measured over 197810 samples. That is the SECOND signal that this card is the input stream; it does not close the delta container, which is what this card adds"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}
