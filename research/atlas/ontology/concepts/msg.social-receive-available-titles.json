@@ -1,0 +1,96 @@
+{
+  "uid": "msg.social-receive-available-titles",
+  "kind": "message",
+  "name": "SocialComponentClientFacet_ReceiveAvailableTitles",
+  "aliases": ["wire:0x1033", "ReceiveAvailableTitles"],
+  "summary": "The social facet's title list. 494-byte body: the shared two-u64 head, then TWO prefix-counted vectors of u32 BE - 109 ids and then 10 ids. The ten are a strict subset of the hundred-and-nine, which is a measured relation and not a guess; the ids themselves are per-account data, not constants of the binary (none of them occurs anywhere in .rdata in either byte order). 16 + 1 + 109*4 + 1 + 10*4 = 494 exactly, so the layout accounts for the whole body.",
+  "purpose": "Tell the client which titles it can choose from and which subset of them it currently holds. What the two vectors MEAN is inferred from the message name plus the subset relation; the client struct's own member names live in runtime-built descriptors and were not read, so the fields are carried positionally.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["the client's social component asks for its titles, or the server changes them"],
+    "if_absent": "the client shows no titles. The social UI has its own request paths (RequestAvailableTitles, RequestNewTitles, RequestSetTitle are named in the client's Social bus strings) but no capture shows which of them this message answers"
+  },
+  "wire": { "id": "0x1033", "direction": "S2C", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint b3 40, i.e. type index 4147 = 0x1033. fields[] below use BODY offsets, so the first body byte is at 0x00 and the 498-byte record starts 4 bytes earlier.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured ce 81 13 6a 2b 7a d3 3e = 0xce81136a2b7ad33e. First u64 of the shared message head: the sending facet's own local id, the social client facet. One of the nine per-component ids the 2026-11-09 corpus scan enumerated; it appears on this wire and on no other.",
+      "provenance": "corpus-wide scan of 36 R records across 10 wire types, one local id per component; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id written big-endian.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "title_ids",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "type": "vec<u32be>",
+      "evidence": "measured",
+      "count": "prefix_varint",
+      "note": "The first vector: one prefix-varint count (measured 0x6d = 109), then 109 u32 BE. All 109 are distinct. The vector reader FUN_14293d640 is generic and visible: it writes a prefix-varint count, then loops the elements through FUN_140876e70, which is the same u32 BE primitive the atlas pinned for the Territory batch - so the codec is confirmed by a second route, not inferred from the sample. The ids do not occur anywhere in .rdata in either byte order, so they are per-account data rather than binary constants. Named positionally: the card does not claim these are the titles the account can choose, only that they are this message's first id vector.",
+      "provenance": "capture: 0x62_T0x1033_R.bin body[0x10..0x1c4]; decompile: reader FUN_143eb0950 -> FUN_14293d640 -> FUN_140876e70"
+    },
+    {
+      "name": "title_selection_ids",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x1c5",
+      "type": "vec<u32be>",
+      "evidence": "measured",
+      "count": "prefix_varint",
+      "note": "The second vector: one prefix-varint count (measured 0x0a = 10), then 10 u32 BE. The measured relation to title_ids is what earns this field's shape: the ten values are a STRICT SUBSET of the hundred-and-nine - all ten are found in the first vector, written in a different order (their indices there are 3, 0, 4, 1, 2, 18, 83, 92, 63, 104). A subset written out of order is a selection, not a parallel list. That is why the field is named for a selection rather than for a second independent set. What the selection MEANS - held now, unlocked, displayed - is not measured and is not claimed.",
+      "provenance": "capture: same body[0x1c5..0x1f2]; the subset relation measured by decoding both vectors and testing set membership and element-by-element index lookup"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x1482d8670, resolved by the name-accessor walk: its +0x08 slot is FUN_143eb0b60 = lea rax,[0x1482d86e8]; ret, returning the string 'SocialComponentClientFacet_ReceiveAvailableTitles'. Writer slot +0x58 = FUN_143eb0850, reader slot +0x60 = FUN_143eb0950"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_143eb0950, in wire order: FUN_1414dbca0() for the shared head; FUN_14293d640 on object +0x40; FUN_14293d640 on object +0x20; then two cookie copies that unlink the temporary vectors. So there are exactly TWO vectors and nothing else - no scalar, no trailing field"
+    },
+    {
+      "type": "decompile",
+      "ref": "the vector reader FUN_14293d640 is generic and reads a std::vector<u32>: it computes the element count as (end - begin) >> 2, writes it with the prefix-varint writer FUN_140877b10, then loops each element through FUN_140876e70. The SAME function shape is what the atlas already recorded for the Territory roster vectors, and FUN_140876e70 is the pinned u32 BE primitive there, so the codec has a second independent signal"
+    },
+    {
+      "type": "decompile",
+      "ref": "writer FUN_143eb0850 builds both vectors through FUN_1402d1060 from object +0x20 and +0x40 and hands them to FUN_143f104a0, which stores them at +0x6f0 and +0x710 on the destination and then walks the SECOND vector element by element against a range at +0x750..+0x758. Writer and reader therefore agree on two vectors, and the destination treats the second one as a per-element lookup list - consistent with it being a selection"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x62_T0x1033_R.bin at seq 0x62, 498 bytes. Decoded as head + vector + vector: 16 + (1 + 109*4) + (1 + 10*4) = 494 body bytes, leaving none of the 494. First-vector count byte is 0x6d at body 0x10 and the second-vector count byte is 0x0a at body 0x1c5, both single-byte prefix varints since both are under 0x80"
+    },
+    {
+      "type": "capture",
+      "ref": "subset relation: the 10 values of the second vector all occur in the 109 of the first, at positions 3, 0, 4, 1, 2, 18, 83, 92, 63 and 104. Both vectors have all-distinct elements. Searches for three of the ids in .rdata in both LE and BE return zero hits, so the ids are per-account data and not constant tables in the binary"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

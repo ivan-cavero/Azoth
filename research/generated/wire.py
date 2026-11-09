@@ -596,6 +596,24 @@ MESSAGES = {
             ('blob', 'prefixed_bytes'),
         ),
     },
+    164: {
+        'uid': 'msg.client-add-entry',
+        'name': 'ClientAddEntryMsg',
+        'direction': 'S2C',
+        'fields': (
+            ('actor_id', 'guid16'),
+        ),
+    },
+    335: {
+        'uid': 'msg.time-synch-0x14f',
+        'name': 'TimeSynchMsg',
+        'direction': 'S2C',
+        'fields': (
+            ('unresolved_prefix', 'bytes(2)'),
+            ('time_high', 'u16be'),
+            ('time_low', 'u32be'),
+        ),
+    },
     349: {
         'uid': 'flow.world-entry.rung.ping',
         'name': 'Ladder: Ping heartbeat',
@@ -689,6 +707,17 @@ MESSAGES = {
             ('level_context_key', 'u64be'),
         ),
     },
+    2278: {
+        'uid': 'msg.contracts-on-lookup-contracts-by-participant',
+        'name': 'ContractsComponentClientFacet_OnLookupContractsByParticipant',
+        'direction': 'S2C',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('lookup_id', 'bytes(16)'),
+            ('trailing_block', 'bytes(6)'),
+        ),
+    },
     2297: {
         'uid': 'msg.territory-detector-attempt-territory-unlock',
         'name': 'TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock',
@@ -766,6 +795,63 @@ MESSAGES = {
             ('field_g', 'bool_byte'),
         ),
     },
+    4147: {
+        'uid': 'msg.social-receive-available-titles',
+        'name': 'SocialComponentClientFacet_ReceiveAvailableTitles',
+        'direction': 'S2C',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('title_ids', 'vec<u32be>'),
+            ('title_selection_ids', 'vec<u32be>'),
+        ),
+    },
+    4199: {
+        'uid': 'msg.voice-chat-service-registered',
+        'name': 'VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered',
+        'direction': 'S2C',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('api_server_uri', 'prefixed_string'),
+            ('login_token', 'prefixed_string'),
+            ('realm', 'prefixed_string'),
+            ('service_flag', 'bool_byte'),
+        ),
+    },
+    4246: {
+        'uid': 'msg.time-sync-time-change',
+        'name': 'TimeComponentClientFacet_SyncTimeChange',
+        'direction': 'S2C',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('horizon_angle', 'f32be'),
+            ('scale_a', 'f32be'),
+            ('scale_b', 'f32be'),
+            ('day_length_seconds', 'u32be'),
+            ('day_phase_index', 'u32be'),
+            ('day_switch_seconds', 'u32be'),
+            ('hour_seconds', 'u32be'),
+            ('seconds_per_hour', 'u32be'),
+            ('half_hour_seconds', 'u32be'),
+            ('time_of_day', 'u64be'),
+            ('phase_rise_start', 'f32be'),
+            ('phase_rise_end', 'f32be'),
+            ('phase_set_pos', 'f32be'),
+            ('phase_set_end', 'f32be'),
+        ),
+    },
+    4247: {
+        'uid': 'msg.time-sync-day-phase',
+        'name': 'TimeComponentClientFacet_SyncDayPhase',
+        'direction': 'S2C',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('day_phase', 'u32be'),
+        ),
+    },
     4248: {
         'uid': 'msg.time-sync-to-client',
         'name': 'TimeComponentServerFacet_SyncToClient',
@@ -773,6 +859,31 @@ MESSAGES = {
         'fields': (
             ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
+        ),
+    },
+    6310: {
+        'uid': 'msg.grid-tracking-update-phasing',
+        'name': 'GridTrackingComponentClientFacet_UpdatePhasing',
+        'direction': 'S2C',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('tail_flags', 'u32be'),
+            ('session_nonce', 'u64be'),
+            ('tail_tag', 'bytes(6)'),
+            ('tail_discriminator', 'u8'),
+            ('sequence_counter', 'u8'),
+        ),
+    },
+    7048: {
+        'uid': 'msg.global-storage-receive-storage-search-items',
+        'name': 'GlobalStorageComponentClientFacet_ReceiveStorageSearchItems',
+        'direction': 'S2C',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('search_id', 'bytes(16)'),
+            ('empty_search_tail', 'bytes(6)'),
         ),
     },
 }

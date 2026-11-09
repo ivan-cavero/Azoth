@@ -627,7 +627,7 @@
 | level_bounds | vec<f32be> | 0x34 | measured | known | Four big-endian floats: 2048.0, 16.0, 12272.0, 10250.0 on the measured record. Measured live 2026-10-26: the decoded struct holds the same four values and its verbatim copy proves the big-endian reading (FUN_146447ac0). The wire carries no count prefix, so the literal count 4 fixes the run. |
 | unresolved_u64 | u64be | 0x44 | measured | layout-only | Measured zero, 8 bytes. The handler never reads it and no second signal names it, so the meaning stays unnamed; the width is stated by the atlas, so the shape is carried as u64be. |
 | unresolved_u32 | u32be | 0x4c | measured | layout-only | Measured 01 01 00 00, 4 bytes. The atlas states it is NOT a be_f32 and NOT the struct's four u8 (those are the four bytes at body 0x5e); which struct slot it reaches is unmeasured. Carried as u32be; big-endian follows the repo rule for fixed-width wire integers and the endianness itself is not measured. |
-| session_nonce | u64be | 0x50 | partial | known | Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
+| session_nonce | u64be | 0x50 | partial | known | Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at its body offset 0x14, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
 | unresolved_group | bytes(10) | 0x58 | measured | layout-only | Measured 65 03 00 00 00 00 01 01 01 00, 10 bytes. The atlas splits it: six unnamed bytes then the four u8 the struct calls +0xa0..+0xa3 (01 01 01 00). Not read by the handler. The size (10) is stated, so the shape is carried as bytes(10); the meaning stays unknown. meanings.md '`0x663` laid out to the byte'. |
 | level_context_key | u64be | 0x62 | partial | known | The last 8 bytes of the body, measured 00 00 00 c1 7f 9b e4 8f. The handler compares it against the component slot it cached last time and RETURNS EARLY when they match, then stores the new value. So it is the dedup key: a repeated LevelInfo with the same key is ignored by the client. This is a second, independent signal for the same fact the lab had already recorded from the capture (the repeated seq 0x663 at 0x4d carries the same key and is ignored). |
 
@@ -717,11 +717,11 @@
 
 - wire 0xa4, S2C
 - kind: message; status: candidate; confidence: layout
-- codegen: **refused** — opaque fields: actor_id
+- codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
-| actor_id | opaque(actor_id) | 0x04 | measured | known | Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0. This is the strongest cross-check in the whole inventory: the same 16 bytes appear as the spawn record's actor id at payload offset 29,731 and as the pinned ACTOR_ID constant in the deleted azoth-wire crate. Three independent sources, one value. |
+| actor_id | guid16 | 0x00 | measured | known | Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, identical in both committed copies (seq 0x08 and seq 0x0f). This is the strongest cross-check in the inventory: the same 16 bytes are the local player's entity id in the state bundle and the pinned ACTOR_ID constant in the deleted azoth-wire crate, and the client's own 0x1098 SyncToClient carries the same value little-endian as local_actor_id_word0 (bf 85 31 4b bc 4a 95 1a), so the byte order this field uses is big-endian and the two records agree on the value. |
 
 ## msg.contracts-lookup-contracts-by-participant — ContractsComponentServerFacet_LookupContractsByParticipant
 
@@ -744,6 +744,19 @@
 | type_ids | vec<u16be> | — | measured | layout-only | The 'u16-vec <= 25': prefix-varint count, then count x u16 BE. Writer inline at object +0x1d0 (cap 25) and reader FUN_142db7e40 (rejects count > 25). |
 | trailing_id | bytes(16) | — | measured | layout-only | The final '16-byte id': a raw run written from object +0x30 and read by FUN_1408787b0(object +0x30, 0x10). meanings.md 'The four refused inbound requests recovered, 2026-10-31'. |
 
+## msg.contracts-on-lookup-contracts-by-participant — ContractsComponentClientFacet_OnLookupContractsByParticipant
+
+- wire 0x8e6, S2C
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 4c 0c 0e d6 47 8a 69 da = 0x4c0c0ed6478a69da. First u64 of the shared message head: the sending facet's own local id. In this direction the sender is the server-side contracts facet, and the value equals the local id the client's own 0x9fc request carried in its head, which is the request/response correlation: same component, same session, one id. The first u64 of the head is named in msg.time-sync-to-client.json from the decompiled writer FUN_1414dbca0 and the registry key FUN_1416c1c40. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id, written big-endian. Read little-endian those eight bytes are 1a954abc4b3185bf, the front half of the actor id ClientAddEntryMsg (0xa4) hands the client. |
+| lookup_id | bytes(16) | 0x10 | measured | layout-only | Measured e1 63 43 70 30 7b 4d 06 a7 2f d9 df 00 5c d9 42. This is the strongest fact in the card: the same 16 bytes are the TRAILING field of the client's own 0x9fc request for this lookup, and they appear nowhere else in the 138-record corpus. So the response echoes an id the request supplied. The decompiled reader FUN_142da4680 carries it as a bare raw run, 16 bytes, from object +0x90, and the generic raw-run primitive names nothing, so the meaning stays unnamed: it may be the looked-up participant rather than the caller, and no measurement distinguishes those. It is NOT the player actor id (that is the head's second u64) and NOT the 0x9fc participant_id (1a954abc4b3185bfbe37c3d8592618e0). |
+| trailing_block | bytes(6) | 0x20 | measured | layout-only | Measured 00 00 00 00 00 00 in the one captured instance. The codec that reads it, reached from FUN_142da4680, reads a prefix-varint count and then a small scalar suffix, and six bytes is exactly what the captured record leaves after head and id; but with every byte zero the internal split is not pinned by data, so the field is carried as one fixed 6-byte run rather than as a guessed count plus elements. This is the only site an actual contract payload could occupy, and it is empty here: the captured answer returns nothing. |
+
 ## msg.fragment-update — FragmentUpdateMsg
 
 - wire 422, S2C
@@ -755,6 +768,19 @@
 | first | u64be | 0x00 | unknown | layout-only | meaning unproven |
 | second | u32be | 0x08 | unknown | layout-only | meaning unproven |
 
+## msg.global-storage-receive-storage-search-items — GlobalStorageComponentClientFacet_ReceiveStorageSearchItems
+
+- wire 0x1b88, S2C
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured e2 64 0b 7c e5 40 80 36 = 0xe2640b7ce5408036, identical in all 23 records. First u64 of the shared message head: the sending facet's own local id, here the global-storage client facet. This is the SAME value the atlas already pinned from the C2S side on 0x183 SetReplicateStorage, which is a cross-direction confirmation: the two directions agree that 0xe2640b7ce5408036 is the global-storage facet. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, identical in all 23 records. Second u64 of the shared head: the first 8 bytes of the client's own actor id, written big-endian; read little-endian those bytes are 1a954abc4b3185bf. |
+| search_id | bytes(16) | 0x10 | measured | layout-only | Measured all zero in all 23 records. The reader's first act after the head is one raw 16-byte transfer into object +0x60, so the width is fourteen bytes of nothing-ambiguity and two of structure: it is exactly 16. That it is a search id is inferred from the message's name and the client's other storage replies; the value being zero everywhere means the capture carries an empty search, so no non-zero sample exists to confirm the reading. Carried as a fixed run rather than an id type because the meaning is not measured. |
+| empty_search_tail | bytes(6) | 0x20 | measured | layout-only | Measured all zero in all 23 records. The reader defines this tail exactly, and an all-zero six bytes is what its shape produces when the list is empty: FUN_140877b10 writes a prefix-varint count (here 0, the first byte), the element loop runs zero times, then one u32 BE is read (four bytes), then one flag byte is read (one byte) - 1 + 4 + 1 = 6. That the arithmetic lands on 6 with count 0 is what accounts for the whole 38-byte body. Carried as one fixed run rather than as three fields because every byte is zero and the split is therefore not separable by data; the structure is recorded in this note and in the evidence instead. A non-empty list adds 0x18-byte elements between the count and the u32, and that element layout is NOT modelled: the gate would need a card for it, and no sample has ever carried one. |
+
 ## msg.grid-tracking-client-ack-phasing — GridTrackingComponentServerFacet_ClientAckPhasingUpdate
 
 - wire 0x1a59, C2S
@@ -765,15 +791,23 @@
 
 - wire 0x18a6, S2C
 - kind: message; status: verified; confidence: semantics
-- codegen: **refused** — opaque fields: unresolved_tag_at_0x20; unknown field evidence: flags_at_0x14, unresolved_tag_at_0x20
+- codegen: **ready** — wire code emitted
 
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
-| unresolved_id_at_0x04 | guid16 | 0x04 | partial | layout-only | Measured f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a, identical in all four instances. As a GUID with the first three fields little-endian it is 57EDCBF8-8BC6-F418-BF85-314BBC4A951A. It is NOT the player's actor id (1a954abc4b3185bfbe37c3d8592618e0), so it names something else. The message name does not settle it: grid tracking is the component, not the subject. |
-| flags_at_0x14 | u32be | 0x14 | unknown | layout-only | Measured 01 01 00 00, the same four bytes that open the level-info tail. Shared envelope, meaning unknown. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
-| session_nonce | u64be | 0x18 | partial | known | Measured 9c fa 58 61 78 14 69 f2, the SAME value that LevelInfoChangedMsg carries at 0x54. Two different message types sharing a value is the strongest kind of field evidence in this inventory, and the value differs per session rather than per record, which is why it is called a session nonce. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured. |
-| unresolved_tag_at_0x20 | opaque(unresolved_tag_at_0x20) | 0x20 | unknown | layout-only | Measured 65 03 00 00 00 00, also present at the same place in the level-info tail. 65 03 00 00 is 869 as a little-endian u32, which reads like a version or protocol tag; unproven. |
-| sequence_counter | u8 | 0x26 | measured | known | The last byte of the record. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order. The byte before it is 0x02 in all four instances. |
+| local_facet_id | u64be | 0x00 | measured | known | Measured f8 cb ed 57 c6 8b 18 f4 = 0xf8cbed57c68b18f4, identical in all four instances. First u64 of the shared message head: the sending facet's own local id, i.e. the GridTrackingComponentClientFacet this message is attributed to, which is exactly the facet the decompile evidence names as the sender. It is not the player's actor id (that is the next u64). The earlier card called this a 16-byte 'unresolved_id' and treated it as one opaque run; it is two known u64 and this is the first. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, identical in all four instances, and the same u64 across all 36 records that carry the shared head. Second u64 of the head: the first 8 bytes of the client's own actor id. Read little-endian those eight bytes are 1a954abc4b3185bf, the first half of the actor id ClientAddEntryMsg (0xa4) hands the client, so the two byte orders agree on one value and this is the big-endian spelling. |
+| tail_flags | u32be | 0x10 | measured | layout-only | Measured 01 01 00 00, the four bytes that open the tail envelope in every record of both message types that carry it. Big-endian follows the repo rule for fixed-width wire integers; the endianness itself is not measured, and no meaning is claimed - the level-info card names the same four bytes unresolved_u32 and the atlas states they are neither a float nor the struct's four u8. |
+| session_nonce | u64be | 0x14 | partial | known | Measured 9c fa 58 61 78 14 69 f2, the SAME value LevelInfoChangedMsg carries at its body 0x50. Two different message types sharing a value is the strongest kind of field evidence in this inventory, and the value differs per session rather than per record, which is why it is called a session nonce. Big-endian inferred from the repo rule; the endianness itself is not measured. |
+| tail_tag | bytes(6) | 0x1c | measured | layout-only | Measured 65 03 00 00 00 00. Front of the six-byte tag this message shares with the level-info tail, carried as a fixed run because the closed vocabulary has no six-byte integer and no interpretation is earned. As a little-endian u32 the leading 65 03 00 00 reads 869, which looks like a version or protocol tag; unproven, so it stays a byte run. This is where the shared tail ENDS: the bytes after it differ between the two messages. |
+| tail_discriminator | u8 | 0x22 | measured | layout-only | Measured 02 in all four instances, and this is where the shared tail breaks: the level-info record carries 01 at the same position after the identical tag, followed by three more flag bytes and its dedup key. So this byte belongs to this message alone and the earlier card's arithmetic (16+4+8+6+1 = 35) was one byte short of the 36-byte body because it never gave this byte a field. Named for what it measurably does - distinguish this tail from the level-info tail - not for a meaning: only the value 02 has ever been seen. |
+| sequence_counter | u8 | 0x23 | measured | known | The last byte of the body. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order, and wraps nowhere in the capture. The byte before it is this message's 02 discriminator in all four instances. |
+
+## msg.inventories-on-query-inventories — InventoriesComponentClientFacet_OnQueryInventories
+
+- wire 0x16a0, S2C
+- kind: message; status: candidate; confidence: layout
+- codegen: field-less — neither emitted nor refused
 
 ## msg.objectives-notify-open-ui-screen — ObjectivesComponentServerFacet_NotifyOpenUiScreen
 
@@ -882,6 +916,19 @@
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | field_c | bytes(16) | 0x10 | measured | layout-only | A raw 16-byte run written by the writer context's slot +0x40 (param_2, object +0x20, 0x10) and read by FUN_1408787b0(object +0x20, 0x10). The atlas does not say GUID, so it is not claimed as one. Body offset 0x10. |
 
+## msg.social-receive-available-titles — SocialComponentClientFacet_ReceiveAvailableTitles
+
+- wire 0x1033, S2C
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured ce 81 13 6a 2b 7a d3 3e = 0xce81136a2b7ad33e. First u64 of the shared message head: the sending facet's own local id, the social client facet. One of the nine per-component ids the 2026-11-09 corpus scan enumerated; it appears on this wire and on no other. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id written big-endian. |
+| title_ids | vec<u32be> | 0x10 | measured | layout-only | The first vector: one prefix-varint count (measured 0x6d = 109), then 109 u32 BE. All 109 are distinct. The vector reader FUN_14293d640 is generic and visible: it writes a prefix-varint count, then loops the elements through FUN_140876e70, which is the same u32 BE primitive the atlas pinned for the Territory batch - so the codec is confirmed by a second route, not inferred from the sample. The ids do not occur anywhere in .rdata in either byte order, so they are per-account data rather than binary constants. Named positionally: the card does not claim these are the titles the account can choose, only that they are this message's first id vector. |
+| title_selection_ids | vec<u32be> | 0x1c5 | measured | layout-only | The second vector: one prefix-varint count (measured 0x0a = 10), then 10 u32 BE. The measured relation to title_ids is what earns this field's shape: the ten values are a STRICT SUBSET of the hundred-and-nine - all ten are found in the first vector, written in a different order (their indices there are 3, 0, 4, 1, 2, 18, 83, 92, 63, 104). A subset written out of order is a selection, not a parallel list. That is why the field is named for a selection rather than for a second independent set. What the selection MEANS - held now, unlocked, displayed - is not measured and is not claimed. |
+
 ## msg.spawn-actors — SpawnActorsMsg
 
 - wire 574, S2C
@@ -908,6 +955,43 @@
 | field_e | u16be | 0x30 | measured | layout-only | u16 BE (object slot +0x24); meaning unnamed. Measured 0x9cfa. meanings.md row 0x8f9. |
 | field_f | u32be | 0x32 | measured | layout-only | u32 BE (object slot +0x20, the LAST field on the wire although the first in the object); meaning unnamed. Measured 0x00000000. meanings.md row 0x8f9. |
 
+## msg.time-sync-day-phase — TimeComponentClientFacet_SyncDayPhase
+
+- wire 0x1097, S2C
+- kind: message; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 93 a3 e4 77 cb 5f d5 1e = 0x93a3e477cb5fd51e. First u64 of the shared message head: the sending facet's own local id, which here is the TimeComponentClientFacet. The SAME value appears in 0x1096, in the client's 0x1098 SyncToClient, and in the client's 0x1096/0x1097 request direction, which is the per-component proof: one component, one local id. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id, written big-endian. Read little-endian those bytes are 1a954abc4b3185bf, the front half of the actor id ClientAddEntryMsg (0xa4) hands the client. |
+| day_phase | u32be | 0x10 | measured | layout-only | Measured 00 00 00 02. The reader FUN_1426d64f0 copies object +0x20 through the generic u32 BE primitive FUN_140876e70 after the shared head, and the writer FUN_14406f4b0 copies the same slot back; both stop there. The same primitive FUN_140876e70 is the one the atlas already pinned as 'writes u32 BE' for the Territory batch, so the codec is a second, independent confirmation and not a guess. Only the value 2 has ever been seen, so the phase names stay unnamed and the field is carried as u32be rather than a named enum. |
+
+## msg.time-sync-time-change — TimeComponentClientFacet_SyncTimeChange
+
+- wire 0x1096, S2C
+- kind: message; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 93 a3 e4 77 cb 5f d5 1e = 0x93a3e477cb5fd51e. First u64 of the shared message head: the sending facet's own local id, the TimeComponentClientFacet. The same value appears in 0x1097 and in the client's 0x1098, which is the per-component proof. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id written big-endian; little-endian those bytes are 1a954abc4b3185bf. |
+| horizon_angle | f32be | 0x10 | measured | layout-only | Measured 40 c0 00 00 = 6.0 exactly. The first of the reader's three leading f32 BE (FUN_140876ea0, the primitive the atlas pinned for 'writes f32 BE' in the Territory batch). It is 6.0, a round number, which is the kind of value a tuned constant takes; the name records the measurement (a 6.0 angle-like scalar that opens the calendar block), not a decoded symbol. |
+| scale_a | f32be | 0x14 | measured | layout-only | Measured bf 80 00 00 = -1.0 exactly. Second of the leading f32 BE. A negative unit is a multiplier with a sign - the only negative in the whole body - but which quantity it scales is unmeasured. |
+| scale_b | f32be | 0x18 | measured | layout-only | Measured 39 f5 f5 b8 = 0.0004691311623901129, i.e about 1/2131.33. Third and last of the leading f32 BE, and the only non-round value in the leading group. Reading it as a reciprocal places it near the 21300 s second count that follows, so it plausibly relates that count to a normalized unit; that reading is NOT confirmed by any symbol and stays a note. |
+| day_length_seconds | u32be | 0x1c | measured | layout-only | Measured 00 00 53 34 = 21300. As a duration that is 5 h 55 min, and it is followed by 65100 = 18 h 05 min; the two sum to exactly 86400 = 24 h. A split of one day into a shorter and a longer span, summing to a day, is the calendar reading and it is arithmetic rather than a guess: 21300 + 65100 = 86400 exactly. Which half is day and which is night is not settled by the value alone. |
+| day_phase_index | u32be | 0x20 | measured | layout-only | Measured 0. Second of the six u32 BE. It matches the value 0x1097 carries in its own day-phase field, but that message reports 2 in this same captured session while this field reports 0, so the two are NOT the same quantity under two names; the coincidence is recorded and NOT used as evidence. |
+| day_switch_seconds | u32be | 0x24 | measured | layout-only | Measured 00 00 fe 4c = 65100, i.e 18 h 05 min. It sums with day_length_seconds to exactly 86400 s, which is what makes the pair a day split rather than two unrelated counters. |
+| hour_seconds | u32be | 0x28 | measured | layout-only | Measured 0. Alongside the two constants that follow it, this zero fills out a group of three u32 BE reads between the day split and the phase factors; its meaning is unnamed. |
+| seconds_per_hour | u32be | 0x2c | measured | known | Measured 00 00 0e 10 = 3600. Named for what the value IS, not for a decoded symbol: 3600 seconds is one hour, and the field beside it is 1800, half of that. A pair of 3600 and 1800 in a message that also carries two second-counts summing to 86400 is a time-scale group, and 3600/1800 are the only round interpretations of those two integers. |
+| half_hour_seconds | u32be | 0x30 | measured | known | Measured 00 00 07 08 = 1800, exactly half of the field before it. Same reading: named for the value (1800 s is half an hour), with no claim about which client symbol holds it. |
+| time_of_day | u64be | 0x34 | measured | layout-only | Measured 0b 87 9f b3 34 82 a0 b7 = 830808248302084279. The reader reads it as one u64 BE through FUN_140877280, the same split writer the shared head uses. The value is about 8.31e17, which is not seconds and not a plausible epoch in any of the 1970/2001/1601 conventions the atlas has already tried, so no time reading is claimed: it is carried as an opaque-width u64 with the byte value recorded. |
+| phase_rise_start | f32be | 0x3c | measured | layout-only | Measured 3e 2a aa ab = 0.1666666716337204, which is the f32 spelling of 1/6. The first of FOUR trailing f32 BE, and it is immediately repeated. |
+| phase_rise_end | f32be | 0x40 | measured | layout-only | Measured 3e 2a aa ab, byte-identical to the field before it, so this is the second of a duplicated 1/6 pair. A duplicated value is a bound shared by two edges, not two independent measurements. |
+| phase_set_pos | f32be | 0x44 | measured | layout-only | Measured 3f 55 55 55 = 0.8333333134651184, the f32 spelling of 5/6. Third of the four trailing f32 BE, and immediately repeated after it. |
+| phase_set_end | f32be | 0x48 | measured | layout-only | Measured 3f 55 55 55, byte-identical to the field before it. Last field of the body; the reader returns immediately after it and the 76-byte body has no remainder, which is what closes the layout. |
+
 ## msg.time-sync-to-client — TimeComponentServerFacet_SyncToClient
 
 - wire 0x1098, C2S
@@ -919,6 +1003,18 @@
 | local_facet_id | u64be | 0x00 | measured | known | First u64 of the shared message head, and the sending facet's own local id - identity, not request data. The send builder fills msg+0x08 from FUN_1416c1c40(facet) = *[*[facet+8]+8] + [GDE+0x10]: [GDE+0x10] is the id handed out by the global id dispenser FUN_14144a9f0 at ClientGDE attach (writer FUN_141464890 <- FUN_14167c760), and *[*[facet+8]+8] is a base read off the object the GDE's server-GDE reference resolves to (FUN_1417db510). That same value is the key the facet registers itself under in the Context's facet map (FUN_14167c560: key FUN_1416c1c40(facet), value the facet object, slot array at Context+0x1b0) and the key the RMI dispatcher looks up, so it is the local id the server must address. The client names it itself: log field facetId, 'Failed to unregister the facet.', and on a duplicate collidingLocalId + collidingFacetName with 'We got a collision on facets IDs, RMIs may fail to be delivered to this facet.'; the dispatch failure line calls it targetLocalId. Measured 0x93a3e477cb5fd51e on the 2026-10-19 20:52 record; the same probe walk that named this facet found it among the four local ids registered for TimeComponentClientFacet in a different session, and the server's reply addressed to it dispatched 642 of 642. |
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 
+## msg.time-synch-0x14f — TimeSynchMsg
+
+- wire 0x14f, S2C
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| unresolved_prefix | bytes(2) | 0x00 | measured | layout-only | Measured `0b 88` in all four committed 0x14f bodies. Constant across the four samples, so it is carried as a fixed 2-byte run rather than interpreted as an integer. It is NOT the same prefix PingMsg carries (`00 03`), so the two messages are distinguishable by their own first two body bytes as well as by wire id. |
+| time_high | u16be | 0x02 | measured | known | Top 16 bits of the 48-bit counter. Read with time_low as ONE 48-bit big-endian nanosecond counter, the same split PingMsg uses because the closed codec vocabulary has no 48-bit integer. Measured 8d68 in seq 0x0a/0x27 and 8d69 in seq 0x3c/0x54, and the step between those two halves is what the 3 s gaps predict. |
+| time_low | u32be | 0x04 | measured | known | Low 32 bits of the same counter. The four samples are 0x7b13001a, 0x8141abb4, 0x365cc1e0, 0xe92f11ff and their gaps are 103721882 ns, 3038451244 ns and 3000127519 ns - i.e 0.104 s, 3.038 s, 3.000 s. The two long gaps each span exactly three captured PingMsg records, whose measured period is 1.000 s (nine consecutive gaps between 1.0005 and 1.0019 s), so two independent series agree on the scale. |
+
 ## msg.update — UpdateMsg
 
 - wire 106, S2C
@@ -928,6 +1024,21 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | blob | prefixed_bytes | — | partial | layout-only | prefix-varint; reject if >= 0x201; then raw bytes, max 512. The length prefix is part of prefixed_bytes, so there is no separate length field. |
+
+## msg.voice-chat-service-registered — VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered
+
+- wire 0x1067, S2C
+- kind: message; status: verified; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured d8 c9 c8 af 5e 7a 35 3c = 0xd8c9c8af5e7a353c. First u64 of the shared message head: the sending facet's own local id, the voice-chat client facet. One of the nine per-component ids the 2026-11-09 corpus scan enumerated. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id written big-endian. |
+| api_server_uri | prefixed_string | 0x10 | measured | known | Measured 0x20 (32) then 'https://nwxp.www.vivox.com/api2/'. A plain ASCII URL, read straight off the wire. It is the Vivox API endpoint the client will connect to, and the host matches the 'VivoxApi' host the live endpoint catalogues already hold (nwxp0euc1 variants in research/sessions/.../endpoints_catalog.json). |
+| login_token | prefixed_string | 0x31 | measured | known | Measured 0x0f (15) then 'amazon9050-ne83'. The 'amazon9050-' shape is the same one the live client's own contract records ('Login .amazon9050-ne28.<characterId>+B.'), so this is the account half of a Vivox login. The captured value ends at '-ne83' with no character id, which is why it is called a token here rather than a full login string: the live contract's form has a character id appended that this captured value lacks. |
+| realm | prefixed_string | 0x41 | measured | known | Measured 0x0f (15) then '@nwxp.vivox.com'. The leading '@' and the vivox.com domain make this the REALM that the other Vivox identifiers are addressed on - the live contract writes SIP addresses as 'sip:confctl-d-amazon9050-ne28.<grid>@nwxp0euc1.vivox.com', i.e. '@<realm>' is exactly the suffix role this string plays. This is the third of the three strings, NOT the second: the reader reads object +0x78, then +0x50, then +0x28, and the writer routes +0x78's member to +0x30, +0x50's to +0x58 and +0x28's to +0x80 in its stack block. Both sides therefore agree that the realm comes last. An earlier reading that called this a channel and the empty trailing value a 'send-uri' had the two swapped. |
+| service_flag | bool_byte | 0x51 | measured | layout-only | Measured 0x00. The reader's last step is a single raw byte: it tests object +0x20 against zero and hands the resulting bool to the stream, then calls the state setter FUN_143f41ff0. The writer copies object +0x20 into uVar1 and passes it as the final argument to FUN_143f67570. So this is one byte and one bool, not an empty fourth string - the reader has exactly three string calls, not four. What the bool MEANS is unnamed: only the value 0 has been captured, so calling it 'voice enabled' would be a guess dressed as a name. |
 
 ## sys.movement-authority — Movement authority
 

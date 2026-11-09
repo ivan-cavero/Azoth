@@ -1,0 +1,89 @@
+{
+  "uid": "msg.contracts-on-lookup-contracts-by-participant",
+  "kind": "message",
+  "name": "ContractsComponentClientFacet_OnLookupContractsByParticipant",
+  "aliases": ["wire:0x8e6", "OnLookupContractsByParticipant"],
+  "summary": "The server's answer to ContractsComponentServerFacet_LookupContractsByParticipant (0x9fc). 38-byte body: the shared two-u64 head, then the 16-byte id the request carried as its trailing field, then a 6-byte trailing block that is all zero in the one captured instance. Writer FUN_142da45e0 and reader FUN_142da4680 read exactly these three runs and nothing else, which is what accounts for 16+16+6 = 38 against the 42-byte record.",
+  "purpose": "Return the contracts the requesting participant may look up. The captured instance carries no contract payload at all, so what a non-empty answer looks like is unmeasured; the 6-byte trailing block is the only candidate site for it and is all zero here.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["the server answers a 0x9fc lookup for a participant"],
+    "if_absent": "the contracts lookup the client asked for is never answered"
+  },
+  "wire": { "id": "0x8e6", "direction": "S2C", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint a6 23, i.e. type index 2278 = 0x8e6. fields[] below use BODY offsets, so the first body byte is at 0x00 and the 42-byte record starts 4 bytes earlier.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured 4c 0c 0e d6 47 8a 69 da = 0x4c0c0ed6478a69da. First u64 of the shared message head: the sending facet's own local id. In this direction the sender is the server-side contracts facet, and the value equals the local id the client's own 0x9fc request carried in its head, which is the request/response correlation: same component, same session, one id. The first u64 of the head is named in msg.time-sync-to-client.json from the decompiled writer FUN_1414dbca0 and the registry key FUN_1416c1c40.",
+      "provenance": "measured corpus-wide on 2026-11-09: the head appears in 36 of 138 R records across 10 wire types, one local id per component; 0x8e6 and 0x9fc share 4c0c0ed6478a69da"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id, written big-endian. Read little-endian those eight bytes are 1a954abc4b3185bf, the front half of the actor id ClientAddEntryMsg (0xa4) hands the client.",
+      "provenance": "already earned in msg.time-sync-to-client.json (writer FUN_1414dbca0 via htonl64 FUN_1461668a0); re-measured across 10 wire types"
+    },
+    {
+      "name": "lookup_id",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 16,
+      "type": "bytes(16)",
+      "evidence": "measured",
+      "note": "Measured e1 63 43 70 30 7b 4d 06 a7 2f d9 df 00 5c d9 42. This is the strongest fact in the card: the same 16 bytes are the TRAILING field of the client's own 0x9fc request for this lookup, and they appear nowhere else in the 138-record corpus. So the response echoes an id the request supplied. The decompiled reader FUN_142da4680 carries it as a bare raw run, 16 bytes, from object +0x90, and the generic raw-run primitive names nothing, so the meaning stays unnamed: it may be the looked-up participant rather than the caller, and no measurement distinguishes those. It is NOT the player actor id (that is the head's second u64) and NOT the 0x9fc participant_id (1a954abc4b3185bfbe37c3d8592618e0).",
+      "provenance": "capture: 0x43_T0x8e6_R.bin body[0x10..0x20] vs 0x3b_T0x9fc_W.bin trailing field; cross-referenced in msg.contracts-lookup-contracts-by-participant.json"
+    },
+    {
+      "name": "trailing_block",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x20",
+      "size": 6,
+      "type": "bytes(6)",
+      "evidence": "measured",
+      "note": "Measured 00 00 00 00 00 00 in the one captured instance. The codec that reads it, reached from FUN_142da4680, reads a prefix-varint count and then a small scalar suffix, and six bytes is exactly what the captured record leaves after head and id; but with every byte zero the internal split is not pinned by data, so the field is carried as one fixed 6-byte run rather than as a guessed count plus elements. This is the only site an actual contract payload could occupy, and it is empty here: the captured answer returns nothing.",
+      "provenance": "capture: 0x43_T0x8e6_R.bin body[0x20..0x26], all zero; width pinned by writer FUN_142da45e0 and reader FUN_142da4680 both ending after it"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "consumes", "to": "msg.contracts-lookup-contracts-by-participant" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "re message-names 0x8e6 on build 30fe6461: GUID 8C39E814-EBFF-48DC-9CFC-CDB0080A300F at .rdata 0x1481496f8, entry-match in ClientMessages, record_fn 0x142dd30a0, lambda 0x142d9fc50, thunk 0x142d9fce0, type descriptor 0x14a19aa90. The name is also in aoi-trait-registry.json under the contracts ClientFacet set"
+    },
+    {
+      "type": "decompile",
+      "ref": "codec pair resolved by the name-accessor walk: the object vtable at 0x148149648 has its +0x08 slot pointing at FUN_142da49d0, which is lea rax,[0x1481496b8] (the string 'ContractsComponentClientFacet_OnLookupContractsByParticipant'); ret. Writer slot +0x58 = FUN_142da45e0, reader slot +0x60 = FUN_142da4680"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_142da4680 reads exactly three runs: FUN_1414dbca0() for the 16-byte shared head, the stream raw-write slot +0x40 with length 0x10 into object +0x90, then one call into object +0x30 for the remaining field. Writer FUN_142da45e0 mirrors it. 16+16+6 = 38 body bytes, and the committed 42-byte record reproduces byte for byte"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x43_T0x8e6_R.bin, 42 bytes at seq 0x43: 00 01 a6 23 | head | e1634370307b4d06a72fd9df005cd942 | 000000000000. The client's request 0x3b_T0x9fc_W.bin at seq 0x3b carries the identical 16 bytes as its trailing field, and no other record in the corpus of 177 (138 R) contains that value"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

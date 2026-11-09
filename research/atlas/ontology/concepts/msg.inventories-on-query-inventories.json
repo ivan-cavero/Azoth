@@ -1,0 +1,53 @@
+{
+  "uid": "msg.inventories-on-query-inventories",
+  "kind": "message",
+  "name": "InventoriesComponentClientFacet_OnQueryInventories",
+  "aliases": ["wire:0x16a0", "OnQueryInventories"],
+  "summary": "The inventories facet's answer to a query. Two committed records, 113 and 40912 body bytes. The reader is explicit and gives the shape: shared head, an OPTIONAL nested RequestContext (typeIndex 5828), a u32, a string, a counted vector of 0xa0-byte inventory elements, then a final string. Each 0xa0 element holds a u32, two strings, and two more optional nested service objects. The record's content is item data - 'Gnew-world|...' strings, 'SkinCollection', 'isCollected', 'ItemPool' - and the big record repeats that pattern 428 times over 40 KB. THIS CARD MODELS NO EMITTABLE FIELDS: the nested RequestContext and the two optional service objects inside each element are Javelin service types with their own buses, and their bodies were NOT decoded. Named only so far as measured.",
+  "purpose": "Return the contents of one or more inventories: the inventory's own identity, the item ids, and per-item collection state. What the client DOES with it is not measured; the Rust server cannot encode this message until the nested service types are modelled, because a codec that silently drops 60 bytes of a 40 KB body would look like understanding it.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["the client asks the inventories facet to query its inventories, or the server pushes them"],
+    "if_absent": "the client has no inventory contents. The client logged facet-target dispatch failures for this wire family in the lab, so it is not established that the client binds a target for every arrival"
+  },
+  "wire": { "id": "0x16a0", "direction": "S2C", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint a0 5a, i.e. type index 5792 = 0x16a0. fields[] below use BODY offsets. The two committed records differ only in length: 117 and 40916 record bytes, i.e. 113- and 40912-byte bodies.",
+  "fields": [],
+  "layout_notes": [
+    "Reader FUN_1435f18d0: FUN_1414dbca0() for the shared two-u64 head, then one call to FUN_141726580 for the whole rest of the body, then temporaries unlinked. So the body after offset 0x10 is defined by FUN_141726580 alone.",
+    "FUN_141726580, in wire order: FUN_1415a4920 on object +0x20 (the optional RequestContext); a u32 BE from object +0x18 (FUN_140876e70); a string from object +0x20 (FUN_140876f20); a prefix-varint count (FUN_140877b10) then that many ELEMENTS of stride 0xa0 read by FUN_1415a3ba0 over object +0x10; then a final string from object +0x68.",
+    "FUN_1415a4920 (optional nested record): one presence byte through the stream raw slot +0x40; when it is 1, FUN_1461684f0 writes the nested type and then the object's own vtable +0x20 writes its body. FUN_1461684f0 writes a prefix-varint type index and then 16 raw bytes. Measured type index: 5828 (0x16c4), which re message-names resolves to RequestContext in trait Javelin::InventoryService - consistent with this being an inventory query.",
+    "FUN_1415a3ba0 (one 0xa0 element, iterating an inner vector of stride 0x90 from +0x10): a u32 BE (FUN_140876e70) then TWO strings (FUN_140876f20 at +0x20 and +0x48) then TWO optional nested service objects (FUN_1415a2c70 at +0x70 and +0x80), each a presence byte followed, when 1, by a nested type index, 16 raw bytes and that object's own body.",
+    "NOT DECODED: the RequestContext body and the two optional service bodies inside each element. They are Javelin service types with their own buses, not plain record codecs; the record functions at 0x1416f9540 and 0x1416f8740 both turn out to be per-type registration lambdas, and the object vtable at 0x148044a90 does not carry a plain marshal/unmarshal pair. Resolving them is the next step and needs either a live unmarshal or their own type records walked one by one.",
+    "MEASURED CONTENT, for orientation: the 40912-byte body contains 428 occurrences of 'isCollected', 237 of 'SkinCollection' and 857 of 'Gnew-world|'. The 'G' is the length-prefix byte of 'new-world|...' style strings. Entries read like '<item id><...>SkinCollection<...>isCollected'. The 113-byte body contains 'ItemPool' with a length byte of 8 at body offset 78."
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x148200868, resolved by the name-accessor walk: its +0x08 slot is FUN_1435f1a70 = lea rax,[0x148200910]; ret, returning the string 'InventoriesComponentClientFacet_OnQueryInventories'. Writer slot +0x58 = FUN_1435f17f0, reader slot +0x60 = FUN_1435f18d0"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_1435f18d0 -> FUN_141726580 -> FUN_1415a4920 / FUN_1415a3ba0 / FUN_1415a2c70, all on build 30fe6461. Each was decompiled by explicit range where the auto-picked range collapsed into a neighbour"
+    },
+    {
+      "type": "decompile",
+      "ref": "the nested type writer FUN_1461684f0 was decoded in full: a prefix-varint type index written through FUN_140877b10, and when that index is 0 it instead writes one more prefix varint 0 followed by a 16-byte raw run. So a present nested object is a type index plus a 16-byte identity"
+    },
+    {
+      "type": "atlas",
+      "ref": "re message-names 0x16c4 -> 'RequestContext', trait Javelin::InventoryService, which the atlas's aoi-trait-registry.json lists alongside RequestAware and TransactionContext. That the measured nested type index resolves to an inventory-service type is a second signal for reading this message as an inventory query answer"
+    },
+    {
+      "type": "capture",
+      "ref": "records 0x28_T0x16a0_R.bin (117 bytes) and 0x29_T0x16a0_R.bin (40916 bytes) at seqs 0x28 and 0x29, both with body head 69ceaf9f28443d0d bf85314bbc4a951a. The 40912-byte body holds 428 'isCollected', 237 'SkinCollection' and 857 'Gnew-world|' runs; the 113-byte body holds 'ItemPool' at body offset 79 with length byte 8"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

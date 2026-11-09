@@ -1,0 +1,239 @@
+{
+  "uid": "msg.time-sync-time-change",
+  "kind": "message",
+  "name": "TimeComponentClientFacet_SyncTimeChange",
+  "aliases": ["wire:0x1096", "SyncTimeChange"],
+  "summary": "The time facet's calendar sync. 80-byte record: the shared two-u64 head then FOURTEEN fields in a fixed order - three f32 BE, six u32 BE, one u64 BE, then four more f32 BE. The reader FUN_1469e75e0 is an explicit list of fourteen primitive calls, so the layout is read straight from the code rather than fitted to the sample, and 16 + 60 = 76 body bytes exactly. The values are self-describing: two round numbers (6.0, -1.0), two second counts that are hours (3600, 1800), a HH:MM:SS split (21300 s = 5:55, 65100 s = 18:05), and two doubled phase factors (1/6 twice, 5/6 twice).",
+  "purpose": "Tell the client the world's calendar state: the day/night split, its scale factors, and a time-of-day. What each field is named in the client's own struct is not read here, so the fields are named for what their VALUES measure, not for a decoded symbol.",
+  "authority": "server",
+  "lifecycle": {
+    "created_when": ["the server changes the time facet's calendar state", "alongside SyncDayPhase (0x1097) at world entry"],
+    "if_absent": "the client's calendar never syncs. This message and 0x1097 are what the lab replays as 'input response', and the lab measured that both refresh the client's InGame activity clock; the two emitters gating on a drained replay is what caused the measured 27 s disconnect"
+  },
+  "wire": { "id": "0x1096", "direction": "S2C", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint 96 42, i.e. type index 4246 = 0x1096. fields[] below use BODY offsets, so the first body byte is at 0x00 and the 80-byte record starts 4 bytes earlier.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured 93 a3 e4 77 cb 5f d5 1e = 0x93a3e477cb5fd51e. First u64 of the shared message head: the sending facet's own local id, the TimeComponentClientFacet. The same value appears in 0x1097 and in the client's 0x1098, which is the per-component proof.",
+      "provenance": "msg.time-sync-to-client.json names it from FUN_1416c1c40 and the registration key FUN_14167c560; measured corpus-wide on 2026-11-09"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id written big-endian; little-endian those bytes are 1a954abc4b3185bf.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "horizon_angle",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 4,
+      "endian": "be",
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Measured 40 c0 00 00 = 6.0 exactly. The first of the reader's three leading f32 BE (FUN_140876ea0, the primitive the atlas pinned for 'writes f32 BE' in the Territory batch). It is 6.0, a round number, which is the kind of value a tuned constant takes; the name records the measurement (a 6.0 angle-like scalar that opens the calendar block), not a decoded symbol.",
+      "provenance": "capture: 0x75_T0x1096_R.bin body[0x10..0x14]; decompile: reader FUN_1469e75e0 first f32"
+    },
+    {
+      "name": "scale_a",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x14",
+      "size": 4,
+      "endian": "be",
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Measured bf 80 00 00 = -1.0 exactly. Second of the leading f32 BE. A negative unit is a multiplier with a sign - the only negative in the whole body - but which quantity it scales is unmeasured.",
+      "provenance": "capture: body[0x14..0x18]; decompile: reader second f32"
+    },
+    {
+      "name": "scale_b",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x18",
+      "size": 4,
+      "endian": "be",
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Measured 39 f5 f5 b8 = 0.0004691311623901129, i.e about 1/2131.33. Third and last of the leading f32 BE, and the only non-round value in the leading group. Reading it as a reciprocal places it near the 21300 s second count that follows, so it plausibly relates that count to a normalized unit; that reading is NOT confirmed by any symbol and stays a note.",
+      "provenance": "capture: body[0x18..0x1c]; decompile: reader third f32"
+    },
+    {
+      "name": "day_length_seconds",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x1c",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 00 00 53 34 = 21300. As a duration that is 5 h 55 min, and it is followed by 65100 = 18 h 05 min; the two sum to exactly 86400 = 24 h. A split of one day into a shorter and a longer span, summing to a day, is the calendar reading and it is arithmetic rather than a guess: 21300 + 65100 = 86400 exactly. Which half is day and which is night is not settled by the value alone.",
+      "provenance": "capture: body[0x1c..0x20]; the 86400 identity measured by summing this with day_switch_seconds"
+    },
+    {
+      "name": "day_phase_index",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x20",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 0. Second of the six u32 BE. It matches the value 0x1097 carries in its own day-phase field, but that message reports 2 in this same captured session while this field reports 0, so the two are NOT the same quantity under two names; the coincidence is recorded and NOT used as evidence.",
+      "provenance": "capture: body[0x20..0x24]; compared against 0x76_T0x1097_R.bin body[0x10..0x14] = 00000002"
+    },
+    {
+      "name": "day_switch_seconds",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x24",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 00 00 fe 4c = 65100, i.e 18 h 05 min. It sums with day_length_seconds to exactly 86400 s, which is what makes the pair a day split rather than two unrelated counters.",
+      "provenance": "capture: body[0x24..0x28]; 21300 + 65100 = 86400"
+    },
+    {
+      "name": "hour_seconds",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x28",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 0. Alongside the two constants that follow it, this zero fills out a group of three u32 BE reads between the day split and the phase factors; its meaning is unnamed.",
+      "provenance": "capture: body[0x28..0x2c]; decompile: reader u32 call 4 of 6"
+    },
+    {
+      "name": "seconds_per_hour",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x2c",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 00 00 0e 10 = 3600. Named for what the value IS, not for a decoded symbol: 3600 seconds is one hour, and the field beside it is 1800, half of that. A pair of 3600 and 1800 in a message that also carries two second-counts summing to 86400 is a time-scale group, and 3600/1800 are the only round interpretations of those two integers.",
+      "provenance": "capture: body[0x2c..0x30]; the identity 3600 s = 1 h and 1800 = 3600 / 2"
+    },
+    {
+      "name": "half_hour_seconds",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x30",
+      "size": 4,
+      "endian": "be",
+      "type": "u32be",
+      "evidence": "measured",
+      "note": "Measured 00 00 07 08 = 1800, exactly half of the field before it. Same reading: named for the value (1800 s is half an hour), with no claim about which client symbol holds it.",
+      "provenance": "capture: body[0x30..0x34]; 1800 = 3600 / 2"
+    },
+    {
+      "name": "time_of_day",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x34",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured 0b 87 9f b3 34 82 a0 b7 = 830808248302084279. The reader reads it as one u64 BE through FUN_140877280, the same split writer the shared head uses. The value is about 8.31e17, which is not seconds and not a plausible epoch in any of the 1970/2001/1601 conventions the atlas has already tried, so no time reading is claimed: it is carried as an opaque-width u64 with the byte value recorded.",
+      "provenance": "capture: body[0x34..0x3c]; decompile: reader u64 call (FUN_140877280)"
+    },
+    {
+      "name": "phase_rise_start",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x3c",
+      "size": 4,
+      "endian": "be",
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Measured 3e 2a aa ab = 0.1666666716337204, which is the f32 spelling of 1/6. The first of FOUR trailing f32 BE, and it is immediately repeated.",
+      "provenance": "capture: body[0x3c..0x40]; 1/6 within f32 precision"
+    },
+    {
+      "name": "phase_rise_end",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x40",
+      "size": 4,
+      "endian": "be",
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Measured 3e 2a aa ab, byte-identical to the field before it, so this is the second of a duplicated 1/6 pair. A duplicated value is a bound shared by two edges, not two independent measurements.",
+      "provenance": "capture: body[0x40..0x44]; byte-identical to phase_rise_start"
+    },
+    {
+      "name": "phase_set_pos",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x44",
+      "size": 4,
+      "endian": "be",
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Measured 3f 55 55 55 = 0.8333333134651184, the f32 spelling of 5/6. Third of the four trailing f32 BE, and immediately repeated after it.",
+      "provenance": "capture: body[0x44..0x48]; 5/6 within f32 precision"
+    },
+    {
+      "name": "phase_set_end",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x48",
+      "size": 4,
+      "endian": "be",
+      "type": "f32be",
+      "evidence": "measured",
+      "note": "Measured 3f 55 55 55, byte-identical to the field before it. Last field of the body; the reader returns immediately after it and the 76-byte body has no remainder, which is what closes the layout.",
+      "provenance": "capture: body[0x48..0x4c]; decompile: reader's final FUN_140876ea0 call"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" },
+    { "op": "sibling_of", "to": "msg.time-sync-day-phase" }
+  ],
+  "confidence": "layout",
+  "status": "verified",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x1482fff88, resolved by the name-accessor walk: its +0x08 slot is FUN_144073090 = lea rax,[0x1482ffff8]; ret, returning the string 'TimeComponentClientFacet_SyncTimeChange'. Writer slot +0x58 = FUN_144072f10, reader slot +0x60 = FUN_144072fc0"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_144072fc0 is two steps: FUN_1414dbca0() for the shared head, then one call to FUN_1469e75e0. FUN_1469e75e0 is an explicit fourteen-call list: f32 at +4, f32 at +8, u32 at +0xc, u32 at +0x10, +0x14, +0x18, +0x1c, +0x20, then FUN_140877280 (the u64 BE split writer) at +0x30 through a stack local, then f32 at +0x38, +0x3c, +0x40, +0x44. Fourteen primitives, no loop, no count - the layout is read from the code, not fitted to the sample"
+    },
+    {
+      "type": "decompile",
+      "ref": "writer FUN_144072f10 copies object +0x20..+0x60 into a stack block as six u64, four u32 and one u64 and hands it to FUN_14408d6b0, i.e the same fourteen values in the same order on the send side. Both functions agree field for field, which is the two-independent-signal requirement"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x75_T0x1096_R.bin at seq 0x75, 80 bytes: 00 01 96 42 | 93a3e477cb5fd51e | bf85314bbc4a951a | 40c00000 bf800000 39f5f5b8 00005334 00000000 0000fe4c 00000000 00000e10 00000708 0b879fb33482a0b7 3e2aaaab 3e2aaaab 3f555555 3f555555. Decoded with the reader's exact field order, the fourteen fields consume 60 of the 60 bytes after the head and leave none"
+    },
+    {
+      "type": "atlas",
+      "ref": "the arithmetic cross-checks are internal to this one body and need no external symbol: 21300 + 65100 = 86400 exactly (a day split), 1800 = 3600 / 2, and the duplicated pairs are byte-identical. They are recorded as measurements, and the fields are named for what the values are, never for a client symbol that was not read"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

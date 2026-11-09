@@ -12,21 +12,20 @@
   },
   "wire": { "id": "0xa4", "direction": "S2C", "transport": "rep" },
   "domain_types": ["ActorId"],
-  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 a4 02: the typed envelope, the prefix varint 0xa4, then the byte 0x02.",
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 a4 02. The type marker 00 01, the prefix varint a4 02 = 164 = 0xa4, then the 16-byte id - the record is header plus one GUID and has no other framing byte.",
   "fields": [
     {
       "name": "actor_id",
       "meaning": "known",
       "where": "wire",
-      "offset": "0x04",
+      "offset": "0x00",
       "size": 16,
-      "type": "opaque(actor_id)",
+      "type": "guid16",
       "evidence": "measured",
-      "note": "Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0. This is the strongest cross-check in the whole inventory: the same 16 bytes appear as the spawn record's actor id at payload offset 29,731 and as the pinned ACTOR_ID constant in the deleted azoth-wire crate. Three independent sources, one value.",
-      "provenance": "legacy status=verified evidence=capture"
+      "note": "Measured 1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0, identical in both committed copies (seq 0x08 and seq 0x0f). This is the strongest cross-check in the inventory: the same 16 bytes are the local player's entity id in the state bundle and the pinned ACTOR_ID constant in the deleted azoth-wire crate, and the client's own 0x1098 SyncToClient carries the same value little-endian as local_actor_id_word0 (bf 85 31 4b bc 4a 95 1a), so the byte order this field uses is big-endian and the two records agree on the value.",
+      "provenance": "meanings.md 'The first typed exchange, measured' plus the 0x1098 card's local_actor_id_word0 note"
     }
   ],
-  "legacy": true,
   "relations": [
     { "op": "part_of", "to": "flow.world-entry" }
   ],

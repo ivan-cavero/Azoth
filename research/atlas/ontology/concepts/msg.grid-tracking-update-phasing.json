@@ -3,7 +3,7 @@
   "kind": "message",
   "name": "GridTrackingComponentClientFacet_UpdatePhasing",
   "aliases": ["wire:0x18a6", "msg.periodic-counter"],
-  "summary": "A 40-byte message whose body is identical across its four captured instances except the last byte, which counts 01, 02, 03, 04. It is a phasing update for the grid-tracking component, and it shares its tail envelope with LevelInfoChangedMsg.",
+  "summary": "A 36-byte body: the shared two-u64 message head, then the shared tail envelope, then a per-message discriminator and a sequence counter that counts 01, 02, 03, 04 across its four captured instances. The head is NOT an anonymous id - it is the same local_facet_id + local_actor_id_word0 pair nine other message types carry, and this record's facet id is the GridTrackingComponentClientFacet's own. The tail (01 01 00 00 | session nonce | 65 03 00 00 00 00) is shared with LevelInfoChangedMsg, which is what splits the shared tail from this message's own two trailing bytes.",
   "purpose": "Tell the client which phasing state its grid cell is in. The incrementing final byte is a sequence number, so the record is a periodic refresh rather than a one-off event.",
   "authority": "server",
   "lifecycle": {
@@ -11,65 +11,89 @@
     "if_absent": "unknown; a periodic refresh that stops is the usual cause of a silent disconnect, which is consistent with the lab's observed 10 s drop after silence"
   },
   "wire": { "id": "0x18a6", "direction": "S2C", "transport": "rep" },
-  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 a6 62: the typed envelope plus the prefix varint a6 62 = 0x18a6.",
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): measured 00 01 a6 62, the type marker 00 01 then the wide prefix varint a6 62 = 6310 = 0x18a6 (the low 6 bits of 0xa6 over the low bits of 0x62). fields[] below use BODY offsets, so the first body byte is at body 0x00 and the 40-byte record starts 4 bytes earlier.",
   "fields": [
     {
-      "name": "unresolved_id_at_0x04",
-      "meaning": "layout-only",
+      "name": "local_facet_id",
+      "meaning": "known",
       "where": "wire",
-      "offset": "0x04",
-      "size": 16,
-      "type": "guid16",
-      "evidence": "partial",
-      "note": "Measured f8 cb ed 57 c6 8b 18 f4 bf 85 31 4b bc 4a 95 1a, identical in all four instances. As a GUID with the first three fields little-endian it is 57EDCBF8-8BC6-F418-BF85-314BBC4A951A. It is NOT the player's actor id (1a954abc4b3185bfbe37c3d8592618e0), so it names something else. The message name does not settle it: grid tracking is the component, not the subject.",
-      "provenance": "legacy status=candidate"
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured f8 cb ed 57 c6 8b 18 f4 = 0xf8cbed57c68b18f4, identical in all four instances. First u64 of the shared message head: the sending facet's own local id, i.e. the GridTrackingComponentClientFacet this message is attributed to, which is exactly the facet the decompile evidence names as the sender. It is not the player's actor id (that is the next u64). The earlier card called this a 16-byte 'unresolved_id' and treated it as one opaque run; it is two known u64 and this is the first.",
+      "provenance": "corpus-wide scan of all 138 R records: 36 of them, spanning 10 wire types, carry this same two-u64 head; and the name plus the decompiled writer FUN_1414dbca0 are already earned in msg.time-sync-to-client.json and meanings.md#the-shared-heads-first-u64-is-the-sending-facets-local-id-2026-11-01"
     },
     {
-      "name": "flags_at_0x14",
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, identical in all four instances, and the same u64 across all 36 records that carry the shared head. Second u64 of the head: the first 8 bytes of the client's own actor id. Read little-endian those eight bytes are 1a954abc4b3185bf, the first half of the actor id ClientAddEntryMsg (0xa4) hands the client, so the two byte orders agree on one value and this is the big-endian spelling.",
+      "provenance": "already earned in msg.time-sync-to-client.json (writer FUN_1414dbca0 via htonl64 FUN_1461668a0, reader FUN_14150e670) and meanings.md#the-shared-2-x-u64be-head-recovered-2026-11-01; re-measured here across 10 wire types"
+    },
+    {
+      "name": "tail_flags",
       "meaning": "layout-only",
       "where": "wire",
-      "offset": "0x14",
+      "offset": "0x10",
       "size": 4,
       "type": "u32be",
-      "evidence": "unknown",
-      "note": "Measured 01 01 00 00, the same four bytes that open the level-info tail. Shared envelope, meaning unknown. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
-      "provenance": "legacy status=candidate"
+      "evidence": "measured",
+      "note": "Measured 01 01 00 00, the four bytes that open the tail envelope in every record of both message types that carry it. Big-endian follows the repo rule for fixed-width wire integers; the endianness itself is not measured, and no meaning is claimed - the level-info card names the same four bytes unresolved_u32 and the atlas states they are neither a float nor the struct's four u8.",
+      "provenance": "shared with body 0x4c of LevelInfoChangedMsg (0x663); both instances measured"
     },
     {
       "name": "session_nonce",
       "meaning": "known",
       "where": "wire",
-      "offset": "0x18",
+      "offset": "0x14",
       "size": 8,
+      "endian": "be",
       "type": "u64be",
       "evidence": "partial",
-      "note": "Measured 9c fa 58 61 78 14 69 f2, the SAME value that LevelInfoChangedMsg carries at 0x54. Two different message types sharing a value is the strongest kind of field evidence in this inventory, and the value differs per session rather than per record, which is why it is called a session nonce. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
-      "provenance": "legacy status=verified evidence=capture"
+      "note": "Measured 9c fa 58 61 78 14 69 f2, the SAME value LevelInfoChangedMsg carries at its body 0x50. Two different message types sharing a value is the strongest kind of field evidence in this inventory, and the value differs per session rather than per record, which is why it is called a session nonce. Big-endian inferred from the repo rule; the endianness itself is not measured.",
+      "provenance": "legacy status=verified evidence=capture; cross-measured against 0x10_T0x663_R.bin"
     },
     {
-      "name": "unresolved_tag_at_0x20",
+      "name": "tail_tag",
       "meaning": "layout-only",
       "where": "wire",
-      "offset": "0x20",
+      "offset": "0x1c",
       "size": 6,
-      "type": "opaque(unresolved_tag_at_0x20)",
-      "evidence": "unknown",
-      "note": "Measured 65 03 00 00 00 00, also present at the same place in the level-info tail. 65 03 00 00 is 869 as a little-endian u32, which reads like a version or protocol tag; unproven.",
-      "provenance": "legacy status=candidate"
+      "type": "bytes(6)",
+      "evidence": "measured",
+      "note": "Measured 65 03 00 00 00 00. Front of the six-byte tag this message shares with the level-info tail, carried as a fixed run because the closed vocabulary has no six-byte integer and no interpretation is earned. As a little-endian u32 the leading 65 03 00 00 reads 869, which looks like a version or protocol tag; unproven, so it stays a byte run. This is where the shared tail ENDS: the bytes after it differ between the two messages.",
+      "provenance": "shared with body 0x58 of LevelInfoChangedMsg (0x663), whose bytes(10) unresolved_group covers this tag plus the four flags after it"
+    },
+    {
+      "name": "tail_discriminator",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x22",
+      "size": 1,
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Measured 02 in all four instances, and this is where the shared tail breaks: the level-info record carries 01 at the same position after the identical tag, followed by three more flag bytes and its dedup key. So this byte belongs to this message alone and the earlier card's arithmetic (16+4+8+6+1 = 35) was one byte short of the 36-byte body because it never gave this byte a field. Named for what it measurably does - distinguish this tail from the level-info tail - not for a meaning: only the value 02 has ever been seen.",
+      "provenance": "capture: 0xb/0x38/0x53/0x68_T0x18a6_R.bin after 65 03 00 00 00 00, versus 0x10/0x4d_T0x663_R.bin at the same position"
     },
     {
       "name": "sequence_counter",
       "meaning": "known",
       "where": "wire",
-      "offset": "0x26",
+      "offset": "0x23",
       "size": 1,
       "type": "u8",
       "evidence": "measured",
-      "note": "The last byte of the record. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order. The byte before it is 0x02 in all four instances.",
-      "provenance": "legacy status=verified evidence=capture"
+      "note": "The last byte of the body. Measured 01 at seq 0x0b, 02 at seq 0x38, 03 at seq 0x53, 04 at seq 0x68: it increments once per message, in capture order, and wraps nowhere in the capture. The byte before it is this message's 02 discriminator in all four instances.",
+      "provenance": "capture: the four 0x18a6 records, bodies byte-identical apart from this byte"
     }
   ],
-  "legacy": true,
   "relations": [
     { "op": "part_of", "to": "flow.world-entry" }
   ],
@@ -90,11 +114,15 @@
     },
     {
       "type": "capture",
-      "ref": "records 0xb_T0x18a6_R.bin, 0x38_T0x18a6_R.bin, 0x53_T0x18a6_R.bin and 0x68_T0x18a6_R.bin, 40 bytes each, at seq 0x0b, 0x38, 0x53 and 0x68. Their bodies are byte-identical except the final byte, which is 01, 02, 03, 04 in that order"
+      "ref": "records 0xb_T0x18a6_R.bin, 0x38_T0x18a6_R.bin, 0x53_T0x18a6_R.bin and 0x68_T0x18a6_R.bin, 40 bytes each at seq 0x0b, 0x38, 0x53 and 0x68. Their bodies are byte-identical except the final byte, which is 01, 02, 03, 04 in that order"
     },
     {
       "type": "capture",
-      "ref": "the 8-byte value 9c fa 58 61 78 14 69 f2 sits at offset 0x18 here and at 0x54 in the level-info record 0x10_T0x663_R.bin, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00"
+      "ref": "the shared two-u64 head, measured corpus-wide on 2026-11-09 over all 138 R records: 36 of them, across 10 wire types (0x8e6, 0xca4, 0x1033, 0x1067, 0x1096, 0x1097, 0x136a, 0x16a0, 0x18a6, 0x1b88), carry body[8..16] = bf85314bbc4a951a. No record of any other type carries it. Nine distinct local ids appear across those ten types, one per component, and 0x1096 with 0x1097 share 93a3e477cb5fd51e, which is the per-component proof: one component, one local id, across its messages"
+    },
+    {
+      "type": "capture",
+      "ref": "the shared tail envelope, measured corpus-wide: the 8-byte value 9cfa5861781469f2 appears in exactly six R records, all of type 0x18a6 or 0x663, always preceded by 01 01 00 00 and followed by 65 03 00 00 00 00. After the tag the two families diverge: 0x18a6 carries 02 then its counter, 0x663 carries 01 01 01 00 then its dedup key"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

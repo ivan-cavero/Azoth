@@ -89,7 +89,7 @@
       "endian": "be",
       "type": "u64be",
       "evidence": "partial",
-      "note": "Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at offset 0x18, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
+      "note": "Measured 9c fa 58 61 78 14 69 f2. Upgraded from candidate to verified on 2026-10-25: the SAME 8-byte value appears in the periodic counter message 0x18a6 at its body offset 0x14, after the same four flag bytes 01 01 00 00 and before the same six bytes 65 03 00 00 00 00. Two different message types carrying one value is stronger than any single record's layout, and the value differs per session rather than per record. Big-endian inferred from the repo rule that fixed-width wire integers are big-endian; the endianness itself is not measured.",
       "provenance": "legacy status=verified evidence=capture"
     },
     {
@@ -160,7 +160,7 @@
     },
     {
       "type": "capture",
-      "ref": "cross-message confirmation of the tail envelope: the level-info tail is [01 01 00 00][session nonce][65 03 00 00 00 00][discriminator], and the periodic counter message 0x18a6 carries the identical first three components at its own 0x14/0x18/0x20 before its own discriminator 02 and counter byte"
+      "ref": "cross-message confirmation of the tail envelope: the level-info tail is [01 01 00 00][session nonce][65 03 00 00 00 00][own tail], and the periodic counter message 0x18a6 carries the identical first three components at its own body 0x10/0x14/0x1c before its own discriminator 02 and counter byte. The shared tail therefore ENDS at the six-byte tag; the earlier 0x18a6 card had absorbed this message's [01 01 01 00] and dedup key into it"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

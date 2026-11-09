@@ -432,6 +432,18 @@ exists and its handler still spawns the player, so it belongs to the rung-17 pat
 not to rung 15. The `0xa4` actor-id message is what tells the client WHICH actor it
 is, which is a precondition for that spawn, not the transition itself.
 
+**`0xa4` is byte-order-confirmed against a second record (2026-11-09).** The card
+used to carry its one field as `opaque(actor_id)`, which the codegen gate refuses,
+so `everfall-wire` had no `0xa4` codec at all. The field is a plain 16-byte GUID and
+the vocabulary has `guid16`, so the card now emits `MsgClientAddEntry`. What earned
+that promotion is a cross-check rather than a re-read of the same bytes: the id
+`1a 95 4a bc 4b 31 85 bf be 37 c3 d8 59 26 18 e0` read big-endian is
+`0x1a954abc4b3185bf`, and the client's own `0x1098` `SyncToClient` carries exactly
+that value as its second head u64 `local_actor_id_word0` (`bf85314bbc4a951a` read
+little-endian) - two different records, two different directions, one identity. The
+test `client_add_entry_names_the_same_actor_the_time_sync_does` asserts both
+spellings, so the byte order cannot silently flip.
+
 Three rungs stalled the ladder, each for a different reason, and the reason
 matters more than the status:
 
@@ -1500,6 +1512,17 @@ of rung 15. The world-entry ladder above records that the actor game connection
 reaching state 2 does that, and this record arrives after registration, at the same
 rung, as a notification. Sending it does not substitute for the transport work. And
 the body is empty, so there is no field to name: the whole record is the name.
+
+**In the Rust ladder since 2026-11-09.** `everfall-world`'s plan now carries it as
+`Rung::SpawnPoint`, framed from the wire id alone (`typed_record(0x651, &[])`) because
+a card with no fields has no body to encode. What that establishes is the ORDER, not
+the effect: the record encodes to `00 01 91 19`, which is byte-for-byte what
+`0x7_T0x651_R.bin` holds, and the oracle now places it between the self-identification
+and the level info, exactly where the capture has it (seq `0x07`). It does not
+establish that the client accepts it, and it does not move the client out of rung 15 -
+that is still `[carrier+0xA0] = 2`. Note also that the earlier ladder skipped it: the
+plan went `0x65c` -> `0x663`, so the Rust server sent a sequence the capture never
+does.
 
 ### Method note: the reversed walk
 
@@ -2867,6 +2890,337 @@ found, and the value turned out to be the facet's own registered local id: see
 **The shared head's first u64 is the sending facet's local id** below. It is now
 named `local_facet_id` and marked `meaning: known` in every card that carries the
 head.
+
+## `0x16a0` is measured as far as its nested service types, and stops there (2026-11-09)
+
+`InventoriesComponentClientFacet_OnQueryInventories`. Two committed records, 113- and
+40912-byte bodies. Object vtable `0x148200868` (name accessor `FUN_1435f1a70`,
+writer `FUN_1435f17f0`, reader `FUN_1435f18d0`). Client build `30fe6461...`.
+
+**The shape, from the reader, is unambiguous** - `FUN_1435f18d0` calls
+`FUN_141726580` once for the whole body after the shared head, and that function is
+an explicit list:
+
+```
+shared head                                        16 B
+optional(RequestContext)  presence byte, then      1 + n
+    prefix-varint type index = 5828 (0x16c4)
+    16 raw bytes
+u32 BE
+string
+prefix-varint count + N × 0xa0 inventory elements
+    each element (inner stride 0x90):
+        u32 BE · string · string
+        optional(<service>) · optional(<service>)
+string
+```
+
+**Where it stops.** The nested `RequestContext` and the two optional service
+objects inside each element are **Javelin service types with their own buses**,
+not plain record codecs. `FUN_1461684f0` writes a type index and a 16-byte identity
+and then hands the object to its own vtable; the three candidate record functions
+I walked (`0x1416f9540`, `0x1416f8740`, `0x1416f8140`) all turn out to be
+per-type registration lambdas, and the object vtable at `0x148044a90` carries no
+plain marshal/unmarshal pair. Resolving those bodies needs a live unmarshal or
+walking each type's record separately - a separate task, not this one.
+
+**So the card models no emittable fields, deliberately.** `protocols` states the
+rule plainly: *"If the row says unknown, the Python lab may keep emitting the old
+blob. Rust may not encode that message."* A Rust codec here would have to drop ~60
+bytes at the head of a 40 KB body and still claim to have parsed it - the same
+class of mistake as the old `0x18a6` card, which modelled 35 bytes of a 36-byte
+body and called the leftover unexplained. The card is therefore `field-less`:
+it is neither emitted nor refused, and `lambda_layout` style modelling would have
+been worse than nothing.
+
+**Measured content, for orientation only.** The 40912-byte body holds **428**
+occurrences of `isCollected`, **237** of `SkinCollection` and **857** of
+`Gnew-world|`; entries read like `<item id>...SkinCollection...isCollected`. The
+113-byte body holds `ItemPool` with a length byte of 8 at body offset 78. That is
+the texture of inventory item data, and it is recorded because it says the vector
+is per-item - not because it names a field.
+
+## `0x1033` is two title-id vectors, and the small one is a subset of the big one (2026-11-09)
+
+`SocialComponentClientFacet_ReceiveAvailableTitles`. Body 494 bytes: the shared
+head, then **two** prefix-counted `u32` BE vectors - **109** ids, then **10**.
+Codec pair from object vtable `0x1482d8670` (name accessor `FUN_143eb0b60`,
+writer `FUN_143eb0850`, reader `FUN_143eb0950`). Client build `30fe6461...`;
+record `0x62_T0x1033_R.bin`.
+
+`16 + (1 + 109*4) + (1 + 10*4) = 494` - the whole body, nothing over. Both count
+bytes are single-byte prefix varints (`0x6d` = 109 at body `0x10`, `0x0a` = 10 at
+body `0x1c5`).
+
+**The vector reader is generic and visible.** `FUN_14293d640` computes the count as
+`(end - begin) >> 2`, writes it with `FUN_140877b10`, then loops each element
+through `FUN_140876e70` - the same `u32` BE primitive the atlas pinned for the
+Territory roster vectors. So the codec has a second independent signal; it is not
+inferred from this one sample.
+
+**The measured relation, and why it stops there.** The ten values are a **strict
+subset** of the hundred and nine - all ten occur in the first vector, but in a
+different order (positions 3, 0, 4, 1, 2, 18, 83, 92, 63, 104). A subset written
+out of order is a *selection*, not a parallel list, and that is the whole basis for
+naming the second vector `title_selection_ids`.
+
+What the selection *means* - held now, unlocked, displayed - is **not measured**,
+and the card does not claim it. The client's own member names live in
+runtime-built descriptors (`reverse/AGENTS.md`: "Presence layouts on 1.460 need
+live unmarshal"), and this session did not do that. The bus strings in the
+binary (`RequestAvailableTitles`, `RequestSetTitle`, `GetActiveTitleId`,
+`eTitleType_Character`, `titleMale`, `predecessorIds`) describe the Social
+component's UI vocabulary and a title's own *data* fields - they are not this
+message's two vector members, and using them would have been pasting a
+neighbouring byte string in place of a name.
+
+**The ids are per-account data.** Searches for three of them in `.rdata` return
+zero hits in both byte orders, so they are not constant tables in the binary;
+they come from the server.
+
+## `0x1067` hands the client its Vivox credentials, and the field order was wrong (2026-11-09)
+
+`VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered`. The body is 82 bytes:
+the shared head, then **three** prefix-counted ASCII strings, then **one byte**.
+Codec pair from object vtable `0x1482e38e0` (name accessor `FUN_143f2c280`,
+writer `FUN_143f2be50`, reader `FUN_143f2be80`). Client build `30fe6461...`;
+record `0x65_T0x1067_R.bin`.
+
+| # | offset | value | what it is |
+| --- | --- | --- | --- |
+| 1 | `0x10` | `https://nwxp.www.vivox.com/api2/` | Vivox API server |
+| 2 | `0x31` | `amazon9050-ne83` | login token |
+| 3 | `0x41` | `@nwxp.vivox.com` | **realm** |
+| 4 | `0x51` | `00` | one bool byte |
+
+`16 + (1+32) + (1+15) + (1+15) + 1 = 82`, which is the whole body and leaves
+nothing over. These are plain ASCII, so unlike an `Opaque` run they can be
+asserted as *values* in the test, not merely as widths.
+
+**The correction.** A reading in circulation had this as `api-server`,
+`achannel` (the realm string), `send-uri` (the empty value). Two things wrong:
+
+- `@nwxp.vivox.com` is the **realm**, and it is the **third** string. The reader
+  calls `FUN_140876f20` three times - from object `+0x78`, then `+0x50`, then
+  `+0x28` - and the writer independently routes the `+0x28` member to the third
+  stack block via `FUN_1402b0720`. Both sides agree the realm is last.
+- The trailing empty value is **not a string at all**. The reader's fourth step
+  is a single raw byte (`object +0x20` tested against zero, written through the
+  stream raw slot `+0x40`) and the writer passes the same byte as the fifth
+  argument to `FUN_143f67570`. There are three string calls, not four.
+
+**Where the names come from.** `research/docs/CLIENT_CONTRACT.md` already
+documents the live wording: `Login .amazon9050-ne28.<characterId>+B.` and
+`SIP sip:confctl-d-amazon9050-ne28.<grid>@nwxp0euc1.vivox.com`. The captured
+token's `amazon9050-` prefix and the realm's `@<domain>` role both line up with
+that, which is the second signal for both names. The captured token lacks the
+character id the live form appends, so the card says *token*, not *login string*.
+
+**Named only as far as measured.** `service_flag` is `layout-only`: one byte, value
+`0`, and the reader hands it to a state setter. Calling it "voice enabled" would
+be a guess wearing a name, so the card does not.
+
+## `0x1b88` is one empty broadcast repeated 23 times - and the count matches the dispatch failures (2026-11-09)
+
+`GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`. The corpus holds 23
+records of this wire and **all 23 are byte-identical**. Client build
+`30fe6461...`; codec pair from object vtable `0x1481385c0` (name accessor
+`FUN_142cd2140` -> `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`,
+writer `FUN_142cd1e00`, reader `FUN_142cd1f00`).
+
+**The reader's shape fixes the width, and the arithmetic lands exactly.** In wire
+order: the shared head (16), one raw 16-byte transfer into object `+0x60`, then
+`FUN_140877b10` writing a prefix-varint count, the element loop over a vector at
+`+0x38..+0x40` with stride `0x18`, then a `u32` BE at `+0x34`, then one raw byte
+from `+0x30`. With **count 0** that is `1 + 0 + 4 + 1 = 6` bytes, so the body is
+`16 + 16 + 6 = 38` - which is the measured width exactly. Every tail byte is zero
+because the list is empty, not because the layout is unknown.
+
+**A cross-direction confirmation.** The head's first `u64` is
+`0xe2640b7ce5408036`, and the atlas had already pinned that value as the
+global-storage facet from the **client-to-server** `0x183` record. The two
+directions naming the same component is the strongest available check that this
+head field is per-component identity and not payload.
+
+**The thing worth acting on.** `client-functions.json` records that in run
+`exitval-194552` the client logged **23** `facet target ID couldn't be found`
+errors for `GlobalStorageComponentClientFacet_ReceiveStorageSearchItems`
+(wire 7048). The capture carries **exactly 23** records of this wire. This message
+also carries a 16-byte id that is **all zero** in every sample - and a zero target
+id cannot dispatch anywhere. Same count, same wire, zero target.
+
+That is a correlation, not a cause: the lab's 23 errors could be the 23 repeats
+failing for some other reason. But it is the first concrete candidate for why the
+lab's own replay produces facet-target errors on a wire the real capture also
+sends, and it is stated as a candidate in the card's evidence block.
+
+**Not modelled:** the `0x18`-byte element layout a non-empty list would use. No
+sample has ever carried one, so there is nothing to measure and the card carries
+the empty tail as a fixed six-byte run rather than inventing a vector.
+
+## The time facet's two syncs, `0x1096` and `0x1097`, decoded from the reader (2026-11-09)
+
+Both are messages of ONE component, so both carry `93a3e477cb5fd51e` in the head's
+first u64 - the same id `0x1098` carries. That is the per-component identity rule
+again, and here it is checkable inside a single session. Client build
+`30fe6461...`; records `0x75_T0x1096_R.bin` (80 B) and `0x76_T0x1097_R.bin` (24 B)
+at adjacent seqs.
+
+**Codec pairs.** Two object vtables, each resolved by the name-accessor walk
+(the `+0x08` slot must `lea` the exact `re message-names` string):
+
+| wire | object vtable | name accessor | writer | reader |
+| --- | --- | --- | --- | --- |
+| `0x1096` | `0x1482fff88` | `0x144073090` | `FUN_144072f10` | `FUN_144072fc0` |
+| `0x1097` | `0x1482feed8` | `0x14406f530` | `FUN_14406f4b0` | `FUN_1426d64f0` |
+
+**`0x1097` is head + one `u32`.** Its reader is five instructions: the shared head,
+then object `+0x20` through the generic `u32` BE primitive `FUN_140876e70`. Nothing
+else. 16 + 4 = 20 body bytes, and the 24-byte record is that plus the typed
+header. Worth flagging: **this is the same reader the atlas already recorded for
+`0xad4 RequestRoster` and `0xad3 RequestSignupCount`** - one codec slot serving
+three unrelated messages is an independent check that "head + `u32`" is the
+layout and not a coincidence of this record.
+
+**`0x1096` is fourteen fields, read from the code, not fitted to the sample.**
+`FUN_144072fc0` is head + one call to `FUN_1469e75e0`, and that function is an
+explicit fourteen-call list with no loop and no count: three `f32` BE, six `u32`
+BE, one `u64` BE through the split writer `FUN_140877280`, then four `f32` BE. The
+writer `FUN_144072f10` copies object `+0x20..+0x60` in the same order. Decoded with
+that order the fields consume **60 of the 60 bytes** after the head and leave none,
+which is what makes the layout read rather than chosen.
+
+What the values are, and where naming stops:
+
+| field | value | the measurement |
+| --- | --- | --- |
+| `horizon_angle` | `6.0` | round number, opens the block |
+| `scale_a` | `-1.0` | the only negative in the body |
+| `scale_b` | `~0.000469` | ≈ 1/2131.33, the only non-round leading value |
+| `day_length_seconds` | `21300` | 5 h 55 min |
+| `day_switch_seconds` | `65100` | 18 h 05 min |
+| `seconds_per_hour` | `3600` | one hour |
+| `half_hour_seconds` | `1800` | `3600 / 2` |
+| `phase_rise_*` | `1/6`, twice | byte-identical pair |
+| `phase_set_*` | `5/6`, twice | byte-identical pair |
+
+`21300 + 65100 = 86400` **exactly**. That sum is the whole argument for the
+calendar reading: one day split into two spans that add up to a day, with an hour
+and a half-hour sitting between them and two phase fractions bracketing the pair.
+It is arithmetic on this one body, needing no external symbol - and it is exactly
+as far as the naming goes. The two fields named `seconds_per_hour` and
+`half_hour_seconds` are named for **what the value is**, never for a client
+struct member that was not read.
+
+**And one worry that the data killed.** `day_phase_index` is `0` here, and `0x1097`
+reports `2` in the same session, so those two are NOT the same quantity under two
+names. Worth recording because the tempting reading - "`0x1096` carries the day
+phase too" - is false, and the two messages only look alike.
+
+**Why this pair matters operationally.** The lab calls these two its "input
+response": it replays them as the reply to the client's channel-1 stream, and both
+refresh the client's InGame activity clock (they are not singletons, so the typed
+dispatcher stamps the clock on them). The measured 27 s disconnect came from the
+emitters gating on a drained replay, so the pair is the keep-alive, not decoration.
+Rust now has a codec for both for the first time.
+
+## `0x8e6` is the answer to `0x9fc`, and it echoes the request's trailing id (2026-11-09)
+
+The Contracts family is the one genuinely request/response pair in the inventory,
+and this is its response side, now decoded end to end. Client build
+`30fe6461...`; record `0x43_T0x8e6_R.bin`, 42 bytes at seq `0x43`.
+
+**Codec pair.** The object vtable at `0x148149648` carries its `+0x08` slot as
+`FUN_142da49d0` = `lea rax,[0x1481496b8]; ret`, which returns the string
+`ContractsComponentClientFacet_OnLookupContractsByParticipant`; the walk that
+accepts a vtable only when its name accessor equals the `re message-names` string
+is the same calibration used for the Territory batch. Writer `FUN_142da45e0`,
+reader `FUN_142da4680`, and both read exactly three runs:
+
+| offset | width | what |
+| --- | --- | --- |
+| `0x00` | 16 B | shared head (`FUN_1414dbca0`) |
+| `0x10` | 16 B | raw run at object `+0x90` (stream slot `+0x40`, length `0x10`) |
+| `0x20` | 6 B | the trailing block, all zero in the one sample |
+
+16 + 16 + 6 = 38 body bytes, and the record's 42 bytes are those plus the 4-byte
+typed header. Nothing is left over.
+
+**The correlation, measured.** The 16 bytes at `0x10` are
+`e1634370307b4d06a72fd9df005cd942`, and that **exact** value is the *trailing*
+field of the client's own `0x9fc` request at seq `0x3b` — the request that names
+this operation. A scan of all 177 records (138 R) finds that value in those two
+records and nowhere else. The two messages also carry the same `local_facet_id`,
+`4c0c0ed6478a69da`. So the answer is addressed to the same contracts facet the
+request came from, and it carries an id the request supplied. The card keeps the
+field `layout-only`: "the request's id" is measured, but whether it names the
+looked-up participant or the caller is not, and no capture distinguishes them.
+
+**The answer is empty.** The trailing block is six zero bytes, and it is the only
+site a contract payload could occupy, so the captured reply returns no contracts.
+What a non-empty reply looks like is unmeasured; the internal split of the six
+bytes is left as a fixed run rather than a guessed `count + elements`.
+
+**The sibling caller.** `FUN_142da4680` has one other caller of its 6-byte codec,
+`FUN_142da18c0`, which reads the identical head + 16-byte run + trailing block
+against a different object offset (`+0x30` vs the same `+0x30`). Two messages
+sharing one codec shape is a second signal that the three-run layout is the
+message, not this one record.
+
+## The head and the tail are both corpus-wide, and `0x18a6` was hiding behind them (2026-11-09)
+
+The head had been proven on six C2S wires carrying 14 committed bodies. Scanned
+across the whole replay instead, it is the majority head on the **server-to-client**
+side too, and it settles the one field the `0x18a6` card had carried as
+`opaque`. Client build `30fe6461...`; measurement over all **138 R records** in
+`services/world/replay/messages-redacted.txt`.
+
+**The head: 36 of 138 R records, 10 wire types, one actor u64.** Body
+`[8..16]` is `bf85314bbc4a951a` in exactly 36 records, and in no record of any
+other type:
+
+| wire | records | `local_facet_id` | component |
+| --- | --- | --- | --- |
+| `0x8e6` | 1 | `4c0c0ed6478a69da` | contracts |
+| `0xca4` | 1 | `a0b45ffbd9b3264b` | — |
+| `0x1033` | 1 | `ce81136a2b7ad33e` | social |
+| `0x1067` | 1 | `d8c9c8af5e7a353c` | voice chat |
+| `0x1096` | 1 | `93a3e477cb5fd51e` | time (`SyncTimeChange`) |
+| `0x1097` | 1 | `93a3e477cb5fd51e` | time (`SyncDayPhase`) |
+| `0x136a` | 1 | `4d6b64a4c7da53fa` | — |
+| `0x16a0` | 2 | `69ceaf9f28443d0d` | inventories |
+| `0x18a6` | 4 | `f8cbed57c68b18f4` | grid tracking |
+| `0x1b88` | 23 | `e2640b7ce5408036` | global storage |
+
+That table is the per-component proof the C2S sample could only suggest: **nine
+localhost ids across ten wires, and the two time messages share one** — one
+component, one local id, however many of its messages cross the wire. Note
+`0xe2640b7ce5408036`, which the `0x183` card had already pinned as the
+global-storage facet's id from a C2S record: the two directions agree.
+
+**What this corrects.** `msg.grid-tracking-update-phasing` had modelled its
+first 16 bytes as one `opaque(actor_id)`-style run named
+`unresolved_id_at_0x04` and called it a GUID. It is two known `u64be`, and
+the first one is not anonymous at all: it is the id of the very facet the
+decompile names as the sender, `GridTrackingComponentClientFacet`. The
+"unresolved" id was the most-named structure in the inventory.
+
+**The tail: 6 of 138 R records, 2 wire types, and it stops after the tag.**
+The 8-byte `9cfa5861781469f2` appears in exactly six records — four `0x18a6`
+and two `0x663` — always preceded by `01010000` and followed by
+`650300000000`. After that tag the two families diverge:
+
+| wire | after `65 03 00 00 00 00` | field |
+| --- | --- | --- |
+| `0x18a6` | `02` then the counter | own discriminator, own counter |
+| `0x663` | `01 01 01 00` then `000000c17f9be48f` | its trailing flags, its dedup key |
+
+So the shared envelope is exactly `flags | nonce | tag`, eleven bytes short
+of what the old `0x18a6` card modelled: it had absorbed the level-info tail
+into the shared tail and had one byte left over. The card's arithmetic
+`16+4+8+6+1 = 35` against a 36-byte body was the tell — the missing byte is
+`0x18a6`'s own `02` discriminator, which the level-info record answers with
+`01`. `0x18a6` is now codegen-ready and round-trips all four records.
 
 ## The shared head's first u64 is the sending facet's local id (2026-11-01)
 
