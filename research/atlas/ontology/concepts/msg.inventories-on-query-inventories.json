@@ -7,10 +7,16 @@
   "purpose": "Return the contents of one or more inventories: the inventory's own identity, the item ids, and per-item collection state. What the client DOES with it is not measured; the Rust server cannot encode this message until the nested service types are modelled, because a codec that silently drops 60 bytes of a 40 KB body would look like understanding it.",
   "authority": "server",
   "lifecycle": {
-    "created_when": ["the client asks the inventories facet to query its inventories, or the server pushes them"],
+    "created_when": [
+      "the client asks the inventories facet to query its inventories, or the server pushes them"
+    ],
     "if_absent": "the client has no inventory contents. The client logged facet-target dispatch failures for this wire family in the lab, so it is not established that the client binds a target for every arrival"
   },
-  "wire": { "id": "0x16a0", "direction": "S2C", "transport": "rep" },
+  "wire": {
+    "id": "0x16a0",
+    "direction": "S2C",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint a0 5a, i.e. type index 5792 = 0x16a0. fields[] below use BODY offsets. The two committed records differ only in length: 117 and 40916 record bytes, i.e. 113- and 40912-byte bodies.",
   "fields": [],
   "layout_notes": [
@@ -22,18 +28,21 @@
     "MEASURED CONTENT, for orientation: the 40912-byte body contains 428 occurrences of 'isCollected', 237 of 'SkinCollection' and 857 of 'Gnew-world|'. The 'G' is the length-prefix byte of 'new-world|...' style strings. Entries read like '<item id><...>SkinCollection<...>isCollected'. The 113-byte body contains 'ItemPool' with a length byte of 8 at body offset 78."
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x148200868, resolved by the name-accessor walk: its +0x08 slot is FUN_1435f1a70 = lea rax,[0x148200910]; ret, returning the string 'InventoriesComponentClientFacet_OnQueryInventories'. Writer slot +0x58 = FUN_1435f17f0, reader slot +0x60 = FUN_1435f18d0"
+      "ref": "object vtable 0x148200868, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_1435f17f0 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_1435f18d0 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_1435f1970 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_1435f18d0 -> FUN_141726580 -> FUN_1415a4920 / FUN_1415a3ba0 / FUN_1415a2c70, all on build 30fe6461. Each was decompiled by explicit range where the auto-picked range collapsed into a neighbour"
+      "ref": "writer FUN_1435f18d0 -> FUN_141726580 -> FUN_1415a4920 / FUN_1415a3ba0 / FUN_1415a2c70, all on build 30fe6461. Each was decompiled by explicit range where the auto-picked range collapsed into a neighbour"
     },
     {
       "type": "decompile",
@@ -49,5 +58,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

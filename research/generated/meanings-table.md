@@ -739,7 +739,7 @@
 | --- | --- | --- | --- | --- | --- |
 | local_facet_id | u64be | 0x00 | measured | known | Measured db 84 a5 d6 31 d9 b3 3a = 0xdb84a5d631d9b33a. First u64 of the shared message head: the sending facet's own local id, the chat client facet. It is NOT the social facet's ce81136a2b7ad33e, so chat and social are separate components even though both deal with text. |
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
-| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes `*(char *)(param_1 + 0x20) != '\0'` as ONE byte, and its decode side FUN_1425a30b0 rejects any byte >= 2 - so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for its role (an on/off setting named by the message type) and not for an observed behaviour. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes `*(char *)(param_1 + 0x20) != '\0'` as ONE byte, and its reader FUN_1425a30b0 rejects any byte >= 2 - so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for its role (an on/off setting named by the message type) and not for an observed behaviour. |
 
 ## msg.client-add-entry — ClientAddEntryMsg
 
@@ -847,7 +847,7 @@
 | --- | --- | --- | --- | --- | --- |
 | local_facet_id | u64be | 0x00 | measured | known | Measured 16 00 99 18 b0 41 c1 f9 = 0x16009918b041c1f9. First u64 of the shared message head: the sending facet's own local id. The mount client facet's own id, shared with 0x187f - the two mount toggles are two members of one facet. |
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
-| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its reader FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
 
 ## msg.mount-slow-walk-changed — MountComponentServerFacet_OnMountSlowWalkChanged
 
@@ -859,7 +859,7 @@
 | --- | --- | --- | --- | --- | --- |
 | local_facet_id | u64be | 0x00 | measured | known | Measured 16 00 99 18 b0 41 c1 f9 = 0x16009918b041c1f9. First u64 of the shared message head: the sending facet's own local id. The mount client facet's own id, shared with 0x187c. |
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
-| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its reader FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
 
 ## msg.objectives-notify-open-ui-screen — ObjectivesComponentServerFacet_NotifyOpenUiScreen
 
@@ -1048,7 +1048,7 @@
 | --- | --- | --- | --- | --- | --- |
 | local_facet_id | u64be | 0x00 | measured | known | Measured 95 a5 a8 0a a5 42 88 d1 = 0x95a5a80aa54288d1. First u64 of the shared message head: the sending facet's own local id. One of the per-component facet ids; it appears on this wire only. |
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
-| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its reader FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
 
 ## msg.territory-detector-attempt-territory-unlock — TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock
 
@@ -1076,7 +1076,7 @@
 | --- | --- | --- | --- | --- | --- |
 | local_facet_id | u64be | 0x00 | measured | known | Measured 93 a3 e4 77 cb 5f d5 1e = 0x93a3e477cb5fd51e. First u64 of the shared message head: the sending facet's own local id, which here is the TimeComponentClientFacet. The SAME value appears in 0x1096, in the client's 0x1098 SyncToClient, and in the client's 0x1096/0x1097 request direction, which is the per-component proof: one component, one local id. |
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a. Second u64 of the shared head: the first 8 bytes of the client's own actor id, written big-endian. Read little-endian those bytes are 1a954abc4b3185bf, the front half of the actor id ClientAddEntryMsg (0xa4) hands the client. |
-| day_phase | u32be | 0x10 | measured | layout-only | Measured 00 00 00 02. The reader FUN_1426d64f0 copies object +0x20 through the generic u32 BE primitive FUN_140876e70 after the shared head, and the writer FUN_14406f4b0 copies the same slot back; both stop there. The same primitive FUN_140876e70 is the one the atlas already pinned as 'writes u32 BE' for the Territory batch, so the codec is a second, independent confirmation and not a guess. Only the value 2 has ever been seen, so the phase names stay unnamed and the field is carried as u32be rather than a named enum. |
+| day_phase | u32be | 0x10 | measured | layout-only | Measured 00 00 00 02. The writer FUN_1426d64f0 copies object +0x20 through the generic u32 BE primitive FUN_140876e70 after the shared head, and the reader FUN_1426d6530 reads the same one u32 back; both stop there. The same primitive FUN_140876e70 is the one the atlas already pinned as 'writes u32 BE' for the Territory batch, so the codec is a second, independent confirmation and not a guess. Only the value 2 has ever been seen, so the phase names stay unnamed and the field is carried as u32be rather than a named enum. |
 
 ## msg.time-sync-time-change — TimeComponentClientFacet_SyncTimeChange
 
@@ -1136,7 +1136,7 @@
 | --- | --- | --- | --- | --- | --- |
 | local_facet_id | u64be | 0x00 | measured | known | Measured 28 8c 27 b1 a6 be 71 cc = 0x288c27b1a6be71cc. First u64 of the shared message head: the sending facet's own local id. The traversal client facet's own id. |
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
-| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its reader FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
 
 ## msg.update — UpdateMsg
 

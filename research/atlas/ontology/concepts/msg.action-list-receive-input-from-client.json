@@ -7,10 +7,16 @@
   "purpose": "Carry the client's per-frame input state: camera pitch, camera yaw, world x and world y, per the movement block the atlas already decoded at 1.460 from the same type on the same channel. The Rust server must DECODE this; it never authors it. What the client expects the server to do with each frame is not measured.",
   "authority": "client",
   "lifecycle": {
-    "created_when": ["every input tick while the client has a live player - it is fire-and-forget, flags 0x20, and does not wait for an ACK"],
+    "created_when": [
+      "every input tick while the client has a live player - it is fire-and-forget, flags 0x20, and does not wait for an ACK"
+    ],
     "if_absent": "the server has no client input and cannot predict or validate movement. The atlas measured a red ALC cable when input is not answered, so absence is visible to the player"
   },
-  "wire": { "id": "0x635", "direction": "C2S", "transport": "rep" },
+  "wire": {
+    "id": "0x635",
+    "direction": "C2S",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 b5 18, i.e. type index 1589 = 0x635. A client channel-1 record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so the 65-byte body of the smallest record begins at byte 28 of a 93-byte record. Corpus direction is W for this type, which is client-to-server across the whole corpus (all 5 records are W).",
   "fields": [
     {
@@ -94,18 +100,21 @@
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x14838bb08, resolved by the name-accessor walk: its +0x08 slot is FUN_144868ba0 = lea rax,[0x14838bb80]; ret, returning the string 'ActionListComponentServerFacet_ReceiveInputFromClient'. Writer slot +0x58 = FUN_144868a90, reader slot +0x60 = FUN_144868ac0"
+      "ref": "object vtable 0x14838bb08, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_144868a90 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_144868ac0 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_144868b00 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_144868ac0 is two steps: FUN_1414dbca0() for the shared two-u64 head, then FUN_144869020 on object +0x30. FUN_144869020 calls FUN_142a28f30, which writes a count byte through FUN_140876e10 and then walks N 0x490-byte elements through FUN_142a26320"
+      "ref": "writer FUN_144868ac0 is two steps: FUN_1414dbca0() for the shared two-u64 head, then FUN_144869020 on object +0x30. FUN_144869020 calls FUN_142a28f30, which writes a count byte through FUN_140876e10 and then walks N 0x490-byte elements through FUN_142a26320"
     },
     {
       "type": "decompile",
@@ -121,5 +130,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

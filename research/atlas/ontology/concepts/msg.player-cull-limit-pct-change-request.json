@@ -7,10 +7,16 @@
   "purpose": "Set the client's cull limit percentage: the view distance or cull threshold the game applies to what it draws. The captured 100 is the maximum of a percentage, so the capture alone cannot distinguish a percentage from a raw count; the reader's single byte plus the name's 'Pct' is what makes percent the reading.",
   "authority": "client",
   "lifecycle": {
-    "created_when": ["the client's player component requests a cull-limit change - a settings or options path"],
+    "created_when": [
+      "the client's player component requests a cull-limit change - a settings or options path"
+    ],
     "if_absent": "the server never receives a cull-limit request. The capture holds one, at seq 0x63, so it is a normal ladder-adjacent record and not a rare path"
   },
-  "wire": { "id": "0xf7f", "direction": "C2S", "transport": "rep" },
+  "wire": {
+    "id": "0xf7f",
+    "direction": "C2S",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 bf 3d, i.e. type index 3967 = 0xf7f. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 17-byte body makes a 45-byte record.",
   "fields": [
     {
@@ -46,22 +52,25 @@
       "type": "u8",
       "evidence": "measured",
       "note": "Measured 0x64 = 100, which is the body's last byte and leaves nothing over: 16 + 1 = 17 exactly. The reader is a single FUN_140876e10 write of the byte at object +0x20, so the width is read from the codec and not only from the sample. Carried as u8 rather than percent(...) because the vocabulary has no percentage type and because only the value 100 was captured - a percent reading is consistent with the name but not falsified by the bytes.",
-      "provenance": "decompile: reader FUN_142746100 - FUN_1414dbca0() then one raw byte write through FUN_140876e10 from +0x20; capture: 0x63_T0xf7f_W.bin last body byte"
+      "provenance": "decompile: writer FUN_142746100 - FUN_1414dbca0() then one raw byte write through FUN_140876e10 from +0x20; capture: 0x63_T0xf7f_W.bin last body byte"
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x14851cdd8, resolved by the name-accessor walk: its +0x08 slot is FUN_146576500 = lea rax,[0x14851cf70]; ret, returning the string 'PlayerComponentServerFacet_OnCullLimitPctChangeRequest'. Reader slot +0x60 = FUN_142746100, writer slot +0x58 = FUN_146565dc0"
+      "ref": "object vtable 0x14851cdd8, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_146565dc0 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_142746100 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_146575f80 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_142746100 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single raw byte write FUN_140876e10 from object +0x20. No count, no string, no second field - so the body is head plus one byte and the card's 17 bytes are exact"
+      "ref": "writer FUN_142746100 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single raw byte write FUN_140876e10 from object +0x20. No count, no string, no second field - so the body is head plus one byte and the card's 17 bytes are exact"
     },
     {
       "type": "capture",
@@ -69,5 +78,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

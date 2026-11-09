@@ -3,14 +3,21 @@
   "kind": "message",
   "name": "TimeComponentClientFacet_SyncTimeChange",
   "aliases": ["wire:0x1096", "SyncTimeChange"],
-  "summary": "The time facet's calendar sync. 80-byte record: the shared two-u64 head then FOURTEEN fields in a fixed order - three f32 BE, six u32 BE, one u64 BE, then four more f32 BE. The reader FUN_1469e75e0 is an explicit list of fourteen primitive calls, so the layout is read straight from the code rather than fitted to the sample, and 16 + 60 = 76 body bytes exactly. The values are self-describing: two round numbers (6.0, -1.0), two second counts that are hours (3600, 1800), a HH:MM:SS split (21300 s = 5:55, 65100 s = 18:05), and two doubled phase factors (1/6 twice, 5/6 twice).",
+  "summary": "The time facet's calendar sync. 80-byte record: the shared two-u64 head then FOURTEEN fields in a fixed order - three f32 BE, six u32 BE, one u64 BE, then four more f32 BE. The writer FUN_144072fc0 delegates to FUN_1469e75e0, an explicit list of fourteen primitive calls, so the layout is read straight from the code rather than fitted to the sample, and 16 + 60 = 76 body bytes exactly. The values are self-describing: two round numbers (6.0, -1.0), two second counts that are hours (3600, 1800), a HH:MM:SS split (21300 s = 5:55, 65100 s = 18:05), and two doubled phase factors (1/6 twice, 5/6 twice).",
   "purpose": "Tell the client the world's calendar state: the day/night split, its scale factors, and a time-of-day. What each field is named in the client's own struct is not read here, so the fields are named for what their VALUES measure, not for a decoded symbol.",
   "authority": "server",
   "lifecycle": {
-    "created_when": ["the server changes the time facet's calendar state", "alongside SyncDayPhase (0x1097) at world entry"],
+    "created_when": [
+      "the server changes the time facet's calendar state",
+      "alongside SyncDayPhase (0x1097) at world entry"
+    ],
     "if_absent": "the client's calendar never syncs. This message and 0x1097 are what the lab replays as 'input response', and the lab measured that both refresh the client's InGame activity clock; the two emitters gating on a drained replay is what caused the measured 27 s disconnect"
   },
-  "wire": { "id": "0x1096", "direction": "S2C", "transport": "rep" },
+  "wire": {
+    "id": "0x1096",
+    "direction": "S2C",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint 96 42, i.e. type index 4246 = 0x1096. fields[] below use BODY offsets, so the first body byte is at 0x00 and the 80-byte record starts 4 bytes earlier.",
   "fields": [
     {
@@ -207,23 +214,29 @@
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" },
-    { "op": "sibling_of", "to": "msg.time-sync-day-phase" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    },
+    {
+      "op": "sibling_of",
+      "to": "msg.time-sync-day-phase"
+    }
   ],
   "confidence": "layout",
   "status": "verified",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x1482fff88, resolved by the name-accessor walk: its +0x08 slot is FUN_144073090 = lea rax,[0x1482ffff8]; ret, returning the string 'TimeComponentClientFacet_SyncTimeChange'. Writer slot +0x58 = FUN_144072f10, reader slot +0x60 = FUN_144072fc0"
+      "ref": "object vtable 0x1482fff88, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_144072f10 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_144072fc0 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_144073000 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_144072fc0 is two steps: FUN_1414dbca0() for the shared head, then one call to FUN_1469e75e0. FUN_1469e75e0 is an explicit fourteen-call list: f32 at +4, f32 at +8, u32 at +0xc, u32 at +0x10, +0x14, +0x18, +0x1c, +0x20, then FUN_140877280 (the u64 BE split writer) at +0x30 through a stack local, then f32 at +0x38, +0x3c, +0x40, +0x44. Fourteen primitives, no loop, no count - the layout is read from the code, not fitted to the sample"
+      "ref": "writer FUN_144072fc0 is two steps: FUN_1414dbca0() for the shared head, then one call to FUN_1469e75e0. FUN_1469e75e0 is an explicit fourteen-call list: f32 at +4, f32 at +8, u32 at +0xc, u32 at +0x10, +0x14, +0x18, +0x1c, +0x20, then FUN_140877280 (the u64 BE split writer) at +0x30 through a stack local, then f32 at +0x38, +0x3c, +0x40, +0x44. Fourteen primitives, no loop, no count - the layout is read from the code, not fitted to the sample"
     },
     {
       "type": "decompile",
-      "ref": "writer FUN_144072f10 copies object +0x20..+0x60 into a stack block as six u64, four u32 and one u64 and hands it to FUN_14408d6b0, i.e the same fourteen values in the same order on the send side. Both functions agree field for field, which is the two-independent-signal requirement"
+      "ref": "apply FUN_144072f10 copies object +0x20..+0x60 into a stack block as six u64, four u32 and one u64 and hands it to FUN_14408d6b0, i.e the same fourteen values in the same order on the send side. Both functions agree field for field, which is the two-independent-signal requirement"
     },
     {
       "type": "capture",
@@ -235,5 +248,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

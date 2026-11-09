@@ -10,7 +10,11 @@
     "created_when": ["the social component asks for its title list"],
     "if_absent": "the client never receives its titles. The capture sends this at seq 0x5f and the 0x1033 answer at 0x62, so the request does precede the answer in this one session - but three intervening records make that ordering weak evidence on its own"
   },
-  "wire": { "id": "0x102f", "direction": "C2S", "transport": "rep" },
+  "wire": {
+    "id": "0x102f",
+    "direction": "C2S",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 af 40, i.e. type index 4143 = 0x102f. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 16-byte body makes a 44-byte record.",
   "fields": [
     {
@@ -39,14 +43,17 @@
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x1482db040, resolved by the name-accessor walk: its +0x08 slot is FUN_143eb9fe0 = lea rax,[0x1482db0b0]; ret, returning the string 'SocialComponentServerFacet_SendAvailableTitlesToClient'. Writer slot +0x58 = FUN_143eb9d40, reader slot +0x60 = FUN_14259f170"
+      "ref": "object vtable 0x1482db040, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_143eb9d40 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_14259f170 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_14259f180 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
@@ -62,5 +69,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

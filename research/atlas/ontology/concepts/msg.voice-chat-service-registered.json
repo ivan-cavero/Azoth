@@ -10,7 +10,11 @@
     "created_when": ["the client has entered the world and the voice component registers itself"],
     "if_absent": "the client never receives its Vivox credentials, so voice cannot log in. research/atlas/builds.json records the client's own log showing [Vivox] connecting and logging in, so this message is upstream of that"
   },
-  "wire": { "id": "0x1067", "direction": "S2C", "transport": "rep" },
+  "wire": {
+    "id": "0x1067",
+    "direction": "S2C",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint a7 41, i.e. type index 4199 = 0x1067. fields[] below use BODY offsets, so the first body byte is at 0x00 and the 86-byte record starts 4 bytes earlier.",
   "fields": [
     {
@@ -46,7 +50,7 @@
       "type": "prefixed_string",
       "evidence": "measured",
       "note": "Measured 0x20 (32) then 'https://nwxp.www.vivox.com/api2/'. A plain ASCII URL, read straight off the wire. It is the Vivox API endpoint the client will connect to, and the host matches the 'VivoxApi' host the live endpoint catalogues already hold (nwxp0euc1 variants in research/sessions/.../endpoints_catalog.json).",
-      "provenance": "capture: 0x65_T0x1067_R.bin body[0x10..0x31]; decompile: reader FUN_143f2be80 call 1 into object +0x78"
+      "provenance": "capture: 0x65_T0x1067_R.bin body[0x10..0x31]; decompile: writer FUN_143f2be80 call 1 into object +0x78"
     },
     {
       "name": "login_token",
@@ -68,7 +72,7 @@
       "type": "prefixed_string",
       "evidence": "measured",
       "note": "Measured 0x0f (15) then '@nwxp.vivox.com'. The leading '@' and the vivox.com domain make this the REALM that the other Vivox identifiers are addressed on - the live contract writes SIP addresses as 'sip:confctl-d-amazon9050-ne28.<grid>@nwxp0euc1.vivox.com', i.e. '@<realm>' is exactly the suffix role this string plays. This is the third of the three strings, NOT the second: the reader reads object +0x78, then +0x50, then +0x28, and the writer routes +0x78's member to +0x30, +0x50's to +0x58 and +0x28's to +0x80 in its stack block. Both sides therefore agree that the realm comes last. An earlier reading that called this a channel and the empty trailing value a 'send-uri' had the two swapped.",
-      "provenance": "capture: body[0x41..0x51]; decompile: reader FUN_143f2be80 third FUN_140876f20 from +0x28, writer FUN_143f2be50 copies +0x28 to +0x48 (the third block) via FUN_1402b0720"
+      "provenance": "capture: body[0x41..0x51]; decompile: writer FUN_143f2be80 third FUN_140876f20 from +0x28, apply FUN_143f2be50 copies +0x28 to +0x48 (the third block) via FUN_1402b0720"
     },
     {
       "name": "service_flag",
@@ -79,26 +83,29 @@
       "type": "bool_byte",
       "evidence": "measured",
       "note": "Measured 0x00. The reader's last step is a single raw byte: it tests object +0x20 against zero and hands the resulting bool to the stream, then calls the state setter FUN_143f41ff0. The writer copies object +0x20 into uVar1 and passes it as the final argument to FUN_143f67570. So this is one byte and one bool, not an empty fourth string - the reader has exactly three string calls, not four. What the bool MEANS is unnamed: only the value 0 has been captured, so calling it 'voice enabled' would be a guess dressed as a name.",
-      "provenance": "decompile: reader FUN_143f2be80 final step; writer FUN_143f2be50 uVar1 = *(param_1 + 0x20) passed as the 5th argument"
+      "provenance": "decompile: writer FUN_143f2be80 final step; apply FUN_143f2be50 uVar1 = *(param_1 + 0x20) passed as the 5th argument"
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "verified",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x1482e38e0, resolved by the name-accessor walk: its +0x08 slot is FUN_143f2c280 = lea rax,[0x1482e3988]; ret, returning the string 'VoiceChatComponentClientFacet_OnVoiceChatServiceRegistered'. Writer slot +0x58 = FUN_143f2be50, reader slot +0x60 = FUN_143f2be80"
+      "ref": "object vtable 0x1482e38e0, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_143f2be50 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_143f2be80 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_143f2bf40 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_143f2be80 is four steps after the head: three calls to FUN_140876f20 (the string reader that copies a std::string member to the stream) from object +0x78, +0x50 and +0x28, then a single raw byte from +0x20 tested against zero and written through the stream raw slot +0x40, then a state setter. Three strings, one byte - no fourth string"
+      "ref": "writer FUN_143f2be80 is four steps after the head: three calls to FUN_140876f20 (the string reader that copies a std::string member to the stream) from object +0x78, +0x50 and +0x28, then a single raw byte from +0x20 tested against zero and written through the stream raw slot +0x40, then a state setter. Three strings, one byte - no fourth string"
     },
     {
       "type": "decompile",
-      "ref": "writer FUN_143f2be50 confirms the field ORDER independently: it builds three std::string copies with FUN_1402b0720 from +0x28, +0x50 and +0x78, and routes their members at +0x48, +0x70 and +0x98 inside a stack block whose +0x20/+0x28 members pair with the first copy. The +0x28 string is therefore the third block, matching the reader"
+      "ref": "apply FUN_143f2be50 confirms the field ORDER independently: it builds three std::string copies with FUN_1402b0720 from +0x28, +0x50 and +0x78, and routes their members at +0x48, +0x70 and +0x98 inside a stack block whose +0x20/+0x28 members pair with the first copy. The +0x28 string is therefore the third block, matching the reader"
     },
     {
       "type": "capture",
@@ -110,5 +117,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

@@ -10,7 +10,11 @@
     "created_when": ["the client's player component applies new level info and acknowledges it"],
     "if_absent": "the server never learns the client applied the level info. The capture sends it at seq 0x67, after the ladder's level info at seq 0x66"
   },
-  "wire": { "id": "0x143d", "direction": "C2S", "transport": "rep" },
+  "wire": {
+    "id": "0x143d",
+    "direction": "C2S",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 bd 50, i.e. type index 5181 = 0x143d. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 17-byte body makes a 45-byte record.",
   "fields": [
     {
@@ -46,22 +50,25 @@
       "type": "u8",
       "evidence": "measured",
       "note": "Measured 0x01, leaving nothing over: 16 + 1 = 17 exactly. The reader is the SAME function as 0xf7f's - FUN_142746100, two calls, the head then one raw byte from +0x20 - so the width comes from the codec and has a second independent signal across an unrelated message type. The field is named for its position and not for a meaning: one captured value cannot separate an ack flag from a sequence number from a result code.",
-      "provenance": "decompile: reader FUN_142746100, identical to the one msg.player-cull-limit-pct-change-request records; capture: 0x67_T0x143d_W.bin"
+      "provenance": "decompile: writer FUN_142746100, identical to the one msg.player-cull-limit-pct-change-request records; capture: 0x67_T0x143d_W.bin"
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x148525b18, resolved by the name-accessor walk: its +0x08 slot is FUN_146594ee0 = lea rax,[0x148525be8]; ret, returning the string 'PlayerComponentServerFacet_OnAckLevelInfoChanged'. Writer slot +0x58 = FUN_146565dc0, reader slot +0x60 = FUN_142746100"
+      "ref": "object vtable 0x148525b18, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_146565dc0 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_142746100 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_146594840 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_142746100 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single FUN_140876e10 byte write from object +0x20. That is the same reader the 0xf7f card records, so two unrelated message types share one byte-tail reader - a second signal for the 17-byte width that does not depend on this record's own bytes"
+      "ref": "writer FUN_142746100 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single FUN_140876e10 byte write from object +0x20. That is the same reader the 0xf7f card records, so two unrelated message types share one byte-tail reader - a second signal for the 17-byte width that does not depend on this record's own bytes"
     },
     {
       "type": "capture",
@@ -73,5 +80,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

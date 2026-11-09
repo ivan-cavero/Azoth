@@ -2,17 +2,12 @@
   "uid": "msg.mount-slow-walk-changed",
   "kind": "message",
   "name": "MountComponentServerFacet_OnMountSlowWalkChanged",
-  "aliases": [
-    "wire:0x187f",
-    "OnMountSlowWalkChanged"
-  ],
-  "summary": "The client tells the mount server facet its slow-walk setting. A 45-byte record with a 17-byte body: the shared head then ONE strict boolean byte. Same facet, same writer and same reader as 0x187c.",
+  "aliases": ["wire:0x187f", "OnMountSlowWalkChanged"],
+  "summary": "The client tells the mount server facet its slow-walk setting. A 45-byte record with a 17-byte body: the shared head then ONE strict boolean byte. Same facet, same writer and same reader codec as 0x187c.",
   "purpose": "Carry the client's mount slow-walk setting to the mount component. What the server does with it is not measured.",
   "authority": "client",
   "lifecycle": {
-    "created_when": [
-      "the mount component pushes its slow-walk setting"
-    ],
+    "created_when": ["the mount component pushes its slow-walk setting"],
     "if_absent": "the server never learns the client's slow-walk setting"
   },
   "wire": {
@@ -54,8 +49,8 @@
       "size": 1,
       "type": "bool_byte",
       "evidence": "measured",
-      "note": "Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour.",
-      "provenance": "decompile: reader FUN_1425a3070 and its decode side FUN_1425a30b0; capture: 0x41_T0x187f_W.bin"
+      "note": "Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its reader FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour.",
+      "provenance": "decompile: writer FUN_1425a3070 and its reader FUN_1425a30b0; capture: 0x41_T0x187f_W.bin"
     }
   ],
   "relations": [
@@ -69,11 +64,11 @@
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x148236230, resolved by the name-accessor walk: its +0x08 slot is 0x1438c0130; ret, returning the string 'MountComponentServerFacet_OnMountSlowWalkChanged'. Writer slot +0x58 = 0x1438bb170, reader slot +0x60 = 0x1425a3070"
+      "ref": "object vtable 0x148236230, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_1438bb170 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_1425a3070 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_1425a30b0 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "the shared bool reader FUN_1425a3070 is FUN_1414dbca0() for the shared head, then one raw byte through stream +0x40 from the object's +0x20, written as a strict non-zero test. Its matching decode side FUN_1425a30b0 reads one byte and REFUSES anything at or above 2, so a wider or non-boolean reading is excluded by the client's own code. Five unrelated wire types share this reader: 0x101a, 0x101d, 0x10b0, 0x187c and 0x187f"
+      "ref": "the shared bool writer FUN_1425a3070 is FUN_1414dbca0() for the shared head, then one raw byte through stream +0x40 from the object's +0x20, written as a strict non-zero test. Its matching reader FUN_1425a30b0 reads one byte and REFUSES anything at or above 2, so a wider or non-boolean reading is excluded by the client's own code. Five unrelated wire types share this writer: 0x101a, 0x101d, 0x10b0, 0x187c and 0x187f"
     },
     {
       "type": "capture",

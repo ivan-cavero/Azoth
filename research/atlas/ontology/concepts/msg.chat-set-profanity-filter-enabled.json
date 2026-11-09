@@ -3,14 +3,18 @@
   "kind": "message",
   "name": "ChatComponentServerFacet_SetProfanityFilterEnabled",
   "aliases": ["wire:0x101d", "SetProfanityFilterEnabled"],
-  "summary": "The client tells the chat server facet whether its profanity filter is on. A 45-byte record with a 17-byte body: the shared two-u64 head, then ONE boolean byte. It is read by the shared optional/bool reader FUN_1425a3070, whose decode side REFUSES any byte >= 2 - so this is a strict boolean rather than a count, and the card can say so from the codec and not from the sample.",
+  "summary": "The client tells the chat server facet whether its profanity filter is on. A 45-byte record with a 17-byte body: the shared two-u64 head, then ONE boolean byte. Its writer slot is the shared bool codec FUN_1425a3070, whose reader side FUN_1425a30b0 REFUSES any byte >= 2 - so this is a strict boolean rather than a count, and the card can say so from the codec and not from the sample.",
   "purpose": "Carry the client's profanity-filter setting to the chat component so the server can apply the filter it is asked to apply. What the server does with the value is not measured.",
   "authority": "client",
   "lifecycle": {
     "created_when": ["the chat component pushes its profanity-filter setting"],
     "if_absent": "the server never learns the client's filter setting. The capture sends it at seq 0x61"
   },
-  "wire": { "id": "0x101d", "direction": "C2S", "transport": "rep" },
+  "wire": {
+    "id": "0x101d",
+    "direction": "C2S",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 9d 40, i.e. type index 4125 = 0x101d. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 17-byte body makes a 45-byte record.",
   "fields": [
     {
@@ -45,23 +49,26 @@
       "size": 1,
       "type": "bool_byte",
       "evidence": "measured",
-      "note": "Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes `*(char *)(param_1 + 0x20) != '\\0'` as ONE byte, and its decode side FUN_1425a30b0 rejects any byte >= 2 - so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for its role (an on/off setting named by the message type) and not for an observed behaviour.",
-      "provenance": "decompile: reader FUN_1425a3070 and its decode side FUN_1425a30b0; capture: 0x61_T0x101d_W.bin"
+      "note": "Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes `*(char *)(param_1 + 0x20) != '\\0'` as ONE byte, and its reader FUN_1425a30b0 rejects any byte >= 2 - so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for its role (an on/off setting named by the message type) and not for an observed behaviour.",
+      "provenance": "decompile: writer FUN_1425a3070 and its reader FUN_1425a30b0; capture: 0x61_T0x101d_W.bin"
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x1482cecb8, resolved by the name-accessor walk: its +0x08 slot is FUN_143e5d8e0; ret, returning the string 'ChatComponentServerFacet_SetProfanityFilterEnabled'. Writer slot +0x58 = FUN_143e5d580, reader slot +0x60 = FUN_1425a3070"
+      "ref": "object vtable 0x1482cecb8, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_143e5d580 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_1425a3070 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_1425a30b0 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "the shared bool reader FUN_1425a3070 is FUN_1414dbca0() for the shared head, then one raw byte through stream +0x40 from the object's +0x20, written as a strict `!= 0`. Its matching decode side FUN_1425a30b0 reads one byte and REFUSES anything >= 2 (setting the error code), so a wider or non-boolean reading is excluded by the client's own code. Five unrelated wire types share this reader: 0x101a, 0x101d, 0x10b0, 0x187c and 0x187f"
+      "ref": "the shared bool writer FUN_1425a3070 is FUN_1414dbca0() for the shared head, then one raw byte through stream +0x40 from the object's +0x20, written as a strict `!= 0`. Its matching reader FUN_1425a30b0 reads one byte and REFUSES anything >= 2 (setting the error code), so a wider or non-boolean reading is excluded by the client's own code. Five unrelated wire types share this reader: 0x101a, 0x101d, 0x10b0, 0x187c and 0x187f"
     },
     {
       "type": "capture",
@@ -69,5 +76,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

@@ -3,14 +3,21 @@
   "kind": "message",
   "name": "TimeComponentClientFacet_SyncDayPhase",
   "aliases": ["wire:0x1097", "SyncDayPhase"],
-  "summary": "The time facet's day-phase sync. 12-byte record: the shared two-u64 head then one u32 BE holding the value 2 in the one captured instance. Writer FUN_14406f4b0 and reader FUN_1426d64f0 both read exactly head + one u32 and nothing else, which is what accounts for 16+4 = 20 body bytes against the 24-byte record.",
+  "summary": "The time facet's day-phase sync. 12-byte record: the shared two-u64 head then one u32 BE holding the value 2 in the one captured instance. The writer FUN_1426d64f0 emits exactly head + one u32 and nothing else, and the reader FUN_1426d6530 consumes the same two fields, which is what accounts for 16+4 = 20 body bytes against the 24-byte record.",
   "purpose": "Tell the client which day phase it is in. The captured value 2 is the only phase ever seen, so the enum's members are not enumerated; what phase 0 or 1 mean is unmeasured. The value is carried as a plain u32 rather than an enum because the closed vocabulary has no named enum for it and only one member is observed.",
   "authority": "server",
   "lifecycle": {
-    "created_when": ["the server changes the time facet's day phase", "alongside SyncTimeChange (0x1096) at world entry"],
+    "created_when": [
+      "the server changes the time facet's day phase",
+      "alongside SyncTimeChange (0x1096) at world entry"
+    ],
     "if_absent": "the client's day phase never changes. The lab measured that traffic of this kind refreshes the client's InGame activity clock, so a stream that stops is followed by the client's own timeout watchdog"
   },
-  "wire": { "id": "0x1097", "direction": "S2C", "transport": "rep" },
+  "wire": {
+    "id": "0x1097",
+    "direction": "S2C",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint 97 42, i.e. type index 4247 = 0x1097. fields[] below use BODY offsets, so the first body byte is at 0x00 and the 24-byte record starts 4 bytes earlier.",
   "fields": [
     {
@@ -46,24 +53,30 @@
       "endian": "be",
       "type": "u32be",
       "evidence": "measured",
-      "note": "Measured 00 00 00 02. The reader FUN_1426d64f0 copies object +0x20 through the generic u32 BE primitive FUN_140876e70 after the shared head, and the writer FUN_14406f4b0 copies the same slot back; both stop there. The same primitive FUN_140876e70 is the one the atlas already pinned as 'writes u32 BE' for the Territory batch, so the codec is a second, independent confirmation and not a guess. Only the value 2 has ever been seen, so the phase names stay unnamed and the field is carried as u32be rather than a named enum.",
-      "provenance": "capture: 0x76_T0x1097_R.bin body[0x10..0x14]; decompile: reader FUN_1426d64f0 and writer FUN_14406f4b0 on build 30fe6461"
+      "note": "Measured 00 00 00 02. The writer FUN_1426d64f0 copies object +0x20 through the generic u32 BE primitive FUN_140876e70 after the shared head, and the reader FUN_1426d6530 reads the same one u32 back; both stop there. The same primitive FUN_140876e70 is the one the atlas already pinned as 'writes u32 BE' for the Territory batch, so the codec is a second, independent confirmation and not a guess. Only the value 2 has ever been seen, so the phase names stay unnamed and the field is carried as u32be rather than a named enum.",
+      "provenance": "capture: 0x76_T0x1097_R.bin body[0x10..0x14]; decompile: writer FUN_1426d64f0 and reader FUN_1426d6530 on build 30fe6461"
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" },
-    { "op": "sibling_of", "to": "msg.time-sync-time-change" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    },
+    {
+      "op": "sibling_of",
+      "to": "msg.time-sync-time-change"
+    }
   ],
   "confidence": "layout",
   "status": "verified",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x1482feed8, resolved by the name-accessor walk: its +0x08 slot is FUN_14406f530 = lea rax,[0x1482fef48]; ret, returning the string 'TimeComponentClientFacet_SyncDayPhase'. Writer slot +0x58 = FUN_14406f4b0, reader slot +0x60 = FUN_1426d64f0"
+      "ref": "object vtable 0x1482feed8, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_14406f4b0 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_1426d64f0 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_1426d6530 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_1426d64f0 is exactly five instructions of work: FUN_1414dbca0() for the shared head, then load object +0x20 and pass it to FUN_140876e70. No other read. Writer FUN_14406f4b0 mirrors it with FUN_14408d5f0. That fixes the body at 16 + 4 = 20 bytes"
+      "ref": "writer FUN_1426d64f0 is exactly five instructions of work: FUN_1414dbca0() for the shared head, then load object +0x20 and pass it to FUN_140876e70. No other read. apply FUN_14406f4b0 mirrors it with FUN_14408d5f0. That fixes the body at 16 + 4 = 20 bytes"
     },
     {
       "type": "capture",
@@ -75,5 +88,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

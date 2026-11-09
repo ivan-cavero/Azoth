@@ -7,10 +7,16 @@
   "purpose": "Push the global-storage search results to the client. In the captured session it pushes nothing 23 times over. The repetition is measured and the emptiness is measured; whether the client treats an empty push as a no-op or as a state reset is not.",
   "authority": "server",
   "lifecycle": {
-    "created_when": ["the server repeats it on a cadence during world entry: seqs 0x0c-0x0e and 0x11-0x24, two contiguous runs"],
+    "created_when": [
+      "the server repeats it on a cadence during world entry: seqs 0x0c-0x0e and 0x11-0x24, two contiguous runs"
+    ],
     "if_absent": "the client's storage search results never arrive. NOTE: the lab measured 23 facet-target dispatch failures for this exact wire in run exitval-194552, the same count as the 23 captured records - see the evidence below"
   },
-  "wire": { "id": "0x1b88", "direction": "S2C", "transport": "rep" },
+  "wire": {
+    "id": "0x1b88",
+    "direction": "S2C",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint 88 6e, i.e. type index 7048 = 0x1b88. fields[] below use BODY offsets, so the first body byte is at 0x00 and the 42-byte record starts 4 bytes earlier.",
   "fields": [
     {
@@ -46,7 +52,7 @@
       "type": "bytes(16)",
       "evidence": "measured",
       "note": "Measured all zero in all 23 records. The reader's first act after the head is one raw 16-byte transfer into object +0x60, so the width is fourteen bytes of nothing-ambiguity and two of structure: it is exactly 16. That it is a search id is inferred from the message's name and the client's other storage replies; the value being zero everywhere means the capture carries an empty search, so no non-zero sample exists to confirm the reading. Carried as a fixed run rather than an id type because the meaning is not measured.",
-      "provenance": "decompile: reader FUN_142cd1f00, vtable raw-transfer slot +0x40 with length 0x10 into object +0x60; writer FUN_142cd1e00 copies the same two u64 at +0x60/+0x68"
+      "provenance": "decompile: writer FUN_142cd1f00, vtable raw-transfer slot +0x40 with length 0x10 into object +0x60; apply FUN_142cd1e00 copies the same two u64 at +0x60/+0x68"
     },
     {
       "name": "empty_search_tail",
@@ -57,26 +63,29 @@
       "type": "bytes(6)",
       "evidence": "measured",
       "note": "Measured all zero in all 23 records. The reader defines this tail exactly, and an all-zero six bytes is what its shape produces when the list is empty: FUN_140877b10 writes a prefix-varint count (here 0, the first byte), the element loop runs zero times, then one u32 BE is read (four bytes), then one flag byte is read (one byte) - 1 + 4 + 1 = 6. That the arithmetic lands on 6 with count 0 is what accounts for the whole 38-byte body. Carried as one fixed run rather than as three fields because every byte is zero and the split is therefore not separable by data; the structure is recorded in this note and in the evidence instead. A non-empty list adds 0x18-byte elements between the count and the u32, and that element layout is NOT modelled: the gate would need a card for it, and no sample has ever carried one.",
-      "provenance": "decompile: reader FUN_142cd1f00 after the id run - FUN_140877b10(count), loop over a std::vector at +0x38..+0x40 with stride 0x18, then FUN_140876e70(+0x34), then one raw byte from +0x30. 1+0+4+1 = 6"
+      "provenance": "decompile: writer FUN_142cd1f00 after the id run - FUN_140877b10(count), loop over a std::vector at +0x38..+0x40 with stride 0x18, then FUN_140876e70(+0x34), then one raw byte from +0x30. 1+0+4+1 = 6"
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x1481385c0, resolved by the name-accessor walk: its +0x08 slot is FUN_142cd2140 = lea rax,[0x148138680]; ret, returning the string 'GlobalStorageComponentClientFacet_ReceiveStorageSearchItems'. Writer slot +0x58 = FUN_142cd1e00, reader slot +0x60 = FUN_142cd1f00"
+      "ref": "object vtable 0x1481385c0, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_142cd1e00 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_142cd1f00 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_142cd20b0 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_142cd1f00 in wire order: FUN_1414dbca0() for the shared head; the stream raw slot +0x40 with length 0x10 into object +0x60; then the list - FUN_140877b10 writes the prefix-varint count, the loop walks a vector at +0x38..+0x40 with stride 0x18 reading per element a u32 BE (FUN_140876e70) plus a presence byte and, when present, a nested object through its own vtable; then a u32 BE at +0x34; then one raw byte from +0x30. Head 16 + id 16 + count 1 + u32 4 + flag 1 = 38, which is the body width exactly"
+      "ref": "writer FUN_142cd1f00 in wire order: FUN_1414dbca0() for the shared head; the stream raw slot +0x40 with length 0x10 into object +0x60; then the list - FUN_140877b10 writes the prefix-varint count, the loop walks a vector at +0x38..+0x40 with stride 0x18 reading per element a u32 BE (FUN_140876e70) plus a presence byte and, when present, a nested object through its own vtable; then a u32 BE at +0x34; then one raw byte from +0x30. Head 16 + id 16 + count 1 + u32 4 + flag 1 = 38, which is the body width exactly"
     },
     {
       "type": "decompile",
-      "ref": "the writer FUN_142cd1e00 copies the same set in the same order into the send call: flag at +0x30, u32 at +0x34, the vector through the copy helper FUN_142cf1450 over +0x38, and the two id u64 at +0x60/+0x68. FUN_142cf1450 confirms the element stride is 0x18 (divisor in its element count), independently of the reader's loop"
+      "ref": "the apply FUN_142cd1e00 copies the same set in the same order into the send call: flag at +0x30, u32 at +0x34, the vector through the copy helper FUN_142cf1450 over +0x38, and the two id u64 at +0x60/+0x68. FUN_142cf1450 confirms the element stride is 0x18 (divisor in its element count), independently of the reader's loop"
     },
     {
       "type": "capture",
@@ -88,5 +97,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

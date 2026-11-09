@@ -10,7 +10,11 @@
     "created_when": ["the social component asks for a streamer-mode data sync"],
     "if_absent": "the client's streamer-mode state is never synchronised. The capture sends it at seq 0x5e, immediately before the title request at 0x5f"
   },
-  "wire": { "id": "0x102e", "direction": "C2S", "transport": "rep" },
+  "wire": {
+    "id": "0x102e",
+    "direction": "C2S",
+    "transport": "rep"
+  },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 ae 40, i.e. type index 4142 = 0x102e. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so an 18-byte body makes a 46-byte record.",
   "fields": [
     {
@@ -46,22 +50,25 @@
       "type": "bytes(2)",
       "evidence": "measured",
       "note": "Measured 00 00, leaving nothing over: 16 + 2 = 18 exactly. The reader writes exactly two raw bytes in ONE stream call with the length as a literal argument, so they are one 2-byte run; splitting them into two bools would be an invention the codec does not support. Both bytes are zero in the only capture, so no reading of either is attempted.",
-      "provenance": "decompile: reader FUN_143eaabc0 - FUN_1414dbca0() then a stream +0x40 write of length 2 from +0x20; capture: 0x5e_T0x102e_W.bin"
+      "provenance": "decompile: writer FUN_143eaabc0 - FUN_1414dbca0() then a stream +0x40 write of length 2 from +0x20; capture: 0x5e_T0x102e_W.bin"
     }
   ],
   "relations": [
-    { "op": "part_of", "to": "flow.presence" }
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
   ],
   "confidence": "layout",
   "status": "candidate",
   "evidence": [
     {
       "type": "decompile",
-      "ref": "object vtable 0x1482d6c58, resolved by the name-accessor walk: its +0x08 slot is FUN_143eab110; ret, returning the string 'SocialComponentServerFacet_RequestStreamerModeDataSync'. Writer slot +0x58 = FUN_143eaab50, reader slot +0x60 = FUN_143eaabc0"
+      "ref": "object vtable 0x1482d6c58, resolved by the name-accessor walk (its +0x08 slot is the name accessor: see the sentence that names the string). Message-object slots, using the convention meanings.md established on 2026-10-29 for 0xf37 and 0xda2, where the MARSHAL thunk 0x1414c0730 is `mov rax,[rdx]; jmp [rax+0x60]`: +0x58 = FUN_143eaab50 is the APPLY handler, which resolves a manager singleton through FUN_1416bd7c0 and copies the value in without ever touching the stream; +0x60 = FUN_143eaabc0 is the WRITER, which serializes the body onto the stream; +0x68 = FUN_143eaafb0 is the READER, which deserializes the body off the stream"
     },
     {
       "type": "decompile",
-      "ref": "reader FUN_143eaabc0 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single raw write of TWO bytes from object +0x20. The width is read from the call's literal length argument and not inferred from the sample, which is what rules out the two-separate-flags reading"
+      "ref": "writer FUN_143eaabc0 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single raw write of TWO bytes from object +0x20. The width is read from the call's literal length argument and not inferred from the sample, which is what rules out the two-separate-flags reading"
     },
     {
       "type": "capture",
@@ -73,5 +80,8 @@
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
-  "owners": { "crate": null, "module": null }
+  "owners": {
+    "crate": null,
+    "module": null
+  }
 }

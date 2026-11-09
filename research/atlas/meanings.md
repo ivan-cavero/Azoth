@@ -2891,7 +2891,35 @@ found, and the value turned out to be the facet's own registered local id: see
 named `local_facet_id` and marked `meaning: known` in every card that carries the
 head.
 
-## The eight remaining small client messages, and the reader five of them share (2026-11-09)
+## The message-object vtable slots, named the right way round (2026-11-09)
+
+The name-accessor walk gives an object vtable, and that vtable's three interesting slots
+were being read backwards in this campaign. The atlas had already settled them on
+2026-10-29 for `0xf37` and `0xda2` and the convention is written down there: the MARSHAL
+thunk is `0x1414c0730`, whose body is `mov rax,[rdx]; jmp [rax+0x60]`, so
+
+| Slot | What it is |
+| --- | --- |
+| `+0x58` | **APPLY** - resolves a manager singleton through `FUN_1416bd7c0` and copies the value in. It never touches the stream. |
+| `+0x60` | **WRITER** - serializes the object onto the stream, through `stream+0x40` and the write primitives. |
+| `+0x68` | **READER** - deserializes the body off the stream, through `FUN_1408787b0` and `FUN_14087af30`. |
+
+The 2026-11-09 batch called `+0x58` the writer and `+0x60` the reader, which is wrong on
+both counts: `+0x58` is the apply handler and `+0x60` is the writer. Sixteen cards carried
+that inversion and are now corrected, and a scripted audit (`no role word contradicts its
+measured slot role`) runs over them so the cards cannot drift back.
+
+**The measured layouts were never affected**, which is why the codecs did not change: every
+field order in those cards came from decompiling the `+0x60` function - the writer - and
+the `+0x68` reader was decompiled as well and agrees field for field. The mistake was in
+the vocabulary, not in the bytes. This is worth stating plainly because it is the kind of
+error a sample can never catch: the layout round-trips perfectly either way.
+
+The tell, if a future card needs it: a `+0x58` slot takes **one argument** (the object) and
+its body contains no `stream` write; `+0x60` and `+0x68` take `(object, stream)` and
+`(object, out, stream)` respectively. Anything else is a different slot.
+
+## The eight remaining small client messages, and the writer five of them share (2026-11-09)
 
 The corpus had fifteen named-but-unread wire types left. Eight of them are small client
 settings messages, all C2S, all 16 to 18 body bytes, and all eight are now cards. Five of
@@ -2905,22 +2933,22 @@ them are the SAME shape, and that is the finding:
 0x187f MountComponentServerFacet_OnMountSlowWalkChanged
 ```
 
-All five point at reader `FUN_1425a3070`, which is two calls: `FUN_1414dbca0()` for the
+All five point at writer `FUN_1425a3070`, which is two calls: `FUN_1414dbca0()` for the
 shared head, then one raw byte from object `+0x20` written as a strict non-zero test.
-Its decode side `FUN_1425a30b0` reads one byte and **refuses anything at or above 2**.
+Its reader `FUN_1425a30b0` reads one byte and **refuses anything at or above 2**.
 So "boolean" here is a codec fact from the client's own code, not a guess at a 0/1
 sample - which matters, because all five captures hold `0x00` and a sample alone could
 never have told a bool from a small count.
 
-The other three differ, each in a way its own reader states:
+The other three differ, each in a way its own writer states:
 
-- **`0x143d` OnAckLevelInfoChanged** shares `0xf7f`'s reader `FUN_142746100` - head then
-  one raw byte - and carries `0x01`. Two unrelated message types on one byte-tail reader
+- **`0x143d` OnAckLevelInfoChanged** shares `0xf7f`'s writer `FUN_142746100` - head then
+  one raw byte - and carries `0x01`. Two unrelated message types on one byte-tail writer
   is a second signal for the 17-byte width.
 - **`0x102e` RequestStreamerModeDataSync** writes TWO raw bytes in one stream call with
   the length as a literal argument, so the payload is one `bytes(2)` run. Two bools would
   produce identical bytes; only the codec separates the readings.
-- **`0x102f` SendAvailableTitlesToClient** is the head alone. Its reader slot resolves to
+- **`0x102f` SendAvailableTitlesToClient** is the head alone. Its writer slot resolves to
   a shared optional wrapper rather than a plain pair, so its width rests on the capture -
   but it is the social title REQUEST, and `0x1033` ReceiveAvailableTitles on the same
   facet `ce81136a2b7ad33e` is the answer, which the atlas had already decoded.
