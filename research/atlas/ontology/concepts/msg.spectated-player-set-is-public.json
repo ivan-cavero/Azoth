@@ -1,0 +1,88 @@
+{
+  "uid": "msg.spectated-player-set-is-public",
+  "kind": "message",
+  "name": "SpectatedPlayerComponentServerFacet_SetIsPublic",
+  "aliases": [
+    "wire:0x101a",
+    "SetIsPublic"
+  ],
+  "summary": "The client tells the spectated-player server facet whether it is public. A 45-byte record with a 17-byte body: the shared two-u64 head then ONE strict boolean byte. It shares the bool reader FUN_1425a3070 with 0x101d, 0x10b0 and the two mount toggles, so the width and the strictness are codec facts and not sample guesses.",
+  "purpose": "Set whether this player is publicly spectatable. What the server does with the value is not measured.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": [
+      "the client's spectated-player component pushes its public/private state"
+    ],
+    "if_absent": "the server never learns the player's spectating visibility"
+  },
+  "wire": {
+    "id": "0x101a",
+    "direction": "C2S",
+    "transport": "rep"
+  },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 9a 40, i.e. type index 4122 = 0x101a. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 17-byte body makes a 45-byte record.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured 95 a5 a8 0a a5 42 88 d1 = 0x95a5a80aa54288d1. First u64 of the shared message head: the sending facet's own local id. One of the per-component facet ids; it appears on this wire only.",
+      "provenance": "corpus-wide scan; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "enabled_flag",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 1,
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour.",
+      "provenance": "decompile: reader FUN_1425a3070 and its decode side FUN_1425a30b0; capture: 0x3f_T0x101a_W.bin"
+    }
+  ],
+  "relations": [
+    {
+      "op": "part_of",
+      "to": "flow.presence"
+    }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x1482eaf00, resolved by the name-accessor walk: its +0x08 slot is 0x143f96c60; ret, returning the string 'SpectatedPlayerComponentServerFacet_SetIsPublic'. Writer slot +0x58 = 0x143f96be0, reader slot +0x60 = 0x1425a3070"
+    },
+    {
+      "type": "decompile",
+      "ref": "the shared bool reader FUN_1425a3070 is FUN_1414dbca0() for the shared head, then one raw byte through stream +0x40 from the object's +0x20, written as a strict non-zero test. Its matching decode side FUN_1425a30b0 reads one byte and REFUSES anything at or above 2, so a wider or non-boolean reading is excluded by the client's own code. Five unrelated wire types share this reader: 0x101a, 0x101d, 0x10b0, 0x187c and 0x187f"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x3f_T0x101a_W.bin at seq 0x3f, 45 bytes: after the 8-byte frame head and the 16-byte actor id, typed header 00 01 9a 40, then body 95 a5 a8 0a a5 42 88 d1 bf 85 31 4b bc 4a 95 1a 00"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": {
+    "crate": null,
+    "module": null
+  }
+}

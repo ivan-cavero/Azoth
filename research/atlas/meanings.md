@@ -2891,6 +2891,46 @@ found, and the value turned out to be the facet's own registered local id: see
 named `local_facet_id` and marked `meaning: known` in every card that carries the
 head.
 
+## The eight remaining small client messages, and the reader five of them share (2026-11-09)
+
+The corpus had fifteen named-but-unread wire types left. Eight of them are small client
+settings messages, all C2S, all 16 to 18 body bytes, and all eight are now cards. Five of
+them are the SAME shape, and that is the finding:
+
+```
+0x101a SpectatedPlayerComponentServerFacet_SetIsPublic
+0x101d ChatComponentServerFacet_SetProfanityFilterEnabled
+0x10b0 TraversalComponentServerFacet_SyncIsAutoTraversalEnabled
+0x187c MountComponentServerFacet_OnMountDashToggleChanged
+0x187f MountComponentServerFacet_OnMountSlowWalkChanged
+```
+
+All five point at reader `FUN_1425a3070`, which is two calls: `FUN_1414dbca0()` for the
+shared head, then one raw byte from object `+0x20` written as a strict non-zero test.
+Its decode side `FUN_1425a30b0` reads one byte and **refuses anything at or above 2**.
+So "boolean" here is a codec fact from the client's own code, not a guess at a 0/1
+sample - which matters, because all five captures hold `0x00` and a sample alone could
+never have told a bool from a small count.
+
+The other three differ, each in a way its own reader states:
+
+- **`0x143d` OnAckLevelInfoChanged** shares `0xf7f`'s reader `FUN_142746100` - head then
+  one raw byte - and carries `0x01`. Two unrelated message types on one byte-tail reader
+  is a second signal for the 17-byte width.
+- **`0x102e` RequestStreamerModeDataSync** writes TWO raw bytes in one stream call with
+  the length as a literal argument, so the payload is one `bytes(2)` run. Two bools would
+  produce identical bytes; only the codec separates the readings.
+- **`0x102f` SendAvailableTitlesToClient** is the head alone. Its reader slot resolves to
+  a shared optional wrapper rather than a plain pair, so its width rests on the capture -
+  but it is the social title REQUEST, and `0x1033` ReceiveAvailableTitles on the same
+  facet `ce81136a2b7ad33e` is the answer, which the atlas had already decoded.
+
+**Three cross-bus checks fell out of this batch**, and they are the reason the batch was
+worth doing as a batch rather than one at a time: `0x102e`, `0x102f` and `0x1033` all
+carry `ce81136a2b7ad33e` (one social facet); `0x143d` and `0xf7f` both carry
+`9e921a154971f6b7` (one player facet); `0x187c` and `0x187f` both carry
+`16009918b041c1f9` and are byte-identical apart from their type id.
+
 ## `0xf7f` is the head plus one byte, and the reader says so (2026-11-09)
 
 `PlayerComponentServerFacet_OnCullLimitPctChangeRequest`, wire `0xf7f`, C2S. One record,

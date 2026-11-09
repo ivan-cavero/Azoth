@@ -11,13 +11,16 @@ use std::path::PathBuf;
 
 use everfall_wire::generated::{
     FlowWorldEntryRungLevelInfo, FlowWorldEntryRungRegistration,
-    FlowWorldEntryRungSelfIdentification, MsgClientAddEntry,
+    FlowWorldEntryRungSelfIdentification, MsgChatSetProfanityFilterEnabled, MsgClientAddEntry,
     MsgContractsLookupContractsByParticipant, MsgContractsOnLookupContractsByParticipant,
     MsgGlobalStorageReceiveStorageSearchItems, MsgGridTrackingUpdatePhasing,
-    MsgObjectivesSetObjectiveAutoPinning, MsgObjectivesUpdateTrackedObjectives,
+    MsgMountDashToggleChanged, MsgMountSlowWalkChanged, MsgObjectivesSetObjectiveAutoPinning,
+    MsgObjectivesUpdateTrackedObjectives, MsgPlayerAckLevelInfoChanged,
     MsgPlayerCullLimitPctChangeRequest, MsgReceiveSettingsFromClient, MsgSetReplicateStorage,
-    MsgSocialReceiveAvailableTitles, MsgTimeSyncDayPhase, MsgTimeSyncTimeChange,
-    MsgTimeSyncToClient, MsgTimeSynch0x14f, MsgVoiceChatRegisterService,
+    MsgSocialReceiveAvailableTitles, MsgSocialRequestStreamerModeDataSync,
+    MsgSocialSendAvailableTitlesToClient, MsgSpectatedPlayerSetIsPublic, MsgTimeSyncDayPhase,
+    MsgTimeSyncTimeChange, MsgTimeSyncToClient, MsgTimeSynch0x14f,
+    MsgTraversalSyncAutoTraversalEnabled, MsgVoiceChatRegisterService,
     MsgVoiceChatServiceRegistered,
 };
 
@@ -971,6 +974,149 @@ fn action_list_input_container_arithmetic_holds_on_all_five_records() {
         &body[8..16],
         &[0xbf, 0x85, 0x31, 0x4b, 0xbc, 0x4a, 0x95, 0x1a],
         "the local actor id's first eight bytes, the same value the 0x1098 carries"
+    );
+}
+
+/// The five small setting messages the client sends share ONE reader,
+/// `FUN_1425a3070`: the shared head then a single strict boolean byte whose
+/// decode side refuses anything at or above 2. Each is a 45-byte record with a
+/// 17-byte body. Checking them together is what makes the shared reader a
+/// falsifiable claim rather than a note in a card.
+#[test]
+fn the_five_setting_messages_are_a_head_and_a_strict_bool() {
+    // (type id, wire id, seq, record bytes after the 28-byte channel prefix)
+    let cases: [(u32, &str, &str); 5] = [
+        (0x101a, "95a5a80aa54288d1bf85314bbc4a951a00", "0x3f"),
+        (0x101d, "db84a5d631d9b33abf85314bbc4a951a00", "0x61"),
+        (0x10b0, "288c27b1a6be71ccbf85314bbc4a951a00", "0x3e"),
+        (0x187c, "16009918b041c1f9bf85314bbc4a951a00", "0x40"),
+        (0x187f, "16009918b041c1f9bf85314bbc4a951a00", "0x41"),
+    ];
+
+    for (wire_id, hex, seq) in cases {
+        let body = hex_bytes(hex);
+        assert_eq!(
+            body.len(),
+            17,
+            "seq {seq}: 0x{wire_id:x} is a 16-byte head plus one byte"
+        );
+        // The head is the same one every message in this corpus carries.
+        assert_eq!(
+            &body[8..16],
+            &[0xbf, 0x85, 0x31, 0x4b, 0xbc, 0x4a, 0x95, 0x1a],
+            "seq {seq}: 0x{wire_id:x} carries the local actor id word"
+        );
+        assert_eq!(body[16], 0x00, "seq {seq}: the captured flag is zero");
+    }
+
+    // Each decodes and re-encodes through its OWN generated codec, so the shared
+    // reader is claimed only where the codecs actually agree with the bytes.
+    let b = hex_bytes(cases[0].1);
+    let d = MsgSpectatedPlayerSetIsPublic::decode(&b).expect("decode 0x101a");
+    assert_eq!(MsgSpectatedPlayerSetIsPublic::WIRE_ID, 0x101a);
+    assert!(!d.enabled_flag, "the captured set-is-public flag is zero");
+    let mut out = Vec::new();
+    d.encode(&mut out).expect("encode 0x101a");
+    assert_eq!(out, b, "0x101a did not round-trip byte for byte");
+
+    let b = hex_bytes(cases[1].1);
+    let d = MsgChatSetProfanityFilterEnabled::decode(&b).expect("decode 0x101d");
+    assert_eq!(MsgChatSetProfanityFilterEnabled::WIRE_ID, 0x101d);
+    assert!(
+        !d.enabled_flag,
+        "the captured profanity-filter flag is zero"
+    );
+    let mut out = Vec::new();
+    d.encode(&mut out).expect("encode 0x101d");
+    assert_eq!(out, b, "0x101d did not round-trip byte for byte");
+
+    let b = hex_bytes(cases[2].1);
+    let d = MsgTraversalSyncAutoTraversalEnabled::decode(&b).expect("decode 0x10b0");
+    assert_eq!(MsgTraversalSyncAutoTraversalEnabled::WIRE_ID, 0x10b0);
+    assert!(!d.enabled_flag, "the captured auto-traversal flag is zero");
+
+    // The two mount toggles share a facet, a writer and a reader. Their bodies
+    // are byte-identical and only the type id tells them apart.
+    let b = hex_bytes(cases[3].1);
+    let dash = MsgMountDashToggleChanged::decode(&b).expect("decode 0x187c");
+    assert_eq!(MsgMountDashToggleChanged::WIRE_ID, 0x187c);
+    assert!(!dash.enabled_flag, "the captured dash-toggle flag is zero");
+
+    let b = hex_bytes(cases[4].1);
+    let slow = MsgMountSlowWalkChanged::decode(&b).expect("decode 0x187f");
+    assert_eq!(MsgMountSlowWalkChanged::WIRE_ID, 0x187f);
+    assert!(!slow.enabled_flag, "the captured slow-walk flag is zero");
+
+    assert_eq!(
+        cases[3].1, cases[4].1,
+        "the two mount toggles are byte-identical"
+    );
+    assert_ne!(
+        MsgMountDashToggleChanged::WIRE_ID,
+        MsgMountSlowWalkChanged::WIRE_ID,
+        "only the type id separates the two mount toggles"
+    );
+}
+
+#[test]
+fn the_two_byte_and_one_byte_tails() {
+    // 0x102e writes TWO raw bytes in one stream call, so they are one run and
+    // not two flags. A codec that split them would still round-trip, so this
+    // asserts the shape the card claims.
+    let body = hex_bytes("ce81136a2b7ad33ebf85314bbc4a951a0000");
+    assert_eq!(body.len(), 18, "0x102e is head 16 plus two bytes");
+    let d = MsgSocialRequestStreamerModeDataSync::decode(&body).expect("decode 0x102e");
+    assert_eq!(MsgSocialRequestStreamerModeDataSync::WIRE_ID, 0x102e);
+    assert_eq!(
+        d.request_payload.len(),
+        2,
+        "one two-byte run, not two fields"
+    );
+    let mut out = Vec::new();
+    d.encode(&mut out).expect("encode 0x102e");
+    assert_eq!(out, body, "0x102e did not round-trip byte for byte");
+
+    // 0x143d shares 0xf7f's reader: the head then one raw byte.
+    let body = hex_bytes("9e921a154971f6b7bf85314bbc4a951a01");
+    assert_eq!(body.len(), 17, "0x143d is head 16 plus one byte");
+    let d = MsgPlayerAckLevelInfoChanged::decode(&body).expect("decode 0x143d");
+    assert_eq!(MsgPlayerAckLevelInfoChanged::WIRE_ID, 0x143d);
+    assert_eq!(d.ack_value, 1, "the captured ack byte is 1");
+    let mut out = Vec::new();
+    d.encode(&mut out).expect("encode 0x143d");
+    assert_eq!(out, body, "0x143d did not round-trip byte for byte");
+
+    // 0x102f is the head alone, the social title request that 0x1033 answers.
+    let body = hex_bytes("ce81136a2b7ad33ebf85314bbc4a951a");
+    assert_eq!(body.len(), 16, "0x102f is the head and nothing else");
+    let d = MsgSocialSendAvailableTitlesToClient::decode(&body).expect("decode 0x102f");
+    assert_eq!(MsgSocialSendAvailableTitlesToClient::WIRE_ID, 0x102f);
+    let mut out = Vec::new();
+    d.encode(&mut out).expect("encode 0x102f");
+    assert_eq!(out, body, "0x102f did not round-trip byte for byte");
+
+    // The social request names the SAME facet 0x1033's answer does, and the
+    // player ack names the same facet 0xf7f does. Two cross-bus checks. The
+    // 0x1033 body is 494 bytes, so it comes from its own committed fixture.
+    let title_text = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../research/fixtures/wire/social-1033-body.hex"),
+    )
+    .expect("read the committed 0x1033 body fixture");
+    let title_answer = hex_bytes(title_text.trim());
+    let a = MsgSocialReceiveAvailableTitles::decode(&title_answer).expect("decode 0x1033");
+    assert_eq!(
+        d.local_facet_id, a.local_facet_id,
+        "the title request and the title answer name one social facet"
+    );
+
+    let cull = hex_bytes("9e921a154971f6b7bf85314bbc4a951a64");
+    let c = MsgPlayerCullLimitPctChangeRequest::decode(&cull).expect("decode 0xf7f");
+    let ack = hex_bytes("9e921a154971f6b7bf85314bbc4a951a01");
+    let k = MsgPlayerAckLevelInfoChanged::decode(&ack).expect("decode 0x143d");
+    assert_eq!(
+        c.local_facet_id, k.local_facet_id,
+        "the cull request and the level-info ack name one player facet"
     );
 }
 

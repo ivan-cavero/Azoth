@@ -1,0 +1,77 @@
+{
+  "uid": "msg.player-ack-level-info-changed",
+  "kind": "message",
+  "name": "PlayerComponentServerFacet_OnAckLevelInfoChanged",
+  "aliases": ["wire:0x143d", "OnAckLevelInfoChanged"],
+  "summary": "The client acknowledges a level-info change. A 45-byte record with a 17-byte body: the shared two-u64 head, then ONE byte of value 0x01. The reader is the same function 0xf7f uses - two calls, the head and a single byte - which is an independent confirmation of the width across two unrelated message types. The name says 'Ack' and the captured value is 1, but the byte is carried as a raw u8 because one sample cannot separate an ack flag from a sequence number from a result code.",
+  "purpose": "Acknowledge the level info the server sent as 0x663 LevelInfoChangedMsg. The atlas models the server side already; this is the plausible client reply, and it shares the player facet id 0xf7f uses. The pairing is a reading from the names and the shared facet, not a measured correlation - the capture holds no link between this record and the 0x663 it would answer.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the client's player component applies new level info and acknowledges it"],
+    "if_absent": "the server never learns the client applied the level info. The capture sends it at seq 0x67, after the ladder's level info at seq 0x66"
+  },
+  "wire": { "id": "0x143d", "direction": "C2S", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 bd 50, i.e. type index 5181 = 0x143d. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 17-byte body makes a 45-byte record.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured 9e 92 1a 15 49 71 f6 b7 = 0x9e921a154971f6b7. First u64 of the shared message head: the sending facet's own local id, the player client facet. The SAME value msg.player-cull-limit-pct-change-request carries for 0xf7f, so both player-bus messages name one facet.",
+      "provenance": "corpus-wide scan; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "ack_value",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 1,
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Measured 0x01, leaving nothing over: 16 + 1 = 17 exactly. The reader is the SAME function as 0xf7f's - FUN_142746100, two calls, the head then one raw byte from +0x20 - so the width comes from the codec and has a second independent signal across an unrelated message type. The field is named for its position and not for a meaning: one captured value cannot separate an ack flag from a sequence number from a result code.",
+      "provenance": "decompile: reader FUN_142746100, identical to the one msg.player-cull-limit-pct-change-request records; capture: 0x67_T0x143d_W.bin"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x148525b18, resolved by the name-accessor walk: its +0x08 slot is FUN_146594ee0 = lea rax,[0x148525be8]; ret, returning the string 'PlayerComponentServerFacet_OnAckLevelInfoChanged'. Writer slot +0x58 = FUN_146565dc0, reader slot +0x60 = FUN_142746100"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_142746100 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single FUN_140876e10 byte write from object +0x20. That is the same reader the 0xf7f card records, so two unrelated message types share one byte-tail reader - a second signal for the 17-byte width that does not depend on this record's own bytes"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x67_T0x143d_W.bin at seq 0x67, 45 bytes: after the 8-byte frame head and the 16-byte actor id, typed header 00 01 bd 50, then body 9e 92 1a 15 49 71 f6 b7 bf 85 31 4b bc 4a 95 1a 01. The last byte is 0x01 and nothing follows"
+    },
+    {
+      "type": "atlas",
+      "ref": "flow.world-entry.rung.level-info models the server's 0x663 LevelInfoChangedMsg. That this client message is named 'OnAckLevelInfoChanged' and carries one byte is consistent with it being the reply, but the capture holds no link between the two records, so the pairing is a reading from the names and the shared player facet, not a measured correlation"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

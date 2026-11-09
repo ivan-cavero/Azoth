@@ -1,0 +1,73 @@
+{
+  "uid": "msg.chat-set-profanity-filter-enabled",
+  "kind": "message",
+  "name": "ChatComponentServerFacet_SetProfanityFilterEnabled",
+  "aliases": ["wire:0x101d", "SetProfanityFilterEnabled"],
+  "summary": "The client tells the chat server facet whether its profanity filter is on. A 45-byte record with a 17-byte body: the shared two-u64 head, then ONE boolean byte. It is read by the shared optional/bool reader FUN_1425a3070, whose decode side REFUSES any byte >= 2 - so this is a strict boolean rather than a count, and the card can say so from the codec and not from the sample.",
+  "purpose": "Carry the client's profanity-filter setting to the chat component so the server can apply the filter it is asked to apply. What the server does with the value is not measured.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the chat component pushes its profanity-filter setting"],
+    "if_absent": "the server never learns the client's filter setting. The capture sends it at seq 0x61"
+  },
+  "wire": { "id": "0x101d", "direction": "C2S", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 9d 40, i.e. type index 4125 = 0x101d. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 17-byte body makes a 45-byte record.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured db 84 a5 d6 31 d9 b3 3a = 0xdb84a5d631d9b33a. First u64 of the shared message head: the sending facet's own local id, the chat client facet. It is NOT the social facet's ce81136a2b7ad33e, so chat and social are separate components even though both deal with text.",
+      "provenance": "corpus-wide scan; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "enabled_flag",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 1,
+      "type": "bool_byte",
+      "evidence": "measured",
+      "note": "Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes `*(char *)(param_1 + 0x20) != '\\0'` as ONE byte, and its decode side FUN_1425a30b0 rejects any byte >= 2 - so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for its role (an on/off setting named by the message type) and not for an observed behaviour.",
+      "provenance": "decompile: reader FUN_1425a3070 and its decode side FUN_1425a30b0; capture: 0x61_T0x101d_W.bin"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x1482cecb8, resolved by the name-accessor walk: its +0x08 slot is FUN_143e5d8e0; ret, returning the string 'ChatComponentServerFacet_SetProfanityFilterEnabled'. Writer slot +0x58 = FUN_143e5d580, reader slot +0x60 = FUN_1425a3070"
+    },
+    {
+      "type": "decompile",
+      "ref": "the shared bool reader FUN_1425a3070 is FUN_1414dbca0() for the shared head, then one raw byte through stream +0x40 from the object's +0x20, written as a strict `!= 0`. Its matching decode side FUN_1425a30b0 reads one byte and REFUSES anything >= 2 (setting the error code), so a wider or non-boolean reading is excluded by the client's own code. Five unrelated wire types share this reader: 0x101a, 0x101d, 0x10b0, 0x187c and 0x187f"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x61_T0x101d_W.bin at seq 0x61, 45 bytes: after the 8-byte frame head and the 16-byte actor id, typed header 00 01 9d 40, then body db 84 a5 d6 31 d9 b3 3a bf 85 31 4b bc 4a 95 1a 00"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

@@ -1,0 +1,77 @@
+{
+  "uid": "msg.social-request-streamer-mode-data-sync",
+  "kind": "message",
+  "name": "SocialComponentServerFacet_RequestStreamerModeDataSync",
+  "aliases": ["wire:0x102e", "RequestStreamerModeDataSync"],
+  "summary": "The client asks for the streamer-mode data sync. A 46-byte record with an 18-byte body: the shared two-u64 head, then TWO raw bytes. Its reader is explicit and unusually direct - FUN_1414dbca0() for the head, then ONE stream write of LENGTH 2 from object +0x20 - so the two bytes are a single fixed 2-byte run and not two separate flags. That distinction matters: two bools and one 2-byte run produce the same bytes here, and only the codec separates them.",
+  "purpose": "Request that the server synchronise streamer-mode state to this client. The captured pair is 00 00, and both bytes are zero in the only sample, so what the two bytes mean stays unnamed; the field is carried as one bytes(2) run because that is what the reader writes.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the social component asks for a streamer-mode data sync"],
+    "if_absent": "the client's streamer-mode state is never synchronised. The capture sends it at seq 0x5e, immediately before the title request at 0x5f"
+  },
+  "wire": { "id": "0x102e", "direction": "C2S", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 ae 40, i.e. type index 4142 = 0x102e. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so an 18-byte body makes a 46-byte record.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured ce 81 13 6a 2b 7a d3 3e = 0xce81136a2b7ad33e. First u64 of the shared message head: the sending facet's own local id, the social client facet. The SAME value 0x102f and 0x1033 carry, so all three social-bus records in the capture name one facet.",
+      "provenance": "corpus-wide scan; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "request_payload",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 2,
+      "type": "bytes(2)",
+      "evidence": "measured",
+      "note": "Measured 00 00, leaving nothing over: 16 + 2 = 18 exactly. The reader writes exactly two raw bytes in ONE stream call with the length as a literal argument, so they are one 2-byte run; splitting them into two bools would be an invention the codec does not support. Both bytes are zero in the only capture, so no reading of either is attempted.",
+      "provenance": "decompile: reader FUN_143eaabc0 - FUN_1414dbca0() then a stream +0x40 write of length 2 from +0x20; capture: 0x5e_T0x102e_W.bin"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x1482d6c58, resolved by the name-accessor walk: its +0x08 slot is FUN_143eab110; ret, returning the string 'SocialComponentServerFacet_RequestStreamerModeDataSync'. Writer slot +0x58 = FUN_143eaab50, reader slot +0x60 = FUN_143eaabc0"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_143eaabc0 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single raw write of TWO bytes from object +0x20. The width is read from the call's literal length argument and not inferred from the sample, which is what rules out the two-separate-flags reading"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x5e_T0x102e_W.bin at seq 0x5e, 46 bytes: after the 8-byte frame head and the 16-byte actor id, typed header 00 01 ae 40, then body ce 81 13 6a 2b 7a d3 3e bf 85 31 4b bc 4a 95 1a 00 00"
+    },
+    {
+      "type": "capture",
+      "ref": "the body's facet id is byte-identical to 0x102f's and 0x1033's. Three social-bus records, one facet - the sync request at seq 0x5e, the title request at 0x5f and the title answer at 0x62"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

@@ -814,6 +814,45 @@ MESSAGES = {
             ('cull_limit_pct', 'u8'),
         ),
     },
+    4122: {
+        'uid': 'msg.spectated-player-set-is-public',
+        'name': 'SpectatedPlayerComponentServerFacet_SetIsPublic',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('enabled_flag', 'bool_byte'),
+        ),
+    },
+    4125: {
+        'uid': 'msg.chat-set-profanity-filter-enabled',
+        'name': 'ChatComponentServerFacet_SetProfanityFilterEnabled',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('enabled_flag', 'bool_byte'),
+        ),
+    },
+    4142: {
+        'uid': 'msg.social-request-streamer-mode-data-sync',
+        'name': 'SocialComponentServerFacet_RequestStreamerModeDataSync',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('request_payload', 'bytes(2)'),
+        ),
+    },
+    4143: {
+        'uid': 'msg.social-send-available-titles-to-client',
+        'name': 'SocialComponentServerFacet_SendAvailableTitlesToClient',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+        ),
+    },
     4147: {
         'uid': 'msg.social-receive-available-titles',
         'name': 'SocialComponentClientFacet_ReceiveAvailableTitles',
@@ -878,6 +917,46 @@ MESSAGES = {
         'fields': (
             ('local_facet_id', 'u64be'),
             ('local_actor_id_word0', 'u64be'),
+        ),
+    },
+    4272: {
+        'uid': 'msg.traversal-sync-auto-traversal-enabled',
+        'name': 'TraversalComponentServerFacet_SyncIsAutoTraversalEnabled',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('enabled_flag', 'bool_byte'),
+        ),
+    },
+    5181: {
+        'uid': 'msg.player-ack-level-info-changed',
+        'name': 'PlayerComponentServerFacet_OnAckLevelInfoChanged',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('ack_value', 'u8'),
+        ),
+    },
+    6268: {
+        'uid': 'msg.mount-dash-toggle-changed',
+        'name': 'MountComponentServerFacet_OnMountDashToggleChanged',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('enabled_flag', 'bool_byte'),
+        ),
+    },
+    6271: {
+        'uid': 'msg.mount-slow-walk-changed',
+        'name': 'MountComponentServerFacet_OnMountSlowWalkChanged',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('enabled_flag', 'bool_byte'),
         ),
     },
     6310: {

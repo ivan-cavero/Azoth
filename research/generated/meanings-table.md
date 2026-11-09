@@ -729,6 +729,18 @@
 | count_payload | opaque(count_payload) | 0x18 | unknown | layout-only | FUN_146a6ebe0(&state, param_3 + 0x18, param_2) fills it immediately after the byte at 0x10. |
 | tail_from_0x28 | opaque(tail_from_0x28) | 0x28 | partial | layout-only | The facet then reads at 0x28, 0x30, and a nested group through FUN_146a6e090 at 0x38, 0x40, 0x48, 0x50, 0x78, 0xa0 and 0xc8. The 15-field list carried over from the deleted crate is consistent with these offsets but its individual meanings were never decoded. |
 
+## msg.chat-set-profanity-filter-enabled — ChatComponentServerFacet_SetProfanityFilterEnabled
+
+- wire 0x101d, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured db 84 a5 d6 31 d9 b3 3a = 0xdb84a5d631d9b33a. First u64 of the shared message head: the sending facet's own local id, the chat client facet. It is NOT the social facet's ce81136a2b7ad33e, so chat and social are separate components even though both deal with text. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes `*(char *)(param_1 + 0x20) != '\0'` as ONE byte, and its decode side FUN_1425a30b0 rejects any byte >= 2 - so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for its role (an on/off setting named by the message type) and not for an observed behaviour. |
+
 ## msg.client-add-entry — ClientAddEntryMsg
 
 - wire 0xa4, S2C
@@ -825,6 +837,30 @@
 - kind: message; status: candidate; confidence: layout
 - codegen: field-less — neither emitted nor refused
 
+## msg.mount-dash-toggle-changed — MountComponentServerFacet_OnMountDashToggleChanged
+
+- wire 0x187c, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 16 00 99 18 b0 41 c1 f9 = 0x16009918b041c1f9. First u64 of the shared message head: the sending facet's own local id. The mount client facet's own id, shared with 0x187f - the two mount toggles are two members of one facet. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
+
+## msg.mount-slow-walk-changed — MountComponentServerFacet_OnMountSlowWalkChanged
+
+- wire 0x187f, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 16 00 99 18 b0 41 c1 f9 = 0x16009918b041c1f9. First u64 of the shared message head: the sending facet's own local id. The mount client facet's own id, shared with 0x187c. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
+
 ## msg.objectives-notify-open-ui-screen — ObjectivesComponentServerFacet_NotifyOpenUiScreen
 
 - wire 0xa39, C2S
@@ -860,6 +896,18 @@
 | local_facet_id | u64be | 0x00 | measured | known | First u64 of the shared message head, and the sending facet's own local id - identity, not request data. The send builder fills msg+0x08 from FUN_1416c1c40(facet) = *[*[facet+8]+8] + [GDE+0x10]: [GDE+0x10] is the id handed out by the global id dispenser FUN_14144a9f0 at ClientGDE attach (writer FUN_141464890 <- FUN_14167c760), and *[*[facet+8]+8] is a base read off the object the GDE's server-GDE reference resolves to (FUN_1417db510). That same value is the key the facet registers itself under in the Context's facet map (FUN_14167c560: key FUN_1416c1c40(facet), value the facet object, slot array at Context+0x1b0) and the key the RMI dispatcher looks up, so it is the local id the server must address. The client names it itself: log field facetId, 'Failed to unregister the facet.', and on a duplicate collidingLocalId + collidingFacetName with 'We got a collision on facets IDs, RMIs may fail to be delivered to this facet.'; the dispatch failure line calls it targetLocalId. Measured 0x180f8d4e573697c6 in the live 0x5b2 bodies, the same value its 0xa95 sibling carries - one per facet, not per message. |
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | tracked_objective_ids | vec<u64be> | 0x10 | measured | known | Prefix-varint count (stated <= 8) then count x u64 BE. meanings.md 'The Journal families' row 0x5b2: 'head + varint(len <= 8) + N u64 BE'. Live bodies show count 0 (17-byte body) and count 6 (65-byte body). |
+
+## msg.player-ack-level-info-changed — PlayerComponentServerFacet_OnAckLevelInfoChanged
+
+- wire 0x143d, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 9e 92 1a 15 49 71 f6 b7 = 0x9e921a154971f6b7. First u64 of the shared message head: the sending facet's own local id, the player client facet. The SAME value msg.player-cull-limit-pct-change-request carries for 0xf7f, so both player-bus messages name one facet. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| ack_value | u8 | 0x10 | measured | layout-only | Measured 0x01, leaving nothing over: 16 + 1 = 17 exactly. The reader is the SAME function as 0xf7f's - FUN_142746100, two calls, the head then one raw byte from +0x20 - so the width comes from the codec and has a second independent signal across an unrelated message type. The field is named for its position and not for a meaning: one captured value cannot separate an ack flag from a sequence number from a result code. |
 
 ## msg.player-cull-limit-pct-change-request — PlayerComponentServerFacet_OnCullLimitPctChangeRequest
 
@@ -957,6 +1005,29 @@
 | title_ids | vec<u32be> | 0x10 | measured | layout-only | The first vector: one prefix-varint count (measured 0x6d = 109), then 109 u32 BE. All 109 are distinct. The vector reader FUN_14293d640 is generic and visible: it writes a prefix-varint count, then loops the elements through FUN_140876e70, which is the same u32 BE primitive the atlas pinned for the Territory batch - so the codec is confirmed by a second route, not inferred from the sample. The ids do not occur anywhere in .rdata in either byte order, so they are per-account data rather than binary constants. Named positionally: the card does not claim these are the titles the account can choose, only that they are this message's first id vector. |
 | title_selection_ids | vec<u32be> | 0x1c5 | measured | layout-only | The second vector: one prefix-varint count (measured 0x0a = 10), then 10 u32 BE. The measured relation to title_ids is what earns this field's shape: the ten values are a STRICT SUBSET of the hundred-and-nine - all ten are found in the first vector, written in a different order (their indices there are 3, 0, 4, 1, 2, 18, 83, 92, 63, 104). A subset written out of order is a selection, not a parallel list. That is why the field is named for a selection rather than for a second independent set. What the selection MEANS - held now, unlocked, displayed - is not measured and is not claimed. |
 
+## msg.social-request-streamer-mode-data-sync — SocialComponentServerFacet_RequestStreamerModeDataSync
+
+- wire 0x102e, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured ce 81 13 6a 2b 7a d3 3e = 0xce81136a2b7ad33e. First u64 of the shared message head: the sending facet's own local id, the social client facet. The SAME value 0x102f and 0x1033 carry, so all three social-bus records in the capture name one facet. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| request_payload | bytes(2) | 0x10 | measured | layout-only | Measured 00 00, leaving nothing over: 16 + 2 = 18 exactly. The reader writes exactly two raw bytes in ONE stream call with the length as a literal argument, so they are one 2-byte run; splitting them into two bools would be an invention the codec does not support. Both bytes are zero in the only capture, so no reading of either is attempted. |
+
+## msg.social-send-available-titles-to-client — SocialComponentServerFacet_SendAvailableTitlesToClient
+
+- wire 0x102f, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured ce 81 13 6a 2b 7a d3 3e = 0xce81136a2b7ad33e. First u64 of the shared message head: the sending facet's own local id, the social client facet. The SAME value `0x102e` and `0x1033` carry, which is what makes the request/answer reading a measured relation rather than a guess from two names. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+
 ## msg.spawn-actors — SpawnActorsMsg
 
 - wire 574, S2C
@@ -966,6 +1037,18 @@
 | field | type | offset | evidence | meaning | note |
 | --- | --- | --- | --- | --- | --- |
 | id | u64be | 0x00 | unknown | layout-only | meaning unproven; not a count or vector |
+
+## msg.spectated-player-set-is-public — SpectatedPlayerComponentServerFacet_SetIsPublic
+
+- wire 0x101a, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 95 a5 a8 0a a5 42 88 d1 = 0x95a5a80aa54288d1. First u64 of the shared message head: the sending facet's own local id. One of the per-component facet ids; it appears on this wire only. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
 
 ## msg.territory-detector-attempt-territory-unlock — TerritoryDetectorComponentServerFacet_AttemptTerritoryUnlock
 
@@ -1042,6 +1125,18 @@
 | unresolved_prefix | bytes(2) | 0x00 | measured | layout-only | Measured `0b 88` in all four committed 0x14f bodies. Constant across the four samples, so it is carried as a fixed 2-byte run rather than interpreted as an integer. It is NOT the same prefix PingMsg carries (`00 03`), so the two messages are distinguishable by their own first two body bytes as well as by wire id. |
 | time_high | u16be | 0x02 | measured | known | Top 16 bits of the 48-bit counter. Read with time_low as ONE 48-bit big-endian nanosecond counter, the same split PingMsg uses because the closed codec vocabulary has no 48-bit integer. Measured 8d68 in seq 0x0a/0x27 and 8d69 in seq 0x3c/0x54, and the step between those two halves is what the 3 s gaps predict. |
 | time_low | u32be | 0x04 | measured | known | Low 32 bits of the same counter. The four samples are 0x7b13001a, 0x8141abb4, 0x365cc1e0, 0xe92f11ff and their gaps are 103721882 ns, 3038451244 ns and 3000127519 ns - i.e 0.104 s, 3.038 s, 3.000 s. The two long gaps each span exactly three captured PingMsg records, whose measured period is 1.000 s (nine consecutive gaps between 1.0005 and 1.0019 s), so two independent series agree on the scale. |
+
+## msg.traversal-sync-auto-traversal-enabled — TraversalComponentServerFacet_SyncIsAutoTraversalEnabled
+
+- wire 0x10b0, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 28 8c 27 b1 a6 be 71 cc = 0x288c27b1a6be71cc. First u64 of the shared message head: the sending facet's own local id. The traversal client facet's own id. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| enabled_flag | bool_byte | 0x10 | measured | layout-only | Measured 0x00, leaving nothing over: 16 + 1 = 17 exactly. The reader writes the object's +0x20 byte as a single strict non-zero test and its decode side FUN_1425a30b0 rejects any byte at or above 2, so the width and the strictness are both from the codec. What the flag SWITCHES is not measured: only the value 0 was captured, so the field is named for the on/off setting the message name announces, not for an observed behaviour. |
 
 ## msg.update — UpdateMsg
 

@@ -1730,6 +1730,266 @@ impl MsgPlayerCullLimitPctChangeRequest {
     }
 }
 
+/// `msg.spectated-player-set-is-public` — one Atlas card.
+///
+/// Message card, wire id `4122`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgSpectatedPlayerSetIsPublic {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `enabled_flag` (`bool_byte`); meaning unnamed.
+    pub enabled_flag: bool,
+}
+
+impl MsgSpectatedPlayerSetIsPublic {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.spectated-player-set-is-public";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 4122;
+
+    /// Decode one `msg.spectated-player-set-is-public` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            enabled_flag: reader.bool_byte("enabled_flag")?,
+        })
+    }
+
+    /// Encode one `msg.spectated-player-set-is-public` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.u8(u8::from(self.enabled_flag));
+        Ok(())
+    }
+}
+
+/// `msg.chat-set-profanity-filter-enabled` — one Atlas card.
+///
+/// Message card, wire id `4125`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgChatSetProfanityFilterEnabled {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `enabled_flag` (`bool_byte`); meaning unnamed.
+    pub enabled_flag: bool,
+}
+
+impl MsgChatSetProfanityFilterEnabled {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.chat-set-profanity-filter-enabled";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 4125;
+
+    /// Decode one `msg.chat-set-profanity-filter-enabled` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            enabled_flag: reader.bool_byte("enabled_flag")?,
+        })
+    }
+
+    /// Encode one `msg.chat-set-profanity-filter-enabled` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.u8(u8::from(self.enabled_flag));
+        Ok(())
+    }
+}
+
+/// `msg.social-request-streamer-mode-data-sync` — one Atlas card.
+///
+/// Message card, wire id `4142`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgSocialRequestStreamerModeDataSync {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `request_payload` (`bytes(2)`); meaning unnamed.
+    pub request_payload: Opaque,
+}
+
+impl MsgSocialRequestStreamerModeDataSync {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.social-request-streamer-mode-data-sync";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 4142;
+
+    /// Decode one `msg.social-request-streamer-mode-data-sync` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            request_payload: reader.opaque(
+                "request_payload",
+                "msg.social-request-streamer-mode-data-sync.request_payload",
+                2,
+            )?,
+        })
+    }
+
+    /// Encode one `msg.social-request-streamer-mode-data-sync` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.opaque(&self.request_payload);
+        Ok(())
+    }
+}
+
+/// `msg.social-send-available-titles-to-client` — one Atlas card.
+///
+/// Message card, wire id `4143`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgSocialSendAvailableTitlesToClient {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+}
+
+impl MsgSocialSendAvailableTitlesToClient {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.social-send-available-titles-to-client";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 4143;
+
+    /// Decode one `msg.social-send-available-titles-to-client` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+        })
+    }
+
+    /// Encode one `msg.social-send-available-titles-to-client` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        Ok(())
+    }
+}
+
 /// `msg.social-receive-available-titles` — one Atlas card.
 ///
 /// Message card, wire id `4147`.
@@ -2135,6 +2395,266 @@ impl MsgTimeSyncToClient {
     pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
         writer.u64be(self.local_facet_id);
         writer.u64be(self.local_actor_id_word0);
+        Ok(())
+    }
+}
+
+/// `msg.traversal-sync-auto-traversal-enabled` — one Atlas card.
+///
+/// Message card, wire id `4272`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgTraversalSyncAutoTraversalEnabled {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `enabled_flag` (`bool_byte`); meaning unnamed.
+    pub enabled_flag: bool,
+}
+
+impl MsgTraversalSyncAutoTraversalEnabled {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.traversal-sync-auto-traversal-enabled";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 4272;
+
+    /// Decode one `msg.traversal-sync-auto-traversal-enabled` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            enabled_flag: reader.bool_byte("enabled_flag")?,
+        })
+    }
+
+    /// Encode one `msg.traversal-sync-auto-traversal-enabled` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.u8(u8::from(self.enabled_flag));
+        Ok(())
+    }
+}
+
+/// `msg.player-ack-level-info-changed` — one Atlas card.
+///
+/// Message card, wire id `5181`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgPlayerAckLevelInfoChanged {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `ack_value` (`u8`); meaning unnamed.
+    pub ack_value: u8,
+}
+
+impl MsgPlayerAckLevelInfoChanged {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.player-ack-level-info-changed";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 5181;
+
+    /// Decode one `msg.player-ack-level-info-changed` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            ack_value: reader.u8("ack_value")?,
+        })
+    }
+
+    /// Encode one `msg.player-ack-level-info-changed` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.u8(self.ack_value);
+        Ok(())
+    }
+}
+
+/// `msg.mount-dash-toggle-changed` — one Atlas card.
+///
+/// Message card, wire id `6268`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgMountDashToggleChanged {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `enabled_flag` (`bool_byte`); meaning unnamed.
+    pub enabled_flag: bool,
+}
+
+impl MsgMountDashToggleChanged {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.mount-dash-toggle-changed";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 6268;
+
+    /// Decode one `msg.mount-dash-toggle-changed` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            enabled_flag: reader.bool_byte("enabled_flag")?,
+        })
+    }
+
+    /// Encode one `msg.mount-dash-toggle-changed` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.u8(u8::from(self.enabled_flag));
+        Ok(())
+    }
+}
+
+/// `msg.mount-slow-walk-changed` — one Atlas card.
+///
+/// Message card, wire id `6271`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgMountSlowWalkChanged {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `enabled_flag` (`bool_byte`); meaning unnamed.
+    pub enabled_flag: bool,
+}
+
+impl MsgMountSlowWalkChanged {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.mount-slow-walk-changed";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 6271;
+
+    /// Decode one `msg.mount-slow-walk-changed` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            enabled_flag: reader.bool_byte("enabled_flag")?,
+        })
+    }
+
+    /// Encode one `msg.mount-slow-walk-changed` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.u8(u8::from(self.enabled_flag));
         Ok(())
     }
 }

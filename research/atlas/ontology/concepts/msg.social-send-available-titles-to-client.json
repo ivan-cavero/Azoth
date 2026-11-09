@@ -1,0 +1,66 @@
+{
+  "uid": "msg.social-send-available-titles-to-client",
+  "kind": "message",
+  "name": "SocialComponentServerFacet_SendAvailableTitlesToClient",
+  "aliases": ["wire:0x102f", "SendAvailableTitlesToClient"],
+  "summary": "The client asks the server to send it the available titles. A 44-byte record with a 16-byte body - the shared head and NOTHING ELSE, so it is a bare request. Its name is the exact counterpart of 0x1033 SocialComponentClientFacet_ReceiveAvailableTitles, and the measured facet id is the same `ce81136a2b7ad33e`: the request and the answer are two members of one bus on one facet. The capture holds the request at seq 0x5f and the answer at seq 0x62, three records apart.",
+  "purpose": "Ask for the title list. The answer is already modelled in this atlas: `0x1033` ReceiveAvailableTitles, a 494-byte body of two u32 vectors. That the two form a request/answer pair is a reading from the shared facet id and the paired names, NOT from a measured correlation - no request/response link between the two records was established from the capture.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the social component asks for its title list"],
+    "if_absent": "the client never receives its titles. The capture sends this at seq 0x5f and the 0x1033 answer at 0x62, so the request does precede the answer in this one session - but three intervening records make that ordering weak evidence on its own"
+  },
+  "wire": { "id": "0x102f", "direction": "C2S", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 af 40, i.e. type index 4143 = 0x102f. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 16-byte body makes a 44-byte record.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured ce 81 13 6a 2b 7a d3 3e = 0xce81136a2b7ad33e. First u64 of the shared message head: the sending facet's own local id, the social client facet. The SAME value `0x102e` and `0x1033` carry, which is what makes the request/answer reading a measured relation rather than a guess from two names.",
+      "provenance": "corpus-wide scan; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x1482db040, resolved by the name-accessor walk: its +0x08 slot is FUN_143eb9fe0 = lea rax,[0x1482db0b0]; ret, returning the string 'SocialComponentServerFacet_SendAvailableTitlesToClient'. Writer slot +0x58 = FUN_143eb9d40, reader slot +0x60 = FUN_14259f170"
+    },
+    {
+      "type": "decompile",
+      "ref": "the +0x60 reader slot FUN_14259f170 resolves to the SAME shared optional wrapper that 0x66b's vtable also points at, not a plain marshal/unmarshal pair, so the codec was NOT read from the vtable. The 16-byte width rests on the capture, and is corroborated by the fact that 0x1033 - the answer on this same facet - also begins with the identical 16-byte head"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x5f_T0x102f_W.bin at seq 0x5f, 44 bytes: after the 8-byte frame head and the 16-byte actor id, typed header 00 01 af 40, then exactly 16 body bytes ce 81 13 6a 2b 7a d3 3e bf 85 31 4b bc 4a 95 1a. Nothing remains, so the body is the head alone"
+    },
+    {
+      "type": "capture",
+      "ref": "the body's facet id equals 0x102e's and 0x1033's byte for byte. Three social-bus records, one facet id, two directions: a request (0x102f), a sibling request (0x102e) and an answer (0x1033). The capture holds 0x102f at seq 0x5f and 0x1033 at seq 0x62, but no causal link between them was measured"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}
