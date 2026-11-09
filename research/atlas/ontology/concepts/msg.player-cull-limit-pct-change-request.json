@@ -1,0 +1,73 @@
+{
+  "uid": "msg.player-cull-limit-pct-change-request",
+  "kind": "message",
+  "name": "PlayerComponentServerFacet_OnCullLimitPctChangeRequest",
+  "aliases": ["wire:0xf7f", "OnCullLimitPctChangeRequest"],
+  "summary": "The client asks the server to change its cull limit percentage. A 45-byte record with a 17-byte body: the shared two-u64 head, then ONE byte of value 0x64 = 100. The reader confirms it independently - FUN_1414dbca0 for the head, then a single FUN_140876e10 write from object +0x20 - so the body is exactly head + one u8 and nothing else. The message name says PCT, the reader says one byte, and the captured value is 100, so the reading is a whole percentage.",
+  "purpose": "Set the client's cull limit percentage: the view distance or cull threshold the game applies to what it draws. The captured 100 is the maximum of a percentage, so the capture alone cannot distinguish a percentage from a raw count; the reader's single byte plus the name's 'Pct' is what makes percent the reading.",
+  "authority": "client",
+  "lifecycle": {
+    "created_when": ["the client's player component requests a cull-limit change - a settings or options path"],
+    "if_absent": "the server never receives a cull-limit request. The capture holds one, at seq 0x63, so it is a normal ladder-adjacent record and not a rare path"
+  },
+  "wire": { "id": "0xf7f", "direction": "C2S", "transport": "rep" },
+  "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 bf 3d, i.e. type index 3967 = 0xf7f. A client record carries the body at record offset 28: the 8-byte frame head and the 16-byte actor id precede the typed header, so a 17-byte body makes a 45-byte record.",
+  "fields": [
+    {
+      "name": "local_facet_id",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x00",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured 9e 92 1a 15 49 71 f6 b7 = 0x9e921a154971f6b7. First u64 of the shared message head: the sending facet's own local id, the player client facet.",
+      "provenance": "corpus-wide scan; the head's first u64 is named in msg.time-sync-to-client.json from FUN_1416c1c40"
+    },
+    {
+      "name": "local_actor_id_word0",
+      "meaning": "known",
+      "where": "wire",
+      "offset": "0x08",
+      "size": 8,
+      "endian": "be",
+      "type": "u64be",
+      "evidence": "measured",
+      "note": "Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries.",
+      "provenance": "already earned in msg.time-sync-to-client.json; re-measured here"
+    },
+    {
+      "name": "cull_limit_pct",
+      "meaning": "layout-only",
+      "where": "wire",
+      "offset": "0x10",
+      "size": 1,
+      "type": "u8",
+      "evidence": "measured",
+      "note": "Measured 0x64 = 100, which is the body's last byte and leaves nothing over: 16 + 1 = 17 exactly. The reader is a single FUN_140876e10 write of the byte at object +0x20, so the width is read from the codec and not only from the sample. Carried as u8 rather than percent(...) because the vocabulary has no percentage type and because only the value 100 was captured - a percent reading is consistent with the name but not falsified by the bytes.",
+      "provenance": "decompile: reader FUN_142746100 - FUN_1414dbca0() then one raw byte write through FUN_140876e10 from +0x20; capture: 0x63_T0xf7f_W.bin last body byte"
+    }
+  ],
+  "relations": [
+    { "op": "part_of", "to": "flow.presence" }
+  ],
+  "confidence": "layout",
+  "status": "candidate",
+  "evidence": [
+    {
+      "type": "decompile",
+      "ref": "object vtable 0x14851cdd8, resolved by the name-accessor walk: its +0x08 slot is FUN_146576500 = lea rax,[0x14851cf70]; ret, returning the string 'PlayerComponentServerFacet_OnCullLimitPctChangeRequest'. Reader slot +0x60 = FUN_142746100, writer slot +0x58 = FUN_146565dc0"
+    },
+    {
+      "type": "decompile",
+      "ref": "reader FUN_142746100 is two calls: FUN_1414dbca0() for the shared two-u64 head, then a single raw byte write FUN_140876e10 from object +0x20. No count, no string, no second field - so the body is head plus one byte and the card's 17 bytes are exact"
+    },
+    {
+      "type": "capture",
+      "ref": "record 0x63_T0xf7f_W.bin at seq 0x63, 45 bytes: after the 8-byte frame head and the 16-byte actor id, typed header 00 01 bf 3d, then body 9e 92 1a 15 49 71 f6 b7 bf 85 31 4b bc 4a 95 1a 64. The last byte is 0x64 and nothing follows"
+    }
+  ],
+  "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",
+  "owners": { "crate": null, "module": null }
+}

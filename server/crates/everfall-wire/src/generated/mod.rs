@@ -1665,6 +1665,71 @@ impl MsgServerEquipItem {
     }
 }
 
+/// `msg.player-cull-limit-pct-change-request` — one Atlas card.
+///
+/// Message card, wire id `3967`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsgPlayerCullLimitPctChangeRequest {
+    /// Body field `local_facet_id` (`u64be`).
+    pub local_facet_id: u64,
+    /// Body field `local_actor_id_word0` (`u64be`).
+    pub local_actor_id_word0: u64,
+    /// Body field `cull_limit_pct` (`u8`); meaning unnamed.
+    pub cull_limit_pct: u8,
+}
+
+impl MsgPlayerCullLimitPctChangeRequest {
+    /// The Atlas card id.
+    pub const UID: &'static str = "msg.player-cull-limit-pct-change-request";
+    /// The card wire id.
+    pub const WIRE_ID: u32 = 3967;
+
+    /// Decode one `msg.player-cull-limit-pct-change-request` body.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when the body is shorter, longer, or outside
+    /// a bound the card states.
+    pub fn decode(body: &[u8]) -> Result<Self, WireError> {
+        let mut reader = Reader::new(body);
+        let value = Self::read_from(&mut reader)?;
+        reader.finish()?;
+        Ok(value)
+    }
+
+    /// Read one body from the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a field is truncated or outside a bound the
+    /// card states.
+    pub fn read_from(reader: &mut Reader<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            local_facet_id: reader.u64be("local_facet_id")?,
+            local_actor_id_word0: reader.u64be("local_actor_id_word0")?,
+            cull_limit_pct: reader.u8("cull_limit_pct")?,
+        })
+    }
+
+    /// Encode one `msg.player-cull-limit-pct-change-request` body, appending to `out`.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn encode(&self, out: &mut Vec<u8>) -> Result<(), WireError> {
+        let mut writer = Writer::new(out);
+        self.write_to(&mut writer)
+    }
+
+    /// Write one body into the middle of a larger record.
+    ///
+    /// # Errors
+    /// Returns [`WireError`] when a value exceeds a width the card states.
+    pub fn write_to(&self, writer: &mut Writer<'_>) -> Result<(), WireError> {
+        writer.u64be(self.local_facet_id);
+        writer.u64be(self.local_actor_id_word0);
+        writer.u8(self.cull_limit_pct);
+        Ok(())
+    }
+}
+
 /// `msg.social-receive-available-titles` — one Atlas card.
 ///
 /// Message card, wire id `4147`.

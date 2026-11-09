@@ -861,6 +861,18 @@
 | local_actor_id_word0 | u64be | 0x08 | measured | known | Second u64 of the shared message head, and the first 8 bytes of the client's own actor id - identity, not request data. Writer FUN_1414dbca0 copies the message object's +0x10 through a stack local and writes it big-endian (htonl64 FUN_1461668a0) through the stream raw-write slot +0x40. The send builder fills +0x10 from FUN_1416be9f0, which dereferences the weak handle at the GDE's +0x60 (FUN_14165c230) and reads [session+0x88]. Measured 0xbf85314bbc4a951a in all 14 committed bodies of the six head-prefixed messages across five sessions; in the same records its little-endian bytes 1a954abc4b3185bf are the first 8 of the record's 16-byte actor id, the local player's actor id handed over by ClientAddEntryMsg (0xa4). |
 | tracked_objective_ids | vec<u64be> | 0x10 | measured | known | Prefix-varint count (stated <= 8) then count x u64 BE. meanings.md 'The Journal families' row 0x5b2: 'head + varint(len <= 8) + N u64 BE'. Live bodies show count 0 (17-byte body) and count 6 (65-byte body). |
 
+## msg.player-cull-limit-pct-change-request — PlayerComponentServerFacet_OnCullLimitPctChangeRequest
+
+- wire 0xf7f, C2S
+- kind: message; status: candidate; confidence: layout
+- codegen: **ready** — wire code emitted
+
+| field | type | offset | evidence | meaning | note |
+| --- | --- | --- | --- | --- | --- |
+| local_facet_id | u64be | 0x00 | measured | known | Measured 9e 92 1a 15 49 71 f6 b7 = 0x9e921a154971f6b7. First u64 of the shared message head: the sending facet's own local id, the player client facet. |
+| local_actor_id_word0 | u64be | 0x08 | measured | known | Measured bf 85 31 4b bc 4a 95 1a = 0xbf85314bbc4a951a, the first 8 bytes of the client's own actor id - the same value every other capture carries. |
+| cull_limit_pct | u8 | 0x10 | measured | layout-only | Measured 0x64 = 100, which is the body's last byte and leaves nothing over: 16 + 1 = 17 exactly. The reader is a single FUN_140876e10 write of the byte at object +0x20, so the width is read from the codec and not only from the sample. Carried as u8 rather than percent(...) because the vocabulary has no percentage type and because only the value 100 was captured - a percent reading is consistent with the name but not falsified by the bytes. |
+
 ## msg.receive-player-spawn-point — ReceivePlayerSpawnPointMsg
 
 - wire 0x651, S2C

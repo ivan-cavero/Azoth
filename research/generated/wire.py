@@ -804,6 +804,16 @@ MESSAGES = {
             ('field_g', 'bool_byte'),
         ),
     },
+    3967: {
+        'uid': 'msg.player-cull-limit-pct-change-request',
+        'name': 'PlayerComponentServerFacet_OnCullLimitPctChangeRequest',
+        'direction': 'C2S',
+        'fields': (
+            ('local_facet_id', 'u64be'),
+            ('local_actor_id_word0', 'u64be'),
+            ('cull_limit_pct', 'u8'),
+        ),
+    },
     4147: {
         'uid': 'msg.social-receive-available-titles',
         'name': 'SocialComponentClientFacet_ReceiveAvailableTitles',

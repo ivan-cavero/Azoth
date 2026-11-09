@@ -2891,6 +2891,20 @@ found, and the value turned out to be the facet's own registered local id: see
 named `local_facet_id` and marked `meaning: known` in every card that carries the
 head.
 
+## `0xf7f` is the head plus one byte, and the reader says so (2026-11-09)
+
+`PlayerComponentServerFacet_OnCullLimitPctChangeRequest`, wire `0xf7f`, C2S. One record,
+45 bytes, body **17**: the shared head, then a single `0x64`. The vtable is `0x14851cdd8`
+(name accessor `FUN_146576500`, reader `+0x60` = `FUN_142746100`), and the reader is
+unusually cooperative - it is exactly two calls, `FUN_1414dbca0()` for the head and one
+`FUN_140876e10` write of the byte at object `+0x20`. No count, no string, no second field.
+
+That matters because the sample alone could not settle the reading: the value is 100,
+which is the maximum of a percentage and also a plausible raw count. The single-byte
+width comes from the reader, and the name carries `Pct`, so percent is the reading -
+but the card still marks the field `layout-only`, because one captured value cannot
+falsify a percent interpretation, only support it.
+
 ## `0x66b` is `0x1067`'s other half, and the two name one facet (2026-11-09)
 
 `VoiceChatComponentServerFacet_RegisterVoiceChatService`, wire `0x66b`, type index 1643,

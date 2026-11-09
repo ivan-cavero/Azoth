@@ -15,9 +15,10 @@ use everfall_wire::generated::{
     MsgContractsLookupContractsByParticipant, MsgContractsOnLookupContractsByParticipant,
     MsgGlobalStorageReceiveStorageSearchItems, MsgGridTrackingUpdatePhasing,
     MsgObjectivesSetObjectiveAutoPinning, MsgObjectivesUpdateTrackedObjectives,
-    MsgReceiveSettingsFromClient, MsgSetReplicateStorage, MsgSocialReceiveAvailableTitles,
-    MsgTimeSyncDayPhase, MsgTimeSyncTimeChange, MsgTimeSyncToClient, MsgTimeSynch0x14f,
-    MsgVoiceChatRegisterService, MsgVoiceChatServiceRegistered,
+    MsgPlayerCullLimitPctChangeRequest, MsgReceiveSettingsFromClient, MsgSetReplicateStorage,
+    MsgSocialReceiveAvailableTitles, MsgTimeSyncDayPhase, MsgTimeSyncTimeChange,
+    MsgTimeSyncToClient, MsgTimeSynch0x14f, MsgVoiceChatRegisterService,
+    MsgVoiceChatServiceRegistered,
 };
 
 fn fixture_text() -> String {
@@ -799,6 +800,33 @@ fn voice_chat_register_service_0x66b_shares_the_0x1067_facet_id() {
     let mut out = Vec::new();
     decoded.encode(&mut out).expect("encode 0x66b body");
     assert_eq!(out, body, "0x66b did not round-trip byte for byte");
+}
+
+#[test]
+fn player_cull_limit_pct_request_0xf7f_is_the_head_and_one_byte() {
+    // The one committed 0xf7f record, 45 bytes: frame head 8 + actor id 16 +
+    // typed header 4 + a 17-byte body. Corpus
+    // `services/world/replay/messages-redacted.txt`, seq 0x63.
+    let record = hex_bytes(
+        "f1e23a7300000025\
+         1a954abc4b3185bfbe37c3d8592618e0\
+         0001bf3d\
+         9e921a154971f6b7bf85314bbc4a951a64",
+    );
+    assert_eq!(record.len(), 45, "0xf7f record length");
+    assert_eq!(MsgPlayerCullLimitPctChangeRequest::WIRE_ID, 0xf7f);
+
+    let body = &record[28..];
+    assert_eq!(body.len(), 17, "0xf7f body is head 16 plus one byte");
+    let decoded = MsgPlayerCullLimitPctChangeRequest::decode(body).expect("decode 0xf7f");
+    assert_eq!(
+        decoded.cull_limit_pct, 100,
+        "the captured cull limit is the whole 100 percent"
+    );
+
+    let mut out = Vec::new();
+    decoded.encode(&mut out).expect("encode 0xf7f body");
+    assert_eq!(out, body, "0xf7f did not round-trip byte for byte");
 }
 
 #[test]
