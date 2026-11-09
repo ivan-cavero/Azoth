@@ -107,3 +107,46 @@ Client build: 1.460.6033.6024067, SHA-256 `30fe6461f929ba44178376a72f0765dc5da28
   - **Medición contra el Rust (job-97/98)**: `deframe=1 states={"0":1} parse=1 dispatch=1 enqueue=0` en toda la sesión. Contra el mundo Python el deframer corre miles de veces (parse 2677+). **Conclusión: tras la respuesta de registro, NI UN datagrama de la escalera llega siquiera al deframer.** El cliente ACKea a nivel transport pero su Carrier **no entrega** esos bytes al stream de records de la conexión. El defecto está, entonces, en la **entrega Carrier→deframer** (o en que el cliente descarte nuestro tráfico post-registro antes del deframer), NO en el deframer, el parse, el dispatch ni el cuerpo.
   - Nota de método: el hook del deframer en una corrida anterior coincidió con un crash del cliente en character select; en el reintento con el mismo probe el cliente llegó a REP y midió bien, así que el crash fue la falla intermitente del cliente, no el hook.
   - **Siguiente instrumento (F4c)**: hookear en el cliente la **ingesta de app-data del Carrier** — la función que recibe el datagrama desencriptado y lo entrega a la conexión/deframer — y comparar Rust vs Python (cuántos datagramas ingresa el cliente en cada caso, y con qué envelope/seq los acepta). Eso dirá si el cliente **descarta** nuestro tráfico post-registro (envelope/secuencia/estado) o si nunca lo recibe.
+
+- **L10 (F4c)** — PRUEBA PAREADA de la ingesta. Probe nuevo
+  `reverse/probes/client/frida-carrier-appdata-ingress.py` (headers de los tres hooks
+  verificados contra el exe en disco antes de adjuntar; build privado `97f17df3`).
+  Hookea la ingesta de app-data `FUN_146AF3310` (vtable, sin caller E8 en `.text`),
+  que llama `FUN_146b10400` (gate de congestión) y luego el deframer
+  `FUN_146AE5A70`. Misma sonda, mismo cliente, mismas fases (settle 60 s + patches +
+  Play) en ambas ramas.
+
+  | | Mundo Python | Rust (`everfall-netd`) |
+  | --- | --- | --- |
+  | registros enviados por el servidor | 3.943 replay (+5.103 resends) | 465 `ladder sent` (sin resends) |
+  | `ingress` (app-data del cliente) | 847 y **subiendo** | **1**, congelado |
+  | `deframe` / `parse` | 847 / 847 (1:1 con ingress) | 1 / 1 |
+  | ACKs del cliente al servidor | — | **457 envelopes distintos, `0x6`..`0x1d4`** |
+  | rungs | 15→16→17→`InGame` | se queda en 15 (`WaitingForActorGameConnection`) |
+
+  Evidencia: `.azoth/logs/ingress-python.log`, `.azoth/logs/ingress-rust.log`,
+  `.azoth/logs/world-python-arm.log`, `.azoth/logs/netd-rust-arm.log`.
+
+  **Corrección de L9.** L9 concluyó "ni un datagrama llega al deframer". F4c muestra
+  que el cliente **sí ACKea** el rango de envelopes que la escalera ocupa: en la rama
+  Rust mandó `SM_CT_ACKS` con `ack_first=0x6 .. ack_last=0x1d4`, 457 números distintos,
+  y la escalera de Rust empieza en envelope 6 (`post_v3_envelope_seq = sequence+1`).
+  L9 no midió "no llega": `FUN_146AE5A70` corre **1:1 con la ingesta en Python**
+  (847/847), así que el deframer es un buen contador del camino. En Rust la ingesta
+  vale 1 y el deframer vale 1, pero el cliente ACKea el rango entero de envelopes.
+
+  **Respuesta binaria a F4c**: el cliente **no descarta** nuestro tráfico por
+  envelope/secuencia (los ACKea). El corte está **entre el DTLS del cliente y la ingesta
+  de app-data del Carrier**: los datagramas se reciben y se ACKean a nivel
+  DTLS/Carrier-ACK, pero `FUN_146AF3310` no se llama para ellos.
+
+  **Hipótesis siguiente, medida y no adivinada.** El único asymmetry de contenido entre
+  las dos ramas, ya medido arriba: Python emite **3.943** records de replay y **5.103
+  resends**; Rust emite **465** y **cero resends**, y su bundle de estado es **un solo
+  record** (`from_emission` codifica `state.encode()` una vez) mientras Python manda el
+  `0x08` en cientos de records de 78..46.407 B. Antes de tocar la escalera hay que
+  separar "poco tráfico" de "tráfico rechazado": la siguiente medición es la ingesta en
+  Rust con la **primera** entrega (`ingress=1` fue el registro del cliente, no del
+  servidor), y en paralelo comprobar si el cliente exige un `0x08` inicial con la forma
+  del capture (mismo cuerpo `0x9e_T0x8_R.bin`, que Rust ya usa) o una secuencia de
+  records que el plan actual no produce.
