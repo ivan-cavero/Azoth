@@ -48,6 +48,46 @@ Python world that signs with RSA 2048.
 - `python ef.py dev` starts gateway **and** world **and** Caddy. Do not use it
   here; it would bind 9000.
 
+## The -Watch Frida set and 1.460
+
+`python ef.py game` always launches the launcher with `-Watch`, which runs the
+Frida patch tools. Measured 2026-11-09: on this 1.460 build every `-Watch`
+launch died at `Initializing Render Module RenderD3D12` (`0xc0000005`,
+ntdll+0x166447) about 5 s after spawn, while the same executable launched with
+no `-Watch` reached character select and stayed up. The cause was one stale
+address: `frida-eos-stub.py` replaced the 1.400 resolver VA `0x1444F79E0`,
+which on 1.460 is a `call qword [rip+0x39d2a1a]` inside another function. The
+stub is now build-scoped (`build_sites.identify()`, prologue
+`48895c2418564883ec20488bd9488d153c67e503` at `0x1444F8B20`) and refuses on an
+unknown build; it attaches to a loaded client and the client stays up.
+
+A second timing bug made it unsafe for the same build. The launcher attached
+Frida tools once the process passed 50 MB working set, which is ~1 s into
+mapping, while the frontend and the ClientSDK were still initialising. Attaching
+there killed the client 3 s later, and even attaching 5 s after
+`OnCampfireLoginComplete` was still too early; 45 s and 4 min both survived.
+The launcher now waits for `OnCampfireLoginComplete` AND sleeps
+`-SettleAfterLogin` (default 60 s) before the first Frida call. Measured
+2026-11-09 on 1.460: with both fixes, `python ef.py game` reached character
+select, Play, the whole 14→17 ladder and `InGame` with a rendered body, and the
+process stayed alive. Known open item from that run: 0 `Slice:` lines, i.e. the
+terrain never streams (gate 6).
+
+## Running the lab against the private client: the gateway must be warm
+
+The gateway scans its schema corpus for **~74 s** before it binds
+`127.0.0.1:8080` (measured 2026-11-09: `curl /ping` refused until +74 s). The
+client reaches its auth call ~50 s after launch, so launching both at once
+fails with `Unable to call JavelinGame::RequestHandleLoginSteps - Auth manager
+does not exist`, and Caddy logs a 502 for `127.0.0.1:8080`. Start the gateway
+FIRST, wait for `GET /ping` to answer 200, and only then launch the client.
+
+Two traps that cost a session: `ef.py gateway stop` leaves the recorded pid
+file behind when the process already died, so a later `start` can leave a
+second gateway that never binds; and a gateway started with a bare `&` in the
+Bash tool dies with the shell. Use `python ef.py gateway start`, then verify
+the port with `curl` before the client.
+
 ## Commands
 
 ```powershell

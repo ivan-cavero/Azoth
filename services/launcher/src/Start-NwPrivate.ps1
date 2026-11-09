@@ -10,7 +10,11 @@ param(
     # See the multi-client note below for what actually collides.
     [int]$Instance = 0,
     [switch]$Watch,
-    [switch]$RefreshExe
+    [switch]$RefreshExe,
+    # Seconds between `OnCampfireLoginComplete` and the first Frida attach.
+    # Measured 2026-11-09: attach 5 s after login killed the client; 45 s and
+    # 4 min both survived. scripts/session/private-run.py defaults to 60.
+    [int]$SettleAfterLogin = 60
 )
 
 $ErrorActionPreference = 'Stop'
@@ -301,9 +305,42 @@ $env:EOS_USE_ANTICHEATCLIENTNULL = '1'
 #
 # Override only when running as the SAME user who owns this checkout, which is the
 # historical single-client path and must stay byte-identical.
+#
+# The owner is read from the checkout's ACL. The first version derived it from the
+# repo's grandparent DIRECTORY NAME, which assumed the checkout sits two levels under
+# the user's folder. Measured 2026-11-09: a checkout at the root of a drive (`F:\Azoth`)
+# makes that grandparent the empty string, `Split-Path -Leaf ''` throws
+# "Cannot bind argument to parameter 'Path' because it is an empty string", and the
+# launcher dies before the game window appears - `ef.py game` reports a start and the
+# client never runs. The path shape is a proxy; the ACL owner is the measured answer.
+#
+# The old heuristic produced the bare account name ("ivang") because it started from
+# the user's FOLDER name and compared with `-$env:USERNAME`-like text. The ACL reports
+# the qualified name ("IVAN\ivang"). Compare the SAME form on both sides: the owner's
+# account part against the current user's account part.
 $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-$repoOwner = Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $repo))
-if ($currentUser -like "*\$repoOwner") {
+$repoOwner = ''
+try {
+    # `Get-Acl`, not `DirectoryInfo.GetAccessControl()`: the launcher runs under pwsh 7
+    # (`launcher_shell()`), and there the method does not exist. Measured 2026-11-09:
+    # under pwsh 7.6.9 it throws "System.IO.DirectoryInfo does not contain a method named
+    # 'GetAccessControl'", the catch swallowed it, and the empty owner sent every run down
+    # the other-user branch - which CLEARS the profile vars and loses the private profile.
+    $repoOwner = (Get-Acl -LiteralPath $repo).Owner
+} catch {
+    $repoOwner = ''
+}
+# The client's REAL log path, captured before the override below can change it.
+# The client resolves its folders through the known-folder API and ignores
+# $env:LOCALAPPDATA entirely (measured 2026-10-07), so this is the only path the
+# -Watch login gate can read.
+$realGameLog = Join-Path $env:LOCALAPPDATA 'AGS\New World\Game.log'
+$currentAccount = Split-Path -Leaf $currentUser
+$ownerAccount = if ($repoOwner) { Split-Path -Leaf $repoOwner } else { '' }
+# The account name is what the old heuristic effectively compared, and it is the
+# measured-safe condition: a checkout owned by this user keeps the historical profile
+# override. No owner (ACL read failed) falls through to the conservative branch.
+if ($ownerAccount -and ($currentAccount -eq $ownerAccount)) {
     $env:LOCALAPPDATA = $profileLocal
     $env:APPDATA = $profileRoaming
 } else {
@@ -336,21 +373,52 @@ if ($Watch) {
         Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
         throw 'Project Python tools are not installed. Run `python ef.py setup` first.'
     }
-    Write-Host '  Waiting for NewWorld.exe to map, then applying Frida patches...'
+    # Wait for the FRONTEND LOGIN, not for memory and not for the window.
+    # docs/archive/1.400/PRIVATE-CLIENT-RUNBOOK.md § "Patch timing": the -Watch
+    # set is for the WORLD phase, and applying it during load is what hangs the
+    # client. Measured again 2026-11-09 on 1.460: a main window exists ~4 s into
+    # load (592 MB) while D3D12 is still initialising, and every -Watch launch
+    # that patched from there died at D3D12 init; attach to a client already
+    # past the frontend survived every time. `OnCampfireLoginComplete` is the
+    # client's own "login successful, ownership=permanent" line, i.e. the
+    # earliest point the world phase can be considered to have started.
+    $gameLog = $realGameLog
+    Write-Host '  Waiting for OnCampfireLoginComplete, then applying Frida patches...'
     $ready = $false
-    foreach ($i in 1..60) {
+    foreach ($i in 1..150) {
         Start-Sleep -Seconds 2
         try {
-            $proc = Get-Process -Id $p.Id -ErrorAction Stop
-            if ($proc.WorkingSet64 -gt 50MB) { $ready = $true; break }
+            $null = Get-Process -Id $p.Id -ErrorAction Stop
         } catch {
             Write-Host '  NewWorld.exe exited before patches'
             Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
             throw 'NewWorld.exe exited before the patch window.'
         }
+        # Read the WHOLE file, not a tail. The client truncates this log at every
+        # launch, so it is a few hundred kB at most, and the login line sits well
+        # before the loading-screen spam that follows it (measured 2026-11-09: line
+        # 373 of 547, so `-Tail 40` never sees it and the gate never fires).
+        if (Test-Path -LiteralPath $gameLog) {
+            if (Select-String -LiteralPath $gameLog -Pattern 'OnCampfireLoginComplete' -Quiet -ErrorAction SilentlyContinue) {
+                # The login line is NOT the finish line: the ClientSDK initialises
+                # in the seconds right after it, and the EOS resolver is called in
+                # that window. Attaching there killed the client 3 s later, while
+                # attaching 45 s or 4 min after it survived every time (measured
+                # 2026-11-09). scripts/session/private-run.py waits the same way
+                # (`--settle`, default 60 s).
+                Write-Host "  frontend login complete after ~$($i * 2)s; settling $SettleAfterLogin s"
+                Start-Sleep -Seconds $SettleAfterLogin
+                if (-not (Get-Process -Id $p.Id -ErrorAction SilentlyContinue)) {
+                    Write-Host '  NewWorld.exe exited during the settle window'
+                    throw 'NewWorld.exe exited during the settle window.'
+                }
+                $ready = $true
+                break
+            }
+        }
     }
     if (-not $ready) {
-        Write-Host '  NewWorld.exe still mapping after 120s - attaching anyway'
+        Write-Host '  OnCampfireLoginComplete never appeared after 300s - attaching anyway'
     }
     $eac = Get-Process -Name 'EasyAntiCheat*' -ErrorAction SilentlyContinue
     $eacService = Get-CimInstance Win32_Service |
