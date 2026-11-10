@@ -214,11 +214,44 @@ class OntologyValidateTest(unittest.TestCase):
         )
         self.assertEqual(code, 0)
         self.assertEqual(
-            lines[-1],
+            lines[-2],
             "summary: 2 cards (fielded 1, field-less 1); "
             "fielded codegen-ready: 1/1; 0 opaque fields; "
             "fields: 1 known, 0 layout-only",
         )
+
+    def test_last_line_states_the_outcome(self):
+        """`tail -1` must never read green when a card FAILed.
+
+        MEASURED 2026-11-09: two FAILs were committed while every check was read
+        through `tail -1`, because the summary was the last line and said nothing
+        about failures. The outcome sentence is therefore last, and it counts
+        FAILs and LEGACY skips explicitly.
+        """
+        ok_lines, _ = run({"msg.fine": concept(fields=[field("n", "u32be", "known", "x")])})
+        self.assertEqual(ok_lines[-1], "result: ok (0 FAIL, 0 LEGACY of 1 cards)")
+
+        bad_lines, bad_code = run(
+            {"msg.broken": concept(fields=[{"name": "n", "type": "u32be", "evidence": "partial"}])}
+        )
+        self.assertEqual(bad_code, 1)
+        self.assertEqual(bad_lines[-1], "result: FAILED (1 FAIL, 0 LEGACY of 1 cards)")
+        self.assertTrue(
+            bad_lines[-2].startswith("summary:"),
+            "the census must sit immediately above the outcome sentence",
+        )
+
+    def test_a_legacy_skip_is_counted_not_hidden(self):
+        """A LEGACY line is a skip, so it must appear in the outcome sentence.
+
+        `legacy: true` is a deliberate exemption, not a pass. Counting it beside
+        FAILs keeps the exemption visible instead of letting it vanish into `ok`.
+        """
+        card = {"uid": "msg.old", "kind": "msg", "legacy": True, "fields": []}
+        lines, code = run({"msg.old": card})
+        self.assertEqual(code, 0)
+        self.assertEqual(lines[0].split("  ")[0], "LEGACY msg.old (0 fields unvalidated)")
+        self.assertEqual(lines[-1], "result: ok (0 FAIL, 1 LEGACY of 1 cards)")
 
     # --- the meaning rule --------------------------------------------------
 

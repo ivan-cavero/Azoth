@@ -19,14 +19,6 @@
   },
   "envelope": "Record envelope (owned by javelin/frame.py, not a body field): typed header 00 01 followed by the wide prefix varint a0 5a, i.e. type index 5792 = 0x16a0. fields[] below use BODY offsets. The two committed records differ only in length: 117 and 40916 record bytes, i.e. 113- and 40912-byte bodies.",
   "fields": [],
-  "layout_notes": [
-    "Reader FUN_1435f18d0: FUN_1414dbca0() for the shared two-u64 head, then one call to FUN_141726580 for the whole rest of the body, then temporaries unlinked. So the body after offset 0x10 is defined by FUN_141726580 alone.",
-    "FUN_141726580, in wire order: FUN_1415a4920 on object +0x20 (the optional RequestContext); a u32 BE from object +0x18 (FUN_140876e70); a string from object +0x20 (FUN_140876f20); a prefix-varint count (FUN_140877b10) then that many ELEMENTS of stride 0xa0 read by FUN_1415a3ba0 over object +0x10; then a final string from object +0x68.",
-    "FUN_1415a4920 (optional nested record): one presence byte through the stream raw slot +0x40; when it is 1, FUN_1461684f0 writes the nested type and then the object's own vtable +0x20 writes its body. FUN_1461684f0 writes a prefix-varint type index and then 16 raw bytes. Measured type index: 5828 (0x16c4), which re message-names resolves to RequestContext in trait Javelin::InventoryService - consistent with this being an inventory query.",
-    "FUN_1415a3ba0 (one 0xa0 element, iterating an inner vector of stride 0x90 from +0x10): a u32 BE (FUN_140876e70) then TWO strings (FUN_140876f20 at +0x20 and +0x48) then TWO optional nested service objects (FUN_1415a2c70 at +0x70 and +0x80), each a presence byte followed, when 1, by a nested type index, 16 raw bytes and that object's own body.",
-    "NOT DECODED: the RequestContext body and the two optional service bodies inside each element. They are Javelin service types with their own buses, not plain record codecs; the record functions at 0x1416f9540 and 0x1416f8740 both turn out to be per-type registration lambdas, and the object vtable at 0x148044a90 does not carry a plain marshal/unmarshal pair. Resolving them is the next step and needs either a live unmarshal or their own type records walked one by one.",
-    "MEASURED CONTENT, for orientation: the 40912-byte body contains 428 occurrences of 'isCollected', 237 of 'SkinCollection' and 857 of 'Gnew-world|'. The 'G' is the length-prefix byte of 'new-world|...' style strings. Entries read like '<item id><...>SkinCollection<...>isCollected'. The 113-byte body contains 'ItemPool' with a length byte of 8 at body offset 78."
-  ],
   "relations": [
     {
       "op": "part_of",
@@ -42,7 +34,23 @@
     },
     {
       "type": "decompile",
-      "ref": "writer FUN_1435f18d0 -> FUN_141726580 -> FUN_1415a4920 / FUN_1415a3ba0 / FUN_1415a2c70, all on build 30fe6461. Each was decompiled by explicit range where the auto-picked range collapsed into a neighbour"
+      "ref": "the writer walk: FUN_1435f18d0 calls FUN_1414dbca0 for the shared two-u64 head, then FUN_141726580 for the whole rest of the body, then unlinks the temporaries. FUN_1414dbca0 is two FUN_140877280 head-writes, which is the serialize side of the paired head primitive, so FUN_1435f18d0 is the writer and the body after offset 0x10 is defined by FUN_141726580 alone"
+    },
+    {
+      "type": "decompile",
+      "ref": "FUN_141726580, in wire order: FUN_1415a4920 on object +0x20 (the optional RequestContext); a u32 BE from object +0x18 (FUN_140876e70); a string from object +0x20 (FUN_140876f20); a prefix-varint count (FUN_140877b10) then that many ELEMENTS of stride 0xa0 written by FUN_1415a3ba0 over object +0x10; then a final string from object +0x68. Every primitive named here is a stream WRITE, so this is the serialize order"
+    },
+    {
+      "type": "decompile",
+      "ref": "FUN_1415a3ba0 (one 0xa0 element, iterating an inner vector of stride 0x90 from +0x10): a u32 BE (FUN_140876e70) then TWO strings (FUN_140876f20 at +0x20 and +0x48) then TWO optional nested service objects (FUN_1415a2c70 at +0x70 and +0x80), each a presence byte followed, when 1, by a nested type index, 16 raw bytes and that object's own body"
+    },
+    {
+      "type": "decompile",
+      "ref": "what stays NOT DECODED: the RequestContext body and the two optional service bodies inside each element. They are Javelin service types with their own buses, not plain record codecs; the record functions at 0x1416f9540 and 0x1416f8740 both turn out to be per-type registration lambdas, and the object vtable at 0x148044a90 does not carry a plain writer/reader pair. Resolving them needs either a live unmarshal or their own type records walked one by one"
+    },
+    {
+      "type": "decompile",
+      "ref": "FUN_1415a4920 (optional nested record): one presence byte through the stream raw slot +0x40; when it is 1, FUN_1461684f0 writes the nested type and then the object's own vtable +0x60 writes its body. FUN_1461684f0 writes a prefix-varint type index and then 16 raw bytes. Measured type index: 5828 (0x16c4), which re message-names resolves to RequestContext in trait Javelin::InventoryService - consistent with this being an inventory query"
     },
     {
       "type": "decompile",
@@ -54,7 +62,7 @@
     },
     {
       "type": "capture",
-      "ref": "records 0x28_T0x16a0_R.bin (117 bytes) and 0x29_T0x16a0_R.bin (40916 bytes) at seqs 0x28 and 0x29, both with body head 69ceaf9f28443d0d bf85314bbc4a951a. The 40912-byte body holds 428 'isCollected', 237 'SkinCollection' and 857 'Gnew-world|' runs; the 113-byte body holds 'ItemPool' at body offset 79 with length byte 8"
+      "ref": "records 0x28_T0x16a0_R.bin (117 bytes) and 0x29_T0x16a0_R.bin (40916 bytes) at seqs 0x28 and 0x29, both with body head 69ceaf9f28443d0d bf85314bbc4a951a. The 40912-byte body holds 428 'isCollected', 237 'SkinCollection' and 857 'Gnew-world|' runs - in that prefix the 'G' is the length byte of a 'new-world|...' string - so entries read like '<item id><...>SkinCollection<...>isCollected'. The 113-byte body holds 'ItemPool' with its length byte 8 at body offset 78, i.e. the string starts at 79"
     }
   ],
   "build": "30fe6461f929ba44178376a72f0765dc5da28ccba20e5006a60a229babd74033",

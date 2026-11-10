@@ -175,6 +175,11 @@
       "kind": "measure",
       "file": "inbound-inventory.py"
     },
+    "index-atlas": {
+      "path": "check/index-atlas.py",
+      "kind": "check",
+      "file": "index-atlas.py"
+    },
     "logwire": {
       "path": "wire/logwire.py",
       "kind": "wire",

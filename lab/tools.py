@@ -77,6 +77,7 @@ def reverse_tool(args: list[str]) -> int:
         "decompile": "decompile a selected function or caller chain",
         "corpus": "account for and decompile every function range in one client build",
         "campaign": "run the incremental phase-scoped decompilation campaign",
+        "ontology-validate": "FAIL every atlas card that breaks the closed field schema",
         "pe": "inspect executable sections, function bounds, and callers",
         "strings": "search strings from the installed client executable",
         "xref": "build or query the cached native cross-reference map",

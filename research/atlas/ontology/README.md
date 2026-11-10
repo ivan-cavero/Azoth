@@ -39,7 +39,20 @@ indexes/              # by-uid, by-wire, by-kind (stubs OK)
   `python scripts/check/check-atlas.py`; it enforces the schema's `required` list
   and its `properties` allowlist over every concept file, and CI runs it with the
   other gates. It reads the rules from the schema, so widening the schema widens
-  the check.
+  the check. There is no `layout_notes` key: decompilation notes belong in
+  `evidence[].ref`, which the schema already carries and which keeps the note
+  next to the `type` and `ref` that justify it. A card that needs prose the
+  schema has no key for is a signal that `evidence` was under-used, not that the
+  schema needs widening.
+- The three indexes under `indexes/` are DERIVED, not hand-written: run
+  `python scripts/check/index-atlas.py` after adding or removing a card, and
+  `--check` reports drift without writing. They are derived because hand-editing
+  three JSON maps on every promotion is a step that gets skipped. MEASURED
+  2026-11-10: 21 of 103 uids were missing from `by-uid`, `by-kind` had 20
+  messages against 40 on disk, and 23 wire ids were absent from `by-wire` —
+  and `check-atlas.py` reported none of it, because `by-wire` was only checked
+  for dangling entries. CI had been red since 2026-10-25, so 51 runs never
+  surfaced it either.
 - The codec vocabulary in `$defs.codec` is closed. `prefixed_bytes` and
   `prefixed_string` INCLUDE their length prefix — the prefix varint is part of the
   codec — so a standalone `prefix_varint` field immediately before one of them
@@ -58,9 +71,13 @@ indexes/              # by-uid, by-wire, by-kind (stubs OK)
   (`OK … ready`, `OK … not-ready (n opaque)`, `OK … field-less`, `LEGACY …`,
   `FAIL …`) then a summary
   (`summary: N cards (fielded F, field-less L); fielded codegen-ready: R/F; M opaque fields`)
-  and exits 1 on any FAIL. A field-less card is neither ready nor not-ready, so it
-  never counts toward the codegen-ready number. `legacy: true` cards skip field
-  validation, but the prefixed-length and envelope rules still run on them.
+  then a `result:` line that repeats the FAIL and LEGACY counts, and exits 1 on
+  any FAIL. The `result:` line is LAST on purpose: piping the validator through
+  `tail -1` used to read the green-looking census and hide a failing card, which
+  is how two FAILs were committed on 2026-11-09. A field-less card is neither
+  ready nor not-ready, so it never counts toward the codegen-ready number.
+  `legacy: true` cards skip field validation, but the prefixed-length and
+  envelope rules still run on them.
 - Three compositional codecs carry records that are not a flat field list:
   `nested(<uid>)` is another codec card's body (the named card must exist, be a
   `codec`, model fields, and not be `unknown`), `counted(<element>)` is a

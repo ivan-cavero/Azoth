@@ -20,5 +20,19 @@ jobs:
           python scripts/check/check-scripts.py
           python scripts/check/check-atlas.py
           python scripts/check/check-launcher-paths.py
+      # The three ontology indexes are derived from the concept files. They were
+      # hand-maintained until 2026-11-10 and fell 21 cards behind; this makes that
+      # drift a CI failure instead of a silent gap.
+      - name: Atlas indexes match the concept files
+        run: python scripts/check/index-atlas.py --check
+      # The closed-field validator lives under reverse/tools because it reads
+      # schema.json's $defs, not because it is optional. It FAILs a card whose
+      # field double-counts a length prefix, carries the record envelope, or
+      # breaks the meaning rule. MEASURED 2026-11-09: two such FAILs shipped
+      # green because this workflow never invoked it.
+      - name: Atlas closed-field validator
+        run: python reverse/tools/atlas/ontology-validate.py
+      - name: Atlas tool tests
+        run: python -m unittest discover -s reverse/tools/tests
 
   # Rust returns when research/atlas/meanings.md closes a row. See docs/PLAN.md.

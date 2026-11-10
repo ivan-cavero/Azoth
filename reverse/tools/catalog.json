@@ -7,6 +7,10 @@
       "path": "atlas/ontology-gen.py",
       "kind": "atlas"
     },
+    "ontology-validate": {
+      "path": "atlas/ontology-validate.py",
+      "kind": "atlas"
+    },
     "decompile": {
       "path": "corpus/decomp.py",
       "kind": "corpus"

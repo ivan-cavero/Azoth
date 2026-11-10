@@ -534,6 +534,8 @@ def validate_dir(schema_path: Path, concepts_dir: Path) -> tuple[list[str], int]
     files = sorted(Path(concepts_dir).glob("*.json"))
     lines: list[str] = []
     failed = False
+    fail_count = 0
+    legacy_count = 0
     fielded = 0
     fieldless = 0
     ready = 0
@@ -558,6 +560,7 @@ def validate_dir(schema_path: Path, concepts_dir: Path) -> tuple[list[str], int]
         if not isinstance(loaded, dict):
             lines.append(f"FAIL {path.stem}  {loaded}")
             failed = True
+            fail_count += 1
             continue
         concept = loaded
         has_fields = bool(_fields(concept))
@@ -572,18 +575,29 @@ def validate_dir(schema_path: Path, concepts_dir: Path) -> tuple[list[str], int]
         kind, detail = classify(concept, schema, cards_by_uid)
         if kind == "legacy":
             lines.append(f"LEGACY {path.stem} ({detail})  {census}")
+            legacy_count += 1
         elif kind == "fail":
             lines.append(f"FAIL {path.stem}  {detail}")
             failed = True
+            fail_count += 1
         else:
             lines.append(f"OK {path.stem}  {detail}  {census}")
             if has_fields and detail == "ready":
                 ready += 1
         opaque_total += opaque_count(concept)
+    # The outcome sentence is the LAST line on purpose. A caller that pipes this
+    # through `tail -1` -- which is what happened when two FAILs were committed
+    # unnoticed on 2026-11-09 -- then still reads the FAIL count instead of a
+    # green-looking census. MEASURED 2026-11-09: `python ... | tail -1` shows only
+    # the summary, so a failing card is invisible even though the exit code is 1.
     lines.append(
         f"summary: {len(files)} cards (fielded {fielded}, field-less {fieldless}); "
         f"fielded codegen-ready: {ready}/{fielded}; {opaque_total} opaque fields; "
         f"fields: {known_total} known, {layout_only_total} layout-only"
+    )
+    outcome = "FAILED" if failed else "ok"
+    lines.append(
+        f"result: {outcome} ({fail_count} FAIL, {legacy_count} LEGACY of {len(files)} cards)"
     )
     return lines, (1 if failed else 0)
 
