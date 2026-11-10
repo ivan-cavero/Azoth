@@ -95,14 +95,35 @@ def wired_port_problems() -> list[str]:
     return problems
 
 
-def _installed_modules() -> set[str]:
-    """Top-level importable third-party modules, so the local check does not flag them."""
-    import pkgutil
-
-    return {m.name for m in pkgutil.iter_modules()}
+_REPO_MODULES: set[str] | None = None
 
 
-_INSTALLED = _installed_modules()
+def _repo_modules() -> set[str]:
+    """Every module name this checkout itself provides, so only those are in scope.
+
+    A runtime tool imports both repo helpers (`winwindow`, `catalog`) and third-party
+    packages (`frida`). The gate exists to catch a REPO HELPER whose path moved, so a
+    name the checkout does not provide is out of scope by definition.
+
+    MEASURED 2026-11-10: the previous rule asked whether the module was installed on
+    the machine running the check (`pkgutil.iter_modules()`). That makes the gate's
+    verdict depend on one developer's `pip install`: `import frida` passed where frida
+    was installed and FAILED in CI, where it is not - so `check-launcher-paths.py`
+    never once passed on CI (added 2026-10-25, and `main` has no runs after 2026-10-22).
+    A tripwire whose colour depends on the machine is not a tripwire.
+    """
+    global _REPO_MODULES
+    if _REPO_MODULES is None:
+        names: set[str] = set()
+        for path in ROOT.rglob("*.py"):
+            rel = path.relative_to(ROOT).as_posix()
+            if rel.startswith((".azoth/", "node_modules/", "reverse/builds/")):
+                continue
+            names.add(path.stem)
+            if path.name == "__init__.py":
+                names.add(path.parent.name)
+        _REPO_MODULES = names
+    return _REPO_MODULES
 
 
 def main() -> int:
@@ -160,7 +181,9 @@ def main() -> int:
         if inserts:
             flat = [d for group in inserts for d in group]
             for mod in sorted(set(LOCAL_IMPORT_RE.findall(text))):
-                if mod in sys.stdlib_module_names or mod in _INSTALLED:
+                # Only a module this checkout provides can be a moved-path defect;
+                # a third-party import has no repo path to be wrong about.
+                if mod in sys.stdlib_module_names or mod not in _repo_modules():
                     continue
                 found = any((d / f"{mod}.py").is_file() for d in flat)
                 if not found:
