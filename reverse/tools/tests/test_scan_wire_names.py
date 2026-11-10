@@ -43,6 +43,8 @@ for _kind in ("", "corpus", "pe", "type", "pak", "wire", "eac", "ops"):
     _p = str(ROOT if _kind == "" else ROOT / _kind)
     if _p not in sys.path:
         sys.path.insert(0, _p)
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _client_env  # noqa: E402
 
 _SPEC = importlib.util.spec_from_file_location(
     "scan_wire_names", ROOT / "type" / "scan-wire-names.py"
@@ -358,10 +360,10 @@ class CommittedArtifactTest(unittest.TestCase):
             self.assertIn(row["source"], ("rdata", "az-registry"), f"wire {wire_type}")
 
     def test_the_committed_artifact_covers_the_whole_type_table(self) -> None:
-        typeindex = json.loads(
-            (REPO / "private-client" / "runtime" / "typeindex.json")
-            .read_text(encoding="utf-8")
-        )["typeIndex"]
+        # Counted against the client's own type table, which is licensed and untracked.
+        if not _client_env.TYPEINDEX.is_file():
+            self.skipTest(_client_env.NO_PRIVATE_CLIENT)
+        typeindex = json.loads(_client_env.TYPEINDEX.read_text(encoding="utf-8"))["typeIndex"]
         self.assertEqual(self.artifact["wire_types"], len(typeindex))
 
 

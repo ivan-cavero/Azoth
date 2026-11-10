@@ -21,6 +21,9 @@ from pathlib import Path
 
 PROBES = Path(__file__).resolve().parents[2] / "probes" / "client"
 sys.path.insert(0, str(PROBES))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import _client_env  # noqa: E402
 
 import _paths  # noqa: E402
 
@@ -32,15 +35,23 @@ class BuildGuardTest(unittest.TestCase):
         The private copy differs from the install by the DTLS bypass, so a guard
         that hashed the install would describe code that never runs.
         """
+        if not _client_env.has_private_client():
+            self.skipTest(_client_env.NO_PRIVATE_CLIENT)
         digest = _paths.runtime_build_sha256()
         self.assertTrue(digest, f"could not read {_paths.RUNTIME_EXE}")
         self.assertRegex(digest, r"^[0-9a-f]{64}$")
 
     def test_a_matching_build_attaches(self):
         """No exception when the probe's build matches what would be launched."""
+        if not _client_env.has_private_client():
+            self.skipTest(_client_env.NO_PRIVATE_CLIENT)
         _paths.require_build(_paths.runtime_build_sha256(), "test-probe")
 
     def test_a_different_build_is_refused(self):
+        # require_build refuses to decide when it cannot read the exe at all, so
+        # the "different build" branch is only reachable with the client present.
+        if not _client_env.has_private_client():
+            self.skipTest(_client_env.NO_PRIVATE_CLIENT)
         with self.assertRaises(SystemExit) as caught:
             _paths.require_build("0" * 64, "test-probe")
         message = str(caught.exception)
@@ -63,6 +74,9 @@ class BuildGuardTest(unittest.TestCase):
         the reminder to replace it with a real build assertion rather than deleting
         it.
         """
+        # Module body imports frida, so this test needs it even though it never attaches.
+        if not _client_env.has_frida():
+            self.skipTest(_client_env.NO_FRIDA)
         import importlib.util
 
         path = PROBES / "frida-fragment-grammar.py"

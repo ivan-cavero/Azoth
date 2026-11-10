@@ -29,6 +29,9 @@ import unittest
 REPO = pathlib.Path(__file__).resolve().parents[3]
 AUDIT = REPO / "scripts" / "ops" / "build-audit.py"
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _client_env  # noqa: E402
+
 # The gated artifacts named by the discovered build table, in print order.
 ARTIFACTS = (
     "research/atlas/aoi-trait-registry.json",
@@ -68,6 +71,10 @@ def git_status() -> str:
 
 class FreshRunTest(unittest.TestCase):
     def test_fresh_run_exits_zero_and_lines_every_artifact(self) -> None:
+        # The audit regenerates every artifact from the installed client, which an
+        # untracked private-client/ checkout provides and CI does not.
+        if not _client_env.has_private_client():
+            self.skipTest(_client_env.NO_PRIVATE_CLIENT)
         proc = subprocess.run(
             [sys.executable, str(AUDIT)],
             cwd=str(REPO),
@@ -82,6 +89,8 @@ class FreshRunTest(unittest.TestCase):
 
 class ReadOnlyTest(unittest.TestCase):
     def test_run_leaves_the_working_tree_unchanged(self) -> None:
+        if not _client_env.has_private_client():
+            self.skipTest(_client_env.NO_PRIVATE_CLIENT)
         before = git_status()
         subprocess.run(
             [sys.executable, str(AUDIT)],

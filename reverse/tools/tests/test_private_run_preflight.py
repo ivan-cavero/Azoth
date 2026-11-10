@@ -24,6 +24,9 @@ from pathlib import Path
 TOOLS = Path(__file__).resolve().parents[1]
 REPO = TOOLS.parents[1]
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _client_env  # noqa: E402
+
 
 def load_tool():
     for entry in (str(TOOLS), str(TOOLS / "type")):
@@ -48,6 +51,9 @@ def config_line(**overrides) -> str:
 class WorldReplayConfigTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # private-run.py imports Windows-only drivers at module scope.
+        if not _client_env.has_windows_api():
+            raise unittest.SkipTest(_client_env.NOT_WINDOWS)
         cls.tool = load_tool()
 
     def _log(self, *lines: str) -> Path:
@@ -83,6 +89,8 @@ class WorldReplayConfigTest(unittest.TestCase):
 class PreflightTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        if not _client_env.has_windows_api():
+            raise unittest.SkipTest(_client_env.NOT_WINDOWS)
         cls.tool = load_tool()
 
     def _log(self, *lines: str) -> Path:
